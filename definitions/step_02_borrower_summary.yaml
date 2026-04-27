@@ -17,9 +17,15 @@ substeps:
     Cross-check subject property address against listing (Google). Confirm credit
     score, loan amount, and AMI / Affordable Loan Eligibility fields.
   los_fields_read:
+  # ── Borrower identity ──────────────────────────────────────────────
   - key: borrower_first_name
     field_id: '4000'
     field_name: Borrower First Name
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_middle_name
+    field_id: '4001'
+    field_name: Borrower Middle Name
     category: borrower_info
     purpose: Completeness check
   - key: borrower_last_name
@@ -27,21 +33,114 @@ substeps:
     field_name: Borrower Last Name
     category: borrower_info
     purpose: Completeness check
-  - key: borrower_cell_phone
-    field_id: '1480'
-    field_name: Borrower Cell Phone
+  - key: borrower_name_suffix
+    field_id: '4003'
+    field_name: Borrower Name Suffix
     category: borrower_info
-    purpose: If empty, copy from home phone
-  - key: borrower_home_phone
-    field_id: '66'
-    field_name: Borrower Home Phone
+    purpose: Completeness check
+  - key: borrower_ssn
+    field_id: '65'
+    field_name: Borrower SSN
     category: borrower_info
-    purpose: Fallback for cell phone
+    purpose: Completeness check
   - key: borrower_dob
     field_id: '1402'
     field_name: Borrower Date of Birth
     category: borrower_info
     purpose: Used with ID expiry cross-check
+  - key: borrower_home_phone
+    field_id: '66'
+    field_name: Borrower Home Phone
+    category: borrower_info
+    purpose: Fallback for cell phone if cell is empty
+  - key: borrower_cell_phone
+    field_id: '1480'
+    field_name: Borrower Cell Phone
+    category: borrower_info
+    purpose: If empty, copy from home phone (field 66)
+  - key: borrower_email
+    field_id: '1240'
+    field_name: Borrower Email
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_marital_status
+    field_id: '52'
+    field_name: Borrower Marital Status
+    category: borrower_info
+    purpose: Completeness check; also drives vesting at Step 8
+  - key: borrower_dependents_count
+    field_id: '53'
+    field_name: Borrower Dependents Count
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_dependent_ages
+    field_id: '54'
+    field_name: Borrower Dependent Ages
+    category: borrower_info
+    purpose: Completeness check
+  # ── Co-borrower identity (read when coborrower is present) ─────────
+  - key: coborrower_first_name
+    field_id: '4004'
+    field_name: Co-Borrower First Name
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_last_name
+    field_id: '4006'
+    field_name: Co-Borrower Last Name
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_ssn
+    field_id: '97'
+    field_name: Co-Borrower SSN
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_dob
+    field_id: '1403'
+    field_name: Co-Borrower Date of Birth
+    category: borrower_info
+    purpose: ID expiry cross-check for coborrower
+  - key: coborrower_home_phone
+    field_id: '98'
+    field_name: Co-Borrower Home Phone
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_cell_phone
+    field_id: CX.COBORROWER.CELL.PHONE
+    field_name: Co-Borrower Cell Phone
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_email
+    field_id: '1179'
+    field_name: Co-Borrower Email
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  - key: coborrower_marital_status
+    field_id: '84'
+    field_name: Co-Borrower Marital Status
+    category: borrower_info
+    purpose: Completeness check if coborrower present
+  # ── Credit scores ──────────────────────────────────────────────────
+  - key: credit_score
+    field_id: '1168'
+    field_name: Credit Score (Middle)
+    category: credit
+    purpose: Confirm middle credit score is populated
+  - key: experian_score
+    field_id: '67'
+    field_name: Experian Credit Score
+    category: credit
+    purpose: Individual bureau score for cross-check
+  - key: transunion_score
+    field_id: '1450'
+    field_name: TransUnion Credit Score
+    category: credit
+    purpose: Individual bureau score for cross-check
+  - key: equifax_score
+    field_id: '1414'
+    field_name: Equifax Credit Score
+    category: credit
+    purpose: Individual bureau score for cross-check
+  # ── Subject property ───────────────────────────────────────────────
   - key: property_address
     field_id: '11'
     field_name: Property Street Address
@@ -52,6 +151,11 @@ substeps:
     field_name: Property City
     category: property
     purpose: Address verification
+  - key: property_county
+    field_id: '13'
+    field_name: Property County
+    category: property
+    purpose: Full address verification
   - key: property_state
     field_id: '14'
     field_name: Property State
@@ -62,11 +166,12 @@ substeps:
     field_name: Property ZIP
     category: property
     purpose: Address verification
-  - key: credit_score
-    field_id: '1168'
-    field_name: Credit Score (Middle)
-    category: credit
-    purpose: Confirm credit score is populated
+  # ── Loan info ──────────────────────────────────────────────────────
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Purchase confirmation
   - key: loan_amount
     field_id: '1109'
     field_name: Loan Amount
@@ -77,11 +182,7 @@ substeps:
     field_name: Appraised / Estimated Value
     category: collateral
     purpose: Est -> Appraised value field check
-  - key: loan_purpose
-    field_id: '19'
-    field_name: Loan Purpose
-    category: loan_info
-    purpose: Purchase confirmation
+  # ── Grant / AMI ────────────────────────────────────────────────────
   - key: ami_eligibility
     field_id: CX.AMI.ELIGIBILITY
     field_name: AMI / Affordable Loan Eligibility
@@ -130,6 +231,10 @@ substeps:
     severity: warning
     condition: Government ID expiration date is before today
     suggestion: Request a valid government-issued ID from the borrower
+  - title: Co-Borrower ID Expired
+    severity: warning
+    condition: Co-borrower government ID expiration date is before today
+    suggestion: Request a valid government-issued ID from the co-borrower
   - title: Property Address Mismatch
     severity: warning
     condition: Encompass address doesn't match listing or Purchase Contract

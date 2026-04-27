@@ -92,6 +92,15 @@
       ]
     },
     {
+      "key": "coborrower_email",
+      "field_id": "1179",
+      "field_name": "Co-Borrower Email",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "employer_address",
       "field_id": "1182",
       "field_name": "Employer Address",
@@ -110,12 +119,30 @@
       ]
     },
     {
+      "key": "borrower_email",
+      "field_id": "1240",
+      "field_name": "Borrower Email",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "job_title",
       "field_id": "1286",
       "field_name": "Job Title",
       "category": "employment",
       "used_by_steps": [
         "STEP_04"
+      ]
+    },
+    {
+      "key": "property_county",
+      "field_id": "13",
+      "field_name": "Property County",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -136,6 +163,33 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03"
+      ]
+    },
+    {
+      "key": "coborrower_dob",
+      "field_id": "1403",
+      "field_name": "Co-Borrower Date of Birth",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "equifax_score",
+      "field_id": "1414",
+      "field_name": "Equifax Credit Score",
+      "category": "credit",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "transunion_score",
+      "field_id": "1450",
+      "field_name": "TransUnion Credit Score",
+      "category": "credit",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -328,6 +382,7 @@
       "field_name": "Borrower Middle Name",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
@@ -343,12 +398,31 @@
       ]
     },
     {
+      "key": "borrower_name_suffix",
+      "field_id": "4003",
+      "field_name": "Borrower Name Suffix",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "coborrower_first_name",
       "field_id": "4004",
       "field_name": "Co-Borrower First Name",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_08"
+      ]
+    },
+    {
+      "key": "coborrower_last_name",
+      "field_id": "4006",
+      "field_name": "Co-Borrower Last Name",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -358,6 +432,33 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_08"
+      ]
+    },
+    {
+      "key": "borrower_marital_status",
+      "field_id": "52",
+      "field_name": "Borrower Marital Status",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_dependents_count",
+      "field_id": "53",
+      "field_name": "Borrower Dependents Count",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_dependent_ages",
+      "field_id": "54",
+      "field_name": "Borrower Dependent Ages",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -375,6 +476,7 @@
       "field_name": "Borrower SSN",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
@@ -383,6 +485,15 @@
       "field_id": "66",
       "field_name": "Borrower Home Phone",
       "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "experian_score",
+      "field_id": "67",
+      "field_name": "Experian Credit Score",
+      "category": "credit",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -433,6 +544,33 @@
       ]
     },
     {
+      "key": "coborrower_marital_status",
+      "field_id": "84",
+      "field_name": "Co-Borrower Marital Status",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_ssn",
+      "field_id": "97",
+      "field_name": "Co-Borrower SSN",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_home_phone",
+      "field_id": "98",
+      "field_name": "Co-Borrower Home Phone",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "ami_eligibility",
       "field_id": "CX.AMI.ELIGIBILITY",
       "field_name": "AMI / Affordable Loan Eligibility",
@@ -477,6 +615,15 @@
       "category": "aus",
       "used_by_steps": [
         "STEP_10"
+      ]
+    },
+    {
+      "key": "coborrower_cell_phone",
+      "field_id": "CX.COBORROWER.CELL.PHONE",
+      "field_name": "Co-Borrower Cell Phone",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -1190,7 +1337,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 73,
+    "total_los_fields": 89,
     "total_doc_fields": 56,
     "total_document_types": 20,
     "total_steps": 18,
