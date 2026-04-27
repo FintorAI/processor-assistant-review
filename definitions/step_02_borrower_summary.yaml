@@ -1,0 +1,147 @@
+step:
+  id: STEP_02
+  name: Borrower Summary - Origination
+  phase: DATA_REVIEW
+  description: >
+    Verify AND populate every field in the Borrower Summary / Origination screen.
+    Covers ID expiration, property address verification against listing, credit score,
+    subject property details, loan amount, and AMI / Affordable Loan Eligibility.
+
+substeps:
+- id: '2.1'
+  name: Review Borrower Summary - Origination
+  tool: review_borrower_summary
+  description: >
+    Walk through the Borrower Summary – Origination screen. Check every field for
+    completeness (cell phone = home phone if empty). Verify ID is not expired.
+    Cross-check subject property address against listing (Google). Confirm credit
+    score, loan amount, and AMI / Affordable Loan Eligibility fields.
+  los_fields_read:
+  - key: borrower_first_name
+    field_id: '4000'
+    field_name: Borrower First Name
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_cell_phone
+    field_id: '1480'
+    field_name: Borrower Cell Phone
+    category: borrower_info
+    purpose: If empty, copy from home phone
+  - key: borrower_home_phone
+    field_id: '66'
+    field_name: Borrower Home Phone
+    category: borrower_info
+    purpose: Fallback for cell phone
+  - key: borrower_dob
+    field_id: '1402'
+    field_name: Borrower Date of Birth
+    category: borrower_info
+    purpose: Used with ID expiry cross-check
+  - key: property_address
+    field_id: '11'
+    field_name: Property Street Address
+    category: property
+    purpose: Verified against online listing and Purchase Contract
+  - key: property_city
+    field_id: '12'
+    field_name: Property City
+    category: property
+    purpose: Address verification
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: Address verification
+  - key: property_zip
+    field_id: '15'
+    field_name: Property ZIP
+    category: property
+    purpose: Address verification
+  - key: credit_score
+    field_id: '1168'
+    field_name: Credit Score (Middle)
+    category: credit
+    purpose: Confirm credit score is populated
+  - key: loan_amount
+    field_id: '1109'
+    field_name: Loan Amount
+    category: loan_info
+    purpose: Confirm loan amount matches Purchase Contract
+  - key: appraised_value
+    field_id: '356'
+    field_name: Appraised / Estimated Value
+    category: collateral
+    purpose: Est -> Appraised value field check
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Purchase confirmation
+  - key: ami_eligibility
+    field_id: CX.AMI.ELIGIBILITY
+    field_name: AMI / Affordable Loan Eligibility
+    category: grant_program
+    purpose: Check AMI eligibility flag for grant programs
+  doc_types:
+  - document_type: Driver's License
+    all_copies: false
+    fields:
+    - key: dl_expiry
+      purpose: Government ID expiration date
+    - key: dl_name
+      purpose: Name on ID for borrower cross-check
+  - document_type: Purchase Agreement
+    all_copies: false
+    fields:
+    - key: purchase_price
+      purpose: Verify property address and purchase price match
+    - key: purchase_property_address
+      purpose: Property address as listed in Purchase Contract
+  rules:
+  - name: All Required Fields Populated
+    type: existence_check
+    logic: >
+      Every mandatory field on the Borrower Summary screen must be populated.
+      If cell phone is empty, copy value from home phone.
+  - name: ID Not Expired
+    type: value_check
+    logic: Government ID expiration must be >= today.
+    check: dl_expiry >= today
+  - name: Property Address Consistent
+    type: field_comparison
+    logic: >
+      Property address in Encompass should match the listing and Purchase Contract.
+      Flag any mismatch.
+  - name: Loan Amount Positive
+    type: value_check
+    logic: Loan amount must be greater than zero.
+    check: loan_amount > 0
+  flags:
+  - title: Required Field Empty
+    severity: warning
+    condition: A mandatory Borrower Summary field is blank
+    suggestion: Populate the missing field before proceeding
+  - title: Borrower ID Expired
+    severity: warning
+    condition: Government ID expiration date is before today
+    suggestion: Request a valid government-issued ID from the borrower
+  - title: Property Address Mismatch
+    severity: warning
+    condition: Encompass address doesn't match listing or Purchase Contract
+    suggestion: Correct the property address and flag for Lock Desk if needed
+  - title: Loan Amount Missing
+    severity: critical
+    condition: Loan amount is zero or blank
+    suggestion: Enter the correct loan amount before proceeding
+  field_updates:
+  - field_id: '1480'
+    value: '{borrower_home_phone}'
+    condition: borrower_cell_phone is empty
+
+dev:
+  skip: false

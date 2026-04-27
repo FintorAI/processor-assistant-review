@@ -1,0 +1,164 @@
+step:
+  id: STEP_06
+  name: 1003 URLA Part 4
+  phase: DATA_REVIEW
+  description: >
+    Review and populate 1003 URLA Part 4: downpayment and grant sources (4b/c/d),
+    Declarations (Section 5), ethnicity cross-check against Driver's License,
+    attachment/property type vs listing, estate held, and manner of title.
+
+substeps:
+- id: '6.1'
+  name: Downpayment Sources (4b, 4c, 4d)
+  tool: review_urla_downpayment
+  description: >
+    Review Sections 4b (downpayment assistance / HELOC — usually N/A for purchase),
+    4c (rental income — check if applicable), and 4d (grant programs).
+    Check Fannie Mae Additional Data and AMI eligibility for grant programs
+    (e.g. Freddie Mac $2500 grant for borrowers <= 50% AMI).
+  los_fields_read:
+  - key: gift_amount
+    field_id: '231'
+    field_name: Gift Amount
+    category: assets
+    purpose: Gift of cash — verify gift letter and donor details
+  - key: ami_percentage
+    field_id: CX.AMI.PERCENTAGE
+    field_name: AMI Percentage
+    category: grant_program
+    purpose: If <= 50%, qualifies for Freddie Mac $2500 grant
+  - key: fnma_additional_data
+    field_id: CX.FNMA.ADDITIONAL.DATA
+    field_name: Fannie Mae Additional Data - AMI
+    category: grant_program
+    purpose: Verify affordable loan eligibility flag
+  - key: rental_income
+    field_id: '218'
+    field_name: Rental Income
+    category: income
+    purpose: Check if 4c is applicable
+  doc_types: []
+  rules:
+  - name: Grant Program Eligibility
+    type: custom
+    logic: >
+      If AMI <= 50%, borrower qualifies for $2500 Freddie Mac grant automatically.
+      Verify Affordable Loan Eligibility = AM 100% flag.
+  - name: Gift Letter Required
+    type: existence_check
+    logic: >
+      If gift amount is populated, verify gift letter and donor details are in file.
+      Send gift letter to borrower if missing.
+  flags:
+  - title: Gift Letter Missing
+    severity: warning
+    condition: Gift amount is populated but gift letter is absent
+    suggestion: Send gift letter to borrower for signature and return
+  - title: AMI Eligibility Not Set
+    severity: info
+    condition: AMI percentage is <= 50% but Affordable Loan Eligibility not confirmed
+    suggestion: Confirm AMI = AM 100% in Fannie Mae Additional Data screen
+  field_updates: []
+
+- id: '6.2'
+  name: Declarations (Section 5)
+  tool: review_urla_declarations
+  description: >
+    Review Section 5 — Declarations. Flag any answers that appear incorrect based
+    on known loan file facts. (Example: Borrower rented for 10 months but owned a
+    property 3 years ago — second checkbox should be Yes, not No.)
+  los_fields_read:
+  - key: declaration_primary_residence
+    field_id: '1490'
+    field_name: Declaration - Primary Residence Intent
+    category: declarations
+    purpose: Verify occupancy intent is correct
+  - key: declaration_ownership_3yr
+    field_id: '1491'
+    field_name: Declaration - Owned Property in Last 3 Years
+    category: declarations
+    purpose: Must reflect borrower's actual history
+  doc_types: []
+  rules:
+  - name: Declarations Consistent with File
+    type: custom
+    logic: >
+      Cross-check each declaration against known loan file facts (borrower notes,
+      credit report, prior address history). Flag any that appear incorrect.
+  flags:
+  - title: Declaration Appears Incorrect
+    severity: warning
+    condition: A declaration answer is inconsistent with known borrower history
+    suggestion: Review with processor and correct if needed
+  field_updates: []
+
+- id: '6.3'
+  name: Ethnicity and ID Cross-Check
+  tool: review_urla_ethnicity
+  description: >
+    Validate borrower ethnicity selection against Driver's License. Verify
+    attachment type (attached/detached) and property type match the Google listing.
+    Confirm estate held = Fee Simple and manner of title = Sole Ownership (or
+    appropriate for married/co-borrower).
+  los_fields_read:
+  - key: borrower_ethnicity
+    field_id: '1544'
+    field_name: Borrower Ethnicity
+    category: borrower_info
+    purpose: Cross-check against Driver's License
+  - key: attachment_type
+    field_id: CX.ATTACHMENT.TYPE
+    field_name: Attachment Type (Attached/Detached)
+    category: property
+    purpose: Verify against property listing
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: Verify against property listing
+  - key: estate_held
+    field_id: '33'
+    field_name: Estate Will Be Held In
+    category: title
+    purpose: Should be Fee Simple for standard purchase
+  - key: manner_of_title
+    field_id: '34'
+    field_name: Manner in Which Title Will Be Held
+    category: title
+    purpose: Sole Ownership / Joint / Trust etc.
+  doc_types:
+  - document_type: Driver's License
+    all_copies: false
+    fields:
+    - key: dl_ethnicity_indicator
+      purpose: Ethnicity as indicated on DL (if available)
+    - key: dl_borrower_name
+      purpose: Name on DL for final cross-check
+  rules:
+  - name: Attachment Type Consistent with Listing
+    type: custom
+    logic: >
+      Cross-reference attachment type (Attached vs Detached) against listing on Google.
+      Flag mismatch.
+  - name: Manner of Title Appropriate
+    type: custom
+    logic: >
+      If no co-borrower and not married: Sole Ownership.
+      If co-borrower: Joint Tenants / Tenants in Common as appropriate.
+  flags:
+  - title: Ethnicity Mismatch with ID
+    severity: warning
+    condition: Ethnicity on 1003 doesn't match ID documentation
+    suggestion: Verify borrower's self-identified ethnicity and update if needed
+  - title: Attachment Type Mismatch with Listing
+    severity: warning
+    condition: Attachment type in Encompass doesn't match property listing
+    suggestion: Correct attachment type based on property listing
+  - title: Estate Held Not Fee Simple
+    severity: warning
+    condition: Estate held is not Fee Simple for standard purchase
+    suggestion: Verify estate type is correct for this loan
+  field_updates: []
+
+dev:
+  skip: false

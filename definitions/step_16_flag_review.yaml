@@ -1,0 +1,44 @@
+step:
+  id: STEP_16
+  name: Flag Review (HITL)
+  phase: SUBMISSION
+  description: >
+    Singular human gate before any final writes. Calls interrupt() with all
+    accumulated flags from Steps 1-15 (missing docs, field mismatches, Cover
+    Letter draft, etc.) plus any Required-Fields-screen items pulled from
+    Encompass. Processor reviews, resolves, edits, or accepts each item.
+    Resume value flows back into state and unlocks Step 17.
+
+substeps:
+- id: '16.1'
+  name: Review All Flags (HITL)
+  tool: review_flags
+  description: >
+    Gather all accumulated flags from Steps 1-15 from state["flags"].
+    Also pull the Required Fields screen from Encompass — surface any fields
+    that Encompass marks as required. Call interrupt() with the full flag list
+    + required fields list. Wait for processor to review and respond.
+    On resume: record which flags were resolved and carry forward any processor
+    edits to state.
+  los_fields_read:
+  - key: required_fields_status
+    field_id: CX.REQUIRED.FIELDS.STATUS
+    field_name: Encompass Required Fields Status
+    category: submission
+    purpose: List of fields Encompass marks as required before submission
+  doc_types: []
+  rules:
+  - name: All Critical Flags Must Be Resolved
+    type: custom
+    logic: >
+      Processor must acknowledge or resolve all critical flags before Step 17
+      can proceed. Warning flags may be acknowledged without resolution.
+  flags:
+  - title: Critical Flag Not Resolved
+    severity: critical
+    condition: Processor confirmed HITL without resolving a critical flag
+    suggestion: Resolve all critical flags before proceeding to submission
+  field_updates: []
+
+dev:
+  skip: false

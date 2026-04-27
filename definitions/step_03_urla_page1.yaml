@@ -1,0 +1,92 @@
+step:
+  id: STEP_03
+  name: 1003 URLA Page 1
+  phase: DATA_REVIEW
+  description: >
+    Review and populate 1003 URLA Page 1. Many fields overlap with the Origination
+    screen (Step 2). Confirm borrower personal information, property type, loan
+    purpose, and occupancy match across both screens.
+
+substeps:
+- id: '3.1'
+  name: Review 1003 URLA Page 1
+  tool: review_urla_page1
+  description: >
+    Check all fields on 1003 URLA Page 1 for completeness and consistency with
+    the Borrower Summary - Origination screen. Confirm borrower name, address,
+    SSN, loan purpose, property type, and occupancy. Flag any mismatches.
+  los_fields_read:
+  - key: borrower_first_name
+    field_id: '4000'
+    field_name: Borrower First Name
+    category: borrower_info
+    purpose: Confirm matches Origination screen
+  - key: borrower_middle_name
+    field_id: '4001'
+    field_name: Borrower Middle Name
+    category: borrower_info
+    purpose: Completeness check
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: Confirm matches Origination screen
+  - key: borrower_ssn
+    field_id: '65'
+    field_name: Borrower SSN
+    category: borrower_info
+    purpose: Verify SSN is populated
+  - key: borrower_dob
+    field_id: '1402'
+    field_name: Borrower DOB
+    category: borrower_info
+    purpose: Completeness
+  - key: borrower_current_address
+    field_id: '35'
+    field_name: Borrower Current Street Address
+    category: borrower_info
+    purpose: Current mailing address
+  - key: property_address
+    field_id: '11'
+    field_name: Subject Property Address
+    category: property
+    purpose: Matches Origination screen
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Purchase / Refinance
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: SFR / Condo / etc.
+  - key: occupancy
+    field_id: '1811'
+    field_name: Occupancy
+    category: loan_info
+    purpose: Primary / Secondary / Investment
+  doc_types: []
+  rules:
+  - name: Borrower Info Consistent with Origination
+    type: field_comparison
+    logic: >
+      First name, last name, property address, loan purpose, property type,
+      and occupancy must match the Borrower Summary screen values from Step 2.
+  - name: SSN Populated
+    type: existence_check
+    logic: Borrower SSN must not be blank.
+    check: borrower_ssn IS NOT NULL
+  flags:
+  - title: URLA Page 1 Field Mismatch with Origination
+    severity: warning
+    condition: Field value on URLA Page 1 differs from Borrower Summary screen
+    suggestion: Reconcile the field — update the incorrect screen
+  - title: Borrower SSN Missing
+    severity: critical
+    condition: Borrower SSN is blank on Page 1
+    suggestion: Populate SSN before proceeding
+  field_updates: []
+
+dev:
+  skip: false

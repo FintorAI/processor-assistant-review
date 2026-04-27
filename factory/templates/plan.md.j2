@@ -1,0 +1,143 @@
+## Purpose
+
+{{ step.description }}
+{% if step.substeps | selectattr('field_updates') | list %}
+
+**⚠️ This step may WRITE to Encompass.** Substeps that write are marked below.
+{% endif %}
+
+**NOTE**: Each substep has its own dedicated tool. State (`los_fields`, `doc_fields`, `loan_summary`) is automatically injected.
+
+## Available Tools
+
+| Tool | Purpose |
+|------|---------|
+{% for substep in step.substeps %}
+| `{{ substep.tool }}` | {{ substep.name }} |
+{% endfor %}
+
+## Overview
+
+| Substep | Description | Tool |
+|---------|-------------|------|
+{% for substep in step.substeps %}
+| {{ substep.id }} | {{ substep.name }} | `{{ substep.tool }}` |
+{% endfor %}
+
+## Tool Calls
+
+```python
+{% for substep in step.substeps %}
+# Substep {{ substep.id }} - {{ substep.name }}
+{% if substep.field_updates %}
+# ⚠️ This substep WRITES to Encompass
+{% endif %}
+{{ substep.tool }}(loan_guid=loan_id)
+{% if substep.subagent %}
+# → Delegates to subagent: {{ substep.subagent.type }}
+{% endif %}
+{% endfor %}
+```
+
+---
+
+## Substeps
+{% for substep in step.substeps %}
+
+### Substep {{ substep.id }} - {{ substep.name }}
+**Tool**: `{{ substep.tool }}`
+
+{{ substep.description }}
+{% if substep.condition %}
+
+**Condition:** Only runs when {{ substep.condition | tojson }}
+{% endif %}
+{% if substep.los_fields_read %}
+
+**LOS Fields (read from state):**
+
+| Encompass Field | Field ID | Key | Purpose |
+|-----------------|----------|-----|---------|
+{% for f in substep.los_fields_read %}
+| {{ f.field_name or f.key }} | `{{ f.field_id }}` | `{{ f.key }}` | {{ f.purpose or '' }} |
+{% endfor %}
+{% endif %}
+{% if substep.doc_types %}
+
+**Document Types:**
+{% for dt in substep.doc_types %}
+- **{{ dt.document_type }}**{% if dt.all_copies %} (ALL COPIES){% endif %}:
+{% for f in dt.fields %}
+  - `{{ f.key }}`{% if f.field_name %} — {{ f.field_name }}{% endif %}
+
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% if substep.rules %}
+
+**Business Rules:**
+{% for rule in substep.rules %}
+- **{{ rule.name }}** ({{ rule.type }}): {{ rule.logic }}
+{% endfor %}
+{% endif %}
+{% if substep.flags %}
+
+**Flags — raise when conditions are met:**
+{% for flag in substep.flags %}
+- {{ flag.severity | upper }}: "{{ flag.title }}"
+  - Condition: {{ flag.condition }}
+  - Remedy: {{ flag.suggestion }}
+{% endfor %}
+{% endif %}
+{% if substep.field_updates %}
+
+**⚠️ Field Updates (writes to Encompass):**
+{% for upd in substep.field_updates %}
+- Field `{{ upd.field_id }}` = `{{ upd.value }}` (when: {{ upd.condition }})
+{% endfor %}
+{% endif %}
+{% if substep.subagent %}
+
+**Subagent Delegation:** `{{ substep.subagent.type }}`
+- Inputs: {{ substep.subagent.inputs | tojson }}
+- Expected: {{ substep.subagent.expected | tojson }}
+{% endif %}
+{% if substep.rule_modifiers %}
+
+**Rule Modifiers (conditional behavior based on loan profile):**
+{% for mod in substep.rule_modifiers %}
+- **When `{{ mod.condition.field }}`{% if mod.condition.equals is not none %} = `{{ mod.condition.equals }}`{% elif mod.condition.in_values is not none %} in {{ mod.condition.in_values }}{% elif mod.condition.not_equals is not none %} != `{{ mod.condition.not_equals }}`{% endif %}** → {{ mod.action | upper }}: {{ mod.description }}
+{% if mod.rules %}
+{% for rule in mod.rules %}
+  - Rule: {{ rule.name }} — {{ rule.logic }}
+{% endfor %}
+{% endif %}
+{% if mod.flags %}
+{% for flag in mod.flags %}
+  - Flag ({{ flag.severity }}): {{ flag.title }} — {{ flag.suggestion }}
+{% endfor %}
+{% endif %}
+{% if mod.source %}
+  - Source: {{ mod.source }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+After completing this substep, call:
+```
+write_todo(step_id="{{ step.id }}", substep_id="{{ substep.id }}", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+```
+
+---
+{% endfor %}
+
+## Step Completion
+
+When ALL substeps above are completed:
+1. Call `save_step_report(step_name="{{ step.id }}", status="completed", ...)`
+2. Call `write_todo(step_id="{{ step.id }}", status="completed")` to advance to the next step
+{% if next_step %}
+3. Call `write_todo(step_id="{{ next_step.id }}", status="in_progress")` to start {{ next_step.id }} ({{ next_step.name }})
+{% endif %}
+
+⚠️ You MUST call write_todo to advance — do NOT produce a text-only response.

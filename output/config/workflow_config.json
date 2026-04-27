@@ -1,0 +1,601 @@
+{
+  "agent": {
+    "name": "ProcessorAgent",
+    "version": "1.0.0",
+    "model": "claude-sonnet-4-20250514"
+  },
+  "loan_profile_fields": {
+    "loan_type": {
+      "source_field": "1172",
+      "values": [
+        "Conventional",
+        "FHA",
+        "VA",
+        "USDA"
+      ]
+    },
+    "purpose": {
+      "source_field": "19",
+      "values": [
+        "Purchase",
+        "Refinance",
+        "CashOutRefi"
+      ]
+    },
+    "state": {
+      "source_field": "14",
+      "values": "2-letter state code"
+    },
+    "trust": {
+      "source_field": "CX.CLOSE.TRUST",
+      "values": [
+        true,
+        false
+      ]
+    },
+    "note_llc": {
+      "source_field": "LO/processor email",
+      "values": [
+        true,
+        false
+      ]
+    }
+  },
+  "rule_modifier_stats": {
+    "total_modifiers": 5,
+    "by_field": {
+      "state": 1,
+      "loan_type": 4
+    }
+  },
+  "phases": {
+    "VERIFICATION": [
+      "STEP_00"
+    ],
+    "INTAKE": [
+      "STEP_01"
+    ],
+    "DATA_REVIEW": [
+      "STEP_02",
+      "STEP_03",
+      "STEP_04",
+      "STEP_05",
+      "STEP_06"
+    ],
+    "FORM_UPDATES": [
+      "STEP_07",
+      "STEP_08",
+      "STEP_09"
+    ],
+    "ORDERS": [
+      "STEP_10"
+    ],
+    "PREP": [
+      "STEP_11",
+      "STEP_12",
+      "STEP_13",
+      "STEP_14"
+    ],
+    "PROCESSOR_UPDATE": [
+      "STEP_15"
+    ],
+    "SUBMISSION": [
+      "STEP_16",
+      "STEP_17",
+      "STEP_18"
+    ]
+  },
+  "step_order": [
+    "STEP_00",
+    "STEP_01",
+    "STEP_02",
+    "STEP_03",
+    "STEP_04",
+    "STEP_05",
+    "STEP_06",
+    "STEP_07",
+    "STEP_08",
+    "STEP_09",
+    "STEP_10",
+    "STEP_11",
+    "STEP_12",
+    "STEP_13",
+    "STEP_14",
+    "STEP_15",
+    "STEP_16",
+    "STEP_17",
+    "STEP_18"
+  ],
+  "steps": {
+    "STEP_00": {
+      "name": "Data Gathering",
+      "phase": "VERIFICATION",
+      "plan_file": "data_gathering.md",
+      "tools": [
+        "build_loan_summary",
+        "fetch_doc_fields",
+        "fetch_los_fields",
+        "find_loan"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Find Loan",
+          "tools": [
+            "find_loan"
+          ]
+        },
+        "2": {
+          "name": "Fetch LOS Fields (73 fields)",
+          "tools": [
+            "fetch_los_fields"
+          ]
+        },
+        "3": {
+          "name": "Fetch Doc Fields (20 document types)",
+          "tools": [
+            "fetch_doc_fields"
+          ]
+        },
+        "4": {
+          "name": "Build Loan Summary (URLA)",
+          "tools": [
+            "build_loan_summary"
+          ]
+        }
+      }
+    },
+    "STEP_01": {
+      "name": "Pre-Checks",
+      "phase": "INTAKE",
+      "plan_file": "pre_checks.md",
+      "tools": [
+        "run_pre_checks"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Document Presence Check",
+          "tools": [
+            "run_pre_checks"
+          ],
+          "rule_modifiers": [
+            {
+              "condition": {
+                "field": "state",
+                "equals": "MD"
+              },
+              "action": "add",
+              "description": "Maryland requires the \"Notice Regarding Right for Assumption Under Certain Circumstances\" disclosure. Flag if missing.\n",
+              "source": "notes.txt:14"
+            }
+          ]
+        }
+      }
+    },
+    "STEP_02": {
+      "name": "Borrower Summary - Origination",
+      "phase": "DATA_REVIEW",
+      "plan_file": "borrower_summary___origination.md",
+      "tools": [
+        "review_borrower_summary"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review Borrower Summary - Origination",
+          "tools": [
+            "review_borrower_summary"
+          ]
+        }
+      }
+    },
+    "STEP_03": {
+      "name": "1003 URLA Page 1",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_page_1.md",
+      "tools": [
+        "review_urla_page1"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review 1003 URLA Page 1",
+          "tools": [
+            "review_urla_page1"
+          ]
+        }
+      }
+    },
+    "STEP_04": {
+      "name": "1003 URLA Page 2",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_page_2.md",
+      "tools": [
+        "review_urla_employment",
+        "review_urla_other_income"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Employment Verification (1b VOE)",
+          "tools": [
+            "review_urla_employment"
+          ],
+          "rule_modifiers": [
+            {
+              "condition": {
+                "field": "loan_type",
+                "equals": "FHA"
+              },
+              "action": "add",
+              "description": "FHA: if employment gap < 6 months, require written explanation from borrower. If gap > 6 months, require 2-year history before the gap.\n",
+              "source": "notes.txt:44-48"
+            }
+          ]
+        },
+        "2": {
+          "name": "Other Income (1e)",
+          "tools": [
+            "review_urla_other_income"
+          ]
+        }
+      }
+    },
+    "STEP_05": {
+      "name": "1003 URLA Part 3",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_part_3.md",
+      "tools": [
+        "review_urla_assets",
+        "review_urla_emd",
+        "review_urla_liabilities",
+        "review_urla_reo"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Assets and VOD (2a)",
+          "tools": [
+            "review_urla_assets"
+          ],
+          "rule_modifiers": [
+            {
+              "condition": {
+                "field": "loan_type",
+                "equals": "FHA"
+              },
+              "action": "add",
+              "description": "FHA requires only 1 month of bank statements (vs 2 for Conventional).",
+              "source": "notes.txt:64"
+            }
+          ]
+        },
+        "2": {
+          "name": "EMD Check (2b)",
+          "tools": [
+            "review_urla_emd"
+          ]
+        },
+        "3": {
+          "name": "Liabilities and VOL (2c)",
+          "tools": [
+            "review_urla_liabilities"
+          ]
+        },
+        "4": {
+          "name": "Other Assets and REO (2d, Section 3)",
+          "tools": [
+            "review_urla_reo"
+          ]
+        }
+      }
+    },
+    "STEP_06": {
+      "name": "1003 URLA Part 4",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_part_4.md",
+      "tools": [
+        "review_urla_declarations",
+        "review_urla_downpayment",
+        "review_urla_ethnicity"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Downpayment Sources (4b, 4c, 4d)",
+          "tools": [
+            "review_urla_downpayment"
+          ]
+        },
+        "2": {
+          "name": "Declarations (Section 5)",
+          "tools": [
+            "review_urla_declarations"
+          ]
+        },
+        "3": {
+          "name": "Ethnicity and ID Cross-Check",
+          "tools": [
+            "review_urla_ethnicity"
+          ]
+        }
+      }
+    },
+    "STEP_07": {
+      "name": "Cover Letter",
+      "phase": "FORM_UPDATES",
+      "plan_file": "cover_letter.md",
+      "tools": [
+        "draft_cover_letter"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Draft Cover Letter / Submission Notes",
+          "tools": [
+            "draft_cover_letter"
+          ]
+        }
+      }
+    },
+    "STEP_08": {
+      "name": "Borrower Info - Vesting",
+      "phase": "FORM_UPDATES",
+      "plan_file": "borrower_info___vesting.md",
+      "tools": [
+        "update_borrower_vesting"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Update Borrower Vesting",
+          "tools": [
+            "update_borrower_vesting"
+          ]
+        }
+      }
+    },
+    "STEP_09": {
+      "name": "Transmittal Summary",
+      "phase": "FORM_UPDATES",
+      "plan_file": "transmittal_summary.md",
+      "tools": [
+        "update_transmittal_summary"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Update Transmittal Summary",
+          "tools": [
+            "update_transmittal_summary"
+          ],
+          "rule_modifiers": [
+            {
+              "condition": {
+                "field": "loan_type",
+                "equals": "Conventional"
+              },
+              "action": "add",
+              "description": "For Conventional/Condo: run Freddie Mac Condo Project Advisor lookup to determine Warrantable / Non-Warrantable / Established / etc.\n",
+              "source": "notes.txt"
+            }
+          ]
+        }
+      }
+    },
+    "STEP_10": {
+      "name": "Orders",
+      "phase": "ORDERS",
+      "plan_file": "orders.md",
+      "tools": [
+        "order_appraisal",
+        "order_condo_questionnaire",
+        "send_title_order_email"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Order Appraisal",
+          "tools": [
+            "order_appraisal"
+          ],
+          "rule_modifiers": [
+            {
+              "condition": {
+                "field": "loan_type",
+                "equals": "VA"
+              },
+              "action": "add",
+              "description": "VA loans always require a full appraisal \u2014 waiver is not allowed.",
+              "source": "notes.txt"
+            }
+          ]
+        },
+        "2": {
+          "name": "Order Condo Questionnaire",
+          "tools": [
+            "order_condo_questionnaire"
+          ]
+        },
+        "3": {
+          "name": "File Contacts and Title Order Email",
+          "tools": [
+            "send_title_order_email"
+          ]
+        }
+      }
+    },
+    "STEP_11": {
+      "name": "Prep eFolder",
+      "phase": "PREP",
+      "plan_file": "prep_efolder.md",
+      "tools": [
+        "prep_efolder"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Prep eFolder - Delete Junk Buckets",
+          "tools": [
+            "prep_efolder"
+          ]
+        }
+      }
+    },
+    "STEP_12": {
+      "name": "Order Additional Services",
+      "phase": "PREP",
+      "plan_file": "order_additional_services.md",
+      "tools": [
+        "run_additional_services"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Run Ocrolus and Income Calc",
+          "tools": [
+            "run_additional_services"
+          ]
+        }
+      }
+    },
+    "STEP_13": {
+      "name": "Print 1003 and Transmittal",
+      "phase": "PREP",
+      "plan_file": "print_1003_and_transmittal.md",
+      "tools": [
+        "print_forms"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Print Forms to eFolder",
+          "tools": [
+            "print_forms"
+          ]
+        }
+      }
+    },
+    "STEP_14": {
+      "name": "Run Fresh AUS",
+      "phase": "PREP",
+      "plan_file": "run_fresh_aus.md",
+      "tools": [
+        "run_fannie_aus",
+        "run_freddie_aus"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Run Fannie Mae DU",
+          "tools": [
+            "run_fannie_aus"
+          ]
+        },
+        "2": {
+          "name": "Run Freddie Mac LP",
+          "tools": [
+            "run_freddie_aus"
+          ]
+        }
+      }
+    },
+    "STEP_15": {
+      "name": "Processor Workflow and Closing",
+      "phase": "PROCESSOR_UPDATE",
+      "plan_file": "processor_workflow_and_closing.md",
+      "tools": [
+        "update_processor_closing",
+        "update_processor_workflow"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Processor Workflow Update",
+          "tools": [
+            "update_processor_workflow"
+          ]
+        },
+        "2": {
+          "name": "Processor Closing Update",
+          "tools": [
+            "update_processor_closing"
+          ]
+        }
+      }
+    },
+    "STEP_16": {
+      "name": "Flag Review (HITL)",
+      "phase": "SUBMISSION",
+      "plan_file": "flag_review_(hitl).md",
+      "tools": [
+        "review_flags"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review All Flags (HITL)",
+          "tools": [
+            "review_flags"
+          ]
+        }
+      }
+    },
+    "STEP_17": {
+      "name": "Submission",
+      "phase": "SUBMISSION",
+      "plan_file": "submission.md",
+      "tools": [
+        "complete_required_fields",
+        "final_efolder_cleanup",
+        "mark_docs_ready_for_uw",
+        "update_milestone"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Mark Docs Ready-for-UW",
+          "tools": [
+            "mark_docs_ready_for_uw"
+          ]
+        },
+        "2": {
+          "name": "Required Fields - Click Finished",
+          "tools": [
+            "complete_required_fields"
+          ]
+        },
+        "3": {
+          "name": "Milestone Change and Processor Name",
+          "tools": [
+            "update_milestone"
+          ]
+        },
+        "4": {
+          "name": "Final eFolder Cleanup",
+          "tools": [
+            "final_efolder_cleanup"
+          ]
+        }
+      }
+    },
+    "STEP_18": {
+      "name": "Notifications",
+      "phase": "SUBMISSION",
+      "plan_file": "notifications.md",
+      "tools": [
+        "request_locked_le",
+        "send_emd_email",
+        "send_lock_desk_email"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Lock Desk Email (if locked + address change)",
+          "tools": [
+            "send_lock_desk_email"
+          ]
+        },
+        "2": {
+          "name": "Request Locked LE (if locked + no Locked LE)",
+          "tools": [
+            "request_locked_le"
+          ]
+        },
+        "3": {
+          "name": "EMD Email to Realtor (if EMD missing or mismatch)",
+          "tools": [
+            "send_emd_email"
+          ]
+        }
+      }
+    }
+  },
+  "dev_mode": {
+    "skip_steps": [],
+    "skip_substeps": [],
+    "dry_run": false
+  }
+}

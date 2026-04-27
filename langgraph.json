@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "processor-agent": "./output/proc_agent.py:graph"
+  },
+  "env": ".env"
+}

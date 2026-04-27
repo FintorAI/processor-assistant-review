@@ -1,0 +1,225 @@
+step:
+  id: STEP_05
+  name: 1003 URLA Part 3
+  phase: DATA_REVIEW
+  description: >
+    Review and populate 1003 URLA Part 3: Assets/VOD (2a), EMD (2b),
+    Liabilities/VOL (2c), 2d, and REO Section 3. Cross-check against
+    bank statements, VOD, and Purchase Contract.
+
+substeps:
+- id: '5.1'
+  name: Assets and VOD (2a)
+  tool: review_urla_assets
+  description: >
+    Review Section 2a (Assets/VOD). Check bank accounts, checking/savings.
+    Cross-reference against bank statements. Verify account numbers, dates, and
+    balances. Flag if total assets insufficient for closing. Rename asset documents
+    per naming convention (e.g. "Edward Jones x1234 - 04/14/2026").
+  los_fields_read:
+  - key: total_assets
+    field_id: '732'
+    field_name: Total Assets
+    category: assets
+    purpose: Total asset amount — sufficient for closing?
+  - key: checking_balance
+    field_id: '733'
+    field_name: Checking Account Balance
+    category: assets
+    purpose: Verify against bank statement
+  - key: savings_balance
+    field_id: '734'
+    field_name: Savings Account Balance
+    category: assets
+    purpose: Verify against bank statement
+  doc_types:
+  - document_type: Bank Statement
+    all_copies: true
+    fields:
+    - key: bank_account_number
+      purpose: Account number for cross-reference
+    - key: bank_balance
+      purpose: Most recent balance
+    - key: bank_statement_date
+      purpose: Statement date for recency check
+    - key: bank_zel_deposits
+      purpose: ZEL/Zelle deposits requiring explanation
+    - key: bank_large_deposits
+      purpose: Large deposits requiring sourcing
+  - document_type: Assets
+    all_copies: false
+    fields:
+    - key: asset_account_number
+      purpose: Account number for cross-check
+    - key: asset_balance
+      purpose: Asset balance per document
+    - key: asset_account_date
+      purpose: Date on asset statement
+  - document_type: VOD
+    all_copies: false
+    fields:
+    - key: vod_account_balances
+      purpose: Verified account balances
+    - key: vod_account_numbers
+      purpose: Account numbers on VOD
+  rules:
+  - name: Bank Statement Recency
+    type: value_check
+    logic: Bank statements must be within required recency window (Conv=60 days, FHA=30 days).
+  - name: ZEL/Zelle Deposits Flagged
+    type: custom
+    logic: >
+      Any ZEL or Zelle deposits should be flagged for UW explanation letter.
+      Klarna or Firm deposits should also be flagged.
+  - name: Large Deposits Flagged
+    type: custom
+    logic: >
+      Green deposits (cash deposits, large non-payroll deposits) must be explained
+      and sourced. Flag for borrower Letter of Explanation.
+  flags:
+  - title: ZEL/Zelle Deposit Requires Explanation
+    severity: warning
+    condition: Zelle or ZEL deposit found in bank statement
+    suggestion: Request borrower LOE explaining the ZEL/Zelle transactions
+  - title: Large Deposit Requires Sourcing
+    severity: warning
+    condition: Large non-payroll deposit (green deposit) found in bank statement
+    suggestion: Request documentation sourcing the large deposit
+  - title: Bank Statement Stale
+    severity: warning
+    condition: Bank statement older than required recency window for loan type
+    suggestion: Request updated bank statements from borrower
+  - title: Asset Document Needs Renaming
+    severity: info
+    condition: Asset document not named per convention (e.g. "Edward Jones x1234 - 04/14/2026")
+    suggestion: Rename document in eFolder per naming convention
+  field_updates: []
+  rule_modifiers:
+  - condition:
+      field: loan_type
+      equals: FHA
+    action: add
+    description: FHA requires only 1 month of bank statements (vs 2 for Conventional).
+    source: notes.txt:64
+    rules:
+    - name: FHA Bank Statement 1 Month
+      type: value_check
+      logic: FHA loan — only 1 month of bank statements required.
+
+- id: '5.2'
+  name: EMD Check (2b)
+  tool: review_urla_emd
+  description: >
+    Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase
+    Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).
+  los_fields_read:
+  - key: emd_amount
+    field_id: '186'
+    field_name: EMD Amount
+    category: assets
+    purpose: Match against Purchase Contract EMD row
+  doc_types:
+  - document_type: Purchase Agreement
+    all_copies: false
+    fields:
+    - key: emd_amount_pa
+      purpose: EMD amount per Purchase Contract
+    - key: payment_terms
+      purpose: EMD payment method (check, wire, etc.)
+    - key: emd_payable_to
+      purpose: Who EMD is payable to (e.g. Re/Max Results)
+  rules:
+  - name: EMD Amount Matches Purchase Contract
+    type: field_comparison
+    logic: >
+      EMD amount in Section 2b must match Purchase Contract EMD row.
+      Flag mismatch and missing check copy for Realtor email at Step 18.
+  flags:
+  - title: EMD Amount Mismatch
+    severity: warning
+    condition: EMD in Encompass doesn't match Purchase Contract
+    suggestion: Correct EMD amount to match Purchase Contract
+  - title: EMD Check Copy Missing
+    severity: warning
+    condition: Copy of EMD check not in eFolder
+    suggestion: Email Realtor to request copy of EMD check (auto-sends at Step 18)
+  field_updates: []
+
+- id: '5.3'
+  name: Liabilities and VOL (2c)
+  tool: review_urla_liabilities
+  description: >
+    Review Section 2c — Liabilities (VOL). Check Excluded Monthly Payment and
+    To Be Paid Off columns. Flag excluded debts for explanation.
+    Flag any debts to be paid off that require most recent statement.
+  los_fields_read:
+  - key: total_monthly_payments
+    field_id: '350'
+    field_name: Total Monthly Liabilities
+    category: liabilities
+    purpose: Check for excluded or paid-off items
+  doc_types:
+  - document_type: VOL
+    all_copies: false
+    fields:
+    - key: excluded_debts
+      purpose: Debts excluded from monthly payment
+    - key: debts_to_be_paid_off
+      purpose: Debts marked to be paid off
+  rules:
+  - name: Excluded Debt Explained
+    type: custom
+    logic: >
+      Column 1 (Excluded Monthly Payment = Y): verify why excluded.
+      Was it already paid off?
+  - name: Paid-Off Debt Statement Required
+    type: custom
+    logic: >
+      Column 2 (To Be Paid Off = Y): request most recent credit card/loan
+      statement (e.g. JPMCB card). Usually for cash-out refis.
+  flags:
+  - title: Excluded Debt Needs Explanation
+    severity: warning
+    condition: Debt excluded from monthly payment without documented reason
+    suggestion: Document why debt is excluded (paid off, not obligated, etc.)
+  - title: Payoff Statement Required
+    severity: warning
+    condition: Debt marked To Be Paid Off but payoff statement missing
+    suggestion: Request most recent statement for debt to be paid off
+  field_updates: []
+
+- id: '5.4'
+  name: Other Assets and REO (2d, Section 3)
+  tool: review_urla_reo
+  description: >
+    Review 2d (Other Assets — usually marked No) and Section 3 (REO).
+    If borrower owns other real property, verify mortgage statement, insurance
+    deck page, HOA statement, and tax bill are present.
+  los_fields_read:
+  - key: owned_properties_count
+    field_id: '558'
+    field_name: Number of Owned Properties (REO)
+    category: assets
+    purpose: Determine if REO documentation is needed
+  doc_types:
+  - document_type: Mortgage Statement
+    all_copies: false
+    fields:
+    - key: mortgage_statement_present
+      purpose: REO property mortgage statement
+  rules:
+  - name: REO Documentation
+    type: custom
+    logic: >
+      If borrower owns other property (REO count > 0), verify:
+      mortgage statement, insurance deck page, HOA statement, tax bill.
+      If count = 0, skip.
+  flags:
+  - title: REO Documents Missing
+    severity: warning
+    condition: Borrower has REO properties but supporting docs are absent
+    suggestion: Obtain mortgage statement, insurance, HOA, and tax bill for each REO
+  field_updates: []
+
+dev:
+  skip: false

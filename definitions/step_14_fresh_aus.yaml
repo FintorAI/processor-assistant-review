@@ -1,0 +1,73 @@
+step:
+  id: STEP_14
+  name: Run Fresh AUS
+  phase: PREP
+  description: >
+    Run Fannie Mae DU and Freddie Mac LP (fresh AUS). Upload findings to eFolder
+    UW bucket. Depends on Step 11 (eFolder cleaned — old AUS deleted first).
+
+substeps:
+- id: '14.1'
+  name: Run Fannie Mae DU
+  tool: run_fannie_aus
+  description: >
+    Submit loan to Fannie Mae Desktop Underwriter (DU). Record the decision
+    (Approve/Eligible, Refer, Refer with Caution, etc.) and upload findings PDF
+    to the Underwriting eFolder bucket.
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Fannie Mae DU applies to Conventional (and FHA with override)
+  doc_types: []
+  rules:
+  - name: Fannie DU Submission
+    type: custom
+    logic: >
+      Submit to Fannie Mae DU via Encompass. Record decision and upload findings.
+      If not Approve/Eligible, flag the decision for processor review.
+  flags:
+  - title: Fannie DU Not Approve/Eligible
+    severity: warning
+    condition: DU decision is not Approve/Eligible
+    suggestion: Review findings with LO and underwriter before proceeding
+  - title: Fannie DU Findings Not Uploaded
+    severity: warning
+    condition: Fannie DU findings PDF not found in UW bucket
+    suggestion: Upload Fannie DU findings PDF to eFolder
+  field_updates: []
+
+- id: '14.2'
+  name: Run Freddie Mac LP
+  tool: run_freddie_aus
+  description: >
+    Submit loan to Freddie Mac Loan Product Advisor (LP). Record decision
+    (Accept, Caution, Ineligible, etc.) and upload findings PDF to the
+    Underwriting eFolder bucket.
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Freddie LP applies to Conventional
+  doc_types: []
+  rules:
+  - name: Freddie LP Submission
+    type: custom
+    logic: >
+      Submit to Freddie Mac LP via Encompass. Record decision and upload findings.
+      If not Accept, flag the decision for processor review.
+  flags:
+  - title: Freddie LP Not Accept
+    severity: warning
+    condition: LP decision is not Accept
+    suggestion: Review LP findings with LO and underwriter before proceeding
+  - title: Freddie LP Findings Not Uploaded
+    severity: warning
+    condition: Freddie LP findings PDF not found in UW bucket
+    suggestion: Upload Freddie LP findings PDF to eFolder
+  field_updates: []
+
+dev:
+  skip: false

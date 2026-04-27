@@ -1,0 +1,13 @@
+{
+  "lock_desk": {
+    "to": ["lock_desk@fintor.com"],
+    "cc": ["almas.younis@fintor.com", "ash.desai@fintor.com"]
+  },
+  "title_order": {
+    "to": [],
+    "cc": ["almas.younis@fintor.com", "ash.desai@fintor.com"],
+    "note": "Primary recipient is the Title Company — pulled from File Contacts at runtime"
+  },
+  "internal_cc": ["almas.younis@fintor.com", "ash.desai@fintor.com"],
+  "joe_salem": "joe.salem@fintor.com"
+}

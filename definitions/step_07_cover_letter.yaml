@@ -1,0 +1,89 @@
+step:
+  id: STEP_07
+  name: Cover Letter
+  phase: FORM_UPDATES
+  description: >
+    Populate CX.KM.SUBMISSION.NOTES (Cover Letter / Submission Notes field).
+    LLM pre-drafts the notes based on Almas' email/notes and the loan profile.
+    Also clears pre-populated Title Company, Appraisal, and Additional Notes fields.
+    No interrupt here — raise a flag for processor review at Step 16 (Flag Review HITL).
+
+substeps:
+- id: '7.1'
+  name: Draft Cover Letter / Submission Notes
+  tool: draft_cover_letter
+  description: >
+    Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"]
+    and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated
+    Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with
+    the draft text so the processor can review and edit at Step 16 Flag Review.
+    Do NOT interrupt here.
+  los_fields_read:
+  - key: submission_notes
+    field_id: CX.KM.SUBMISSION.NOTES
+    field_name: Submission Notes (Cover Letter)
+    category: cover_letter
+    purpose: Current value — clear and replace with LLM draft
+  - key: cover_letter_title_company
+    field_id: CX.KM.CL.TITLE.COMPANY
+    field_name: Cover Letter - Title Company (pre-populated)
+    category: cover_letter
+    purpose: Clear this field as per Almas' standard process
+  - key: cover_letter_appraisal
+    field_id: CX.KM.CL.APPRAISAL
+    field_name: Cover Letter - Appraisal (pre-populated)
+    category: cover_letter
+    purpose: Clear this field
+  - key: cover_letter_additional_notes
+    field_id: CX.KM.CL.ADDITIONAL.NOTES
+    field_name: Cover Letter - Additional Notes (pre-populated)
+    category: cover_letter
+    purpose: Clear this field
+  - key: ami_percentage
+    field_id: CX.AMI.PERCENTAGE
+    field_name: AMI Percentage
+    category: grant_program
+    purpose: Used to add grant program note if <= 50% AMI
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Include in cover letter profile summary
+  doc_types: []
+  rules:
+  - name: Draft from Almas Notes
+    type: custom
+    logic: >
+      Read state["almas_notes"]. Use as primary source for the submission notes.
+      Augment with loan-derived facts: AMI grant eligibility, missing docs (if any
+      known from Steps 1-6 flags), loan type, and borrower profile highlights.
+  - name: Clear Pre-populated Fields
+    type: custom
+    logic: >
+      Clear Title Company, Appraisal, and Additional Notes sub-fields of
+      CX.KM.SUBMISSION.NOTES as per Almas' standard process (notes.txt:126).
+  flags:
+  - title: Cover Letter Draft for Processor Review
+    severity: info
+    condition: Always raised — processor must review and approve the draft
+    suggestion: Review the cover letter draft at Step 16 Flag Review and edit as needed
+  - title: Almas Notes Missing
+    severity: warning
+    condition: state["almas_notes"] is empty or None
+    suggestion: Provide Almas' notes/email as agent input before running
+  field_updates:
+  - field_id: CX.KM.SUBMISSION.NOTES
+    value: '{llm_drafted_notes}'
+    condition: always
+  - field_id: CX.KM.CL.TITLE.COMPANY
+    value: ''
+    condition: always
+  - field_id: CX.KM.CL.APPRAISAL
+    value: ''
+    condition: always
+  - field_id: CX.KM.CL.ADDITIONAL.NOTES
+    value: ''
+    condition: always
+
+dev:
+  skip: false

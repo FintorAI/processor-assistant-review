@@ -1,0 +1,159 @@
+step:
+  id: STEP_17
+  name: Submission
+  phase: SUBMISSION
+  description: >
+    Final submission steps after flag review passes. Mark docs Ready-for-UW
+    in eFolder, click Required Fields → Finished (auto-places Cover Letter),
+    change milestone to Submitted, set processor name, check tasks, and do
+    final eFolder cleanup (Unassigned → Recycle).
+
+substeps:
+- id: '17.1'
+  name: Mark Docs Ready-for-UW
+  tool: mark_docs_ready_for_uw
+  description: >
+    In eFolder, select and mark the following documents as Ready-for-UW per
+    notes.txt:215. These are handed to UW with the next milestone change.
+    Documents: 1003, 1008, Assets, Bank Statements, Condo Project, Credit Report,
+    Estimated Settlement Statement, Flood Certificate, Fraud, General Letter of
+    Explanation, ID Customer, Income Calc, Internal Submission, LDP, Loan Estimate,
+    Lock Confirmation, Paystubs, Purchase Agreement, Tax Summary, UW (x2), VOE.
+  los_fields_read: []
+  doc_types:
+  - document_type: 1003 URLA
+    all_copies: false
+    fields:
+    - key: urla_doc_id
+      purpose: eFolder doc ID for Ready-for-UW marking
+  - document_type: Transmittal Summary
+    all_copies: false
+    fields:
+    - key: transmittal_doc_id
+      purpose: eFolder doc ID for Ready-for-UW marking
+  - document_type: Assets
+    all_copies: true
+    fields:
+    - key: assets_doc_ids
+      purpose: eFolder doc IDs for Ready-for-UW marking
+  - document_type: Bank Statement
+    all_copies: true
+    fields:
+    - key: bank_statement_doc_ids
+      purpose: eFolder doc IDs for Ready-for-UW marking
+  - document_type: Underwriting (DU / LP)
+    all_copies: true
+    fields:
+    - key: uw_doc_ids
+      purpose: eFolder doc IDs for Ready-for-UW marking
+  - document_type: Income Calc
+    all_copies: false
+    fields:
+    - key: income_calc_doc_id
+      purpose: eFolder doc ID for Ready-for-UW marking
+  rules:
+  - name: All Specified Docs Marked Ready-for-UW
+    type: custom
+    logic: >
+      Select each document in the ready-for-UW list and change its status
+      to Ready-for-UW in Encompass eFolder.
+  flags:
+  - title: Doc Not Found for Ready-for-UW
+    severity: warning
+    condition: A required Ready-for-UW document is missing from eFolder
+    suggestion: Verify document is in eFolder before marking Ready-for-UW
+  field_updates: []
+
+- id: '17.2'
+  name: Required Fields - Click Finished
+  tool: complete_required_fields
+  description: >
+    Navigate to Encompass Required Fields screen. Confirm all required fields
+    are complete. Click Finished. This auto-places the Cover Letter in the
+    correct eFolder bucket as a side effect (notes.txt:219-220).
+  los_fields_read:
+  - key: required_fields_status
+    field_id: CX.REQUIRED.FIELDS.STATUS
+    field_name: Required Fields Status
+    category: submission
+    purpose: Verify required fields are complete before clicking Finished
+  doc_types: []
+  rules:
+  - name: Required Fields Complete
+    type: custom
+    logic: >
+      All Encompass-required fields must be complete. Click Finished to submit.
+      Cover Letter auto-places in eFolder bucket as side effect.
+  flags:
+  - title: Required Fields Incomplete
+    severity: critical
+    condition: Encompass required fields screen shows incomplete fields
+    suggestion: Return to Flag Review — incomplete required fields must be resolved
+  field_updates: []
+
+- id: '17.3'
+  name: Milestone Change and Processor Name
+  tool: update_milestone
+  description: >
+    Change loan milestone from "In Processing" to "Submitted to UW". Set the
+    processor name field to state["processor_name"]. Check and close all
+    outstanding tasks.
+  los_fields_read:
+  - key: current_milestone
+    field_id: CX.MILESTONE.CURRENT
+    field_name: Current Milestone
+    category: loan_info
+    purpose: Confirm current milestone is In Processing
+  - key: processor_name
+    field_id: CX.PROCESSOR.NAME
+    field_name: Processor Name
+    category: loan_info
+    purpose: Set to state["processor_name"] on submission
+  doc_types: []
+  rules:
+  - name: Milestone Changed to Submitted
+    type: custom
+    logic: >
+      Change milestone from In Processing → Submitted to UW. Set processor name.
+      Verify all tasks are closed or note any outstanding.
+  flags:
+  - title: Milestone Change Failed
+    severity: critical
+    condition: Milestone could not be changed to Submitted
+    suggestion: Manually change milestone in Encompass
+  - title: Processor Name Not Set
+    severity: warning
+    condition: Processor name field is empty after milestone change
+    suggestion: Set processor name in the loan record
+  field_updates:
+  - field_id: CX.PROCESSOR.NAME
+    value: '{processor_name}'
+    condition: always
+
+- id: '17.4'
+  name: Final eFolder Cleanup
+  tool: final_efolder_cleanup
+  description: >
+    Move all Unassigned eFolder documents to the Recycle bucket. Clean up any
+    residual junk files after submission.
+  los_fields_read: []
+  doc_types:
+  - document_type: Unassigned
+    all_copies: true
+    fields:
+    - key: unassigned_doc_ids
+      purpose: eFolder doc IDs for Recycle move
+  rules:
+  - name: Move Unassigned to Recycle
+    type: custom
+    logic: >
+      Find all documents in the Unassigned bucket and move them to Recycle.
+  flags:
+  - title: Unassigned Documents Remain
+    severity: info
+    condition: Unassigned documents could not be moved to Recycle
+    suggestion: Manually move Unassigned documents to Recycle in eFolder
+  field_updates: []
+
+dev:
+  skip: false

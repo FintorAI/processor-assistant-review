@@ -1,0 +1,149 @@
+step:
+  id: STEP_04
+  name: 1003 URLA Page 2
+  phase: DATA_REVIEW
+  description: >
+    Review and populate 1003 URLA Page 2: employment (Section 1b VOE cross-check),
+    employment history with gap rules, and other income (Section 1e).
+
+substeps:
+- id: '4.1'
+  name: Employment Verification (1b VOE)
+  tool: review_urla_employment
+  description: >
+    Cross-check employment fields against VOE: employer name, original hire date,
+    base pay (Gross Monthly Income → Base / Month). Cross-reference employer
+    address via Google. Flag discrepancies. Check employment history — if current
+    employment < 2 years, review prior history for gaps and explanations.
+  los_fields_read:
+  - key: employer_name
+    field_id: '1169'
+    field_name: Employer Name
+    category: employment
+    purpose: Match against VOE
+  - key: employer_address
+    field_id: '1182'
+    field_name: Employer Address
+    category: employment
+    purpose: Cross-reference via Google
+  - key: employment_start_date
+    field_id: '1068'
+    field_name: Employment Start Date (Hire Date)
+    category: employment
+    purpose: Match against VOE original hire date
+  - key: base_monthly_income
+    field_id: '1072'
+    field_name: Base Monthly Income
+    category: income
+    purpose: Match against VOE compensation base pay
+  - key: job_title
+    field_id: '1286'
+    field_name: Job Title
+    category: employment
+    purpose: Completeness (N/A is acceptable)
+  - key: years_in_profession
+    field_id: '1073'
+    field_name: Years in Profession
+    category: employment
+    purpose: Total years — if < 2, check history
+  doc_types:
+  - document_type: VOE
+    all_copies: false
+    fields:
+    - key: voe_employer_name
+      purpose: Employer name per VOE
+    - key: voe_hire_date
+      purpose: Original hire date per VOE
+    - key: voe_base_pay
+      purpose: Compensation base pay rate per VOE
+    - key: voe_employer_address
+      purpose: Employer address per VOE
+  rules:
+  - name: Employer Name Matches VOE
+    type: field_comparison
+    logic: Employer name in Encompass must match the VOE employer name.
+  - name: Hire Date Matches VOE
+    type: field_comparison
+    logic: Employment start date must match VOE original hire date.
+  - name: Base Pay Matches VOE
+    type: field_comparison
+    logic: Gross Monthly Base / Month must match VOE compensation base pay.
+  - name: Employment History Gap Check
+    type: custom
+    logic: >
+      If current employment start date shows < 2 years: review prior employment
+      entries. If FHA and gap < 6 months, require written explanation. If gap
+      > 6 months, document 2-year history before the gap and income continuity.
+  flags:
+  - title: Employer Name Mismatch (VOE vs 1003)
+    severity: warning
+    condition: Employer name in Encompass doesn't match VOE
+    suggestion: Correct employer name to match VOE
+  - title: Hire Date Mismatch (VOE vs 1003)
+    severity: warning
+    condition: Hire date in Encompass doesn't match VOE original hire date
+    suggestion: Correct hire date to match VOE
+  - title: Base Pay Mismatch (VOE vs 1003)
+    severity: warning
+    condition: Base monthly income doesn't match VOE base pay rate
+    suggestion: Reconcile income figure with VOE
+  - title: Employment Gap Requires Explanation
+    severity: warning
+    condition: >
+      Employment gap < 6 months with FHA loan, or gap > 6 months with any loan type
+    suggestion: Obtain written explanation letter from borrower for employment gap
+  field_updates: []
+  rule_modifiers:
+  - condition:
+      field: loan_type
+      equals: FHA
+    action: add
+    description: >
+      FHA: if employment gap < 6 months, require written explanation from borrower.
+      If gap > 6 months, require 2-year history before the gap.
+    source: notes.txt:44-48
+    rules:
+    - name: FHA Employment Gap Rules
+      type: custom
+      logic: >
+        For FHA loans: gap < 6 months requires explanation letter;
+        gap > 6 months requires documented 2-year history before gap.
+    flags:
+    - title: FHA Employment Gap - Explanation Required
+      severity: warning
+      condition: FHA loan with employment gap < 6 months
+      suggestion: Obtain borrower explanation letter for employment gap
+
+- id: '4.2'
+  name: Other Income (1e)
+  tool: review_urla_other_income
+  description: >
+    Review Section 1e — Other Sources of Income (alimony, dividend stocks,
+    Social Security, etc.). Verify amounts are populated and documented.
+  los_fields_read:
+  - key: other_income_type
+    field_id: '172'
+    field_name: Other Income Type
+    category: income
+    purpose: Type of other income (alimony, dividends, etc.)
+  - key: other_income_amount
+    field_id: '173'
+    field_name: Other Income Amount (Monthly)
+    category: income
+    purpose: Monthly other income amount
+  doc_types: []
+  rules:
+  - name: Other Income Documented
+    type: existence_check
+    logic: >
+      If other income is present in Encompass, verify it is documented in the file.
+      Alimony requires court order; dividends require brokerage statements.
+  flags:
+  - title: Other Income Not Documented
+    severity: warning
+    condition: Other income amount is populated but supporting documents are missing
+    suggestion: Obtain supporting documentation for other income type
+  field_updates: []
+
+dev:
+  skip: false

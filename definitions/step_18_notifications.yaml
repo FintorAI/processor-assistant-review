@@ -1,0 +1,119 @@
+step:
+  id: STEP_18
+  name: Notifications
+  phase: SUBMISSION
+  description: >
+    Send conditional notification emails. Lock Desk email if locked + address change
+    discovered at Step 2. Request Locked LE if locked + no locked LE. EMD check email
+    to Realtor if EMD missing or amount mismatch flagged at Step 5.
+
+substeps:
+- id: '18.1'
+  name: Lock Desk Email (if locked + address change)
+  tool: send_lock_desk_email
+  description: >
+    Send email to Lock Desk if the loan is locked AND an address change was
+    discovered at Step 2 (property address mismatch flag). Uses email template
+    from recipients.json (Almas Younis, Ash Desai).
+  los_fields_read:
+  - key: loan_locked
+    field_id: CX.LOAN.LOCKED
+    field_name: Loan Locked Status
+    category: lock
+    purpose: Only send email if loan is locked
+  - key: lock_expiration
+    field_id: '762'
+    field_name: Lock Expiration Date
+    category: lock
+    purpose: Include in email body
+  doc_types: []
+  rules:
+  - name: Send Only If Locked and Address Changed
+    type: custom
+    logic: >
+      If loan_locked == True AND address_change_flag raised at Step 2:
+      send Lock Desk notification email. Otherwise, dynamically skip.
+  flags:
+  - title: Lock Desk Email Not Sent
+    severity: info
+    condition: Locked loan with address change but Lock Desk email not sent
+    suggestion: Manually send Lock Desk email with updated property address
+  field_updates: []
+
+- id: '18.2'
+  name: Request Locked LE (if locked + no Locked LE)
+  tool: request_locked_le
+  description: >
+    Send email requesting a Locked Loan Estimate if the loan is locked but no
+    Locked LE is present in eFolder. Uses recipients.json contacts.
+  los_fields_read:
+  - key: loan_locked
+    field_id: CX.LOAN.LOCKED
+    field_name: Loan Locked Status
+    category: lock
+    purpose: Only send if locked
+  - key: locked_le_present
+    field_id: CX.LOCKED.LE.PRESENT
+    field_name: Locked LE Present
+    category: disclosures
+    purpose: Skip if Locked LE already in file
+  doc_types:
+  - document_type: Lock Confirmation
+    all_copies: false
+    fields:
+    - key: lock_confirmation_present
+      purpose: Verify lock is active
+  rules:
+  - name: Send Only If Locked and No Locked LE
+    type: custom
+    logic: >
+      If loan_locked == True AND locked_le_present == False:
+      send Locked LE request email. Otherwise, dynamically skip.
+  flags:
+  - title: Locked LE Request Not Sent
+    severity: info
+    condition: Locked loan without Locked LE and email not sent
+    suggestion: Manually request Locked LE from LO/LP
+  field_updates: []
+
+- id: '18.3'
+  name: EMD Email to Realtor (if EMD missing or mismatch)
+  tool: send_emd_email
+  description: >
+    Send email to the Realtor requesting EMD check copy if EMD missing or amount
+    mismatch was flagged at Step 5. Realtor is payable-to entity from Purchase
+    Contract. Copy recipients per recipients.json.
+  los_fields_read:
+  - key: realtor_email
+    field_id: CX.REALTOR.EMAIL
+    field_name: Realtor Email
+    category: file_contacts
+    purpose: Email recipient for EMD check request
+  - key: emd_amount
+    field_id: '186'
+    field_name: EMD Amount
+    category: assets
+    purpose: Include correct EMD amount in email
+  doc_types:
+  - document_type: Purchase Agreement
+    all_copies: false
+    fields:
+    - key: emd_payable_to
+      purpose: Who EMD check is payable to (Realtor/Title)
+    - key: emd_amount_pa
+      purpose: EMD amount per Purchase Contract
+  rules:
+  - name: Send Only If EMD Flag Raised at Step 5
+    type: custom
+    logic: >
+      If EMD-missing or EMD-mismatch flag is in state["flags"] from Step 5:
+      send Realtor email requesting EMD check copy. Otherwise, dynamically skip.
+  flags:
+  - title: EMD Email Not Sent
+    severity: info
+    condition: EMD flag raised but Realtor email not sent
+    suggestion: Manually email Realtor to request EMD check copy
+  field_updates: []
+
+dev:
+  skip: false

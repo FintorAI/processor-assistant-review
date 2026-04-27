@@ -1,0 +1,149 @@
+step:
+  id: STEP_01
+  name: Pre-Checks
+  phase: INTAKE
+  description: >
+    Verify presence (and signing where applicable) of all docs that downstream steps
+    depend on. Fails fast with a flag if any are missing. Also reads the existing AUS
+    (Underwriting bucket) for collateral relief and income raw relief — AUS is required
+    and flagged if absent.
+
+substeps:
+- id: '1.1'
+  name: Document Presence Check
+  tool: run_pre_checks
+  description: >
+    Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth,
+    State disclosures (e.g. MD Right of Assumption), VOE, Assets, Bank Statement,
+    VOD, Driver's License (or other ID), ESS, and existing AUS (Underwriting bucket).
+    Flag any missing docs as warnings/critical before proceeding.
+  los_fields_read:
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: Determines which state-specific disclosures are required
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Determines bank statement month requirement (Conv=2mo, FHA=1mo)
+  - key: appraisal_waiver
+    field_id: CX.APPRAISAL.WAIVER
+    field_name: Appraisal Waiver
+    category: collateral
+    purpose: Flags collateral relief from AUS
+  doc_types:
+  - document_type: 1003 URLA
+    all_copies: false
+    fields:
+    - key: urla_signed
+      purpose: Confirm borrower signature
+  - document_type: Borrower's Certification and Authorization
+    all_copies: false
+    fields:
+    - key: bca_present
+      purpose: Confirm document exists and is signed
+  - document_type: Underwriting (DU / LP)
+    all_copies: false
+    fields:
+    - key: aus_collateral_relief
+      purpose: Collateral relief or waiver indicator
+    - key: aus_income_raw_relief
+      purpose: Income raw relief indicator
+    - key: aus_run_date
+      purpose: Date of the AUS run (for staleness check)
+  - document_type: VOE
+    all_copies: false
+    fields:
+    - key: voe_present
+      purpose: Confirm VOE exists in eFolder
+  - document_type: Assets
+    all_copies: false
+    fields:
+    - key: assets_present
+      purpose: Confirm assets document exists
+  - document_type: Bank Statement
+    all_copies: true
+    fields:
+    - key: bank_statement_months
+      purpose: How many months of statements are present
+    - key: bank_statement_dates
+      purpose: Statement period dates for recency check
+  - document_type: VOD
+    all_copies: false
+    fields:
+    - key: vod_present
+      purpose: Confirm VOD exists
+  - document_type: Driver's License
+    all_copies: false
+    fields:
+    - key: dl_present
+      purpose: Confirm ID document exists for borrower cross-check
+    - key: dl_expiry
+      purpose: ID expiration date
+  - document_type: Estimated Settlement Statement
+    all_copies: false
+    fields:
+    - key: ess_present
+      purpose: Confirm ESS exists in eFolder
+  rules:
+  - name: Required Docs Present
+    type: existence_check
+    logic: >
+      All listed docs must exist in eFolder. Flag each missing one as warning or
+      critical based on downstream dependency severity.
+  - name: AUS Required
+    type: existence_check
+    logic: >
+      Existing AUS (Underwriting bucket) must be present. If missing, flag as
+      critical — orders at Step 10 depend on AUS findings.
+  - name: Bank Statement Recency
+    type: value_check
+    logic: >
+      If Conventional, require 2 months of bank statements. If FHA, require 1 month.
+      Flag if fewer than required months are present.
+    check: bank_statement_months >= required_months_by_loan_type
+  - name: DL Not Expired
+    type: value_check
+    logic: Driver's License expiry must be >= today.
+    check: dl_expiry >= today
+  flags:
+  - title: Missing Required Document
+    severity: critical
+    condition: Any of the required documents is absent from the eFolder
+    suggestion: Locate or request the missing document before proceeding
+  - title: AUS Missing
+    severity: critical
+    condition: No Underwriting (DU/LP) document found in eFolder
+    suggestion: Run AUS or retrieve existing results before ordering
+  - title: Insufficient Bank Statements
+    severity: warning
+    condition: Fewer bank statement months than required for loan type
+    suggestion: Request additional statements from borrower
+  - title: ID Expired
+    severity: warning
+    condition: Driver's License expiration date is before today
+    suggestion: Request a valid, non-expired government ID from borrower
+  - title: State Disclosure Missing
+    severity: warning
+    condition: State-specific disclosure document not found in eFolder
+    suggestion: Locate and add the required state disclosure
+  field_updates: []
+  rule_modifiers:
+  - condition:
+      field: state
+      equals: MD
+    action: add
+    description: >
+      Maryland requires the "Notice Regarding Right for Assumption Under
+      Certain Circumstances" disclosure. Flag if missing.
+    source: notes.txt:14
+    flags:
+    - title: MD Right of Assumption Disclosure Missing
+      severity: warning
+      condition: MD Right of Assumption notice not found in eFolder
+      suggestion: Add MD disclosure before submission
+
+dev:
+  skip: false
