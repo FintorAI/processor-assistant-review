@@ -1,0 +1,940 @@
+{
+  "_comment": "Conditional Required Documents for Step 1 - Based on Loan Type + Purpose + Borrower Count. NOTE: extract_sequential.select_condition treats loan_purpose 'Refinance' and 'Cash-Out Refinance' as equivalent, so each refi row covers both flavors.",
+  "_version": "2.3",
+  "_last_updated": "2026-05-04",
+  "conditions": [
+    {
+      "condition": {
+        "loan_type": "FHA",
+        "loan_purpose": "Purchase",
+        "borrower_count": 1
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "FHA Transmittal Summary",
+        "Purchase Agreement",
+        "FHA Case Assignment",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "FHA",
+        "loan_purpose": "Purchase",
+        "borrower_count": 2,
+        "_comment": "FHA Purchase with Co-Borrower - uses 'all' mode for Credit/Fraud/ID docs to capture both borrowers"
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "FHA Transmittal Summary",
+        "FHA Case Assignment",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all",
+        "_comment": "Use 'all' mode for disclosure docs (LE/CD/COC) to compare across versions, and identity/credit/fraud docs for both borrowers"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "FHA",
+        "loan_purpose": "Refinance",
+        "borrower_count": 1,
+        "_comment": "FHA Refinance \u2014 covers both plain Refinance and Cash-Out Refinance (matcher treats them as equivalent). Includes Purchase Agreement and FHA-specific docs."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "FHA Transmittal Summary",
+        "FHA Case Assignment",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "FHA",
+        "loan_purpose": "Refinance",
+        "borrower_count": 2,
+        "_comment": "FHA Refinance with Co-Borrower \u2014 covers both Refinance and Cash-Out Refinance."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "FHA Transmittal Summary",
+        "FHA Case Assignment",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "VA",
+        "loan_purpose": "Purchase",
+        "borrower_count": 1
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Purchase Agreement",
+        "VA Certificate of Eligibility",
+        "VA Documents Misc",
+        "VA Funding Fee Worksheet",
+        "VA Loan Summary",
+        "VA 26-0286 Loan Summary",
+        "VA 26-6393 Loan Analysis",
+        "VA Nearest Living Relative",
+        "VA 26-1820",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "VA Documents Misc": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "VA",
+        "loan_purpose": "Purchase",
+        "borrower_count": 2,
+        "_comment": "VA Purchase with Co-Borrower"
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Purchase Agreement",
+        "VA Certificate of Eligibility",
+        "VA Documents Misc",
+        "VA Funding Fee Worksheet",
+        "VA Loan Summary",
+        "VA 26-0286 Loan Summary",
+        "VA 26-6393 Loan Analysis",
+        "VA Nearest Living Relative",
+        "VA 26-1820",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all",
+        "VA Documents Misc": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "VA",
+        "loan_purpose": "Refinance",
+        "borrower_count": 1,
+        "_comment": "VA Refinance \u2014 covers both plain Refinance and Cash-Out Refinance (matcher treats them as equivalent). Includes Purchase Agreement and VA-specific docs."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "VA Certificate of Eligibility",
+        "VA Documents Misc",
+        "VA Funding Fee Worksheet",
+        "VA Loan Summary",
+        "VA 26-0286 Loan Summary",
+        "VA 26-6393 Loan Analysis",
+        "VA Nearest Living Relative",
+        "VA 26-1820",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "VA Documents Misc": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "VA",
+        "loan_purpose": "Refinance",
+        "borrower_count": 2,
+        "_comment": "VA Refinance with Co-Borrower \u2014 covers both Refinance and Cash-Out Refinance."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "VA Certificate of Eligibility",
+        "VA Documents Misc",
+        "VA Funding Fee Worksheet",
+        "VA Loan Summary",
+        "VA 26-0286 Loan Summary",
+        "VA 26-6393 Loan Analysis",
+        "VA Nearest Living Relative",
+        "VA 26-1820",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "VA Documents Misc": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "Conventional",
+        "loan_purpose": "Purchase",
+        "borrower_count": 1
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Purchase Agreement",
+        "MI Certificate",
+        "Transmittal Summary",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "Conventional",
+        "loan_purpose": "Purchase",
+        "borrower_count": 2,
+        "_comment": "Conventional Purchase with Co-Borrower - uses 'all' mode for Credit/Fraud/ID docs to capture both borrowers"
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Purchase Agreement",
+        "MI Certificate",
+        "Transmittal Summary",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all",
+        "_comment": "Use 'all' mode for disclosure docs (LE/CD/COC) to compare across versions, and identity/credit/fraud docs for both borrowers"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "Conventional",
+        "loan_purpose": "Refinance",
+        "borrower_count": 1,
+        "_comment": "Conventional Refinance \u2014 covers both plain Refinance and Cash-Out Refinance (matcher treats them as equivalent). Doc list is the superset of the previous Cash-Out Refi list, the fallback list, and Purchase Agreement."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "MI Certificate",
+        "Transmittal Summary",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "Conventional",
+        "loan_purpose": "Refinance",
+        "borrower_count": 2,
+        "_comment": "Conventional Refinance with Co-Borrower \u2014 covers both Refinance and Cash-Out Refinance. Uses 'all' mode for Credit/Fraud/ID docs to capture both borrowers."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "MI Certificate",
+        "Transmittal Summary",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all"
+      }
+    },
+    {
+      "condition": {
+        "loan_type": "Conventional",
+        "loan_purpose": "Refinance",
+        "borrower_count": 3,
+        "_comment": "Conventional Refinance with 3+ borrowers \u2014 covers both Refinance and Cash-Out Refinance."
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Passport",
+        "Permanent Resident Card",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Payoff Statement",
+        "MI Certificate",
+        "Transmittal Summary",
+        "Purchase Agreement",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all",
+        "Credit Report": "all",
+        "Fraud Report": "all",
+        "Driver's License": "all",
+        "Passport": "all",
+        "Permanent Resident Card": "all"
+      }
+    },
+    {
+      "condition": {
+        "fallback": true
+      },
+      "document_list": [
+        "1003 URLA",
+        "Credit Report",
+        "Driver's License",
+        "Title Report",
+        "Closing Protection Letter",
+        "Appraisal Report",
+        "Evidence of Insurance",
+        "Tax Summary",
+        "Compliance Report",
+        "Fraud Report",
+        "Approval Form",
+        "Loan Estimate",
+        "Closing Disclosure",
+        "Change of circumstance (COC)",
+        "2015 Settlement Service Provider List (SSPL)",
+        "Appraisal Invoice",
+        "Credit Report Invoice",
+        "Appraisal Acknowledgement",
+        "Notice of Right to Appraisal",
+        "Flood Certificate",
+        "Flood Insurance",
+        "Estimated Settlement Statement",
+        "Tax Returns - Business",
+        "Trust Document",
+        "Underwriting",
+        "DU Findings - AUS Certificate",
+        "Lock Confirmation",
+        "Purchase Agreement Addendum",
+        "Home Inspection Report",
+        "Pest Inspection Report",
+        "Subordinate Note",
+        "Subordinate Deed of Trust"
+      ],
+      "extraction_mode": {
+        "Loan Estimate": "all",
+        "Closing Disclosure": "all",
+        "Change of circumstance (COC)": "all"
+      }
+    }
+  ],
+  "conditional_flags": {
+    "_comment": "Documents that are always gathered but only flagged as missing under certain conditions",
+    "MI Certificate": {
+      "condition": "ltv > 80",
+      "flag_severity": "warning",
+      "flag_message": "MI Certificate not found \u2014 required when LTV > 80%",
+      "skip_flag_when": "ltv <= 80"
+    }
+  },
+  "document_definitions": {
+    "_comment": "Maps document display names to DocRepo keys and metadata",
+    "1003 URLA": {
+      "docrepo_key": "urla_1003"
+    },
+    "Credit Report": {
+      "docrepo_key": "credit_report"
+    },
+    "Driver's License": {
+      "docrepo_key": "drivers_license"
+    },
+    "Passport": {
+      "docrepo_key": "passport"
+    },
+    "Permanent Resident Card": {
+      "docrepo_key": "permanent_resident_card"
+    },
+    "Title Report": {
+      "docrepo_key": "title_report"
+    },
+    "Closing Protection Letter": {
+      "docrepo_key": "closing_protection_letter"
+    },
+    "Appraisal Report": {
+      "docrepo_key": "appraisal_report"
+    },
+    "Evidence of Insurance": {
+      "docrepo_key": "evidence_of_insurance"
+    },
+    "Flood Insurance": {
+      "docrepo_key": "flood_insurance"
+    },
+    "Tax Summary": {
+      "docrepo_key": "tax_summary"
+    },
+    "Compliance Report": {
+      "docrepo_key": "compliance_report"
+    },
+    "Fraud Report": {
+      "docrepo_key": "fraud_report"
+    },
+    "Approval Form": {
+      "docrepo_key": "approval_form"
+    },
+    "Loan Estimate": {
+      "docrepo_key": "loan_estimate"
+    },
+    "Closing Disclosure": {
+      "docrepo_key": "closing_disclosure"
+    },
+    "Change of circumstance (COC)": {
+      "docrepo_key": "coc_form"
+    },
+    "2015 Settlement Service Provider List (SSPL)": {
+      "docrepo_key": "sspl"
+    },
+    "Appraisal Invoice": {
+      "docrepo_key": "appraisal_invoice"
+    },
+    "Appraisal Acknowledgement": {
+      "docrepo_key": "appraisal_acknowledgement"
+    },
+    "Notice of Right to Appraisal": {
+      "docrepo_key": "notice_of_right_to_appraisal"
+    },
+    "MI Certificate": {
+      "docrepo_key": "mi_certificate"
+    },
+    "Purchase Agreement": {
+      "docrepo_key": "purchase_agreement"
+    },
+    "Payoff Statement": {
+      "docrepo_key": "payoff_statement"
+    },
+    "Home Inspection Report": {
+      "docrepo_key": "home_inspection_report"
+    },
+    "Pest Inspection Report": {
+      "docrepo_key": "pest_inspection_report"
+    },
+    "FHA Case Assignment": {
+      "docrepo_key": "fha_case_assignment"
+    },
+    "FHA Transmittal Summary": {
+      "docrepo_key": "fha_transmittal_summary"
+    },
+    "VA Certificate of Eligibility": {
+      "docrepo_key": "va_coe"
+    },
+    "VA Documents Misc": {
+      "docrepo_key": "va_documents_misc"
+    },
+    "VA Funding Fee Worksheet": {
+      "docrepo_key": "va_funding_fee"
+    },
+    "USDA Commitment Letter": {
+      "docrepo_key": "usda_commitment"
+    },
+    "USDA Form 3555-21": {
+      "docrepo_key": "usda_3555_21"
+    },
+    "Estimated Settlement Statement": {
+      "docrepo_key": "estimated_settlement_statement"
+    },
+    "Tax Returns - Business": {
+      "docrepo_key": "tax_returns_business"
+    },
+    "Trust Document": {
+      "docrepo_key": "trust_document"
+    },
+    "Transmittal Summary": {
+      "docrepo_key": "transmittal_summary"
+    },
+    "VA Loan Summary": {
+      "docrepo_key": "va_loan_summary"
+    },
+    "VA 26-0286 Loan Summary": {
+      "docrepo_key": "va_26_0286_loan_summary"
+    },
+    "VA 26-6393 Loan Analysis": {
+      "docrepo_key": "va_26_6393_loan_analysis"
+    },
+    "VA Nearest Living Relative": {
+      "docrepo_key": "va_nearest_living_relative"
+    },
+    "VA 26-1820": {
+      "docrepo_key": "va_26_1820"
+    },
+    "Test Document": {
+      "docrepo_key": "test_doc"
+    },
+    "Underwriting": {
+      "docrepo_key": "underwriting_du_lp"
+    },
+    "Credit Report Invoice": {
+      "docrepo_key": "credit_report_invoice"
+    },
+    "DU Findings - AUS Certificate": {
+      "docrepo_key": "du_findings_aus_certificate"
+    },
+    "Lock Confirmation": {
+      "docrepo_key": "lock_confirmation"
+    },
+    "Purchase Agreement Addendum": {
+      "docrepo_key": "purchase_agreement_addendum"
+    },
+    "Subordinate Note": {
+      "docrepo_key": "subordinate_note"
+    },
+    "Subordinate Deed of Trust": {
+      "docrepo_key": "subordinate_deed_of_trust"
+    },
+    "Flood Insurance": {
+      "docrepo_key": "flood_insurance"
+    },
+    "Flood Certificate": {
+      "docrepo_key": "flood_certificate"
+    }
+  }
+}
