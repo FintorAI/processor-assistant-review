@@ -53,6 +53,11 @@ substeps:
     field_name: Borrower Home Phone
     category: borrower_info
     purpose: Fallback for cell phone if cell is empty
+  - key: borrower_work_phone
+    field_id: '1715'
+    field_name: Borrower Business/Work Phone
+    category: borrower_info
+    purpose: Completeness check — needs live field ID validation
   - key: borrower_cell_phone
     field_id: '1480'
     field_name: Borrower Cell Phone
@@ -104,6 +109,11 @@ substeps:
     field_name: Co-Borrower Home Phone
     category: borrower_info
     purpose: Completeness check if coborrower present
+  - key: coborrower_work_phone
+    field_id: '1716'
+    field_name: Co-Borrower Business/Work Phone
+    category: borrower_info
+    purpose: Completeness check if coborrower present — needs live field ID validation
   - key: coborrower_cell_phone
     field_id: CX.COBORROWER.CELL.PHONE
     field_name: Co-Borrower Cell Phone

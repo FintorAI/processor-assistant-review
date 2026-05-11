@@ -40,42 +40,12 @@ from .draft_cover_letter import draft_cover_letter
 from .update_borrower_vesting import update_borrower_vesting
 # STEP_09 / 9.1: Update Transmittal Summary
 from .update_transmittal_summary import update_transmittal_summary
-# STEP_10 / 10.1: Order Appraisal
-from .order_appraisal import order_appraisal
-# STEP_10 / 10.2: Order Condo Questionnaire
-from .order_condo_questionnaire import order_condo_questionnaire
-# STEP_10 / 10.3: File Contacts and Title Order Email
-from .send_title_order_email import send_title_order_email
-# STEP_11 / 11.1: Prep eFolder - Delete Junk Buckets
-from .prep_efolder import prep_efolder
-# STEP_12 / 12.1: Run Ocrolus and Income Calc
-from .run_additional_services import run_additional_services
-# STEP_13 / 13.1: Print Forms to eFolder
-from .print_forms import print_forms
-# STEP_14 / 14.1: Run Fannie Mae DU
-from .run_fannie_aus import run_fannie_aus
-# STEP_14 / 14.2: Run Freddie Mac LP
-from .run_freddie_aus import run_freddie_aus
 # STEP_15 / 15.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
 # STEP_15 / 15.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
-# STEP_16 / 16.1: Review All Flags (HITL)
-from .review_flags import review_flags
-# STEP_17 / 17.1: Mark Docs Ready-for-UW
-from .mark_docs_ready_for_uw import mark_docs_ready_for_uw
-# STEP_17 / 17.2: Required Fields - Click Finished
-from .complete_required_fields import complete_required_fields
 # STEP_17 / 17.3: Milestone Change and Processor Name
 from .update_milestone import update_milestone
-# STEP_17 / 17.4: Final eFolder Cleanup
-from .final_efolder_cleanup import final_efolder_cleanup
-# STEP_18 / 18.1: Lock Desk Email (if locked + address change)
-from .send_lock_desk_email import send_lock_desk_email
-# STEP_18 / 18.2: Request Locked LE (if locked + no Locked LE)
-from .request_locked_le import request_locked_le
-# STEP_18 / 18.3: EMD Email to Realtor (if EMD missing or mismatch)
-from .send_emd_email import send_emd_email
 
 def get_all_tools() -> list:
     """Return all tool functions."""
@@ -105,24 +75,9 @@ def get_all_tools() -> list:
     tools.append(draft_cover_letter)
     tools.append(update_borrower_vesting)
     tools.append(update_transmittal_summary)
-    tools.append(order_appraisal)
-    tools.append(order_condo_questionnaire)
-    tools.append(send_title_order_email)
-    tools.append(prep_efolder)
-    tools.append(run_additional_services)
-    tools.append(print_forms)
-    tools.append(run_fannie_aus)
-    tools.append(run_freddie_aus)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
-    tools.append(review_flags)
-    tools.append(mark_docs_ready_for_uw)
-    tools.append(complete_required_fields)
     tools.append(update_milestone)
-    tools.append(final_efolder_cleanup)
-    tools.append(send_lock_desk_email)
-    tools.append(request_locked_le)
-    tools.append(send_emd_email)
     return tools
 
 
@@ -150,22 +105,7 @@ __all__ = [
     "draft_cover_letter",
     "update_borrower_vesting",
     "update_transmittal_summary",
-    "order_appraisal",
-    "order_condo_questionnaire",
-    "send_title_order_email",
-    "prep_efolder",
-    "run_additional_services",
-    "print_forms",
-    "run_fannie_aus",
-    "run_freddie_aus",
     "update_processor_workflow",
     "update_processor_closing",
-    "review_flags",
-    "mark_docs_ready_for_uw",
-    "complete_required_fields",
     "update_milestone",
-    "final_efolder_cleanup",
-    "send_lock_desk_email",
-    "request_locked_le",
-    "send_emd_email",
 ]

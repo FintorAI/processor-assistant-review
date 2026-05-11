@@ -58,6 +58,17 @@ substeps:
       purpose: Compensation base pay rate per VOE
     - key: voe_employer_address
       purpose: Employer address per VOE
+    - key: voe_doc_id
+      purpose: eFolder document ID for status marking at Step 17
+    - key: voe_job_title
+      purpose: Job title per VOE — N/A is acceptable but field must be populated
+  - document_type: Paystubs
+    all_copies: true
+    fields:
+    - key: paystub_employer_name
+      purpose: Cross-check employer name against VOE and 1003
+    - key: paystub_gross_pay
+      purpose: Current period gross pay for income cross-check against base_monthly_income
   rules:
   - name: Employer Name Matches VOE
     type: field_comparison

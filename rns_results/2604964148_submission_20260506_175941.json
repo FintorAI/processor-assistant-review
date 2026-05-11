@@ -1,0 +1,419 @@
+{
+  "loan_number": "2604964148",
+  "env": "Prod",
+  "mode": "single",
+  "rns_endpoint": "https://a2ipvhje76.execute-api.us-west-1.amazonaws.com/prod",
+  "webhook_url": "https://1doxzxvey2.execute-api.us-west-1.amazonaws.com/prod/efolder/webhook",
+  "submitted_at": "2026-05-06T18:00:36",
+  "submissions": [
+    {
+      "doc_type": "1008/LT/VALA and 1003 Corrections",
+      "attachment_id": "3d102e71-41a4-4533-adf7-07ed865e7de6",
+      "category_id": null,
+      "category_confidence": 0.12,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "1008/LT/VALA and 1003 Corrections",
+      "attachment_id": "399f7e5b-921b-41be-bce8-69ef73d305f7",
+      "category_id": null,
+      "category_confidence": 0.12,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "ID Customer Identification Documentation",
+      "attachment_id": "8a3bd9de-a553-461b-9e34-690ca060b4f0",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Tax Summary",
+      "attachment_id": "d6c9d417-5ad3-47a4-986a-0ece43ecf145",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Tax Summary",
+      "attachment_id": "725b3008-c5c9-43f4-acee-628468724952",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Closing(Miscellaneous)",
+      "attachment_id": "f4b484fb-ec57-4012-82ae-254e7f150a11",
+      "category_id": null,
+      "category_confidence": 0.5,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Escrow Wire Instructions",
+      "attachment_id": "bd537476-6d16-4360-96db-86120497c5a1",
+      "category_id": null,
+      "category_confidence": 0.47,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Title Report",
+      "attachment_id": "b665f46f-0c74-4fbb-a719-2addf55964da",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Title Report",
+      "attachment_id": "2e470a6d-8b5a-4ce2-bcf5-ad502015b0e8",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Assets(Miscellaneous)",
+      "attachment_id": "226686c2-dc55-444c-9e7b-ff3dae744baa",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Borrower's Certification & Authorization",
+      "attachment_id": "f93d6dcc-4258-43a0-acfe-5c23290a45d4",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "MD Notice Regarding Right for Assumption Under Certain Circumstances",
+      "attachment_id": "9d39417f-1c8f-4503-a3f3-d7f8d080a4ca",
+      "category_id": null,
+      "category_confidence": 0.16,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Condo Documentation",
+      "attachment_id": "c8ea3026-bf13-4a39-a0c6-6e0d300f8948",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Condo Documentation",
+      "attachment_id": "a5542cc6-6948-4085-b012-204f9fa45475",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Condo Documentation",
+      "attachment_id": "03a6f94a-d39d-4062-a4a0-bbe25347a8fe",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Credit UDX",
+      "attachment_id": "6e8d7adc-0f2d-42e1-91d0-c26e6a5e2b06",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Borrower's Certification & Authorization",
+      "attachment_id": "4ed3dfce-56cf-4853-9a78-e56c5c605091",
+      "category_id": null,
+      "category_confidence": 0.35,
+      "job_id": null,
+      "submitted_at": null,
+      "skipped": "no_confident_category"
+    },
+    {
+      "doc_type": "Evidence of Hazard Insurance",
+      "attachment_id": "466ff7d7-dbd0-4c89-be80-69a8bca73ffe",
+      "category_id": 1561,
+      "category_confidence": 1.0,
+      "job_id": "7e534bf8-a91a-494e-b800-ae7b1f945cbc",
+      "submitted_at": "2026-05-06T17:59:44"
+    },
+    {
+      "doc_type": "Closing Protection Letter (CPL)",
+      "attachment_id": "7020a81a-92d4-4f9b-b811-00c5dd767c67",
+      "category_id": 167,
+      "category_confidence": 0.67,
+      "job_id": "1e77ab83-5675-4b92-aa4c-b813b162c95f",
+      "submitted_at": "2026-05-06T17:59:46"
+    },
+    {
+      "doc_type": "Estimated Settlement Statement",
+      "attachment_id": "47a80702-db0f-4986-aa2c-b4f3e29a8654",
+      "category_id": 1036,
+      "category_confidence": 1.0,
+      "job_id": "91f990bc-e401-4dfe-a455-587b175bdaae",
+      "submitted_at": "2026-05-06T17:59:49"
+    },
+    {
+      "doc_type": "Estimated Settlement Statement",
+      "attachment_id": "b8a29351-77e0-44e3-809b-73120b2a7995",
+      "category_id": 1036,
+      "category_confidence": 1.0,
+      "job_id": "20645dc8-ee08-4552-895e-766b01fa66ed",
+      "submitted_at": "2026-05-06T17:59:51"
+    },
+    {
+      "doc_type": "Bank Statements",
+      "attachment_id": "406c7392-9199-473c-a212-6fb60e3b247f",
+      "category_id": 502,
+      "category_confidence": 1.0,
+      "job_id": "eb9a2ab7-fe7c-470c-9dbf-55c10cff68fa",
+      "submitted_at": "2026-05-06T17:59:54"
+    },
+    {
+      "doc_type": "Purchase Agreement",
+      "attachment_id": "080df60a-05ae-4a7f-9530-dfd6de817ae2",
+      "category_id": 200,
+      "category_confidence": 1.0,
+      "job_id": "09457da1-5c57-4387-a641-f50374476b8c",
+      "submitted_at": "2026-05-06T17:59:56"
+    },
+    {
+      "doc_type": "VOE - non service provider",
+      "attachment_id": "dab04cf1-cd2d-49ed-8d1d-57a00e78d49e",
+      "category_id": 436,
+      "category_confidence": 1.0,
+      "job_id": "2cad21cd-1292-4f07-b27e-4f036e1a6119",
+      "submitted_at": "2026-05-06T17:59:59"
+    },
+    {
+      "doc_type": "VOE - non service provider",
+      "attachment_id": "ca435d98-a0eb-4c2e-9b38-5b5f08a9ea43",
+      "category_id": 436,
+      "category_confidence": 1.0,
+      "job_id": "d3c08ada-b172-42f9-ac45-85185f352b34",
+      "submitted_at": "2026-05-06T18:00:01"
+    },
+    {
+      "doc_type": "Credit Report",
+      "attachment_id": "55c75c02-ce7a-499c-92d9-9cc265556f6b",
+      "category_id": 117,
+      "category_confidence": 1.0,
+      "job_id": "7fdd1c41-35ff-4de8-80a4-54db1589ed22",
+      "submitted_at": "2026-05-06T18:00:03"
+    },
+    {
+      "doc_type": "Flood Certificate",
+      "attachment_id": "3b86df22-1186-446a-8cbf-478bcc521838",
+      "category_id": 538,
+      "category_confidence": 1.0,
+      "job_id": "15e7b1c4-ad3a-4f83-8b7b-cd1f480cbb2b",
+      "submitted_at": "2026-05-06T18:00:04"
+    },
+    {
+      "doc_type": "Loan Estimate",
+      "attachment_id": "0537dfac-29f4-4923-b473-e4931c4d158d",
+      "category_id": 984,
+      "category_confidence": 1.0,
+      "job_id": "6de353a3-d425-4d18-b5c2-ae59b511a3d8",
+      "submitted_at": "2026-05-06T18:00:07"
+    },
+    {
+      "doc_type": "Loan Estimate",
+      "attachment_id": "c4957290-44bb-4a56-b1d5-520e051e71cc",
+      "category_id": 984,
+      "category_confidence": 1.0,
+      "job_id": "5781610b-8052-46b1-8aa3-addbe3542b86",
+      "submitted_at": "2026-05-06T18:00:09"
+    },
+    {
+      "doc_type": "1003",
+      "attachment_id": "0f58684e-d26d-4d39-b169-1e8e60da57f0",
+      "category_id": 349,
+      "category_confidence": 1.0,
+      "job_id": "8b1a109e-87b0-4d76-aa29-f6651b763bfe",
+      "submitted_at": "2026-05-06T18:00:10"
+    },
+    {
+      "doc_type": "Lock Confirmation Document",
+      "attachment_id": "cfd28f4b-c579-4144-93b4-cf69b642edce",
+      "category_id": 339,
+      "category_confidence": 0.62,
+      "job_id": "29e877a8-eaa7-449d-b0c2-b86166105d93",
+      "submitted_at": "2026-05-06T18:00:10"
+    },
+    {
+      "doc_type": "Bank Statements",
+      "attachment_id": "cef073ad-590e-4653-be4a-aec54b15a342",
+      "category_id": 502,
+      "category_confidence": 1.0,
+      "job_id": "b3657c0a-2024-43b5-b1f3-bef538bd8bbd",
+      "submitted_at": "2026-05-06T18:00:13"
+    },
+    {
+      "doc_type": "Earnest Money Deposit (EMD)",
+      "attachment_id": "886530d9-51ea-4f69-ab14-e30eaf8cc0ba",
+      "category_id": 1781,
+      "category_confidence": 1.0,
+      "job_id": "89934dcb-80f9-4a84-83ec-546da42b7e7b",
+      "submitted_at": "2026-05-06T18:00:15"
+    },
+    {
+      "doc_type": "Purchase Agreement Addendums",
+      "attachment_id": "68138086-8c0a-41f2-bca6-7488ef5eb707",
+      "category_id": 821,
+      "category_confidence": 1.0,
+      "job_id": "df32a346-8de0-4402-b47b-6c7bbe76f36a",
+      "submitted_at": "2026-05-06T18:00:18"
+    },
+    {
+      "doc_type": "Closing Disclosure",
+      "attachment_id": "9c458266-d3f7-47a6-9794-381e683c7d3f",
+      "category_id": 819,
+      "category_confidence": 1.0,
+      "job_id": "b7d53036-b44b-42a4-97f6-59d7b786f925",
+      "submitted_at": "2026-05-06T18:00:19"
+    },
+    {
+      "doc_type": "Evidence of Hazard Insurance",
+      "attachment_id": "7de8b166-6223-4e16-8460-5292131cb7de",
+      "category_id": 1561,
+      "category_confidence": 1.0,
+      "job_id": "a76785d0-9c64-4452-b8ab-74b872d06771",
+      "submitted_at": "2026-05-06T18:00:19"
+    },
+    {
+      "doc_type": "Pre-Note Verbal Verification of Employment",
+      "attachment_id": "c8013d72-6c0b-48cb-a5ea-9474fedc8524",
+      "category_id": 1560,
+      "category_confidence": 0.62,
+      "job_id": "14f80b1f-b34e-4f4e-a6a7-edb7d2e5c048",
+      "submitted_at": "2026-05-06T18:00:20"
+    },
+    {
+      "doc_type": "1008 - Transmittal Summary",
+      "attachment_id": "3f3768c8-5d04-4823-8686-bbd549a128cd",
+      "category_id": 351,
+      "category_confidence": 0.7,
+      "job_id": "d36d91df-664c-4713-914d-e393ebb20c6f",
+      "submitted_at": "2026-05-06T18:00:22"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "05330ff1-94b1-4ebc-ab0a-28098955c7d2",
+      "category_id": 1478,
+      "category_confidence": 1.0,
+      "job_id": "3561829e-da32-4514-b5b9-8b5456ab0d4f",
+      "submitted_at": "2026-05-06T18:00:23"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "05330ff1-94b1-4ebc-ab0a-28098955c7d2",
+      "category_id": 983,
+      "category_confidence": 1.0,
+      "job_id": "5b9229a8-9af8-448f-aa10-1a1f827ab02c",
+      "submitted_at": "2026-05-06T18:00:24"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "05330ff1-94b1-4ebc-ab0a-28098955c7d2",
+      "category_id": 352,
+      "category_confidence": 1.0,
+      "job_id": "336029a6-c280-4a34-856f-049e8e6d3ec1",
+      "submitted_at": "2026-05-06T18:00:26"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "bcd04582-8d3b-4401-a08b-ccf34b7c64ee",
+      "category_id": 1478,
+      "category_confidence": 1.0,
+      "job_id": "638a1179-c8af-40b2-baa5-5c2621001a4f",
+      "submitted_at": "2026-05-06T18:00:26"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "bcd04582-8d3b-4401-a08b-ccf34b7c64ee",
+      "category_id": 983,
+      "category_confidence": 1.0,
+      "job_id": "478c4144-bf0c-4429-a168-cffaab3f5ad6",
+      "submitted_at": "2026-05-06T18:00:27"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "bcd04582-8d3b-4401-a08b-ccf34b7c64ee",
+      "category_id": 352,
+      "category_confidence": 1.0,
+      "job_id": "4064c084-8431-4bab-96ec-ba26ab8a28ec",
+      "submitted_at": "2026-05-06T18:00:28"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "8eff1768-8161-457d-8298-f225bee2db76",
+      "category_id": 1478,
+      "category_confidence": 1.0,
+      "job_id": "88bf9be3-768a-44cd-9b6b-a9c817fd7546",
+      "submitted_at": "2026-05-06T18:00:30"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "8eff1768-8161-457d-8298-f225bee2db76",
+      "category_id": 983,
+      "category_confidence": 1.0,
+      "job_id": "5a7c43fe-60a7-4dc4-98eb-7a5fad4fcdb4",
+      "submitted_at": "2026-05-06T18:00:32"
+    },
+    {
+      "doc_type": "Underwriting",
+      "attachment_id": "8eff1768-8161-457d-8298-f225bee2db76",
+      "category_id": 352,
+      "category_confidence": 1.0,
+      "job_id": "7cfd73e4-3c75-4464-a162-b5d0de8cc4b2",
+      "submitted_at": "2026-05-06T18:00:33"
+    },
+    {
+      "doc_type": "Uniform Residential Loan Application (2020)",
+      "attachment_id": "a1ecbac2-91ba-4c0d-92bd-b7c81188b27f",
+      "category_id": 349,
+      "category_confidence": 1.0,
+      "job_id": "212d57e4-946d-4672-8982-f3bc4fc818f3",
+      "submitted_at": "2026-05-06T18:00:33"
+    },
+    {
+      "doc_type": "Flood Hazard Determination",
+      "attachment_id": "71cb6687-ed34-4cb7-8218-1c7dbd62f61c",
+      "category_id": 1800,
+      "category_confidence": 1.0,
+      "job_id": "af091af7-d18a-4843-b47c-2c6ae879d394",
+      "submitted_at": "2026-05-06T18:00:36"
+    }
+  ]
+}

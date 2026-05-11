@@ -1,0 +1,39 @@
+{
+  "DocClassification": "Flood Certification",
+  "Status": "extracted",
+  "ProcessingTimestamp": "2026-05-06T10:00:19.225042+00:00",
+  "FileSizeBytes": 183614,
+  "TokensUsed": 6304,
+  "CreatedAt": "2026-05-06T10:00:19.225042+00:00",
+  "JobID": "15e7b1c4-ad3a-4f83-8b7b-cd1f480cbb2b",
+  "ManifestDocID": "N/A",
+  "Source": "LambdaRNS_Extract",
+  "ExtractedFields": {
+    "date": "2026-04-15",
+    "lender": "ALL WESTERN MORTGAGE INC",
+    "borrowers": [
+      {
+        "lastName": "JERMAIN",
+        "firstName": "CYNDY",
+        "middleName": "",
+        "suffix": ""
+      },
+      {
+        "lastName": "APPELL",
+        "firstName": "",
+        "middleName": "",
+        "suffix": ""
+      }
+    ]
+  },
+  "SuggestedFilename": "Flood Certification - ALL WESTERN MORTGAGE INC CYNDY JERMAIN & APPELL 2026-04-15",
+  "ID": "52722b97-8ee9-46d7-99ce-39923ef0d576",
+  "UpdatedAt": "2026-05-06T10:00:19.225042+00:00",
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "DocType": "Flood Certification",
+  "ExtractionModel": "gpt-4o",
+  "AttachmentID": "3b86df22-1186-446a-8cbf-478bcc521838",
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Flood_Certification/20260506_100019_15e7b1c4-ad3a-4f83-8b7b-cd1f480cbb2b.pdf",
+  "LoanNumber": "2604964148"
+}

@@ -42,10 +42,10 @@
     }
   },
   "rule_modifier_stats": {
-    "total_modifiers": 5,
+    "total_modifiers": 4,
     "by_field": {
       "state": 1,
-      "loan_type": 4
+      "loan_type": 3
     }
   },
   "phases": {
@@ -67,22 +67,11 @@
       "STEP_08",
       "STEP_09"
     ],
-    "ORDERS": [
-      "STEP_10"
-    ],
-    "PREP": [
-      "STEP_11",
-      "STEP_12",
-      "STEP_13",
-      "STEP_14"
-    ],
     "PROCESSOR_UPDATE": [
       "STEP_15"
     ],
     "SUBMISSION": [
-      "STEP_16",
-      "STEP_17",
-      "STEP_18"
+      "STEP_17"
     ]
   },
   "step_order": [
@@ -96,15 +85,8 @@
     "STEP_07",
     "STEP_08",
     "STEP_09",
-    "STEP_10",
-    "STEP_11",
-    "STEP_12",
-    "STEP_13",
-    "STEP_14",
     "STEP_15",
-    "STEP_16",
-    "STEP_17",
-    "STEP_18"
+    "STEP_17"
   ],
   "steps": {
     "STEP_00": {
@@ -125,13 +107,13 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (89 fields)",
+          "name": "Fetch LOS Fields (83 fields)",
           "tools": [
             "fetch_los_fields"
           ]
         },
         "3": {
-          "name": "Fetch Doc Fields (20 document types)",
+          "name": "Fetch Doc Fields (23 document types)",
           "tools": [
             "fetch_doc_fields"
           ]
@@ -374,118 +356,6 @@
         }
       }
     },
-    "STEP_10": {
-      "name": "Orders",
-      "phase": "ORDERS",
-      "plan_file": "orders.md",
-      "tools": [
-        "order_appraisal",
-        "order_condo_questionnaire",
-        "send_title_order_email"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Order Appraisal",
-          "tools": [
-            "order_appraisal"
-          ],
-          "rule_modifiers": [
-            {
-              "condition": {
-                "field": "loan_type",
-                "equals": "VA"
-              },
-              "action": "add",
-              "description": "VA loans always require a full appraisal \u2014 waiver is not allowed.",
-              "source": "notes.txt"
-            }
-          ]
-        },
-        "2": {
-          "name": "Order Condo Questionnaire",
-          "tools": [
-            "order_condo_questionnaire"
-          ]
-        },
-        "3": {
-          "name": "File Contacts and Title Order Email",
-          "tools": [
-            "send_title_order_email"
-          ]
-        }
-      }
-    },
-    "STEP_11": {
-      "name": "Prep eFolder",
-      "phase": "PREP",
-      "plan_file": "prep_efolder.md",
-      "tools": [
-        "prep_efolder"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Prep eFolder - Delete Junk Buckets",
-          "tools": [
-            "prep_efolder"
-          ]
-        }
-      }
-    },
-    "STEP_12": {
-      "name": "Order Additional Services",
-      "phase": "PREP",
-      "plan_file": "order_additional_services.md",
-      "tools": [
-        "run_additional_services"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Run Ocrolus and Income Calc",
-          "tools": [
-            "run_additional_services"
-          ]
-        }
-      }
-    },
-    "STEP_13": {
-      "name": "Print 1003 and Transmittal",
-      "phase": "PREP",
-      "plan_file": "print_1003_and_transmittal.md",
-      "tools": [
-        "print_forms"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Print Forms to eFolder",
-          "tools": [
-            "print_forms"
-          ]
-        }
-      }
-    },
-    "STEP_14": {
-      "name": "Run Fresh AUS",
-      "phase": "PREP",
-      "plan_file": "run_fresh_aus.md",
-      "tools": [
-        "run_fannie_aus",
-        "run_freddie_aus"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Run Fannie Mae DU",
-          "tools": [
-            "run_fannie_aus"
-          ]
-        },
-        "2": {
-          "name": "Run Freddie Mac LP",
-          "tools": [
-            "run_freddie_aus"
-          ]
-        }
-      }
-    },
     "STEP_15": {
       "name": "Processor Workflow and Closing",
       "phase": "PROCESSOR_UPDATE",
@@ -509,85 +379,18 @@
         }
       }
     },
-    "STEP_16": {
-      "name": "Flag Review (HITL)",
-      "phase": "SUBMISSION",
-      "plan_file": "flag_review_(hitl).md",
-      "tools": [
-        "review_flags"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Review All Flags (HITL)",
-          "tools": [
-            "review_flags"
-          ]
-        }
-      }
-    },
     "STEP_17": {
       "name": "Submission",
       "phase": "SUBMISSION",
       "plan_file": "submission.md",
       "tools": [
-        "complete_required_fields",
-        "final_efolder_cleanup",
-        "mark_docs_ready_for_uw",
         "update_milestone"
       ],
       "substeps": {
-        "1": {
-          "name": "Mark Docs Ready-for-UW",
-          "tools": [
-            "mark_docs_ready_for_uw"
-          ]
-        },
-        "2": {
-          "name": "Required Fields - Click Finished",
-          "tools": [
-            "complete_required_fields"
-          ]
-        },
         "3": {
           "name": "Milestone Change and Processor Name",
           "tools": [
             "update_milestone"
-          ]
-        },
-        "4": {
-          "name": "Final eFolder Cleanup",
-          "tools": [
-            "final_efolder_cleanup"
-          ]
-        }
-      }
-    },
-    "STEP_18": {
-      "name": "Notifications",
-      "phase": "SUBMISSION",
-      "plan_file": "notifications.md",
-      "tools": [
-        "request_locked_le",
-        "send_emd_email",
-        "send_lock_desk_email"
-      ],
-      "substeps": {
-        "1": {
-          "name": "Lock Desk Email (if locked + address change)",
-          "tools": [
-            "send_lock_desk_email"
-          ]
-        },
-        "2": {
-          "name": "Request Locked LE (if locked + no Locked LE)",
-          "tools": [
-            "request_locked_le"
-          ]
-        },
-        "3": {
-          "name": "EMD Email to Realtor (if EMD missing or mismatch)",
-          "tools": [
-            "send_emd_email"
           ]
         }
       }

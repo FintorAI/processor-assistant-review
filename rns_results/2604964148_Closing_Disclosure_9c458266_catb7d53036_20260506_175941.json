@@ -1,0 +1,35 @@
+{
+  "Status": "extracted",
+  "DocClassification": "Closing Disclosure",
+  "ProcessingTimestamp": "2026-05-06T10:00:35.551296+00:00",
+  "FileSizeBytes": 648958,
+  "CreatedAt": "2026-05-06T10:00:35.551296+00:00",
+  "SuggestedFilename": "Closing Disclosure - All Western Mortgage, Inc Cyndy Appell Jermain 2026-04-30",
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Closing_Disclosure/20260506_100035_b7d53036-b44b-42a4-97f6-59d7b786f925.pdf",
+  "ManifestDocID": "N/A",
+  "Source": "LambdaRNS_Extract",
+  "ID": "2b630a27-e1b7-49b3-b57c-9e42566c3f9d",
+  "DocType": "Closing Disclosure",
+  "AttachmentID": "9c458266-d3f7-47a6-9794-381e683c7d3f",
+  "JobID": "b7d53036-b44b-42a4-97f6-59d7b786f925",
+  "UpdatedAt": "2026-05-06T10:00:35.551296+00:00",
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "ExtractionModel": "gpt-4o",
+  "TokensUsed": 11490,
+  "ExtractedFields": {
+    "lender": "All Western Mortgage, Inc",
+    "borrowers": [
+      {
+        "lastName": "Jermain",
+        "firstName": "Cyndy",
+        "signed": true,
+        "middleName": "Appell",
+        "suffix": "",
+        "dateSigned": "2026-04-30"
+      }
+    ],
+    "withProjectedPayments": true
+  },
+  "LoanNumber": "2604964148"
+}

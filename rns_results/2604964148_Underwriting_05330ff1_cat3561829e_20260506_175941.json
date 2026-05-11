@@ -1,0 +1,33 @@
+{
+  "Status": "extracted",
+  "ExtractedFields": {
+    "borrowers": [
+      {
+        "lastName": "Jermain",
+        "firstName": "Cyndy",
+        "signed": false,
+        "middleName": "Appell",
+        "suffix": "",
+        "dateSigned": ""
+      }
+    ]
+  },
+  "TokensUsed": 10010,
+  "ProcessingTimestamp": "2026-05-06T10:00:49.120019+00:00",
+  "CreatedAt": "2026-05-06T10:00:49.120019+00:00",
+  "DocClassification": "Underwriter Summary",
+  "JobID": "3561829e-da32-4514-b5b9-8b5456ab0d4f",
+  "ManifestDocID": "N/A",
+  "SuggestedFilename": "Underwriter Summary - Cyndy Appell Jermain",
+  "Source": "LambdaRNS_Extract",
+  "AttachmentID": "05330ff1-94b1-4ebc-ab0a-28098955c7d2",
+  "FileSizeBytes": 43411,
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Underwriter_Summary/20260506_100048_3561829e-da32-4514-b5b9-8b5456ab0d4f.pdf",
+  "DocType": "Underwriter Summary",
+  "ID": "1980a3f1-8305-45a7-a156-f93e940b7f11",
+  "UpdatedAt": "2026-05-06T10:00:49.120019+00:00",
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "ExtractionModel": "gpt-4o",
+  "LoanNumber": "2604964148"
+}

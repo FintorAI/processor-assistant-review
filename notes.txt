@@ -1,0 +1,349 @@
+PROCESSOR FEEDBACK NOTES
+Ash and Almas
+Submission
+Pipeline
+- Ash’s view
+
+2604964148
+
+Looks like a more elaborate disclosures workflow. Disclosure is more of a presence check, the only document we consistently check is Credit Report for the FACT ACT disclosure form. This new flow checks the same forms but has more verifications and document validations as well as some forms from Docs
+
+PROCESSOR FEEDBACK NOTES
+- Ash gets email from Almas that loan is to be reviewed and submitted to underwriter
+- Read Almas’ notes and go into file
+- Go to efolder
+- Check if 
+    - Initial disclosure is signed: 1003, Borrower’s Certification and Authorization, state disclosures (MD Notice Regarding Right for Assumption Under Certain Circumstances)
+    - There is VOE/ paystubs so pull last ran AUS (Underwriting in eFolder)
+        - In AUS, check collateral relief
+        - Income raw relief
+        - Reads a little bit of it as a heads up when reviewing the file
+        - Which are the relevant sections you read in the AUS? Looked at Assets and Income
+    - Borrower Summary - Origination
+        - Make sure every field is complete (reflects to 1003)
+        - If cell field is empty, copy from home phone (same)
+        - Check ID, make sure not expired
+            - Get ID - populated in Government ID (in this case Driver’s License)
+        - Purchase so buying this property
+        - Credit Score
+        - Subject Property Information
+            - Verify the address, just looks up in browser and gets the listing
+            - Verify it matches address in Purchase Contract 
+            - Est -> Appraised Value
+        - Loan Amount
+        - Affordable Loan Eligibility is usually 
+    - 1003 URLA Page 1
+        - Repeats in Origination
+        - Fields that appear on BOTH 1003 URLA Part 1 AND Borrower Summary - Origination
+          (sourced from ../LG-discOrch: tools/form_validation.py `part1_borrower_fields`
+          + `borrower_summary_fields`, and plans/forms_verification.md §6.2 / §6.7):
+            - Borrower identity (URLA Part 1 owns the verify; Borr Summary just displays):
+                - 4000  Borrower First Name
+                - 4002  Borrower Last Name
+                - 65    Borr SSN
+                - 1402  Borr DOB
+                - 52    Borr Marital Status
+            - Borrower contact (intersect of both field maps in code):
+                - 66    Borr Home Phone        (hard-stop in BOTH; cell/work/biz cascade)
+                - 1490  Borr Cell Phone        (URLA + Borr Summary)
+                - 4533  Borr Work Phone        (URLA Part 1 only)
+                - FE0117 Borr Business Phone   (Borr Summary only)
+                - 1240  Borr Email             (URLA + Borr Summary)
+            - Co-Borrower identity (per "shared with Borr Summary" note in §6.2 —
+              cleared via update_borrower_forms, not via update_1003_urla, to avoid
+              duplicate writes):
+                - 4004  Co-Borr First Name
+                - 4005  Co-Borr Middle Name
+                - 4006  Co-Borr Last Name
+                - 4007  Co-Borr Suffix
+                - 97    Co-Borr SSN
+                - 1403  Co-Borr DOB
+                - 84    Co-Borr Marital Status (intersect in both code maps)
+            - Co-Borrower contact:
+                - 98    Co-Borr Home Phone
+                - 1480  Co-Borr Cell Phone
+                - 1268  Co-Borr Email          (intersect in both code maps; uniqueness
+                                                checked vs 1240 in URLA Part 1)
+            - Co-Borrower CURRENT address (FR02xx — "shared, cleared via Borr Summary"):
+                - FR0226 Co-Borr Current Street Address
+                - FR0206 Co-Borr Current City
+                - FR0207 Co-Borr Current State
+                - FR0208 Co-Borr Current ZIP
+                - FR0212 Co-Borr Years at Current Address  (intersect in both maps)
+                - FR0224 Co-Borr Months at Current Address (intersect in both maps)
+                - FR0215 Co-Borr Current Housing
+                - FR0229 Co-Borr Foreign Address Indicator (Current)
+            - Co-Borrower FORMER address (FR04xx — same shared-clear pattern):
+                - FR0426 Co-Borr Former Street Address
+                - FR0406 Co-Borr Former City
+                - FR0407 Co-Borr Former State
+                - FR0408 Co-Borr Former ZIP
+                - FR0412 Co-Borr Years at Former Address
+                - FR0424 Co-Borr Months at Former Address
+                - FR0415 Co-Borr Former Housing            (intersect in both maps)
+                - FR0429 Co-Borr Foreign Address Indicator (Former)
+                - URLA.X266 Co-Borr Former Address Does Not Apply (intersect in both maps)
+        - Implementation note (LG-discOrch): `verify_1003_urla(part="part1")` reads the
+          full Part 1 set, but the co-borrower identity + FR02xx/FR04xx fields above are
+          intentionally cleared by `update_borrower_forms` (Borrower Summary path) instead
+          of `update_1003_urla(part="part1")`. The two pages display the same Encompass
+          fields — only one tool writes them.
+    - 1003 URLA Page 2
+        - VOE, check in docs: 
+            - Name of employer
+            - Original hire date
+            - Jan 15, 2025
+            - Compensation Base Pay Rate, check if matches in Gross Monthly Income > Base / Month
+            - Cross reference employer address in Google - just types it out, verify if matches, change as needed
+            - Job Title is N/A
+            - If curr employment < 2 years, check history
+                - Overlap is better than a gap
+                - If FHA and gap < 6 mos., then write explanation
+                - Else if gap > 6 mos., look at 2 year history before gap
+                - Look at income before gap
+                - Were they in the same line of work? A lot of factors
+            - Some auto-populated from Blend, can pull from Xactus
+            - Check how to do?
+        - Income from other sources
+            - Alimony, dividend stocks, etc.
+    - 1003 URLA Part 3
+        - Assets etc.
+        - Docs:
+            - Assets
+                - Stock account, different from retirement account
+                - Renamed too to Edward Jones x(account number) - (date)
+            - Bank statements
+                - Auto-populated from Blend
+                - PNC, account number, date
+                - 60-day history of transactions
+                - Current date = 04/14/2026, renamed document
+                - 2 months if conventional, 1 month if FHA
+                    - If not, make note to request
+                - ZEL? UW wants letter to explain what the ZELs are for, doesn’t have to be in detail
+                - Klarna, Firm
+                - Look out for green deposits too
+        - 2a.
+            - Click show all VOD
+                - PNC
+                - Checking Account
+                - Savings Account
+                - Went to VOD form actually (not in 1003 URLA P3)
+            - Total Asset Amount, how much does she need for closing? Check CTC in 2015 Itemization - what is the logic in this? How were they able to say that it was okay/enough?
+        - 2b. 
+            - Check EMD (1st row) - cash or market value is pulled from Purchase Contract
+                - Payment Terms
+                - Check
+                - 2750
+                - Check if it matches
+                - 8c - Re/Max Results
+                - Email agent to get copy of check
+            - 2c.
+                - VOL (Liabilities and Debts)
+                - Exclude Mon Pay and To be Paid Off
+                    - Column 1: If Y, why was it excluded? Was it already paid off?
+                    - Column 2: If Y, need to request most recent credit card statement (JPMCB card)
+                    - Usually for cash-out refis?
+            - 2d.
+                - Marked no so nothing
+            - Section 3
+                - If borrower owns property, mortgage statement, insurance deck page. HOA statement, tax bill; else move on
+        - 1003 URLA Part 4
+            - Usually auto-populated
+            - 4b. 
+                - Does not apply
+                - Applies when getting downpayment assistance/HELOC
+            - 4c.
+                - No rental income
+            - 4d. 
+                - Borrower will get grant from FNM
+                - Go to Fannie Mae Additional Data
+                - Affordable Loan Eligibility
+                - AM 100%
+                    - Median for 1 family
+                - Check total household income 
+                    - 50% or less than the whole area so gets 2500 Freddie Mac grant
+                - Considered as low-income borrower
+                - 2500, don’t have to do anything
+                - Gift of Cash
+                    - If Gift, send gift to borrower/ send details of gift
+            - 5. Declarations
+                - A. 2nd checkbox is No but should be Yes
+                - Because this borrower has been renting for 10 months, but owned  a property 3 years ago
+                - Primary, sole owner because no co-borrower
+                - If any are yes, then check
+            - Ethnicity
+                - Validate with Driver’s License
+            - Validate Attachment Type and Property Type with listing on Google
+            - Estate will be held in Fee Simple
+            - Manner in Which title will be held: Sole Ownership
+    - Cover Letter
+        - CX.KM.SUBMISSION.NOTES
+            - Paste notes of Alma here 
+            - Delete Title Company, Appraisal, Additional Notes
+            - Added “Borrower is below 50% AMI - qualifies for automatic 2500 Freddie Mac Grant”
+            - Missing: - added “title work\nhomeowners insurance\condo questionnaire\nmaster insurance policy” - how do they know which docs are missing from file?
+    - Goes through each of the ff. Forms: Cover Letter, FHA Management, Borrower Information - Vesting, HUD… Transmittal, Transmittal Summary, Appraisal Management Specialists, VOD, VOE, GSE Additional Provider Data, Freddie Mac Additional Data, Fannie Mae Additional Data, VOL, File Contacts, VA Management, Tasks List, Processor Workflow, Processor Closing
+    - Borrower Information - Vesting
+        - Occupancy Intent
+        - Vesting
+        - Check if married/unmarried from 100 3URLA Part 1
+        - Will Occupy/ A SINGLE WOMAN OR UNMARRIED WOMAN
+        - Final Vesting (clicked Build Final Vesting)
+    - Transmittal Summary
+        - Project Type
+            - Freddie Mac: Established Project
+            - Find name of Condo
+            - Freddie Mac condo project adviser - searched in Google, https://sf.freddiemac.com/tools-learning/technology-tools/our-solutions/condo-project-advisor
+                - Logged in with credentials
+                - OTP
+                - Tools > Origination Tools Condo Project Advisor > Open
+                - PROJECT ASESSMENT REQUEST
+                - Search by ZIP
+                - Enter ZIP
+                - Verify Project Name with listing 
+                    - Can also see in Title Report in Legal Description of Property
+                    - Can also be seen in Condominium Resale Notice in Purchase Agreement / Contract
+                - Get project ID
+                - Printed screen and added in efolder
+                    - Saved in Condo Project Search Results efolder bucket
+                - Incomplete assessment: need to order condo docs from another vendor
+        - Populate Project Name and CPM Project ID# with the info from above check
+        - Other stuff are pre-populated 
+        - Rate is locked (in header) should match Qualifying Rate
+    - Order Appraisal > click Reggora (appraisal management tool, keeps appraisal in 1 system) > create Order > Appraiser Selection > click on plus button of Appraisal Management Specialists > click Create (can also click Priority, etc.)
+        - Appraisal waived because of 50% downpayment, low DTI
+        - Go to Findings > Property and Appraisal > Loan is eligible for collateral representation…
+    - File Contacts
+        - Buyer’s Agent
+        - Seller’s Agent
+        - Seller 1
+            - Address 
+                - Usually property they’re selling
+        - Escrow Company
+            - Estimated Settlement Statement
+            - 2nd to last page has Contact Information (Settlement Agent columns), specifically MD License ID, Contact MD License ID, File # -> Company License #, Contact License #, Escrow Case # EC fields
+            - Get Email (Brianne..), send email to it, CC loan officer, Joe Salem, Almas Younis, put template, subject is Official Title Order | Borrower Name | Property Address | Loan Number, copy and paste borrower info to template
+                - Renamed HOA dues to Condo Dues and placed Condo before Resale Cert Letter
+                - Title Company is pre-filled by Almas
+                - Pre-CD doc?
+    - Order Condo Questionnaire
+        - Go to AUS doc
+            - Full Feedback
+            - Limited condo review?
+        - https://www.condoanalytics.agiloft.com/ ?
+            - Preferred approach because condo team reviews entire package
+            - Log in > New Order > Populate Order Type (Condo/PUD Review), HOA Name, Order Instructions (condo questionnaire and master insurance policy), Borrower, Estimated Closing Date (in header but put April 30), Loan Number, Loan type, property type, occupancy, attached/detached, loan purpose, flood zone (get from flood certificate, flood zone == x means no flood, else if ==a /v flood), Unit Address, City, State, Loan Amount, Zip, Estimated / Appraised Value, LTV, HCLTV, Est/ Appraised Value, Sales Price, HOA Contact Info (will find out from realtors) > Reopen Order (get message saying order has been submitted)
+            - homewisedocs.com 
+    - Clean up efolder, remove blank buckets and non useful buckets
+        - Keep CPL and Closing, Escrow Wire, Evidence of Hazard Insurance, Title Report
+        - Delete UW buckets. MI Quote, Ocrolus Processing, Paystubs, W2 - all years
+    - Order Additional Services
+        - Ocrolus
+        - Set Freddie Mac
+        - Download
+        - Export as pdf and saved as Income Calc Jermaine
+        [IMPLEMENTATION NOTES]
+        - Ocrolus is NOT an EPC service order (unlike Reggora/appraisal).
+          It uses the Ocrolus direct REST API: POST /v2/book/{book_uuid}/income-calculations
+        - Ocrolus is set up as a persona/user inside the Encompass instance — it pulls
+          documents from the eFolder directly using its own Encompass credentials.
+        - "Set Freddie Mac" = set the lending guideline param in the income-calculations call
+        - "Download" = export Income Calc worksheet as PDF via Ocrolus API
+        - "Export as pdf and saved as Income Calc [Borrower]" = push PDF into Encompass
+          eFolder via Ocrolus "Download to e-Folder" feature (configured in Ocrolus Dashboard,
+          uses EPC internally on Ocrolus's side — not called by the agent)
+        - What is missing before full implementation:
+            - OCROLUS_API_KEY (not yet in .env / .env.example)
+            - book_uuid per loan (must be fetched from Ocrolus API or stored in a custom
+              Encompass field — no mechanism exists yet)
+            - eFolder destination mapping (one-time config in Ocrolus Dashboard)
+        - Until credentials + book_uuid resolution are wired in, the tool should raise a
+          warning flag ("Ocrolus Run Failed") and let the processor run it manually from
+          the Ocrolus Dashboard.
+        - When implemented, will need an ocrolus_client.py — separate from encompass_client.py
+    - Need to print 1003 and Transmittal Summary
+        - Clicked print
+        - Standard Forms
+        - 1008 Transmittal Summary
+            - Goes to 1008 bucket
+        - 2020 URLA - All pages
+            - Goes to Internal Submission Documents
+            - Also upload Cover Letter here
+        - Add to eFolder
+    - Loan is locked so email Lock Desk CC Joe Salem Ash Desai, Subject: LN - Borrower Name, to fix property address and change from  Apartment to Unit
+    - AUS:
+        - Run Fannie and Freddie
+        - ~1:04:00..
+        - See how to automate upload to efolder
+        - Can both run DU and LP, uses latest run
+            - Can change in Risk Assessment
+        - LP is Freddie
+        - Can know loan is Fannie/Freddie via 1008
+- Processor Workflow
+    - Processing Info > Product 
+        - Conforming
+        - Non-Del Inv. Approval No
+        - Non QM Submission doc type conventional is full doc
+- Processor Closing
+    - Signing date is closing date
+    - Wire Requested Date same as Closing on a purchase
+- Mark 1003, 1008, Assets, Bank Statements, Condo Project, Credit Report, Estimated Settlement Statement, Flood Certificate, Fraud, General Letter of explanation, ID Customer, Income Calc, Internal Submission, LDP, Loan Estimate, Lock Confirmation, Paystubs, Purchase Agreement, Tax Summary, UW 2x, VOE
+    - Click edit document
+    - Status -> Ready for UW
+- Log > In processing
+    - Required Fields > click Finished
+- Cover Letter is put in bucket
+- Changes milestone from In processing to Submitted, set Processor to processor name
+- Check Tasks in submitted
+- Request Locked LE when loan is locked and submitted
+    - Check latest LE > rate lock > if no then request
+        - Initial Disclosures / LE COC> CX.COMMENT.BOX.DISCLOSURES - put in Comments/Notes (Date - please send out locked LE) > click Disclosures Requested
+- Efolder > File Manager > Unassigned > put to recycle/miscellaneous bin
+- Additional info around 1:20:00
+
+Required Documents (Processor Submission):
+- 1003 URLA (2020, all pages) → Internal Submission Documents bucket
+- 1008 Transmittal Summary → 1008 bucket
+- AUS Findings (latest run, from Underwriting eFolder bucket)
+- VOE (Verification of Employment) — pulled from Xactus or Blend
+- Paystubs (all copies)
+- W-2s (all years needed)
+- Tax Returns / Tax Summary
+- Income Calc (generated via Ocrolus, PDF saved to Income Calc bucket)
+- Bank Statements (2 months conventional, 1 month FHA; 60-day history)
+- Assets (brokerage/investment account statements, e.g. Edward Jones)
+- Purchase Agreement / Contract
+    - Includes EMD check details (Earnest Money Deposit)
+    - Includes Condominium Resale Notice (source for condo project name)
+- Credit Report (for FACT ACT disclosure; includes credit scores)
+- Government ID (Driver's License — validate ethnicity, expiry)
+- Estimated Settlement Statement (ESS) — from Escrow Company
+- Flood Certificate
+- Evidence of Hazard Insurance (Homeowners Insurance deck page)
+- Title Report (Legal description, condo project name)
+- Loan Estimate (LE) / Lock Confirmation
+- Cover Letter → Internal Submission Documents bucket
+- Condo Project Search Results (from Freddie Mac Condo Project Advisor) → Condo Project bucket
+- Condo Questionnaire + Master Insurance Policy (from condo analytics vendor)
+- Initial Disclosures: Borrower's Certification and Authorization, state disclosures
+    (e.g. MD Notice Regarding Right for Assumption Under Certain Circumstances)
+- General Letter of Explanation (LOE) — if needed (e.g. bank statement deposits, employment gap)
+- LDP (Loan Defect Prevention)
+- Internal Submission Documents
+- CPL and Closing, Escrow Wire (retain in eFolder cleanup)
+- HOA / Mortgage statement, insurance deck page, tax bill — only if borrower owns other property
+- Gift letter — only if downpayment includes gift funds
+
+Notes:
+- Step 12 (Order Additional Services / Ocrolus): Uses Ocrolus direct REST API, not EPC.
+    Needs OCROLUS_API_KEY + book_uuid per loan before full automation is possible.
+    Until then, raise a warning flag and let processor run manually from Ocrolus Dashboard.
+    Will need a separate ocrolus_client.py (not encompass_client.py).
+- Ordering Appraisal
+- Which are the relevant sections read in the AUS doc?
+- Figure out how to pull VOE from Xactus
+- Get email template from Ash for Title details
+- Total Asset Amount, how much does she need for closing? Check CTC in 2015 Itemization 
+    - What is the logic in this? How were they able to say that it was okay/enough?
+- Cover Letter > Submission Notes: how do they know which docs are missing from file?
+- Could the property address verifications just be done via USPS?

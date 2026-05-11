@@ -87,6 +87,53 @@ substeps:
     fields:
     - key: ess_present
       purpose: Confirm ESS exists in eFolder
+  - document_type: Credit Report
+    all_copies: false
+    fields:
+    - key: credit_report_present
+      purpose: Confirm credit report exists in eFolder
+    - key: credit_report_date
+      purpose: Recency check — credit report should not be stale
+    - key: fact_act_present
+      purpose: FACT ACT disclosure form required per FCRA
+  - document_type: State Disclosure
+    all_copies: false
+    fields:
+    - key: state_disclosure_present
+      purpose: State-specific disclosure signed and present (e.g. MD Right of Assumption)
+  - document_type: Flood Certificate
+    all_copies: false
+    fields:
+    - key: flood_cert_present
+      purpose: Confirm flood certificate exists in eFolder
+    - key: flood_zone
+      purpose: Flood zone designation (X = no flood; A/V = flood zone); gates condo Q order
+  - document_type: Evidence of Hazard Insurance
+    all_copies: false
+    fields:
+    - key: hazard_insurance_present
+      purpose: Confirm homeowners insurance deck page is in file
+    - key: hazard_insurance_expiry
+      purpose: Policy expiration date — must not be expired at closing
+  - document_type: Title Report
+    all_copies: false
+    fields:
+    - key: title_report_present
+      purpose: Confirm title report exists in eFolder
+    - key: title_legal_description
+      purpose: Legal description — alternate source for condo project name alongside Purchase Agreement
+  - document_type: LDP
+    all_copies: false
+    fields:
+    - key: ldp_present
+      purpose: Loan Defect Prevention document present
+  - document_type: General Letter of Explanation
+    all_copies: false
+    fields:
+    - key: loe_present
+      purpose: LOE present when flagged deposits or employment gaps require explanation
+    - key: loe_topics
+      purpose: Topics covered (e.g. ZEL deposits, employment gap) for submission notes
   rules:
   - name: Required Docs Present
     type: existence_check
@@ -129,6 +176,30 @@ substeps:
     severity: warning
     condition: State-specific disclosure document not found in eFolder
     suggestion: Locate and add the required state disclosure
+  - title: Credit Report Missing
+    severity: critical
+    condition: Credit report not found in eFolder
+    suggestion: Obtain and upload credit report before proceeding
+  - title: FACT ACT Disclosure Missing
+    severity: warning
+    condition: FACT ACT disclosure form not found within credit report
+    suggestion: Confirm FACT ACT form is included in the credit report package
+  - title: Flood Certificate Missing
+    severity: warning
+    condition: Flood certificate not found in eFolder
+    suggestion: Order or obtain flood certificate for the subject property
+  - title: Hazard Insurance Missing
+    severity: warning
+    condition: Evidence of hazard insurance not found in eFolder
+    suggestion: Request homeowners insurance deck page from borrower or agent
+  - title: Title Report Missing
+    severity: warning
+    condition: Title report not found in eFolder
+    suggestion: Request title report from title company
+  - title: LDP Missing
+    severity: warning
+    condition: Loan Defect Prevention document not found in eFolder
+    suggestion: Obtain LDP before submission
   field_updates: []
   rule_modifiers:
   - condition:

@@ -1,0 +1,342 @@
+{
+  "version": "1.0.0",
+  "job": {
+    "id": "a166b07d-1995-470b-bbe4-d5d117a8bf39",
+    "pipeline_name": "rack_and_stack_v1",
+    "steps": [
+      "ai:pdf_convert",
+      "ai:pagegen",
+      "hil:splicer",
+      "hil:splitter",
+      "ai:ocr_partial",
+      "ai:classify",
+      "hil:classify",
+      "ai:indexing",
+      "hil:indexing"
+    ],
+    "status": "success",
+    "created_at": "1777885808789",
+    "completed_at": "1777898449873",
+    "task_groups": [
+      {
+        "id": "19ebe7d7-ed84-4770-b56f-3083fe61cc0c",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "pdf_convert",
+        "tool": "ai",
+        "end_time": "1777885808818",
+        "created_at": "1777885808808"
+      },
+      {
+        "id": "3da6e5d3-2361-4534-9855-a3df0abe1aa4",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "pagegen",
+        "tool": "ai",
+        "start_time": "1777885808866",
+        "end_time": "1777885817694",
+        "created_at": "1777885808848"
+      },
+      {
+        "id": "6b0852db-4da6-430c-b0a2-1da2dd82ea02",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "splicer",
+        "tool": "hil",
+        "end_time": "1777885817726",
+        "created_at": "1777885817719"
+      },
+      {
+        "id": "bd94db48-e084-4cf4-9edf-66055bb11d07",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "splitter",
+        "tool": "hil",
+        "start_time": "1777886215921",
+        "end_time": "1777893115126",
+        "created_at": "1777885817748"
+      },
+      {
+        "id": "794f0554-9ada-44ce-96c3-7f2df7e2e9be",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "ocr_partial",
+        "tool": "ai",
+        "start_time": "1777893115147",
+        "end_time": "1777893117107",
+        "created_at": "1777893115142"
+      },
+      {
+        "id": "4b6e372e-2561-4b87-a70d-0e4c0c212624",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "indexing",
+        "tool": "hil",
+        "start_time": "1777895455720",
+        "end_time": "1777898449817",
+        "created_at": "1777893143995"
+      },
+      {
+        "id": "213ef052-0ccd-4275-bd1b-18f42ba70442",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "classify",
+        "tool": "ai",
+        "end_time": "1777893117135",
+        "created_at": "1777893117129"
+      },
+      {
+        "id": "5777e019-8dd6-4fc1-905e-fb6c46fa4e78",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "classify",
+        "tool": "hil",
+        "end_time": "1777893117168",
+        "created_at": "1777893117164"
+      },
+      {
+        "id": "a4d92eb2-1997-4d12-9414-4211abd083eb",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "indexing",
+        "tool": "ai",
+        "start_time": "1777893117203",
+        "end_time": "1777893143928",
+        "created_at": "1777893117200"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "be7f8c5d-8772-4c7f-9d0e-71d09231759f",
+        "task_group_id": "19ebe7d7-ed84-4770-b56f-3083fe61cc0c",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "pdf_convert",
+        "tool": "ai",
+        "attempt": 1,
+        "created_at": "1777885808816"
+      },
+      {
+        "id": "a3e60d8b-37de-478f-83ac-1a4cc8eaae86",
+        "task_group_id": "3da6e5d3-2361-4534-9855-a3df0abe1aa4",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "pagegen",
+        "tool": "ai",
+        "attempt": 1,
+        "start_time": "1777885808866",
+        "end_time": "1777885817684",
+        "created_at": "1777885808855",
+        "output": {
+          "id": "b039925f-565b-4671-a92f-26f3de854a56",
+          "bucket": "tasktile-dev",
+          "output_key": "",
+          "content_type": "application/json",
+          "created_at": "1777885817692",
+          "payload_version": 1,
+          "producer": "ai"
+        }
+      },
+      {
+        "id": "126ecf28-6082-45a2-baea-142cd7935906",
+        "task_group_id": "6b0852db-4da6-430c-b0a2-1da2dd82ea02",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "splicer",
+        "tool": "hil",
+        "attempt": 1,
+        "created_at": "1777885817726"
+      },
+      {
+        "id": "039a3328-0c14-415a-b94d-45b192e1cb6b",
+        "task_group_id": "bd94db48-e084-4cf4-9edf-66055bb11d07",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "splitter",
+        "tool": "hil",
+        "attempt": 1,
+        "start_time": "1777886215919",
+        "end_time": "1777893115116",
+        "created_at": "1777885817750",
+        "output": {
+          "id": "1b24f034-f3a5-474c-bf65-b0d8ad144e01",
+          "bucket": "tasktile-dev",
+          "output_key": "",
+          "content_type": "application/json",
+          "created_at": "1777893115124",
+          "payload_version": 1,
+          "producer": "hil"
+        }
+      },
+      {
+        "id": "ca6af39c-af30-4656-b471-167ce2a7fb25",
+        "task_group_id": "794f0554-9ada-44ce-96c3-7f2df7e2e9be",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "document_id": "cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf",
+        "type": "ocr_partial",
+        "tool": "ai",
+        "attempt": 1,
+        "start_time": "1777893115147",
+        "end_time": "1777893117100",
+        "created_at": "1777893115147",
+        "output": {
+          "id": "37b492ad-29a5-4ce0-afc1-48b964f47b10",
+          "bucket": "tasktile-dev",
+          "output_key": "",
+          "content_type": "application/json",
+          "created_at": "1777893117105",
+          "payload_version": 1,
+          "producer": "ai"
+        }
+      },
+      {
+        "id": "e9560213-d713-4d36-9f32-c3c2116e5a76",
+        "task_group_id": "4b6e372e-2561-4b87-a70d-0e4c0c212624",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "indexing",
+        "tool": "hil",
+        "attempt": 1,
+        "start_time": "1777895455718",
+        "end_time": "1777898449809",
+        "created_at": "1777893144032",
+        "output": {
+          "id": "8897a081-c9a2-449e-96ea-f5cc4d33987d",
+          "bucket": "tasktile-dev",
+          "output_key": "clients/28b3bba9-d557-401c-aeb1-a235d3a698a9/jobs/a166b07d-1995-470b-bbe4-d5d117a8bf39/blobs/3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c/indexing/hil/cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf_content.json",
+          "content_type": "application/json",
+          "created_at": "1777898449814",
+          "payload_version": 1,
+          "producer": "hil"
+        }
+      },
+      {
+        "id": "86e326ea-713a-4a60-af5d-97e97b722ff0",
+        "task_group_id": "213ef052-0ccd-4275-bd1b-18f42ba70442",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "document_id": "cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf",
+        "type": "classify",
+        "tool": "ai",
+        "attempt": 1,
+        "created_at": "1777893117134"
+      },
+      {
+        "id": "5761d627-b729-4948-bae8-c29a35964c6f",
+        "task_group_id": "5777e019-8dd6-4fc1-905e-fb6c46fa4e78",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "type": "classify",
+        "tool": "hil",
+        "attempt": 1,
+        "created_at": "1777893117167"
+      },
+      {
+        "id": "b0662afc-b6e7-4488-977b-008f35d73174",
+        "task_group_id": "a4d92eb2-1997-4d12-9414-4211abd083eb",
+        "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+        "document_id": "cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf",
+        "type": "indexing",
+        "tool": "ai",
+        "attempt": 1,
+        "start_time": "1777893117203",
+        "end_time": "1777893143919",
+        "created_at": "1777893117203",
+        "output": {
+          "id": "93e022a2-edaf-4ddb-9ea2-a53bb2e1a000",
+          "bucket": "tasktile-dev",
+          "output_key": "",
+          "content_type": "application/json",
+          "created_at": "1777893143926",
+          "payload_version": 1,
+          "producer": "ai"
+        }
+      }
+    ]
+  },
+  "tenant": {
+    "client_id": "28b3bba9-d557-401c-aeb1-a235d3a698a9"
+  },
+  "counts": {
+    "blobs": 1,
+    "documents": 1
+  },
+  "input": [
+    {
+      "id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+      "type": "blob",
+      "source_type": "uploaded",
+      "upload_id": "5fe7dcf5-9895-4a35-908e-3b3092668313",
+      "source": {
+        "bucket": "tasktile-dev",
+        "key": "clients/28b3bba9-d557-401c-aeb1-a235d3a698a9/uploads/2026-05-04/7a879011-72ea-4fe6-9940-fd9331cc0e98.pdf"
+      },
+      "metadata": {
+        "job_id": "c6f1be08-b6cd-4baf-a0a0-cd6a4084eaef",
+        "attachment_id": "7a879011-72ea-4fe6-9940-fd9331cc0e98"
+      }
+    }
+  ],
+  "documents": [
+    {
+      "id": "cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf",
+      "blob_id": "3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c",
+      "root_attachment_id": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+      "source": {
+        "bucket": "tasktile-dev",
+        "key": "clients/28b3bba9-d557-401c-aeb1-a235d3a698a9/jobs/a166b07d-1995-470b-bbe4-d5d117a8bf39/blobs/3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c/documents/cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf.pdf"
+      },
+      "metadata": {
+        "group_name": "1",
+        "group_index": 0,
+        "total_pages": 1,
+        "object_name": "clients/28b3bba9-d557-401c-aeb1-a235d3a698a9/jobs/a166b07d-1995-470b-bbe4-d5d117a8bf39/blobs/3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c/documents/cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf.pdf",
+        "category": "appraisal_report_Appraisal Report",
+        "confidence": null,
+        "appraisal_subject_to_completion": false,
+        "appraiser_company_name": "Appraisal Management Specialists, LLC",
+        "property_zip": "19958",
+        "appraiser_license": "",
+        "property_state": "Delaware",
+        "appraisal_made_as_is": false,
+        "is_condominium": false,
+        "appraiser_address": "",
+        "is_cooperative": false,
+        "nfip_map_number": "",
+        "appraisal_subject_to_repairs": false,
+        "parcel_number": "",
+        "property_type": "",
+        "appraiser_state": "",
+        "appraiser_email": "",
+        "appraisal_pud": false,
+        "appraisal_date": "",
+        "appraiser_phone": "",
+        "appraised_value": "0",
+        "appraiser_name": "",
+        "neighborhood_name": "",
+        "appraiser_zip": "",
+        "appraisal_cost_estimate": "",
+        "property_address": "115 West 4th St",
+        "appraisal_subject_to_conditions": "",
+        "appraiser_city": "",
+        "is_manufactured_home": false,
+        "flood_zone": "",
+        "mh_replacement_cost_new": "",
+        "exceptions": {
+          "for_bullzip": false,
+          "possible_wrong_upload": false,
+          "unsupported_language": false,
+          "is_missing_pages": false,
+          "copy_is_not_clear": false,
+          "truncated": false,
+          "blank_page": false,
+          "split_document": false,
+          "clarify_information_with_client": false,
+          "refer_to_qc": false,
+          "not_for_encoding": false,
+          "incomplete_unitization": false,
+          "corrupted": false,
+          "expired": false,
+          "insufficient_information": false,
+          "other_exception": false,
+          "other_exception_text": ""
+        },
+        "vision_check": "passed"
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "ocr",
+      "document_id": "cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf",
+      "source": {
+        "bucket": "tasktile-dev",
+        "key": "clients/28b3bba9-d557-401c-aeb1-a235d3a698a9/jobs/a166b07d-1995-470b-bbe4-d5d117a8bf39/blobs/3ee0f2b9-a4d5-4c48-a6b6-0d1f380df24c/ocr/cfc2d80c-4f02-4c6a-acc1-8d46760a1ddf.txt"
+      }
+    }
+  ]
+}

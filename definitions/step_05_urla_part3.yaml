@@ -46,6 +46,10 @@ substeps:
       purpose: ZEL/Zelle deposits requiring explanation
     - key: bank_large_deposits
       purpose: Large deposits requiring sourcing
+    - key: bank_institution_name
+      purpose: Bank name (e.g. PNC) for naming convention and VOD cross-check
+    - key: bank_klarna_transactions
+      purpose: Klarna or BNPL activity flag — rule pending clarification from Ash
   - document_type: Assets
     all_copies: false
     fields:
@@ -55,6 +59,10 @@ substeps:
       purpose: Asset balance per document
     - key: asset_account_date
       purpose: Date on asset statement
+    - key: asset_institution_name
+      purpose: Institution name (e.g. Edward Jones) for document naming convention
+    - key: asset_type
+      purpose: Account type (stock vs. retirement) — affects how balance is counted
   - document_type: VOD
     all_copies: false
     fields:
@@ -128,6 +136,10 @@ substeps:
       purpose: EMD payment method (check, wire, etc.)
     - key: emd_payable_to
       purpose: Who EMD is payable to (e.g. Re/Max Results)
+    - key: purchase_condo_project_name
+      purpose: Condo project name from Condominium Resale Notice — alternate source alongside Title Report
+    - key: purchase_closing_date
+      purpose: Estimated closing date — used when ordering condo questionnaire at Step 10
   rules:
   - name: EMD Amount Matches Purchase Contract
     type: field_comparison
@@ -207,6 +219,21 @@ substeps:
     fields:
     - key: mortgage_statement_present
       purpose: REO property mortgage statement
+  - document_type: HOA Statement
+    all_copies: false
+    fields:
+    - key: hoa_statement_present
+      purpose: HOA statement required if borrower owns other property (REO count > 0)
+  - document_type: Property Tax Bill
+    all_copies: false
+    fields:
+    - key: property_tax_bill_present
+      purpose: Tax bill required if borrower owns other property (REO count > 0)
+  - document_type: Gift Letter
+    all_copies: false
+    fields:
+    - key: gift_letter_present
+      purpose: Required when downpayment includes gift funds (gift_amount > 0)
   rules:
   - name: REO Documentation
     type: custom
@@ -214,11 +241,28 @@ substeps:
       If borrower owns other property (REO count > 0), verify:
       mortgage statement, insurance deck page, HOA statement, tax bill.
       If count = 0, skip.
+  - name: Gift Letter Required
+    type: custom
+    logic: >
+      If gift_amount > 0, verify gift letter is present in eFolder.
+      Gift letter must include donor info and signed confirmation.
   flags:
   - title: REO Documents Missing
     severity: warning
     condition: Borrower has REO properties but supporting docs are absent
     suggestion: Obtain mortgage statement, insurance, HOA, and tax bill for each REO
+  - title: HOA Statement Missing
+    severity: warning
+    condition: REO property present but HOA statement not in eFolder
+    suggestion: Request HOA statement for the REO property
+  - title: Property Tax Bill Missing
+    severity: warning
+    condition: REO property present but property tax bill not in eFolder
+    suggestion: Request property tax bill for the REO property
+  - title: Gift Letter Missing
+    severity: warning
+    condition: Gift funds present in loan but gift letter not in eFolder
+    suggestion: Obtain signed gift letter from donor and borrower
   field_updates: []
 
 dev:

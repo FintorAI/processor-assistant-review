@@ -1,0 +1,43 @@
+{
+  "Status": "extracted",
+  "FileSizeBytes": 92707,
+  "DocClassification": "Hazard Insurance",
+  "AttachmentID": "7de8b166-6223-4e16-8460-5292131cb7de",
+  "UpdatedAt": "2026-05-06T10:00:35.707934+00:00",
+  "ManifestDocID": "N/A",
+  "Source": "LambdaRNS_Extract",
+  "ProcessingTimestamp": "2026-05-06T10:00:35.707934+00:00",
+  "SuggestedFilename": "Hazard Insurance - Council of Unit Owners of Springdale Village Condo Blkt Buildings/Special Form/RC 2814 Carlisle Dr, Unit 18 New Windsor MD 21776 2027-04-22",
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Hazard_Insurance/20260506_100035_a76785d0-9c64-4452-b8ab-74b872d06771.pdf",
+  "CreatedAt": "2026-05-06T10:00:35.707934+00:00",
+  "TokensUsed": 5356,
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "ID": "704da77e-af5d-4d52-b234-9650353b5816",
+  "JobID": "a76785d0-9c64-4452-b8ab-74b872d06771",
+  "ExtractionModel": "gpt-4o",
+  "ExtractedFields": {
+    "owner": {
+      "lastName": "Jermain",
+      "firstName": "Cyndy",
+      "middleName": "Appel",
+      "suffix": ""
+    },
+    "totalPremium": 0,
+    "company": {
+      "name": "Council of Unit Owners of Springdale Village Condo"
+    },
+    "propertyAddress": {
+      "fullAddress": "",
+      "zipCode": "21776",
+      "state": "MD",
+      "address2": "",
+      "city": "New Windsor",
+      "address1": "2814 Carlisle Dr, Unit 18"
+    },
+    "policyType": "Blkt Buildings/Special Form/RC",
+    "expirationDate": "2027-04-22"
+  },
+  "DocType": "Hazard Insurance",
+  "LoanNumber": "2604964148"
+}

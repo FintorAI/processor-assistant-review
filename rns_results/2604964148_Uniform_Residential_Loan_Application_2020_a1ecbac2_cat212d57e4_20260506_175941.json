@@ -1,0 +1,260 @@
+{
+  "Status": "extracted",
+  "UpdatedAt": "2026-05-06T10:01:09.296477+00:00",
+  "DocClassification": "URLA 1003",
+  "AttachmentID": "a1ecbac2-91ba-4c0d-92bd-b7c81188b27f",
+  "TokensUsed": 50774,
+  "ID": "2dc1c7ff-f0da-409d-8c61-a53edbf1bf79",
+  "DocRepoLocation": "rns-docrepo-bucket/classified/URLA_1003/20260506_100109_212d57e4-946d-4672-8982-f3bc4fc818f3.pdf",
+  "ManifestDocID": "N/A",
+  "Source": "LambdaRNS_Extract",
+  "FileSizeBytes": 571843,
+  "JobID": "212d57e4-946d-4672-8982-f3bc4fc818f3",
+  "ExtractedFields": {
+    "titleWillBeHeldInWhatNames": [
+      {
+        "lastName": "Jermain",
+        "firstName": "Cyndy",
+        "middleName": "Appell"
+      }
+    ],
+    "new1003Borrowers": [],
+    "borrowerGross": [
+      {
+        "monthlyIncome": 4333.33
+      }
+    ],
+    "purposeOfLoan": "Purchase",
+    "liabilities": [
+      {
+        "company": {
+          "name": "CITIZENS PAY CREDIT LI"
+        },
+        "paymentPerMonths": {
+          "payment": 98,
+          "perMonths": 1
+        },
+        "accountNumber": "6058301708156559",
+        "unpaidBalance": 2457
+      },
+      {
+        "company": {
+          "name": "PNC BANK"
+        },
+        "paymentPerMonths": {
+          "payment": 27,
+          "perMonths": 1
+        },
+        "accountNumber": "431196311703",
+        "unpaidBalance": 2356
+      },
+      {
+        "company": {
+          "name": "PNC BANK"
+        },
+        "paymentPerMonths": {
+          "payment": 27,
+          "perMonths": 1
+        },
+        "accountNumber": "431196311953",
+        "unpaidBalance": 1621
+      },
+      {
+        "company": {
+          "name": "SYNCB/CARE CREDIT"
+        },
+        "paymentPerMonths": {
+          "payment": 30,
+          "perMonths": 1
+        },
+        "accountNumber": "601918325728",
+        "unpaidBalance": 627
+      },
+      {
+        "company": {
+          "name": "JPMCB CARD"
+        },
+        "paymentPerMonths": {
+          "payment": 35,
+          "perMonths": 1
+        },
+        "accountNumber": "414740040063",
+        "unpaidBalance": 491
+      },
+      {
+        "company": {
+          "name": "CAPITAL ONE BANK USA"
+        },
+        "paymentPerMonths": {
+          "payment": 29,
+          "perMonths": 1
+        },
+        "accountNumber": "468839074893",
+        "unpaidBalance": 139
+      },
+      {
+        "company": {
+          "name": "TRUIST BANK"
+        },
+        "paymentPerMonths": {
+          "payment": 27,
+          "perMonths": 1
+        },
+        "accountNumber": "4616082013306580",
+        "unpaidBalance": 99
+      }
+    ],
+    "employer": {
+      "name": "Freedom Insurance Agency Inc"
+    },
+    "costOfImprovements": 0,
+    "amountExistingLiens": 0,
+    "sourceOfDownPayment": "",
+    "yearLotAcquired": 0,
+    "banks": [
+      {
+        "accountNumber": "**** 2286",
+        "endingBalance": 4279.51,
+        "bank": {
+          "name": "PNC Bank"
+        }
+      },
+      {
+        "accountNumber": "**** 0104",
+        "endingBalance": 81473.81,
+        "bank": {
+          "name": "PNC Bank"
+        }
+      },
+      {
+        "accountNumber": "**** 9018",
+        "endingBalance": 400879.93,
+        "bank": {
+          "name": "Edward Jones"
+        }
+      }
+    ],
+    "propertyAddress": {
+      "fullAddress": "2814 Carlisle Dr, New Windsor, MD 21776",
+      "zipCode": "21776",
+      "state": "MD",
+      "city": "New Windsor",
+      "address1": "2814 Carlisle Dr"
+    },
+    "mannerInWhichTitleWillBeHeld": "Sole Ownership",
+    "mortgageAppliedFor": "Conventional",
+    "signed": true,
+    "propertyValue": 280000,
+    "madeOrToBeMade": "Made",
+    "yrsEmployedInThisLineOfWork": "4",
+    "position": "Associate",
+    "businessPhone": "410-795-2000",
+    "homeownerInsurance": 50.33,
+    "startDate": "2025-01-15",
+    "associationProjectDues": 275,
+    "signed1003Version": "New Version",
+    "total": 486633.25,
+    "propertyWillBe": "Primary Residence",
+    "originalCost": 0,
+    "retired": false,
+    "amortizationType": "Fixed Rate",
+    "selfEmployed": false,
+    "email": "4ever29cyndy@gmail.com",
+    "interestRate": 5.875,
+    "a": "yes",
+    "coBorrowerA": "no",
+    "amount": 0,
+    "b": "no",
+    "cost": 0,
+    "c": "no",
+    "d": "no",
+    "coBorrowerD": "no",
+    "e": "no",
+    "coBorrowerE": "no",
+    "borrowers": [
+      {
+        "lastName": "Jermain",
+        "firstName": "Cyndy",
+        "last4SSN": "2080",
+        "presentAddress": {
+          "zipCode": "21784",
+          "ownOrRent": "rent",
+          "city": "Eldersburg",
+          "address1": "5957 Shelby Ct",
+          "noYrs": 0,
+          "fullAddress": "5957 Shelby Ct, Eldersburg, MD 21784",
+          "state": "MD",
+          "noMonths": 10
+        },
+        "formerAddresses": [
+          {
+            "fullAddress": "1556 Fairmount Rd, Hampstead, MD 21074",
+            "zipCode": "21074",
+            "state": "MD",
+            "city": "Hampstead",
+            "address1": "1556 Fairmount Rd"
+          }
+        ],
+        "DOB": "1963-12-23",
+        "homePhone": "443-928-7851",
+        "signed": true,
+        "middleName": "Appell",
+        "dateSigned": "2026-05-04",
+        "status": "Unmarried (include single, divorced, widowed)"
+      }
+    ],
+    "f": "no",
+    "coBorrowerB": "no",
+    "citizenship": "U.S. Citizen",
+    "g": "no",
+    "coBorrowerC": "no",
+    "h": "no",
+    "coBorrowerH": "no",
+    "i": "no",
+    "coBorrowerI": "no",
+    "j": "no",
+    "coBorrowerF": "no",
+    "describeImprovements": "",
+    "k": "no",
+    "coBorrowerG": "no",
+    "totalPayments": 1387.95,
+    "l": "no",
+    "coBorrowerL": "no",
+    "ownershipShare": "Less than 25%",
+    "m": "no",
+    "coBorrowerM": "no",
+    "loanAmount": 140000,
+    "coBorrowerJ": "no",
+    "coBorrowerK": "no",
+    "presentValueOfLot": 0,
+    "workPhone": "",
+    "firstMortgage": 828.15,
+    "cellPhone": "443-928-7851",
+    "borrowerPreviousEmployments": [
+      {
+        "dateTo": "2025-03-14",
+        "employer": {
+          "name": "Sherye L Sims"
+        },
+        "addressOfEmployer": {
+          "fullAddress": "4500 Black Rock Rd, Hampstead, MD 21074",
+          "zipCode": "21074",
+          "state": "MD",
+          "city": "Hampstead",
+          "address1": "4500 Black Rock Rd"
+        },
+        "position": "Associate",
+        "dateFrom": "2021-09-30",
+        "selfEmployed": false
+      }
+    ]
+  },
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "SuggestedFilename": "URLA 1003 - Cyndy Appell Jermain 2026-05-04 2814 Carlisle Dr New Windsor MD 21776",
+  "DocType": "URLA 1003",
+  "ExtractionModel": "gpt-4o",
+  "ProcessingTimestamp": "2026-05-06T10:01:09.296477+00:00",
+  "CreatedAt": "2026-05-06T10:01:09.296477+00:00",
+  "LoanNumber": "2604964148"
+}

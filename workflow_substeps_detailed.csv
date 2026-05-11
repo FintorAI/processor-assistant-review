@@ -1,0 +1,205 @@
+Step,ID,Substep Name,Summary,Fields Read (ID: Name),Documents Used,Fields Written (ID: Name),Potential Flags
+Step 1: Pre-Checks,1.1,Document Presence Check,"Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth, State disclosures (e.g. MD Right of Assumption), VOE, Assets, Bank Statement, VOD, Driver's License (or other ID), ESS, and existing AUS (Underwriting bucket). Flag any missing docs as warnings/critical before proceeding.","14: Property State
+1172: Mortgage Type
+CX.APPRAISAL.WAIVER: Appraisal Waiver","1003 URLA
+Borrower's Certification and Authorization
+Underwriting (DU / LP)
+VOE
+Assets
+Bank Statement (all copies)
+VOD
+Driver's License
+Estimated Settlement Statement
+Credit Report
+State Disclosure
+Flood Certificate
+Evidence of Hazard Insurance
+Title Report
+LDP
+General Letter of Explanation",—,"Missing Required Document (critical)
+AUS Missing (critical)
+Insufficient Bank Statements (warning)
+ID Expired (warning)
+State Disclosure Missing (warning)
+Credit Report Missing (critical)
+FACT ACT Disclosure Missing (warning)
+Flood Certificate Missing (warning)
+Hazard Insurance Missing (warning)
+Title Report Missing (warning)
+LDP Missing (warning)
+MD Right of Assumption Disclosure Missing (warning) [rule_modifier: state=MD]"
+Step 2: Borrower Summary - Origination,2.1,Review Borrower Summary - Origination,"Walk through the Borrower Summary – Origination screen. Check every field for completeness (cell phone = home phone if empty). Verify ID is not expired. Cross-check subject property address against listing (Google). Confirm credit score, loan amount, and AMI / Affordable Loan Eligibility fields.","4000: Borrower First Name
+4001: Borrower Middle Name
+4002: Borrower Last Name
+4003: Borrower Name Suffix
+65: Borrower SSN
+1402: Borrower Date of Birth
+66: Borrower Home Phone
+1715: Borrower Business/Work Phone
+1480: Borrower Cell Phone
+1240: Borrower Email
+52: Borrower Marital Status
+53: Borrower Dependents Count
+54: Borrower Dependent Ages
+4004: Co-Borrower First Name
+4006: Co-Borrower Last Name
+97: Co-Borrower SSN
+1403: Co-Borrower Date of Birth
+98: Co-Borrower Home Phone
+1716: Co-Borrower Business/Work Phone
+CX.COBORROWER.CELL.PHONE: Co-Borrower Cell Phone
+1179: Co-Borrower Email
+84: Co-Borrower Marital Status
+1168: Credit Score (Middle)
+67: Experian Credit Score
+1450: TransUnion Credit Score
+1414: Equifax Credit Score
+11: Property Street Address
+12: Property City
+13: Property County
+14: Property State
+15: Property ZIP
+19: Loan Purpose
+1109: Loan Amount
+356: Appraised / Estimated Value
+CX.AMI.ELIGIBILITY: AMI / Affordable Loan Eligibility","Driver's License
+Purchase Agreement",1480: Borrower Cell Phone -> {borrower_home_phone} [if borrower_cell_phone is empty],"Required Field Empty (warning)
+Borrower ID Expired (warning)
+Co-Borrower ID Expired (warning)
+Property Address Mismatch (warning)
+Loan Amount Missing (critical)"
+Step 3: 1003 URLA Page 1,3.1,Review 1003 URLA Page 1,"Check all fields on 1003 URLA Page 1 for completeness and consistency with the Borrower Summary - Origination screen. Confirm borrower name, address, SSN, loan purpose, property type, and occupancy. Flag any mismatches.","4000: Borrower First Name
+4001: Borrower Middle Name
+4002: Borrower Last Name
+65: Borrower SSN
+1402: Borrower DOB
+35: Borrower Current Street Address
+11: Subject Property Address
+19: Loan Purpose
+1041: Property Type
+1811: Occupancy",—,—,"URLA Page 1 Field Mismatch with Origination (warning)
+Borrower SSN Missing (critical)"
+Step 4: 1003 URLA Page 2,4.1,Employment Verification (1b VOE),"Cross-check employment fields against VOE: employer name, original hire date, base pay (Gross Monthly Income → Base / Month). Cross-reference employer address via Google. Flag discrepancies. Check employment history — if current employment < 2 years, review prior history for gaps and explanations.","1169: Employer Name
+1182: Employer Address
+1068: Employment Start Date (Hire Date)
+1072: Base Monthly Income
+1286: Job Title
+1073: Years in Profession","VOE
+Paystubs (all copies)",—,"Employer Name Mismatch (VOE vs 1003) (warning)
+Hire Date Mismatch (VOE vs 1003) (warning)
+Base Pay Mismatch (VOE vs 1003) (warning)
+Employment Gap Requires Explanation (warning)
+FHA Employment Gap - Explanation Required (warning) [rule_modifier: loan_type=FHA]"
+Step 4: 1003 URLA Page 2,4.2,Other Income (1e),"Review Section 1e — Other Sources of Income (alimony, dividend stocks, Social Security, etc.). Verify amounts are populated and documented.","172: Other Income Type
+173: Other Income Amount (Monthly)",—,—,Other Income Not Documented (warning)
+Step 5: 1003 URLA Part 3,5.1,Assets and VOD (2a),"Review Section 2a (Assets/VOD). Check bank accounts, checking/savings. Cross-reference against bank statements. Verify account numbers, dates, and balances. Flag if total assets insufficient for closing. Rename asset documents per naming convention (e.g. ""Edward Jones x1234 - 04/14/2026"").","732: Total Assets
+733: Checking Account Balance
+734: Savings Account Balance","Bank Statement (all copies)
+Assets
+VOD",—,"ZEL/Zelle Deposit Requires Explanation (warning)
+Large Deposit Requires Sourcing (warning)
+Bank Statement Stale (warning)
+Asset Document Needs Renaming (info)"
+Step 5: 1003 URLA Part 3,5.2,EMD Check (2b),Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).,186: EMD Amount,Purchase Agreement,—,"EMD Amount Mismatch (warning)
+EMD Check Copy Missing (warning)"
+Step 5: 1003 URLA Part 3,5.3,Liabilities and VOL (2c),Review Section 2c — Liabilities (VOL). Check Excluded Monthly Payment and To Be Paid Off columns. Flag excluded debts for explanation. Flag any debts to be paid off that require most recent statement.,350: Total Monthly Liabilities,VOL,—,"Excluded Debt Needs Explanation (warning)
+Payoff Statement Required (warning)"
+Step 5: 1003 URLA Part 3,5.4,"Other Assets and REO (2d, Section 3)","Review 2d (Other Assets — usually marked No) and Section 3 (REO). If borrower owns other real property, verify mortgage statement, insurance deck page, HOA statement, and tax bill are present.",558: Number of Owned Properties (REO),"Mortgage Statement
+HOA Statement
+Property Tax Bill
+Gift Letter",—,"REO Documents Missing (warning)
+HOA Statement Missing (warning)
+Property Tax Bill Missing (warning)
+Gift Letter Missing (warning)"
+Step 6: 1003 URLA Part 4,6.1,"Downpayment Sources (4b, 4c, 4d)","Review Sections 4b (downpayment assistance / HELOC — usually N/A for purchase), 4c (rental income — check if applicable), and 4d (grant programs). Check Fannie Mae Additional Data and AMI eligibility for grant programs (e.g. Freddie Mac $2500 grant for borrowers <= 50% AMI).","231: Gift Amount
+CX.AMI.PERCENTAGE: AMI Percentage
+CX.FNMA.ADDITIONAL.DATA: Fannie Mae Additional Data - AMI
+218: Rental Income",—,—,"Gift Letter Missing (warning)
+AMI Eligibility Not Set (info)"
+Step 6: 1003 URLA Part 4,6.2,Declarations (Section 5),"Review Section 5 — Declarations. Flag any answers that appear incorrect based on known loan file facts. (Example: Borrower rented for 10 months but owned a property 3 years ago — second checkbox should be Yes, not No.)","1490: Declaration - Primary Residence Intent
+1491: Declaration - Owned Property in Last 3 Years",—,—,Declaration Appears Incorrect (warning)
+Step 6: 1003 URLA Part 4,6.3,Ethnicity and ID Cross-Check,Validate borrower ethnicity selection against Driver's License. Verify attachment type (attached/detached) and property type match the Google listing. Confirm estate held = Fee Simple and manner of title = Sole Ownership (or appropriate for married/co-borrower).,"1544: Borrower Ethnicity
+CX.ATTACHMENT.TYPE: Attachment Type (Attached/Detached)
+1041: Property Type
+33: Estate Will Be Held In
+34: Manner in Which Title Will Be Held",Driver's License,—,"Ethnicity Mismatch with ID (warning)
+Attachment Type Mismatch with Listing (warning)
+Estate Held Not Fee Simple (warning)"
+Step 7: Cover Letter,7.1,Draft Cover Letter / Submission Notes,"Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state[""almas_notes""] and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with the draft text so the processor can review and edit at Step 16 Flag Review. Do NOT interrupt here.","CX.KM.SUBMISSION.NOTES: Submission Notes (Cover Letter)
+CX.KM.CL.TITLE.COMPANY: Cover Letter - Title Company (pre-populated)
+CX.KM.CL.APPRAISAL: Cover Letter - Appraisal (pre-populated)
+CX.KM.CL.ADDITIONAL.NOTES: Cover Letter - Additional Notes (pre-populated)
+CX.AMI.PERCENTAGE: AMI Percentage
+1172: Mortgage Type",—,"CX.KM.SUBMISSION.NOTES: Submission Notes (Cover Letter) -> {llm_drafted_notes}
+CX.KM.CL.TITLE.COMPANY: Cover Letter - Title Company (pre-populated)
+CX.KM.CL.APPRAISAL: Cover Letter - Appraisal (pre-populated)
+CX.KM.CL.ADDITIONAL.NOTES: Cover Letter - Additional Notes (pre-populated)","Cover Letter Draft for Processor Review (info)
+Almas Notes Missing (warning)"
+Step 8: Borrower Info - Vesting,8.1,Update Borrower Vesting,"Verify occupancy intent, populate vesting description from URLA Part 1 (married/unmarried/single). Build and confirm the Final Vesting string (e.g. ""WILL OCCUPY / A SINGLE WOMAN OR UNMARRIED WOMAN""). Click Build Final Vesting when complete.","1811: Occupancy / Occupancy Intent
+479: Borrower Marital Status
+CX.VESTING.DESCRIPTION: Vesting Description
+CX.FINAL.VESTING: Final Vesting
+4004: Co-Borrower First Name",—,CX.VESTING.DESCRIPTION: Vesting Description -> {computed_vesting_description},"Vesting Description Not Set (warning)
+Final Vesting Not Built (warning)"
+Step 9: Transmittal Summary,9.1,Update Transmittal Summary,"Populate the 1008 Transmittal Summary: project type, project ID, project name, qualifying rate. If condo, run Freddie Mac Condo Project Advisor lookup and populate project type (Warrantable / Non-Warrantable / Established). Verify note rate == qualifying rate.","1041: Property Type
+CX.CONDO.PROJECT.TYPE: Condo Project Type
+CX.CONDO.PROJECT.NAME: Condo Project Name
+CX.CONDO.PROJECT.ID: Condo Project ID
+3: Note Rate
+799: Qualifying Rate
+CX.CONDO.ASSESSMENT.STATUS: Condo Assessment Status",Underwriting (DU / LP),—,"Note Rate vs Qualifying Rate Mismatch (warning)
+Condo Project Fields Not Populated (warning)
+Condo Assessment Incomplete (warning)
+Condo Project Advisor Not Run (warning) [rule_modifier: loan_type=Conventional]"
+Step 10: Orders,10.1,Order Appraisal,"Order the appraisal via Encompass unless AUS collateral relief or appraisal waiver is active. If VA loan, appraisal cannot be waived. Reference existing AUS findings (read at Step 1) for waiver status.","1172: Mortgage Type
+CX.APPRAISAL.WAIVER: Appraisal Waiver Flag
+CX.AUS.COLLATERAL.RELIEF: AUS Collateral Relief",—,—,"Appraisal Not Ordered (warning)
+VA Appraisal Cannot Be Waived (critical)
+VA Loan - Appraisal Required (No Waiver) (critical) [rule_modifier: loan_type=VA]"
+Step 10: Orders,10.2,Order Condo Questionnaire,Order the condo questionnaire only if the property type is Condo. Uses the project type from Step 9 (Transmittal Summary). Skip for non-condo properties.,"1041: Property Type
+CX.CONDO.PROJECT.TYPE: Condo Project Type",Flood Certificate,—,Condo Questionnaire Not Ordered (warning)
+Step 10: Orders,10.3,File Contacts and Title Order Email,"Update File Contacts in Encompass (Title Company, Appraiser, etc.) and send the title order email to the title company. Use Ash's email template. Recipients: Joe Salem (cc Almas Younis, Ash Desai) per recipients.json.","CX.TITLE.COMPANY.NAME: Title Company Name
+CX.TITLE.COMPANY.EMAIL: Title Company Email
+11: Property Address
+4002: Borrower Last Name",Estimated Settlement Statement,—,"Title Company Contact Missing (warning)
+Title Order Email Not Sent (warning)"
+Step 11: Prep eFolder,11.1,Prep eFolder - Delete Junk Buckets,"Delete the following eFolder buckets to clear stale data before new runs: UW (prior AUS findings), MI Quote, Ocrolus Processing, Paystubs (old), W2 (old). This ensures fresh Ocrolus and AUS uploads land in clean buckets.",—,"Underwriting (DU / LP) (all copies)
+MI Quote (all copies)
+Ocrolus Processing (all copies)
+Paystubs (all copies)
+W2 (all copies)",—,eFolder Cleanup Incomplete (warning)
+Step 12: Order Additional Services,12.1,Run Ocrolus and Income Calc,"Trigger Ocrolus run to process income documents (paystubs, W2s, tax returns). After Ocrolus completes, generate the Income Calc (1084 worksheets etc.). Save Income Calc PDF back to the Income Calc eFolder bucket.","1172: Mortgage Type
+1072: Gross Monthly Income - Base","Paystubs (all copies)
+W2 (all copies)
+Tax Returns (all copies)
+Income Calc",—,"Ocrolus Run Failed (warning)
+Income Calc Not Generated (warning)"
+Step 13: Print 1003 and Transmittal,13.1,Print Forms to eFolder,Print the following to eFolder: - 1008 Transmittal Summary → Transmittal Summary bucket - 2020 URLA → 1003 URLA bucket Do NOT upload Cover Letter here — it is auto-placed at Step 17 via Required Fields → Finished (notes.txt:219-220).,364: Loan Number,—,—,"Transmittal Summary Not Printed (warning)
+2020 URLA Not Printed (warning)"
+Step 14: Run Fresh AUS,14.1,Run Fannie Mae DU,"Submit loan to Fannie Mae Desktop Underwriter (DU). Record the decision (Approve/Eligible, Refer, Refer with Caution, etc.) and upload findings PDF to the Underwriting eFolder bucket.",1172: Mortgage Type,—,—,"Fannie DU Not Approve/Eligible (warning)
+Fannie DU Findings Not Uploaded (warning)"
+Step 14: Run Fresh AUS,14.2,Run Freddie Mac LP,"Submit loan to Freddie Mac Loan Product Advisor (LP). Record decision (Accept, Caution, Ineligible, etc.) and upload findings PDF to the Underwriting eFolder bucket.",1172: Mortgage Type,—,—,"Freddie LP Not Accept (warning)
+Freddie LP Findings Not Uploaded (warning)"
+Step 15: Processor Workflow and Closing,15.1,Processor Workflow Update,"Fill out the Processor Workflow screen: select Conforming or Non-Deliverable Investor Approval, set doc type (wet-signed / e-sign / hybrid), and confirm the loan has been submitted to UW milestone.","CX.INVESTOR.TYPE: Investor Type (Conforming / Non-Del)
+CX.DOC.TYPE: Doc Type (Wet / E-sign / Hybrid)",—,—,"Investor Type Not Set (warning)
+Doc Type Not Set (warning)"
+Step 15: Processor Workflow and Closing,15.2,Processor Closing Update,Fill out the Processor Closing screen: set signing date and wire requested date.,"CX.SIGNING.DATE: Signing Date
+CX.WIRE.REQUESTED.DATE: Wire Requested Date",—,—,Signing Date Not Set (warning)
+Step 16: Flag Review (HITL),16.1,Review All Flags (HITL),"Gather all accumulated flags from Steps 1-15 from state[""flags""]. Also pull the Required Fields screen from Encompass — surface any fields that Encompass marks as required. Call interrupt() with the full flag list + required fields list. Wait for processor to review and respond. On resume: record which flags were resolved and carry forward any processor edits to state.",CX.REQUIRED.FIELDS.STATUS: Encompass Required Fields Status,—,—,Critical Flag Not Resolved (critical)
+Step 17: Submission,17.1,Mark Docs Ready-for-UW,"In eFolder, select and mark the following documents as Ready-for-UW per notes.txt:215. These are handed to UW with the next milestone change. Documents: 1003, 1008, Assets, Bank Statements, Condo Project, Credit Report, Estimated Settlement Statement, Flood Certificate, Fraud, General Letter of Explanation, ID Customer, Income Calc, Internal Submission, LDP, Loan Estimate, Lock Confirmation, Paystubs, Purchase Agreement, Tax Summary, UW (x2), VOE.",—,"1003 URLA
+Transmittal Summary
+Assets (all copies)
+Bank Statement (all copies)
+Underwriting (DU / LP) (all copies)
+Income Calc",—,Doc Not Found for Ready-for-UW (warning)
+Step 17: Submission,17.2,Required Fields - Click Finished,Navigate to Encompass Required Fields screen. Confirm all required fields are complete. Click Finished. This auto-places the Cover Letter in the correct eFolder bucket as a side effect (notes.txt:219-220).,CX.REQUIRED.FIELDS.STATUS: Required Fields Status,—,—,Required Fields Incomplete (critical)
+Step 17: Submission,17.3,Milestone Change and Processor Name,"Change loan milestone from ""In Processing"" to ""Submitted to UW"". Set the processor name field to state[""processor_name""]. Check and close all outstanding tasks.","CX.MILESTONE.CURRENT: Current Milestone
+CX.PROCESSOR.NAME: Processor Name",—,CX.PROCESSOR.NAME: Processor Name -> {processor_name},"Milestone Change Failed (critical)
+Processor Name Not Set (warning)"
+Step 17: Submission,17.4,Final eFolder Cleanup,Move all Unassigned eFolder documents to the Recycle bucket. Clean up any residual junk files after submission.,—,Unassigned (all copies),—,Unassigned Documents Remain (info)
+Step 18: Notifications,18.1,Lock Desk Email (if locked + address change),"Send email to Lock Desk if the loan is locked AND an address change was discovered at Step 2 (property address mismatch flag). Uses email template from recipients.json (Almas Younis, Ash Desai).","CX.LOAN.LOCKED: Loan Locked Status
+762: Lock Expiration Date",—,—,Lock Desk Email Not Sent (info)
+Step 18: Notifications,18.2,Request Locked LE (if locked + no Locked LE),Send email requesting a Locked Loan Estimate if the loan is locked but no Locked LE is present in eFolder. Uses recipients.json contacts.,"CX.LOAN.LOCKED: Loan Locked Status
+CX.LOCKED.LE.PRESENT: Locked LE Present",Lock Confirmation,—,Locked LE Request Not Sent (info)
+Step 18: Notifications,18.3,EMD Email to Realtor (if EMD missing or mismatch),Send email to the Realtor requesting EMD check copy if EMD missing or amount mismatch was flagged at Step 5. Realtor is payable-to entity from Purchase Contract. Copy recipients per recipients.json.,"CX.REALTOR.EMAIL: Realtor Email
+186: EMD Amount",Purchase Agreement,—,EMD Email Not Sent (info)

@@ -1,0 +1,33 @@
+{
+  "Status": "extracted",
+  "ID": "662fc01d-9682-4ec4-9ed6-5914d1ca232c",
+  "ProcessingTimestamp": "2026-05-06T10:00:55.353628+00:00",
+  "CreatedAt": "2026-05-06T10:00:55.353628+00:00",
+  "DocClassification": "Underwriter Summary",
+  "ExtractedFields": {
+    "borrowers": [
+      {
+        "lastName": "JERMAIN",
+        "firstName": "CYNDY",
+        "signed": true,
+        "middleName": "",
+        "suffix": "",
+        "dateSigned": "2026-04-14"
+      }
+    ]
+  },
+  "JobID": "638a1179-c8af-40b2-baa5-5c2621001a4f",
+  "ManifestDocID": "N/A",
+  "Source": "LambdaRNS_Extract",
+  "TokensUsed": 16209,
+  "DocType": "Underwriter Summary",
+  "FileSizeBytes": 65231,
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Underwriter_Summary/20260506_100055_638a1179-c8af-40b2-baa5-5c2621001a4f.pdf",
+  "SuggestedFilename": "Underwriter Summary - CYNDY JERMAIN 2026-04-14",
+  "TaskTileID": "N/A",
+  "ClientID": "unknown",
+  "AttachmentID": "bcd04582-8d3b-4401-a08b-ccf34b7c64ee",
+  "ExtractionModel": "gpt-4o",
+  "UpdatedAt": "2026-05-06T10:00:55.353628+00:00",
+  "LoanNumber": "2604964148"
+}

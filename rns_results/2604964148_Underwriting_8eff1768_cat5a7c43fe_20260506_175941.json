@@ -1,0 +1,33 @@
+{
+  "Status": "extracted",
+  "DocRepoLocation": "rns-docrepo-bucket/classified/Underwriting_Checklist/20260506_100048_5a7c43fe-60a7-4dc4-98eb-7a5fad4fcdb4.pdf",
+  "ID": "411c3cac-89b9-46d9-b3df-70ee005e597b",
+  "ProcessingTimestamp": "2026-05-06T10:00:48.810527+00:00",
+  "CreatedAt": "2026-05-06T10:00:48.810527+00:00",
+  "ManifestDocID": "N/A",
+  "DocClassification": "Underwriting Checklist",
+  "AttachmentID": "8eff1768-8161-457d-8298-f225bee2db76",
+  "SuggestedFilename": "Underwriting Checklist - CYNDY JERMAIN",
+  "Source": "LambdaRNS_Extract",
+  "FileSizeBytes": 47700,
+  "UpdatedAt": "2026-05-06T10:00:48.810527+00:00",
+  "JobID": "5a7c43fe-60a7-4dc4-98eb-7a5fad4fcdb4",
+  "DocType": "Underwriting Checklist",
+  "TaskTileID": "N/A",
+  "TokensUsed": 3103,
+  "ExtractedFields": {
+    "borrowers": [
+      {
+        "lastName": "JERMAIN",
+        "firstName": "CYNDY",
+        "signed": false,
+        "middleName": "",
+        "suffix": "",
+        "dateSigned": ""
+      }
+    ]
+  },
+  "ClientID": "unknown",
+  "ExtractionModel": "gpt-4o",
+  "LoanNumber": "2604964148"
+}

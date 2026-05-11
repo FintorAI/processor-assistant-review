@@ -1,0 +1,417 @@
+[
+  {
+    "AttachmentID": "ea99bddc-b80b-407b-9188-63d44ffda54e",
+    "kind": "doctype_reclassification",
+    "landing_doctype": "1003 URLA",
+    "hil_doctype": "Transmittal Summary",
+    "tasktile_job_id": "834a441c-f23b-4e31-b767-69ec961413ff"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "borrower_sex",
+    "landing_value": "Male",
+    "hil_value": "MALE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "property_zip",
+    "landing_value": "19958",
+    "hil_value": "19966",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "employer_name",
+    "landing_value": "NA",
+    "hil_value": "N/A",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "property_state",
+    "landing_value": "DE",
+    "hil_value": "Delaware",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "loan_purpose",
+    "landing_value": "Refinance",
+    "hil_value": "REFINANCE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "coborrower_sex",
+    "landing_value": "Female",
+    "hil_value": "FEMALE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "property_type",
+    "landing_value": "Single Family",
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "years_on_job",
+    "landing_value": 0,
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_city",
+    "landing_value": "Millsboro",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_state",
+    "landing_value": "DE",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "loan_amount",
+    "landing_value": 550000,
+    "hil_value": "550000",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_zip",
+    "landing_value": "19966",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_address",
+    "landing_value": "16 Hunters Pt Unit #",
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "property_address",
+    "landing_value": "115 West 4th St",
+    "hil_value": "115 West 4th st",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "b065c5dc-bd2e-42b5-9d9a-25898e73905e",
+    "kind": "value_conflict",
+    "field": "borrower_marital_status",
+    "landing_value": "Separated",
+    "hil_value": "Married",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "value_conflict",
+    "field": "property_state",
+    "landing_value": "DE",
+    "hil_value": "Delaware",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_address",
+    "landing_value": "W327 N4476 Lakeland Drive, Suite 1A Nashotah, WI 53058",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "property_type",
+    "landing_value": "Single Family",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_state",
+    "landing_value": "WI",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_email",
+    "landing_value": "theresa@appraisalmsllc.com",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraisal_date",
+    "landing_value": "04/14/2026",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_phone",
+    "landing_value": "414-322-3817",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_zip",
+    "landing_value": "53058",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "value_conflict",
+    "field": "property_address",
+    "landing_value": "115 West 4th St, Lewes DE 19958",
+    "hil_value": "115 West 4th St",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "7a879011-72ea-4fe6-9940-fd9331cc0e98",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraiser_city",
+    "landing_value": "Nashotah",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "appraiser_license",
+    "landing_value": "X2-0010745",
+    "hil_value": "XS-0010745",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "property_state",
+    "landing_value": "DE",
+    "hil_value": "Delaware",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "appraiser_address",
+    "landing_value": "122 Carriage Way, Wilmington, DE 19803",
+    "hil_value": "122 Carriage Way",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "property_type",
+    "landing_value": "Twin",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "appraiser_state",
+    "landing_value": "DE",
+    "hil_value": "Delaware",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "appraisal_date",
+    "landing_value": "04/18/2026",
+    "hil_value": "2026-04-18",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "neighborhood_name",
+    "landing_value": "seasonal vacation community",
+    "hil_value": "LEWES",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraisal_cost_estimate",
+    "landing_value": "331,247",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "property_address",
+    "landing_value": "115 West 4th St Lewes DE 19958",
+    "hil_value": "115 West 4th St",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "appraisal_subject_to_conditions",
+    "landing_value": "as is",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "e89525a7-680a-437f-9044-460363df8a4a",
+    "kind": "value_conflict",
+    "field": "flood_zone",
+    "landing_value": "No Special Flood Hazard Area",
+    "hil_value": "X",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "borrower_sex",
+    "landing_value": "Male",
+    "hil_value": "MALE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "employer_name",
+    "landing_value": "NA",
+    "hil_value": "N/A",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "property_state",
+    "landing_value": "DE",
+    "hil_value": "Delaware",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "loan_purpose",
+    "landing_value": "Refinance",
+    "hil_value": "REFINANCE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "coborrower_sex",
+    "landing_value": "Female",
+    "hil_value": "FEMALE",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "property_type",
+    "landing_value": "Single Family",
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "years_on_job",
+    "landing_value": 0,
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_city",
+    "landing_value": "Millsboro",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_state",
+    "landing_value": "DE",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "loan_amount",
+    "landing_value": 525000,
+    "hil_value": "525000",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_zip",
+    "landing_value": "19966",
+    "hil_value": "",
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "hil_empty_landing_nonempty",
+    "field": "mailing_address",
+    "landing_value": "16 Hunters Pt Unit #",
+    "hil_value": null,
+    "winner": "LandingAI (fallback)"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "property_address",
+    "landing_value": "115 West 4th St",
+    "hil_value": "115 West 4th st",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "coborrower_ssn",
+    "landing_value": "219-68-3619",
+    "hil_value": "219-683619",
+    "winner": "HIL"
+  },
+  {
+    "AttachmentID": "8aa21d40-8174-494d-aa1d-c0788904fdb3",
+    "kind": "value_conflict",
+    "field": "occupancy_type",
+    "landing_value": "Investment",
+    "hil_value": "Investment property",
+    "winner": "HIL"
+  }
+]

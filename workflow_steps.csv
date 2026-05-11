@@ -1,0 +1,38 @@
+Phase,Phase_Name,Step_ID,Step_Num,Step_Name,Substep_ID,Substep_Name,Plan_File,Tools
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.md,find_loan
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (89 fields),data_gathering.md,fetch_los_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (20 document types),data_gathering.md,fetch_doc_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
+INTAKE,Intake,STEP_01,1,Pre-Checks,1.1,Document Presence Check,pre_checks.md,run_pre_checks
+DATA_REVIEW,Data Review,STEP_02,2,Borrower Summary - Origination,2.1,Review Borrower Summary - Origination,borrower_summary___origination.md,review_borrower_summary
+DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Page 1,3.1,Review 1003 URLA Page 1,1003_urla_page_1.md,review_urla_page1
+DATA_REVIEW,Data Review,STEP_04,4,1003 URLA Page 2,4.1,Employment Verification (1b VOE),1003_urla_page_2.md,review_urla_employment
+DATA_REVIEW,Data Review,STEP_04,4,1003 URLA Page 2,4.2,Other Income (1e),1003_urla_page_2.md,review_urla_other_income
+DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Part 3,5.1,Assets and VOD (2a),1003_urla_part_3.md,review_urla_assets
+DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Part 3,5.2,EMD Check (2b),1003_urla_part_3.md,review_urla_emd
+DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Part 3,5.3,Liabilities and VOL (2c),1003_urla_part_3.md,review_urla_liabilities
+DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Part 3,5.4,"Other Assets and REO (2d, Section 3)",1003_urla_part_3.md,review_urla_reo
+DATA_REVIEW,Data Review,STEP_06,6,1003 URLA Part 4,6.1,"Downpayment Sources (4b, 4c, 4d)",1003_urla_part_4.md,review_urla_downpayment
+DATA_REVIEW,Data Review,STEP_06,6,1003 URLA Part 4,6.2,Declarations (Section 5),1003_urla_part_4.md,review_urla_declarations
+DATA_REVIEW,Data Review,STEP_06,6,1003 URLA Part 4,6.3,Ethnicity and ID Cross-Check,1003_urla_part_4.md,review_urla_ethnicity
+FORM_UPDATES,Form Updates,STEP_07,7,Cover Letter,7.1,Draft Cover Letter / Submission Notes,cover_letter.md,draft_cover_letter
+FORM_UPDATES,Form Updates,STEP_08,8,Borrower Info - Vesting,8.1,Update Borrower Vesting,borrower_info___vesting.md,update_borrower_vesting
+FORM_UPDATES,Form Updates,STEP_09,9,Transmittal Summary,9.1,Update Transmittal Summary,transmittal_summary.md,update_transmittal_summary
+ORDERS,Orders,STEP_10,10,Orders,10.1,Order Appraisal,orders.md,order_appraisal
+ORDERS,Orders,STEP_10,10,Orders,10.2,Order Condo Questionnaire,orders.md,order_condo_questionnaire
+ORDERS,Orders,STEP_10,10,Orders,10.3,File Contacts and Title Order Email,orders.md,send_title_order_email
+PREP,Prep,STEP_11,11,Prep eFolder,11.1,Prep eFolder - Delete Junk Buckets,prep_efolder.md,prep_efolder
+PREP,Prep,STEP_12,12,Order Additional Services,12.1,Run Ocrolus and Income Calc,order_additional_services.md,run_additional_services
+PREP,Prep,STEP_13,13,Print 1003 and Transmittal,13.1,Print Forms to eFolder,print_1003_and_transmittal.md,print_forms
+PREP,Prep,STEP_14,14,Run Fresh AUS,14.1,Run Fannie Mae DU,run_fresh_aus.md,run_fannie_aus
+PREP,Prep,STEP_14,14,Run Fresh AUS,14.2,Run Freddie Mac LP,run_fresh_aus.md,run_freddie_aus
+PROCESSOR_UPDATE,Processor Update,STEP_15,15,Processor Workflow and Closing,15.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
+PROCESSOR_UPDATE,Processor Update,STEP_15,15,Processor Workflow and Closing,15.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
+SUBMISSION,Submission,STEP_16,16,Flag Review (HITL),16.1,Review All Flags (HITL),flag_review_(hitl).md,review_flags
+SUBMISSION,Submission,STEP_17,17,Submission,17.1,Mark Docs Ready-for-UW,submission.md,mark_docs_ready_for_uw
+SUBMISSION,Submission,STEP_17,17,Submission,17.2,Required Fields - Click Finished,submission.md,complete_required_fields
+SUBMISSION,Submission,STEP_17,17,Submission,17.3,Milestone Change and Processor Name,submission.md,update_milestone
+SUBMISSION,Submission,STEP_17,17,Submission,17.4,Final eFolder Cleanup,submission.md,final_efolder_cleanup
+SUBMISSION,Submission,STEP_18,18,Notifications,18.1,Lock Desk Email (if locked + address change),notifications.md,send_lock_desk_email
+SUBMISSION,Submission,STEP_18,18,Notifications,18.2,Request Locked LE (if locked + no Locked LE),notifications.md,request_locked_le
+SUBMISSION,Submission,STEP_18,18,Notifications,18.3,EMD Email to Realtor (if EMD missing or mismatch),notifications.md,send_emd_email

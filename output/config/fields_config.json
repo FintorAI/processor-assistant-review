@@ -8,8 +8,7 @@
       "used_by_steps": [
         "STEP_03",
         "STEP_06",
-        "STEP_09",
-        "STEP_10"
+        "STEP_09"
       ]
     },
     {
@@ -27,8 +26,7 @@
       "field_name": "Base Monthly Income",
       "category": "income",
       "used_by_steps": [
-        "STEP_04",
-        "STEP_12"
+        "STEP_04"
       ]
     },
     {
@@ -47,8 +45,7 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03",
-        "STEP_10"
+        "STEP_03"
       ]
     },
     {
@@ -85,10 +82,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_01",
-        "STEP_07",
-        "STEP_10",
-        "STEP_12",
-        "STEP_14"
+        "STEP_07"
       ]
     },
     {
@@ -238,6 +232,24 @@
       ]
     },
     {
+      "key": "borrower_work_phone",
+      "field_id": "1715",
+      "field_name": "Borrower Business/Work Phone",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_work_phone",
+      "field_id": "1716",
+      "field_name": "Co-Borrower Business/Work Phone",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "other_income_type",
       "field_id": "172",
       "field_name": "Other Income Type",
@@ -271,8 +283,7 @@
       "field_name": "EMD Amount",
       "category": "assets",
       "used_by_steps": [
-        "STEP_05",
-        "STEP_18"
+        "STEP_05"
       ]
     },
     {
@@ -358,15 +369,6 @@
       ]
     },
     {
-      "key": "loan_number",
-      "field_id": "364",
-      "field_name": "Loan Number",
-      "category": "loan_info",
-      "used_by_steps": [
-        "STEP_13"
-      ]
-    },
-    {
       "key": "borrower_first_name",
       "field_id": "4000",
       "field_name": "Borrower First Name",
@@ -393,8 +395,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03",
-        "STEP_10"
+        "STEP_03"
       ]
     },
     {
@@ -526,15 +527,6 @@
       ]
     },
     {
-      "key": "lock_expiration",
-      "field_id": "762",
-      "field_name": "Lock Expiration Date",
-      "category": "lock",
-      "used_by_steps": [
-        "STEP_18"
-      ]
-    },
-    {
       "key": "qualifying_rate",
       "field_id": "799",
       "field_name": "Qualifying Rate",
@@ -595,8 +587,7 @@
       "field_name": "Appraisal Waiver",
       "category": "collateral",
       "used_by_steps": [
-        "STEP_01",
-        "STEP_10"
+        "STEP_01"
       ]
     },
     {
@@ -609,21 +600,21 @@
       ]
     },
     {
-      "key": "aus_collateral_relief",
-      "field_id": "CX.AUS.COLLATERAL.RELIEF",
-      "field_name": "AUS Collateral Relief",
-      "category": "aus",
-      "used_by_steps": [
-        "STEP_10"
-      ]
-    },
-    {
       "key": "coborrower_cell_phone",
       "field_id": "CX.COBORROWER.CELL.PHONE",
       "field_name": "Co-Borrower Cell Phone",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "condo_assessment_status",
+      "field_id": "CX.CONDO.ASSESSMENT.STATUS",
+      "field_name": "Condo Assessment Status",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -650,8 +641,7 @@
       "field_name": "Condo Project Type",
       "category": "property",
       "used_by_steps": [
-        "STEP_09",
-        "STEP_10"
+        "STEP_09"
       ]
     },
     {
@@ -727,24 +717,6 @@
       ]
     },
     {
-      "key": "loan_locked",
-      "field_id": "CX.LOAN.LOCKED",
-      "field_name": "Loan Locked Status",
-      "category": "lock",
-      "used_by_steps": [
-        "STEP_18"
-      ]
-    },
-    {
-      "key": "locked_le_present",
-      "field_id": "CX.LOCKED.LE.PRESENT",
-      "field_name": "Locked LE Present",
-      "category": "disclosures",
-      "used_by_steps": [
-        "STEP_18"
-      ]
-    },
-    {
       "key": "current_milestone",
       "field_id": "CX.MILESTONE.CURRENT",
       "field_name": "Current Milestone",
@@ -763,49 +735,12 @@
       ]
     },
     {
-      "key": "realtor_email",
-      "field_id": "CX.REALTOR.EMAIL",
-      "field_name": "Realtor Email",
-      "category": "file_contacts",
-      "used_by_steps": [
-        "STEP_18"
-      ]
-    },
-    {
-      "key": "required_fields_status",
-      "field_id": "CX.REQUIRED.FIELDS.STATUS",
-      "field_name": "Encompass Required Fields Status",
-      "category": "submission",
-      "used_by_steps": [
-        "STEP_16",
-        "STEP_17"
-      ]
-    },
-    {
       "key": "signing_date",
       "field_id": "CX.SIGNING.DATE",
       "field_name": "Signing Date",
       "category": "closing",
       "used_by_steps": [
         "STEP_15"
-      ]
-    },
-    {
-      "key": "title_company_email",
-      "field_id": "CX.TITLE.COMPANY.EMAIL",
-      "field_name": "Title Company Email",
-      "category": "file_contacts",
-      "used_by_steps": [
-        "STEP_10"
-      ]
-    },
-    {
-      "key": "title_company_name",
-      "field_id": "CX.TITLE.COMPANY.NAME",
-      "field_name": "Title Company Name",
-      "category": "file_contacts",
-      "used_by_steps": [
-        "STEP_10"
       ]
     },
     {
@@ -856,12 +791,21 @@
       ]
     },
     {
-      "key": "assets_doc_ids",
+      "key": "asset_institution_name",
       "source_documents": [
         "Assets"
       ],
       "used_by_steps": [
-        "STEP_17"
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "asset_type",
+      "source_documents": [
+        "Assets"
+      ],
+      "used_by_steps": [
+        "STEP_05"
       ]
     },
     {
@@ -883,12 +827,12 @@
       ]
     },
     {
-      "key": "aus_doc_ids",
+      "key": "aus_engine",
       "source_documents": [
         "Underwriting (DU / LP)"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_09"
       ]
     },
     {
@@ -898,6 +842,15 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "aus_recommendation",
+      "source_documents": [
+        "Underwriting (DU / LP)"
+      ],
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -920,6 +873,24 @@
     },
     {
       "key": "bank_balance",
+      "source_documents": [
+        "Bank Statement"
+      ],
+      "used_by_steps": [
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "bank_institution_name",
+      "source_documents": [
+        "Bank Statement"
+      ],
+      "used_by_steps": [
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "bank_klarna_transactions",
       "source_documents": [
         "Bank Statement"
       ],
@@ -955,15 +926,6 @@
       ]
     },
     {
-      "key": "bank_statement_doc_ids",
-      "source_documents": [
-        "Bank Statement"
-      ],
-      "used_by_steps": [
-        "STEP_17"
-      ]
-    },
-    {
       "key": "bank_statement_months",
       "source_documents": [
         "Bank Statement"
@@ -985,6 +947,24 @@
       "key": "bca_present",
       "source_documents": [
         "Borrower's Certification and Authorization"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "credit_report_date",
+      "source_documents": [
+        "Credit Report"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "credit_report_present",
+      "source_documents": [
+        "Credit Report"
       ],
       "used_by_steps": [
         "STEP_01"
@@ -1051,8 +1031,7 @@
         "Purchase Agreement"
       ],
       "used_by_steps": [
-        "STEP_05",
-        "STEP_18"
+        "STEP_05"
       ]
     },
     {
@@ -1061,8 +1040,7 @@
         "Purchase Agreement"
       ],
       "used_by_steps": [
-        "STEP_05",
-        "STEP_18"
+        "STEP_05"
       ]
     },
     {
@@ -1084,48 +1062,93 @@
       ]
     },
     {
-      "key": "income_calc_doc_id",
+      "key": "fact_act_present",
       "source_documents": [
-        "Income Calc"
+        "Credit Report"
       ],
       "used_by_steps": [
-        "STEP_17"
+        "STEP_01"
       ]
     },
     {
-      "key": "income_calc_monthly",
+      "key": "flood_cert_present",
       "source_documents": [
-        "Income Calc"
+        "Flood Certificate"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_01"
       ]
     },
     {
-      "key": "income_calc_run_date",
+      "key": "flood_zone",
       "source_documents": [
-        "Income Calc"
+        "Flood Certificate"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_01"
       ]
     },
     {
-      "key": "lock_confirmation_present",
+      "key": "gift_letter_present",
       "source_documents": [
-        "Lock Confirmation"
+        "Gift Letter"
       ],
       "used_by_steps": [
-        "STEP_18"
+        "STEP_05"
       ]
     },
     {
-      "key": "mi_quote_doc_ids",
+      "key": "hazard_insurance_expiry",
       "source_documents": [
-        "MI Quote"
+        "Evidence of Hazard Insurance"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "hazard_insurance_present",
+      "source_documents": [
+        "Evidence of Hazard Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "hoa_statement_present",
+      "source_documents": [
+        "HOA Statement"
+      ],
+      "used_by_steps": [
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "ldp_present",
+      "source_documents": [
+        "LDP"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "loe_present",
+      "source_documents": [
+        "General Letter of Explanation"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "loe_topics",
+      "source_documents": [
+        "General Letter of Explanation"
+      ],
+      "used_by_steps": [
+        "STEP_01"
       ]
     },
     {
@@ -1138,15 +1161,6 @@
       ]
     },
     {
-      "key": "ocrolus_doc_ids",
-      "source_documents": [
-        "Ocrolus Processing"
-      ],
-      "used_by_steps": [
-        "STEP_11"
-      ]
-    },
-    {
       "key": "payment_terms",
       "source_documents": [
         "Purchase Agreement"
@@ -1156,30 +1170,48 @@
       ]
     },
     {
-      "key": "paystub_doc_ids",
+      "key": "paystub_employer_name",
       "source_documents": [
         "Paystubs"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_04"
       ]
     },
     {
-      "key": "paystub_pay_period",
+      "key": "paystub_gross_pay",
       "source_documents": [
         "Paystubs"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_04"
       ]
     },
     {
-      "key": "paystub_ytd",
+      "key": "property_tax_bill_present",
       "source_documents": [
-        "Paystubs"
+        "Property Tax Bill"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "purchase_closing_date",
+      "source_documents": [
+        "Purchase Agreement"
+      ],
+      "used_by_steps": [
+        "STEP_05"
+      ]
+    },
+    {
+      "key": "purchase_condo_project_name",
+      "source_documents": [
+        "Purchase Agreement"
+      ],
+      "used_by_steps": [
+        "STEP_05"
       ]
     },
     {
@@ -1201,30 +1233,30 @@
       ]
     },
     {
-      "key": "transmittal_doc_id",
+      "key": "state_disclosure_present",
       "source_documents": [
-        "Transmittal Summary"
+        "State Disclosure"
       ],
       "used_by_steps": [
-        "STEP_17"
+        "STEP_01"
       ]
     },
     {
-      "key": "unassigned_doc_ids",
+      "key": "title_legal_description",
       "source_documents": [
-        "Unassigned"
+        "Title Report"
       ],
       "used_by_steps": [
-        "STEP_17"
+        "STEP_01"
       ]
     },
     {
-      "key": "urla_doc_id",
+      "key": "title_report_present",
       "source_documents": [
-        "1003 URLA"
+        "Title Report"
       ],
       "used_by_steps": [
-        "STEP_17"
+        "STEP_01"
       ]
     },
     {
@@ -1234,15 +1266,6 @@
       ],
       "used_by_steps": [
         "STEP_01"
-      ]
-    },
-    {
-      "key": "uw_doc_ids",
-      "source_documents": [
-        "Underwriting (DU / LP)"
-      ],
-      "used_by_steps": [
-        "STEP_17"
       ]
     },
     {
@@ -1282,6 +1305,15 @@
       ]
     },
     {
+      "key": "voe_doc_id",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "voe_employer_address",
       "source_documents": [
         "VOE"
@@ -1309,6 +1341,15 @@
       ]
     },
     {
+      "key": "voe_job_title",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "voe_present",
       "source_documents": [
         "VOE"
@@ -1316,51 +1357,28 @@
       "used_by_steps": [
         "STEP_01"
       ]
-    },
-    {
-      "key": "w2_doc_ids",
-      "source_documents": [
-        "W2"
-      ],
-      "used_by_steps": [
-        "STEP_11"
-      ]
-    },
-    {
-      "key": "w2_wages",
-      "source_documents": [
-        "W2"
-      ],
-      "used_by_steps": [
-        "STEP_12"
-      ]
     }
   ],
   "stats": {
-    "total_los_fields": 89,
-    "total_doc_fields": 56,
-    "total_document_types": 20,
-    "total_steps": 18,
+    "total_los_fields": 83,
+    "total_doc_fields": 66,
+    "total_document_types": 23,
+    "total_steps": 11,
     "categories": [
       "assets",
-      "aus",
       "borrower_info",
       "closing",
       "collateral",
       "cover_letter",
       "credit",
       "declarations",
-      "disclosures",
       "employment",
-      "file_contacts",
       "grant_program",
       "income",
       "liabilities",
       "loan_info",
-      "lock",
       "processor_workflow",
       "property",
-      "submission",
       "title"
     ],
     "document_types": [
@@ -1368,22 +1386,25 @@
       "Assets",
       "Bank Statement",
       "Borrower's Certification and Authorization",
+      "Credit Report",
       "Driver's License",
       "Estimated Settlement Statement",
-      "Income Calc",
-      "Lock Confirmation",
-      "MI Quote",
+      "Evidence of Hazard Insurance",
+      "Flood Certificate",
+      "General Letter of Explanation",
+      "Gift Letter",
+      "HOA Statement",
+      "LDP",
       "Mortgage Statement",
-      "Ocrolus Processing",
       "Paystubs",
+      "Property Tax Bill",
       "Purchase Agreement",
-      "Transmittal Summary",
-      "Unassigned",
+      "State Disclosure",
+      "Title Report",
       "Underwriting (DU / LP)",
       "VOD",
       "VOE",
-      "VOL",
-      "W2"
+      "VOL"
     ]
   }
 }

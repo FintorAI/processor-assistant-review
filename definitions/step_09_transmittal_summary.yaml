@@ -47,7 +47,19 @@ substeps:
     field_name: Qualifying Rate
     category: loan_info
     purpose: Must equal note rate (unless ARM)
-  doc_types: []
+  - key: condo_assessment_status
+    field_id: CX.CONDO.ASSESSMENT.STATUS
+    field_name: Condo Assessment Status
+    category: property
+    purpose: Complete vs. Incomplete result from Freddie Mac CPA — Incomplete triggers vendor condo doc order
+  doc_types:
+  - document_type: Underwriting (DU / LP)
+    all_copies: false
+    fields:
+    - key: aus_recommendation
+      purpose: AUS decision (e.g. Approve/Eligible, Accept/Eligible, Refer) — surfaced to processor
+    - key: aus_engine
+      purpose: DU (Fannie/Conventional) or LP (Freddie) — used to confirm correct AUS was run
   rules:
   - name: Note Rate Equals Qualifying Rate
     type: field_comparison
@@ -62,6 +74,10 @@ substeps:
     severity: warning
     condition: Condo property but project type/name/ID not populated
     suggestion: Run Freddie Mac Condo Project Advisor to populate project details
+  - title: Condo Assessment Incomplete
+    severity: warning
+    condition: Freddie Mac CPA returned Incomplete assessment status
+    suggestion: Order condo docs from vendor (condoanalytics or homewisedocs) — Step 10 will handle
   field_updates: []
   rule_modifiers:
   - condition:
