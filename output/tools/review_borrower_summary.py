@@ -253,14 +253,24 @@ def review_borrower_summary(
               f"Loan amount '{loan_amount}' could not be parsed.",
               "Enter a valid numeric loan amount.")
 
-    # ── Rule: Property Address vs Purchase Contract ────────────────────────
-    if purchase_property_address_doc and property_address:
-        los_addr = str(property_address).strip().lower()
-        doc_addr = str(purchase_property_address_doc).strip().lower()
-        # Simple check: at least the street number + first word should match
-        los_parts = los_addr.split()
-        doc_parts = doc_addr.split()
-        if los_parts and doc_parts and los_parts[0] != doc_parts[0]:
+    # ── Rule: Property Address (reads from state["address_validation"] set by step 0.5) ──
+    addr_val = state.get("address_validation", {})
+    if addr_val:
+        if addr_val.get("valid") is False:
+            _flag(flags, "2.1", "Property Address Invalid", "warning",
+                  f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. "
+                  f"Error: {addr_val.get('error', 'unknown')}.",
+                  "Verify the property address is correct in Encompass.")
+        if addr_val.get("mismatch_with_purchase_contract"):
+            _flag(flags, "2.1", "Property Address Mismatch", "warning",
+                  f"Encompass: '{addr_val.get('los_address')}' vs Purchase Contract: "
+                  f"'{addr_val.get('purchase_contract_address')}'.",
+                  "Correct the property address in Encompass and flag for Lock Desk if needed.")
+    elif purchase_property_address_doc and property_address:
+        # Fallback if validate_property_address wasn't run yet
+        los_num = str(property_address).strip().split()[0] if property_address else ""
+        doc_num = str(purchase_property_address_doc).strip().split()[0] if purchase_property_address_doc else ""
+        if los_num and doc_num and los_num != doc_num:
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{property_address}' vs Purchase Contract: '{purchase_property_address_doc}'.",
                   "Correct the property address in Encompass and flag for Lock Desk if needed.")

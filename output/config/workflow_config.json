@@ -97,7 +97,8 @@
         "build_loan_summary",
         "fetch_doc_fields",
         "fetch_los_fields",
-        "find_loan"
+        "find_loan",
+        "validate_property_address"
       ],
       "substeps": {
         "1": {
@@ -122,6 +123,12 @@
           "name": "Build Loan Summary (URLA)",
           "tools": [
             "build_loan_summary"
+          ]
+        },
+        "5": {
+          "name": "Validate Property Address (USPS)",
+          "tools": [
+            "validate_property_address"
           ]
         }
       }

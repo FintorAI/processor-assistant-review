@@ -207,6 +207,7 @@ class ProcessorAgentState(AgentState):
     efolder_documents: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
     loan_summary: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
     loan_profile: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
+    address_validation: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
 
     # ── Issues and tracking ──
     flags: Annotated[NotRequired[list[dict]], OmitFromInput, dedupe_flags]

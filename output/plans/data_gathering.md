@@ -194,9 +194,37 @@ The loan profile drives `rule_modifiers` on all subsequent substeps.
 
 ---
 
+## Substep 0.5 — Validate Property Address (USPS)
+
+**Tool:** `validate_property_address`
+
+Reads the subject property address from `state["los_fields"]` (keys: `property_address`, `property_city`, `property_state`, `property_zip`) and the Purchase Contract address from `state["doc_fields"]` (key: `purchase_property_address`), then calls the USPS Address Validation API v3.
+
+**Stores in state:**
+```json
+{
+  "address_validation": {
+    "valid": true,
+    "normalized": "123 MAIN ST, IRVINE, CA 92612",
+    "dpv_confirmation": "Y",
+    "error": null,
+    "warnings": [],
+    "mismatch_with_purchase_contract": false,
+    "purchase_contract_address": "123 Main Street",
+    "los_address": "123 Main St, Irvine, CA 92612"
+  }
+}
+```
+
+`dpv_confirmation` values: `Y` = confirmed, `S` = confirmed (no secondary), `D` = missing secondary, `N` = not confirmed.
+
+Downstream tool `review_borrower_summary` reads `state["address_validation"]` to produce flags — it does NOT perform its own address comparison.
+
+---
+
 ## Step Completion
 
-When ALL 4 substeps above are completed (0.1 through 0.4):
+When ALL 5 substeps above are completed (0.1 through 0.5):
 1. Call `save_step_report(step_name="STEP_00", status="completed", ...)`
 2. Call `write_todo(step_id="STEP_00", status="completed")` to advance to the next step
 3. Call `write_todo(step_id="STEP_01", status="in_progress")` to start STEP_01 (Pre-Checks)
