@@ -4,66 +4,248 @@ step:
   phase: FORM_UPDATES
   description: >
     Review and populate the Borrower Information - Vesting screen. Confirm occupancy
-    intent, vesting (marital status from URLA Part 1), and click Build Final Vesting.
+    intent, vesting (manner held from marital status + state rules), and build the
+    Final Vesting string. For single/unmarried borrowers without co-borrower:
+    "WILL OCCUPY / A SINGLE WOMAN OR UNMARRIED WOMAN". Click Build Final Vesting
+    when complete. NBS (non-borrowing spouse) vesting handled separately.
 
 substeps:
 - id: '8.1'
   name: Update Borrower Vesting
   tool: update_borrower_vesting
   description: >
-    Verify occupancy intent, populate vesting description from URLA Part 1
-    (married/unmarried/single). Build and confirm the Final Vesting string
-    (e.g. "WILL OCCUPY / A SINGLE WOMAN OR UNMARRIED WOMAN").
-    Click Build Final Vesting when complete.
+    Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent), borrower
+    vesting name/type (1868/1871, 1873/1876), manner held (field 33), and read
+    final vesting (field 1867). Manner held is computed from property state,
+    marital status, co-borrower presence, and NBS flag. Final vesting is NEVER
+    overwritten except for single/unmarried borrowers missing the required suffix
+    (e.g. "AN UNMARRIED WOMAN"). Click Build Final Vesting in Encompass to set 1867.
   los_fields_read:
+  # ── Property / Loan context ───────────────────────────────────────────
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: State-specific vesting rules (community property, joint tenants, etc.)
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Purchase → Will Occupy; Refinance → Currently Occupy
   - key: occupancy
     field_id: '1811'
-    field_name: Occupancy / Occupancy Intent
+    field_name: Occupancy Status
     category: loan_info
-    purpose: Will Occupy / Will Not Occupy
+    purpose: Primary / Investment / Second Home → drives occupancy intent
+  # ── Borrower (B1) ─────────────────────────────────────────────────────
+  - key: borrower_first_name
+    field_id: '4000'
+    field_name: Borrower First Name
+    category: borrower_info
+    purpose: Borrower vesting name
+  - key: borrower_middle_name
+    field_id: '4001'
+    field_name: Borrower Middle Name
+    category: borrower_info
+    purpose: Borrower vesting name (middle)
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: Borrower vesting name
+  - key: borrower_ssn
+    field_id: '65'
+    field_name: Borrower SSN
+    category: borrower_info
+    purpose: Write to vesting entity
+  - key: borrower_dob
+    field_id: '1402'
+    field_name: Borrower Date of Birth
+    category: borrower_info
+    purpose: Write to vesting entity
+  - key: borrower_sex
+    field_id: '1069'
+    field_name: Borrower Sex
+    category: borrower_info
+    purpose: Determines Man/Woman in unmarried vesting suffix
   - key: marital_status
     field_id: '479'
     field_name: Borrower Marital Status
     category: borrower_info
-    purpose: Married / Unmarried / Separated
-  - key: vesting_description
-    field_id: CX.VESTING.DESCRIPTION
-    field_name: Vesting Description
+    purpose: Married / Unmarried / Separated — drives manner held and vesting suffix
+  - key: borrower_occupancy_intent
+    field_id: Borr.OccupancyIntent
+    field_name: Borrower Occupancy Intent
+    category: borrower_info
+    purpose: Will Occupy / Currently Occupy / Will Not Occupy
+  - key: borrower_vesting_name
+    field_id: '1868'
+    field_name: Borrower Vesting Name
     category: title
-    purpose: Current vesting text
-  - key: final_vesting
-    field_id: CX.FINAL.VESTING
-    field_name: Final Vesting
+    purpose: Vesting name written from borrower full name
+  - key: borrower_vesting_type
+    field_id: '1871'
+    field_name: Borrower Vesting Type
     category: title
-    purpose: Built vesting string — confirm after Build Final Vesting click
+    purpose: Individual (standard borrower)
+  - key: borrower_vesting_desc
+    field_id: '1872'
+    field_name: Borrower Vesting Description
+    category: title
+    purpose: >
+      The vesting dropdown for the borrower entity (e.g. "A SINGLE WOMAN",
+      "AN UNMARRIED MAN", "HUSBAND AND WIFE"). Written from marital status +
+      co-borrower presence. Build Final Vesting combines 1868 + 1872 + field 33 → 1867.
+  # ── Co-Borrower (B2) ──────────────────────────────────────────────────
   - key: coborrower_first_name
     field_id: '4004'
     field_name: Co-Borrower First Name
     category: borrower_info
-    purpose: Determine if Joint vesting applies
+    purpose: Presence determines joint vesting; name written to 1873
+  - key: coborrower_middle_name
+    field_id: '4005'
+    field_name: Co-Borrower Middle Name
+    category: borrower_info
+    purpose: Co-borrower vesting name (middle)
+  - key: coborrower_last_name
+    field_id: '4006'
+    field_name: Co-Borrower Last Name
+    category: borrower_info
+    purpose: Co-borrower vesting name
+  - key: coborrower_ssn
+    field_id: '97'
+    field_name: Co-Borrower SSN
+    category: borrower_info
+    purpose: Write to co-borrower vesting entity
+  - key: coborrower_dob
+    field_id: '1403'
+    field_name: Co-Borrower Date of Birth
+    category: borrower_info
+    purpose: Write to co-borrower vesting entity
+  - key: coborrower_occupancy_intent
+    field_id: CoBorr.OccupancyIntent
+    field_name: Co-Borrower Occupancy Intent
+    category: borrower_info
+    purpose: Will Occupy / Currently Occupy / Will Not Occupy (same as borrower)
+  - key: coborrower_vesting_name
+    field_id: '1873'
+    field_name: Co-Borrower Vesting Name
+    category: title
+    purpose: Vesting name written from co-borrower full name
+  - key: coborrower_vesting_type
+    field_id: '1876'
+    field_name: Co-Borrower Vesting Type
+    category: title
+    purpose: Individual (standard co-borrower)
+  - key: coborrower_vesting_desc
+    field_id: '1877'
+    field_name: Co-Borrower Vesting Description
+    category: title
+    purpose: >
+      The vesting dropdown for the co-borrower entity (e.g. "HUSBAND AND WIFE",
+      "AN UNMARRIED MAN"). Written from marital status + presence of co-borrower.
+  # ── NBS (Non-Borrowing Spouse) ────────────────────────────────────────
+  - key: nbs_flag
+    field_id: CX.NBSFLAG
+    field_name: Non-Borrowing Spouse Flag
+    category: borrower_info
+    purpose: YES if NBS exists on title without being a co-borrower
+  - key: nbs_info
+    field_id: CX.NBSINFO
+    field_name: Non-Borrowing Spouse Name
+    category: borrower_info
+    purpose: NBS name → written to TR0101 (vesting entity)
+  # ── Manner Held / Final Vesting ───────────────────────────────────────
+  - key: estate_held
+    field_id: '33'
+    field_name: Manner in Which Title Will Be Held
+    category: title
+    purpose: >
+      Written when empty from computed value. Never overwritten if populated
+      except NV (forced As Joint Tenants for married couples).
+  - key: final_vesting
+    field_id: '1867'
+    field_name: Final Vesting
+    category: title
+    purpose: >
+      Read-only; populated by clicking Build Final Vesting in Encompass.
+      Auto-corrected ONLY for single/unmarried borrowers missing required suffix.
   doc_types: []
   rules:
-  - name: Vesting Consistent with Marital Status
+  - name: Occupancy Intent — Borrower
     type: custom
     logic: >
-      If single/unmarried and no co-borrower: Sole Ownership, unmarried/single
-      vesting language. If married: appropriate joint vesting or sole ownership
-      with spousal signature.
+      Borr.OccupancyIntent must be set. Investment/Second Home → Will Not Occupy.
+      Refinance + Primary → Currently Occupy. Purchase + Primary → Will Occupy.
+      Write if empty or incorrect.
+  - name: Borrower Vesting Name and Type
+    type: existence_check
+    logic: >
+      Field 1868 (Borrower Vesting Name) must match full borrower name from 4000+4001+4002.
+      Field 1871 (Borrower Vesting Type) must be Individual. Write if empty.
+  - name: Manner Held Consistent with State and Marital Status
+    type: custom
+    logic: >
+      Field 33 (Manner Held) is computed from property state, marital status,
+      co-borrower presence, NBS flag, and borrower sex. Write only if empty.
+      Community property states: AZ, CA, ID, LA, NV, NM, TX, WA, WI.
+      NV married couples → As Joint Tenants (force overwrite). Flag mismatch for others.
   - name: Final Vesting Built
     type: existence_check
-    logic: Final Vesting field must be populated after the Build Final Vesting action.
+    logic: >
+      Field 1867 (Final Vesting) must be populated. Read-only — populated via
+      Build Final Vesting button in Encompass. For single/unmarried borrowers,
+      verify suffix contains AN UNMARRIED WOMAN/MAN or A SINGLE WOMAN/MAN.
+  - name: Single/Unmarried Vesting Suffix
+    type: custom
+    logic: >
+      If borrower is single/unmarried and no co-borrower: Final Vesting must end
+      with "AN UNMARRIED WOMAN", "A SINGLE WOMAN", "AN UNMARRIED MAN", or
+      "A SINGLE MAN". Auto-correct field 1867 if suffix is missing.
   flags:
-  - title: Vesting Description Not Set
+  - title: Occupancy Intent Not Set
     severity: warning
-    condition: Vesting description field is empty
-    suggestion: Populate vesting description from marital status before building
-  - title: Final Vesting Not Built
+    condition: Borr.OccupancyIntent is empty or incorrect
+    suggestion: Set occupancy intent based on loan purpose and occupancy type
+  - title: Borrower Vesting Name Missing (1868)
     severity: warning
-    condition: Final Vesting field is empty after update
-    suggestion: Click Build Final Vesting in Encompass
+    condition: Field 1868 is empty or does not match borrower name
+    suggestion: Write borrower full name to field 1868
+  - title: Borrower Vesting Description Missing (1872)
+    severity: warning
+    condition: Field 1872 is empty — Build Final Vesting will produce incomplete output
+    suggestion: Set vesting description (1872) before clicking Build Final Vesting
+  - title: Manner Held Mismatch
+    severity: warning
+    condition: Field 33 does not match computed manner held for state/marital status
+    suggestion: Update Manner Held (field 33) or confirm with team lead
+  - title: Final Vesting Empty
+    severity: warning
+    condition: Field 1867 is empty
+    suggestion: Click Build Final Vesting in Encompass to populate field 1867
+  - title: Vesting Suffix Missing (Single/Unmarried)
+    severity: warning
+    condition: >
+      Borrower is single/unmarried, no co-borrower, and final vesting does not
+      contain the required unmarried/single suffix
+    suggestion: >
+      Update Final Vesting (1867) to include AN UNMARRIED WOMAN/MAN or
+      A SINGLE WOMAN/MAN as appropriate
   field_updates:
-  - field_id: CX.VESTING.DESCRIPTION
-    value: '{computed_vesting_description}'
+  - field_id: '33'
+    value: '{computed_manner_held}'
+    condition: empty
+  - field_id: '1868'
+    value: '{borrower_full_name}'
+    condition: empty
+  - field_id: '1871'
+    value: Individual
+    condition: always
+  - field_id: '1872'
+    value: '{computed_vesting_desc}'
+    condition: empty
+  - field_id: Borr.OccupancyIntent
+    value: '{computed_occupancy_intent}'
     condition: always
 
 dev:

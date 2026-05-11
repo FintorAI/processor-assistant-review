@@ -30,6 +30,15 @@
       ]
     },
     {
+      "key": "borrower_sex",
+      "field_id": "1069",
+      "field_name": "Borrower Sex",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "property_address",
       "field_id": "11",
       "field_name": "Property Street Address",
@@ -138,7 +147,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_01",
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -157,7 +167,8 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -166,7 +177,8 @@
       "field_name": "Co-Borrower Date of Birth",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -361,13 +373,77 @@
       ]
     },
     {
+      "key": "final_vesting",
+      "field_id": "1867",
+      "field_name": "Final Vesting",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "borrower_vesting_name",
+      "field_id": "1868",
+      "field_name": "Borrower Vesting Name",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "borrower_vesting_type",
+      "field_id": "1871",
+      "field_name": "Borrower Vesting Type",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "borrower_vesting_desc",
+      "field_id": "1872",
+      "field_name": "Borrower Vesting Description",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "coborrower_vesting_name",
+      "field_id": "1873",
+      "field_name": "Co-Borrower Vesting Name",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "coborrower_vesting_type",
+      "field_id": "1876",
+      "field_name": "Co-Borrower Vesting Type",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "coborrower_vesting_desc",
+      "field_id": "1877",
+      "field_name": "Co-Borrower Vesting Description",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "loan_purpose",
       "field_id": "19",
       "field_name": "Loan Purpose",
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -458,7 +534,8 @@
       "field_name": "Estate Will Be Held In",
       "category": "title",
       "used_by_steps": [
-        "STEP_06"
+        "STEP_06",
+        "STEP_08"
       ]
     },
     {
@@ -531,7 +608,8 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -541,7 +619,8 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -551,7 +630,8 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -574,12 +654,22 @@
       ]
     },
     {
+      "key": "coborrower_middle_name",
+      "field_id": "4005",
+      "field_name": "Co-Borrower Middle Name",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "coborrower_last_name",
       "field_id": "4006",
       "field_name": "Co-Borrower Last Name",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -717,7 +807,8 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_03"
+        "STEP_03",
+        "STEP_08"
       ]
     },
     {
@@ -852,7 +943,8 @@
       "field_name": "Co-Borrower SSN",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -1297,6 +1389,15 @@
       ]
     },
     {
+      "key": "borrower_occupancy_intent",
+      "field_id": "Borr.OccupancyIntent",
+      "field_name": "Borrower Occupancy Intent",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "ami_eligibility",
       "field_id": "CX.AMI.ELIGIBILITY",
       "field_name": "AMI / Affordable Loan Eligibility",
@@ -1379,15 +1480,6 @@
       ]
     },
     {
-      "key": "final_vesting",
-      "field_id": "CX.FINAL.VESTING",
-      "field_name": "Final Vesting",
-      "category": "title",
-      "used_by_steps": [
-        "STEP_08"
-      ]
-    },
-    {
       "key": "fnma_additional_data",
       "field_id": "CX.FNMA.ADDITIONAL.DATA",
       "field_name": "Fannie Mae Additional Data - AMI",
@@ -1451,6 +1543,24 @@
       ]
     },
     {
+      "key": "nbs_flag",
+      "field_id": "CX.NBSFLAG",
+      "field_name": "Non-Borrowing Spouse Flag",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "nbs_info",
+      "field_id": "CX.NBSINFO",
+      "field_name": "Non-Borrowing Spouse Name",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "processor_name",
       "field_id": "CX.PROCESSOR.NAME",
       "field_name": "Processor Name",
@@ -1469,21 +1579,21 @@
       ]
     },
     {
-      "key": "vesting_description",
-      "field_id": "CX.VESTING.DESCRIPTION",
-      "field_name": "Vesting Description",
-      "category": "title",
-      "used_by_steps": [
-        "STEP_08"
-      ]
-    },
-    {
       "key": "wire_requested_date",
       "field_id": "CX.WIRE.REQUESTED.DATE",
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
         "STEP_15"
+      ]
+    },
+    {
+      "key": "coborrower_occupancy_intent",
+      "field_id": "CoBorr.OccupancyIntent",
+      "field_name": "Co-Borrower Occupancy Intent",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -2697,7 +2807,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 208,
+    "total_los_fields": 219,
     "total_doc_fields": 89,
     "total_document_types": 23,
     "total_steps": 11,
