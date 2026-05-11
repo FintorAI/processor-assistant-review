@@ -305,6 +305,15 @@
       ]
     },
     {
+      "key": "property_units",
+      "field_id": "16",
+      "field_name": "Subject Property Number of Units",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "borrower_work_phone",
       "field_id": "1715",
       "field_name": "Borrower Business/Work Phone",
@@ -367,6 +376,24 @@
         "STEP_02",
         "STEP_03",
         "STEP_08"
+      ]
+    },
+    {
+      "key": "borr_mailing_same_as_present",
+      "field_id": "1819",
+      "field_name": "Borrower Mailing Address Same as Present",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_mailing_same_as_present",
+      "field_id": "1820",
+      "field_name": "Co-Borrower Mailing Address Same as Present",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -696,7 +723,8 @@
       "field_name": "Borrower Dependents Count",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_03"
       ]
     },
     {
@@ -705,7 +733,8 @@
       "field_name": "Borrower Dependent Ages",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_03"
       ]
     },
     {
@@ -842,6 +871,24 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "coborr_dependents_count",
+      "field_id": "85",
+      "field_name": "Co-Borrower Number of Dependents",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_dependents_ages",
+      "field_id": "86",
+      "field_name": "Co-Borrower Dependents Ages",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -1059,6 +1106,348 @@
       "category": "closing",
       "used_by_steps": [
         "STEP_15"
+      ]
+    },
+    {
+      "key": "borr_present_city",
+      "field_id": "FR0106",
+      "field_name": "Borrower Present City",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_present_state",
+      "field_id": "FR0107",
+      "field_name": "Borrower Present State",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_present_zip",
+      "field_id": "FR0108",
+      "field_name": "Borrower Present Zip",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_present_yrs",
+      "field_id": "FR0112",
+      "field_name": "Borrower Years at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_housing_type",
+      "field_id": "FR0115",
+      "field_name": "Borrower Current Housing Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_housing_amount",
+      "field_id": "FR0116",
+      "field_name": "Borrower Current Housing Expense Amount",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_present_mos",
+      "field_id": "FR0124",
+      "field_name": "Borrower Months at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_present_addr",
+      "field_id": "FR0126",
+      "field_name": "Borrower Present Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_present_yrs",
+      "field_id": "FR0212",
+      "field_name": "Co-Borrower Years at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_present_mos",
+      "field_id": "FR0224",
+      "field_name": "Co-Borrower Months at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_city",
+      "field_id": "FR0306",
+      "field_name": "Borrower Former City",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_state",
+      "field_id": "FR0307",
+      "field_name": "Borrower Former State",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_zip",
+      "field_id": "FR0308",
+      "field_name": "Borrower Former Zip",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_housing_type",
+      "field_id": "FR0315",
+      "field_name": "Borrower Former Housing Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_housing_amount",
+      "field_id": "FR0316",
+      "field_name": "Borrower Former Housing Expense Amount",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_addr",
+      "field_id": "FR0326",
+      "field_name": "Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_former_city",
+      "field_id": "FR0406",
+      "field_name": "Co-Borrower Former City",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_former_state",
+      "field_id": "FR0407",
+      "field_name": "Co-Borrower Former State",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_former_zip",
+      "field_id": "FR0408",
+      "field_name": "Co-Borrower Former Zip",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_housing_type",
+      "field_id": "FR0415",
+      "field_name": "Co-Borrower Current Housing Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_housing_amount",
+      "field_id": "FR0416",
+      "field_name": "Co-Borrower Current Housing Expense Amount",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_former_addr",
+      "field_id": "FR0426",
+      "field_name": "Co-Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borrower_citizenship",
+      "field_id": "URLA.X1",
+      "field_name": "Borrower Citizenship",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_military_active_duty",
+      "field_id": "URLA.X123",
+      "field_name": "Borrower Currently Serving on Active Duty",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_military_retired",
+      "field_id": "URLA.X124",
+      "field_name": "Borrower Retired/Discharged/Separated",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_military_reserve",
+      "field_id": "URLA.X125",
+      "field_name": "Borrower Non-Activated Reserve/National Guard",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_military_active_duty",
+      "field_id": "URLA.X126",
+      "field_name": "Co-Borrower Currently Serving on Active Duty",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_military_retired",
+      "field_id": "URLA.X127",
+      "field_name": "Co-Borrower Retired/Discharged/Separated",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_military_reserve",
+      "field_id": "URLA.X128",
+      "field_name": "Co-Borrower Non-Activated Reserve/National Guard",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_military_service",
+      "field_id": "URLA.X13",
+      "field_name": "Borrower Military Service Indicator",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_military_service",
+      "field_id": "URLA.X14",
+      "field_name": "Co-Borrower Military Service Indicator",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_military_surviving_spouse",
+      "field_id": "URLA.X19",
+      "field_name": "Borrower Surviving Spouse",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborrower_citizenship",
+      "field_id": "URLA.X2",
+      "field_name": "Co-Borrower Citizenship",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_military_surviving_spouse",
+      "field_id": "URLA.X20",
+      "field_name": "Co-Borrower Surviving Spouse",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_language_preference",
+      "field_id": "URLA.X21",
+      "field_name": "Borrower Language Preference",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_language_preference",
+      "field_id": "URLA.X22",
+      "field_name": "Co-Borrower Language Preference",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_former_addr_does_not_apply",
+      "field_id": "URLA.X265",
+      "field_name": "Borrower Former Address Does Not Apply",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_former_addr_does_not_apply",
+      "field_id": "URLA.X266",
+      "field_name": "Co-Borrower Former Address Does Not Apply",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -1669,7 +2058,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 117,
+    "total_los_fields": 160,
     "total_doc_fields": 66,
     "total_document_types": 23,
     "total_steps": 11,

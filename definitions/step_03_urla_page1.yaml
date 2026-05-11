@@ -66,6 +66,241 @@ substeps:
     field_name: Occupancy
     category: loan_info
     purpose: Primary / Secondary / Investment
+  # ── Citizenship ──────────────────────────────────────────────────────
+  - key: borrower_citizenship
+    field_id: URLA.X1
+    field_name: Borrower Citizenship
+    category: borrower_info
+    purpose: Must be USCitizen / PermanentResidentAlien / NonPermanentResidentAlien; never auto-populated
+  - key: coborrower_citizenship
+    field_id: URLA.X2
+    field_name: Co-Borrower Citizenship
+    category: borrower_info
+    purpose: Same 3-value check as borrower; only checked if co-borrower present
+  # ── Current Address ───────────────────────────────────────────────────
+  - key: borr_present_addr
+    field_id: FR0126
+    field_name: Borrower Present Street Address
+    category: borrower_info
+    purpose: Current address presence check
+  - key: borr_present_city
+    field_id: FR0106
+    field_name: Borrower Present City
+    category: borrower_info
+    purpose: Current address presence check
+  - key: borr_present_state
+    field_id: FR0107
+    field_name: Borrower Present State
+    category: borrower_info
+    purpose: Current address presence check
+  - key: borr_present_zip
+    field_id: FR0108
+    field_name: Borrower Present Zip
+    category: borrower_info
+    purpose: Current address presence check
+  - key: borr_present_yrs
+    field_id: FR0112
+    field_name: Borrower Years at Current Address
+    category: borrower_info
+    purpose: If < 2 years, former address is required
+  - key: borr_present_mos
+    field_id: FR0124
+    field_name: Borrower Months at Current Address
+    category: borrower_info
+    purpose: Combined with years to determine former address requirement
+  - key: borr_housing_type
+    field_id: FR0115
+    field_name: Borrower Current Housing Type
+    category: borrower_info
+    purpose: If Rent, housing amount must be populated
+  - key: borr_housing_amount
+    field_id: FR0116
+    field_name: Borrower Current Housing Expense Amount
+    category: borrower_info
+    purpose: Required if housing type = Rent
+  # ── Former Address (Borrower) ─────────────────────────────────────────
+  - key: borr_former_addr
+    field_id: FR0326
+    field_name: Borrower Former Street Address
+    category: borrower_info
+    purpose: Required if < 2 years at current address
+  - key: borr_former_city
+    field_id: FR0306
+    field_name: Borrower Former City
+    category: borrower_info
+    purpose: Required if < 2 years at current address
+  - key: borr_former_state
+    field_id: FR0307
+    field_name: Borrower Former State
+    category: borrower_info
+    purpose: Required if < 2 years at current address
+  - key: borr_former_zip
+    field_id: FR0308
+    field_name: Borrower Former Zip
+    category: borrower_info
+    purpose: Required if < 2 years at current address
+  - key: borr_former_housing_type
+    field_id: FR0315
+    field_name: Borrower Former Housing Type
+    category: borrower_info
+    purpose: If Rent, former housing amount should be populated
+  - key: borr_former_housing_amount
+    field_id: FR0316
+    field_name: Borrower Former Housing Expense Amount
+    category: borrower_info
+    purpose: Required if former housing type = Rent
+  - key: borr_former_addr_does_not_apply
+    field_id: URLA.X265
+    field_name: Borrower Former Address Does Not Apply
+    category: borrower_info
+    purpose: Auto-checked when borrower has >= 2 years at current address
+  # ── Co-Borrower Address ───────────────────────────────────────────────
+  - key: coborr_present_yrs
+    field_id: FR0212
+    field_name: Co-Borrower Years at Current Address
+    category: borrower_info
+    purpose: If < 2 years, co-borrower former address is required
+  - key: coborr_present_mos
+    field_id: FR0224
+    field_name: Co-Borrower Months at Current Address
+    category: borrower_info
+    purpose: Combined with years to determine former address requirement
+  - key: coborr_housing_type
+    field_id: FR0415
+    field_name: Co-Borrower Current Housing Type
+    category: borrower_info
+    purpose: If Rent, housing amount must be populated
+  - key: coborr_housing_amount
+    field_id: FR0416
+    field_name: Co-Borrower Current Housing Expense Amount
+    category: borrower_info
+    purpose: Required if housing type = Rent
+  - key: coborr_former_addr
+    field_id: FR0426
+    field_name: Co-Borrower Former Street Address
+    category: borrower_info
+    purpose: Required if co-borrower < 2 years at current address
+  - key: coborr_former_city
+    field_id: FR0406
+    field_name: Co-Borrower Former City
+    category: borrower_info
+    purpose: Required if co-borrower < 2 years at current address
+  - key: coborr_former_state
+    field_id: FR0407
+    field_name: Co-Borrower Former State
+    category: borrower_info
+    purpose: Required if co-borrower < 2 years at current address
+  - key: coborr_former_zip
+    field_id: FR0408
+    field_name: Co-Borrower Former Zip
+    category: borrower_info
+    purpose: Required if co-borrower < 2 years at current address
+  - key: coborr_former_addr_does_not_apply
+    field_id: URLA.X266
+    field_name: Co-Borrower Former Address Does Not Apply
+    category: borrower_info
+    purpose: Auto-checked when co-borrower has >= 2 years at current address
+  # ── Mailing Address ───────────────────────────────────────────────────
+  - key: borr_mailing_same_as_present
+    field_id: '1819'
+    field_name: Borrower Mailing Address Same as Present
+    category: borrower_info
+    purpose: Must be Y; auto-corrected if not set
+  - key: coborr_mailing_same_as_present
+    field_id: '1820'
+    field_name: Co-Borrower Mailing Address Same as Present
+    category: borrower_info
+    purpose: Must be Y if co-borrower present; auto-corrected if not set
+  # ── Military Service (Borrower) ───────────────────────────────────────
+  - key: borr_military_service
+    field_id: URLA.X13
+    field_name: Borrower Military Service Indicator
+    category: borrower_info
+    purpose: Must be Yes for VA loans; sub-options required
+  - key: borr_military_active_duty
+    field_id: URLA.X123
+    field_name: Borrower Currently Serving on Active Duty
+    category: borrower_info
+    purpose: VA sub-option
+  - key: borr_military_retired
+    field_id: URLA.X124
+    field_name: Borrower Retired/Discharged/Separated
+    category: borrower_info
+    purpose: VA sub-option
+  - key: borr_military_reserve
+    field_id: URLA.X125
+    field_name: Borrower Non-Activated Reserve/National Guard
+    category: borrower_info
+    purpose: VA sub-option
+  - key: borr_military_surviving_spouse
+    field_id: URLA.X19
+    field_name: Borrower Surviving Spouse
+    category: borrower_info
+    purpose: VA sub-option
+  # ── Military Service (Co-Borrower) ────────────────────────────────────
+  - key: coborr_military_service
+    field_id: URLA.X14
+    field_name: Co-Borrower Military Service Indicator
+    category: borrower_info
+    purpose: Must be Yes for VA loans if co-borrower present
+  - key: coborr_military_active_duty
+    field_id: URLA.X126
+    field_name: Co-Borrower Currently Serving on Active Duty
+    category: borrower_info
+    purpose: VA sub-option
+  - key: coborr_military_retired
+    field_id: URLA.X127
+    field_name: Co-Borrower Retired/Discharged/Separated
+    category: borrower_info
+    purpose: VA sub-option
+  - key: coborr_military_reserve
+    field_id: URLA.X128
+    field_name: Co-Borrower Non-Activated Reserve/National Guard
+    category: borrower_info
+    purpose: VA sub-option
+  - key: coborr_military_surviving_spouse
+    field_id: URLA.X20
+    field_name: Co-Borrower Surviving Spouse
+    category: borrower_info
+    purpose: VA sub-option
+  # ── Language Preference ───────────────────────────────────────────────
+  - key: borr_language_preference
+    field_id: URLA.X21
+    field_name: Borrower Language Preference
+    category: borrower_info
+    purpose: Default EnglishIndicator; flag if blank for processor verification
+  - key: coborr_language_preference
+    field_id: URLA.X22
+    field_name: Co-Borrower Language Preference
+    category: borrower_info
+    purpose: Default EnglishIndicator if co-borrower present; flag if blank
+  # ── Dependents ────────────────────────────────────────────────────────
+  - key: borrower_dependents_count
+    field_id: '53'
+    field_name: Number of Dependents
+    category: borrower_info
+    purpose: Info flag
+  - key: borrower_dependent_ages
+    field_id: '54'
+    field_name: Dependents Ages
+    category: borrower_info
+    purpose: Present if count > 0
+  - key: coborr_dependents_count
+    field_id: '85'
+    field_name: Co-Borrower Number of Dependents
+    category: borrower_info
+    purpose: Info flag
+  - key: coborr_dependents_ages
+    field_id: '86'
+    field_name: Co-Borrower Dependents Ages
+    category: borrower_info
+    purpose: Present if count > 0
+  # ── Subject Property ──────────────────────────────────────────────────
+  - key: property_units
+    field_id: '16'
+    field_name: Subject Property Number of Units
+    category: property
+    purpose: Presence check; warning if empty
   doc_types: []
   rules:
   - name: Borrower Info Consistent with Origination
