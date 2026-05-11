@@ -3,19 +3,6 @@
   "_version": "1.0",
   "_last_updated": "2026-02-11",
   "documents": {
-    "drivers_license": {
-      "name": "Driver's License",
-      "category": "identity",
-      "fallback_docs": [
-        "Passport",
-        "Permanent Resident Card"
-      ],
-      "fields_extracted": [
-        "borrower_first_name",
-        "borrower_last_name",
-        "borrower_dob"
-      ]
-    },
     "urla_1003": {
       "name": "1003 URLA",
       "category": "application",
@@ -26,6 +13,185 @@
         "borrower_marital_status",
         "coborrower_marital_status",
         "borrower_first_name"
+      ]
+    },
+    "transmittal_summary": {
+      "name": "Transmittal Summary",
+      "category": "underwriting",
+      "optional": true,
+      "fields_extracted": [
+        "transmittal_sales_price",
+        "transmittal_appraised_value",
+        "transmittal_zip",
+        "transmittal_property_address",
+        "transmittal_property_type",
+        "transmittal_loan_amount"
+      ]
+    },
+    "du_findings": {
+      "name": "DU Findings / AUS Certificate",
+      "category": "underwriting",
+      "fallback_docs": [
+        "AUS Certificate",
+        "Desktop Underwriter",
+        "Automated Underwriting",
+        "DU Cert"
+      ],
+      "fields_extracted": [
+        "du_loan_amount",
+        "du_property_address",
+        "du_property_type",
+        "du_borrower_name",
+        "du_recommendation"
+      ]
+    },
+    "voe": {
+      "name": "Verification of Employment",
+      "efolder_doc_type": "VOE - non service provider",
+      "category": "income",
+      "aliases": [
+        "VOE",
+        "Written VOE",
+        "WVOE",
+        "Work Number",
+        "The Work Number"
+      ],
+      "fields_extracted": [
+        "borrower_name",
+        "employer_name",
+        "employer_address",
+        "original_hire_date",
+        "most_recent_start_date",
+        "total_time_with_employer",
+        "rate_of_pay",
+        "pay_frequency",
+        "avg_hours_per_pay_period",
+        "verification_type",
+        "reference_number",
+        "ssn_last_four",
+        "annual_income_summary"
+      ]
+    },
+    "paystubs": {
+      "name": "Paystubs",
+      "efolder_doc_type": "Paystubs",
+      "category": "income",
+      "aliases": [
+        "Paystub",
+        "Pay Stub",
+        "Pay Stubs",
+        "Earnings Statement",
+        "Pay Statement"
+      ],
+      "fields_extracted": [
+        "borrower_name",
+        "employer_name",
+        "pay_period_start",
+        "pay_period_end",
+        "pay_date",
+        "ytd_gross_pay",
+        "ytd_net_pay",
+        "gross_pay_this_period",
+        "net_pay_this_period",
+        "pay_frequency",
+        "hourly_rate",
+        "hours_worked"
+      ]
+    },
+    "w2": {
+      "name": "W-2",
+      "efolder_doc_type": "W-2",
+      "category": "income",
+      "aliases": [
+        "W2",
+        "W-2 Form",
+        "Wage and Tax Statement"
+      ],
+      "fields_extracted": [
+        "borrower_name",
+        "employer_name",
+        "employer_ein",
+        "tax_year",
+        "wages_tips_other_compensation",
+        "federal_income_tax_withheld",
+        "social_security_wages",
+        "medicare_wages",
+        "state",
+        "state_wages"
+      ]
+    },
+    "tax_summary": {
+      "name": "Tax Summary",
+      "category": "property",
+      "fields_extracted": [
+        "annual_taxes",
+        "tax_parcel_number",
+        "tax_county_name",
+        "tax_property_address"
+      ]
+    },
+    "tax_returns_business": {
+      "name": "Tax Returns - Business",
+      "category": "income",
+      "fields_extracted": [
+        "business_name"
+      ]
+    },
+    "bank_statements": {
+      "name": "Bank Statement",
+      "efolder_doc_type": "Bank Statement",
+      "category": "assets",
+      "aliases": [
+        "Bank Statements",
+        "Bank Stmt",
+        "Account Statement",
+        "Checking Statement",
+        "Savings Statement"
+      ],
+      "fields_extracted": [
+        "borrower_name",
+        "institution_name",
+        "account_number_last4",
+        "statement_period_start",
+        "statement_period_end",
+        "beginning_balance",
+        "ending_balance",
+        "average_balance"
+      ]
+    },
+    "assets": {
+      "name": "Assets",
+      "efolder_doc_type": "Assets",
+      "category": "assets",
+      "aliases": [
+        "Asset Statement",
+        "Investment Statement",
+        "Brokerage Statement",
+        "Retirement Statement",
+        "401k Statement",
+        "Edward Jones",
+        "Fidelity Statement",
+        "Vanguard Statement"
+      ],
+      "fields_extracted": [
+        "borrower_name",
+        "institution_name",
+        "account_number_last4",
+        "account_type",
+        "statement_date",
+        "total_value",
+        "vested_balance"
+      ]
+    },
+    "purchase_agreement": {
+      "name": "Purchase Agreement",
+      "category": "contract",
+      "fields_extracted": [
+        "pa_purchase_price",
+        "pa_contract_date",
+        "pa_signing_date",
+        "pa_seller_concessions",
+        "pa_property_address"
       ]
     },
     "credit_report": {
@@ -40,87 +206,45 @@
         "credit_report_order_date"
       ]
     },
-    "fraud_report": {
-      "name": "Fraud Report",
-      "category": "compliance",
+    "drivers_license": {
+      "name": "Driver's License",
+      "category": "identity",
+      "fallback_docs": [
+        "Passport",
+        "Permanent Resident Card"
+      ],
       "fields_extracted": [
-        "fraud_aka",
-        "coborrower_fraud_aka",
-        "fraud_coborrower_aka",
-        "coborrower_name",
-        "coborrower_ssn"
+        "borrower_first_name",
+        "borrower_last_name",
+        "borrower_dob"
       ]
     },
-    "compliance_report": {
-      "name": "Compliance Report",
-      "category": "compliance",
+    "estimated_settlement_statement": {
+      "name": "Estimated Settlement Statement",
+      "category": "disclosure",
       "fields_extracted": [
-        "nmls_review_result",
-        "lo_nmls_id",
-        "lo_first_name",
-        "lo_last_name"
+        "ess_total_closing_costs",
+        "ess_cash_to_close",
+        "ess_seller_credits",
+        "ess_lender_credit",
+        "recording_charges"
       ]
     },
-    "approval_form": {
-      "name": "Approval Form",
-      "category": "underwriting",
+    "flood_certificate": {
+      "name": "Flood Certificate",
+      "efolder_doc_type": "Flood Certificate",
+      "category": "insurance",
+      "aliases": [
+        "Flood Determination Certificate",
+        "Flood Zone Certificate",
+        "FEMA Flood Certificate",
+        "Standard Flood Hazard Determination"
+      ],
       "fields_extracted": [
-        "borrower_information",
-        "property_information",
-        "loan_information",
-        "prior_to_docs_conditions",
-        "prior_to_funding_conditions"
-      ]
-    },
-    "title_report": {
-      "name": "Title Report",
-      "category": "title",
-      "fields_extracted": [
-        "issuing_agent",
-        "property_address",
-        "commitment_number",
-        "title_company",
-        "settlement_agent",
-        "tr_loan_amount",
-        "tr_purchase_price",
-        "project_name",
-        "effective_date",
-        "legal_description",
-        "final_vesting",
-        "bank_wire",
-        "escrow_company",
-        "issuing_office",
-        "contact",
-        "lender_name"
-      ]
-    },
-    "closing_protection_letter": {
-      "name": "Closing Protection Letter",
-      "category": "title",
-      "fields_extracted": [
-        "cpl_issue_date",
-        "property_address",
-        "settlement_agent_name",
-        "settlement_agent_address",
-        "cpl_expiration_date",
-        "lender_name",
-        "underwriter_name"
-      ]
-    },
-    "appraisal_report": {
-      "name": "Appraisal Report",
-      "category": "property",
-      "fields_extracted": [
-        "appraisal_cost_estimate",
-        "appraisal_pud",
-        "appraisal_made_as_is",
-        "appraisal_subject_to_completion",
-        "appraisal_subject_to_repairs",
-        "appraisal_subject_to_conditions",
-        "appraisal_flood_zone",
-        "appraisal_nfip_map_number",
-        "appraisal_parcel_number",
-        "appraisal_property_address"
+        "flood_insurance_company",
+        "flood_policy_number",
+        "flood_zone",
+        "flood_annual_premium"
       ]
     },
     "evidence_of_insurance": {
@@ -164,141 +288,26 @@
         "payment_address_zip"
       ]
     },
-    "flood_insurance": {
-      "name": "Flood Insurance",
-      "category": "insurance",
-      "conditional": "flood_zone in ['A', 'V', 'AE', 'VE']",
+    "title_report": {
+      "name": "Title Report",
+      "category": "title",
       "fields_extracted": [
-        "flood_insurance_company",
-        "flood_policy_number",
-        "flood_zone",
-        "flood_annual_premium"
-      ]
-    },
-    "tax_summary": {
-      "name": "Tax Summary",
-      "category": "property",
-      "fields_extracted": [
-        "annual_taxes",
-        "tax_parcel_number",
-        "tax_county_name",
-        "tax_property_address"
-      ]
-    },
-    "fha_case_assignment": {
-      "name": "FHA Case Assignment",
-      "category": "government",
-      "conditional": "loan_type == 'FHA'",
-      "fallback_docs": [
-        "FHA Transmittal Summary",
-        "HUD-92900-LT"
-      ],
-      "fields_extracted": [
-        "agency_case_number",
-        "fha_case_assigned_date"
-      ]
-    },
-    "fha_loan_transmittal": {
-      "name": "HUD-92900-LT FHA Loan Transmittal",
-      "category": "government",
-      "conditional": "loan_type == 'FHA'",
-      "fields_extracted": [
-        "fha_borrower_name",
-        "fha_property_address",
-        "fha_sales_price",
-        "fha_appraised_value",
-        "fha_loan_amount",
-        "fha_case_number",
-        "fha_agency_type",
-        "fha_section_of_act",
-        "fha_lender_case_number",
-        "fha_first_mtg_pi",
-        "fha_monthly_mip",
-        "fha_hoa_fees",
-        "fha_lease_ground_rent",
-        "fha_second_mtg_pi",
-        "fha_hazard_insurance",
-        "fha_taxes_assessments",
-        "fha_other_payment",
-        "fha_total_payment"
-      ]
-    },
-    "du_findings": {
-      "name": "DU Findings / AUS Certificate",
-      "category": "underwriting",
-      "fallback_docs": [
-        "AUS Certificate",
-        "Desktop Underwriter",
-        "Automated Underwriting",
-        "DU Cert"
-      ],
-      "fields_extracted": [
-        "du_loan_amount",
-        "du_property_address",
-        "du_property_type",
-        "du_borrower_name",
-        "du_recommendation"
-      ]
-    },
-    "mi_certificate": {
-      "name": "MI Certificate",
-      "category": "insurance",
-      "conditional": "ltv > 80",
-      "fields_extracted": [
-        "certificate_number",
-        "premium_type",
-        "monthly_premium_amount",
-        "mi_company_name",
-        "mi_company_address",
-        "mi_file_number",
-        "first_renewal_percent",
-        "first_renewal_months",
-        "second_renewal_percent",
-        "second_renewal_months",
-        "cancel_at_percent",
-        "upfront_premium_amount",
-        "upfront_premium_percent"
-      ]
-    },
-    "appraisal_invoice": {
-      "name": "Appraisal Invoice",
-      "category": "fees",
-      "fields_extracted": [
-        "inv_appraisal_fee",
-        "inv_amc_company_name",
-        "inv_payment_received",
-        "inv_balance_due",
-        "inv_reinspection_fee",
-        "inv_total_invoice_amount",
-        "inv_invoice_number",
-        "inv_invoice_date"
-      ]
-    },
-    "credit_report_invoice": {
-      "name": "Credit Report Invoice",
-      "category": "fees",
-      "fields_extracted": [
-        "cr_inv_credit_report_fee",
-        "cr_inv_vendor_name",
-        "cr_inv_credit_invoice_date",
-        "cr_inv_credit_invoice_number"
-      ]
-    },
-    "appraisal_acknowledgement": {
-      "name": "Appraisal Acknowledgement",
-      "category": "compliance",
-      "fields_extracted": [
-        "appraisal_delivery_date",
-        "appraisal_sender_email",
-        "appraisal_recipient_names"
-      ]
-    },
-    "notice_of_right_to_appraisal": {
-      "name": "Notice of Right to Appraisal",
-      "category": "compliance",
-      "fields_extracted": [
-        "appraisal_waiver_3day_waiting",
-        "appraisal_receive_copy_requested"
+        "issuing_agent",
+        "property_address",
+        "commitment_number",
+        "title_company",
+        "settlement_agent",
+        "tr_loan_amount",
+        "tr_purchase_price",
+        "project_name",
+        "effective_date",
+        "legal_description",
+        "final_vesting",
+        "bank_wire",
+        "escrow_company",
+        "issuing_office",
+        "contact",
+        "lender_name"
       ]
     },
     "loan_estimate": {
@@ -330,338 +339,86 @@
         "le_date_issued"
       ]
     },
-    "purchase_agreement": {
-      "name": "Purchase Agreement",
-      "category": "contract",
-      "fields_extracted": [
-        "pa_purchase_price",
-        "pa_contract_date",
-        "pa_signing_date",
-        "pa_seller_concessions",
-        "pa_property_address"
-      ]
-    },
-    "purchase_agreement_addendum": {
-      "name": "Purchase Agreement Addendum",
-      "category": "contract",
-      "optional": true,
-      "multi_copy": true,
-      "fields_extracted": [
-        "addendum_purchase_price",
-        "addendum_seller_concessions",
-        "addendum_effective_date",
-        "addendum_changes_summary"
-      ]
-    },
-    "passport": {
-      "name": "Passport",
-      "category": "identity",
-      "fields_extracted": [
-        "borrower_first_name",
-        "borrower_last_name",
-        "borrower_dob"
-      ]
-    },
-    "permanent_resident_card": {
-      "name": "Permanent Resident Card",
-      "category": "identity",
-      "fields_extracted": [
-        "borrower_first_name",
-        "borrower_last_name",
-        "borrower_dob"
-      ]
-    },
-    "payoff_statement": {
-      "name": "Payoff Statement",
-      "category": "payoff",
-      "conditional": "is_refinance",
-      "fields_extracted": [
-        "payoff_creditor_name",
-        "payoff_amount",
-        "payoff_good_through_date"
-      ]
-    },
-    "home_inspection_report": {
-      "name": "Home Inspection Report",
-      "category": "property",
-      "fields_extracted": [
-        "home_inspection_date",
-        "home_inspector_name",
-        "home_inspection_result"
-      ]
-    },
-    "pest_inspection_report": {
-      "name": "Pest Inspection Report",
-      "category": "property",
-      "fields_extracted": [
-        "pest_inspection_date",
-        "pest_found",
-        "pest_treatment_required"
-      ]
-    },
-    "closing_disclosure": {
-      "name": "Closing Disclosure",
+    "lock_confirmation": {
+      "name": "Lock Confirmation",
+      "efolder_doc_type": "Lock Confirmation",
       "category": "disclosure",
+      "aliases": [
+        "Lock Confirmation Document",
+        "Rate Lock Confirmation",
+        "Lock Confirmation Letter"
+      ],
       "fields_extracted": [
-        "loan_amount", "interest_rate", "apr", "monthly_pi",
-        "closing_date", "note_date", "loan_number",
-        "borrower_first_name", "borrower_last_name",
-        "co_borrower_first_name", "co_borrower_last_name",
-        "seller_credits", "loan_origination_fee",
-        "appraisal_fee", "credit_report_fee", "processing_fee", "underwriting_fee",
-        "attorney_fee", "title_settlement_fee",
-        "cd_mic_reference", "cd_seller_names", "property_address",
-        "settlement_agent_name", "escrow_number",
-        "appraisal_reinspection_fee",
-        "cd_received_date", "date_issued",
-        "origination_charges",
-        "services_borrower_did_not_shop_for",
-        "services_borrower_did_shop_for",
-        "total_closing_costs",
-        "lender_credits", "discount_points",
-        "recording_fees", "government_recording_charges", "transfer_taxes",
-        "initial_escrow_payment", "prepaid_interest",
-        "homeowners_insurance_premium", "estimated_monthly_escrow",
-        "closing_protection_letter_fee", "e_recording_fee",
-        "endorsement_fee", "endorsement_fee_seller",
-        "owners_policy_endorsement_fee", "lenders_policy_endorsement_fee",
-        "owners_policy_endorsement_fee_seller", "lenders_policy_endorsement_fee_seller",
-        "escrow_fee", "escrow_fee_seller",
-        "lenders_title_insurance", "loan_tie_in_fee",
-        "notary_fee", "notary_fee_seller",
-        "overnight_courier_fee", "overnight_courier_fee_seller",
-        "reconveyance_fee_seller",
-        "wire_transfer_fee", "wire_transfer_fee_seller",
-        "section_b_line_items",
-        "section_c_line_items",
-        "tax_service_fee",
-        "flood_cert_fee",
-        "owners_title_insurance",
-        "property_taxes_prepaid",
-        "mortgage_insurance_premium",
-        "appraisal_fee_payee",
-        "credit_report_fee_payee",
-        "tax_service_fee_payee",
-        "flood_cert_fee_payee",
-        "closing_protection_letter_fee_payee",
-        "endorsement_fee_payee",
-        "escrow_fee_payee",
-        "lenders_title_insurance_payee",
-        "notary_fee_payee",
-        "title_settlement_fee_payee",
-        "overnight_courier_fee_payee",
-        "e_recording_fee_payee",
-        "wire_transfer_fee_payee",
-        "attorney_fee_payee"
-      ]
-    },
-    "coc_form": {
-      "name": "Change of circumstance (COC)",
-      "category": "disclosure",
-      "fields_extracted": [
-        "coc_reason", "coc_date", "coc_disclosed_by",
-        "coc_original_values", "coc_revised_values"
-      ]
-    },
-    "sspl": {
-      "name": "2015 Settlement Service Provider List (SSPL)",
-      "category": "application",
-      "fields_extracted": [
-        "sspl_loan_number", "sspl_borrower_name", "sspl_property_address",
-        "sspl_loan_amount", "sspl_loan_type", "sspl_loan_purpose",
-        "sspl_submission_date"
-      ]
-    },
-    "estimated_settlement_statement": {
-      "name": "Estimated Settlement Statement",
-      "category": "disclosure",
-      "fields_extracted": [
-        "ess_total_closing_costs",
-        "ess_cash_to_close",
-        "ess_seller_credits",
-        "ess_lender_credit",
-        "recording_charges"
-      ]
-    },
-    "tax_returns_business": {
-      "name": "Tax Returns - Business",
-      "category": "income",
-      "fields_extracted": [
-        "business_name"
-      ]
-    },
-    "subordinate_note": {
-      "name": "Subordinate Note",
-      "category": "compliance",
-      "conditional": "is_dpa == true",
-      "fields_extracted": [
-        "loan_amount",
+        "lock_date",
+        "lock_expiration_date",
         "interest_rate",
-        "maturity_date"
-      ]
-    },
-    "subordinate_dot": {
-      "name": "Subordinate Deed of Trust",
-      "category": "compliance",
-      "conditional": "is_dpa == true",
-      "fields_extracted": [
+        "loan_program",
         "loan_amount",
+        "lock_period_days",
+        "borrower_name",
         "property_address"
       ]
     },
-    "transmittal_summary": {
-      "name": "Transmittal Summary",
-      "category": "underwriting",
-      "optional": true,
+    "closing_protection_letter": {
+      "name": "Closing Protection Letter",
+      "category": "title",
       "fields_extracted": [
-        "transmittal_sales_price",
-        "transmittal_appraised_value",
-        "transmittal_zip",
-        "transmittal_property_address",
-        "transmittal_property_type",
-        "transmittal_loan_amount"
-      ]
-    },
-    "va_certificate_of_eligibility": {
-      "name": "VA Certificate of Eligibility",
-      "category": "government",
-      "fields_extracted": [
-        "veteran_name",
-        "va_case_number",
-        "entitlement_code",
-        "basic_entitlement",
-        "additional_entitlement",
-        "funding_fee_exempt",
-        "service_connected_disability",
-        "branch_of_service",
-        "dates_of_service"
-      ]
-    },
-    "va_documents_misc": {
-      "name": "VA Documents Misc",
-      "category": "government",
-      "fields_extracted": [
-        "veteran_name",
-        "va_case_number",
-        "entitlement_code",
-        "basic_entitlement",
-        "additional_entitlement",
-        "funding_fee_exempt",
-        "service_connected_disability",
-        "branch_of_service",
-        "dates_of_service",
-        "document_description"
-      ]
-    },
-    "va_funding_fee_worksheet": {
-      "name": "VA Funding Fee Worksheet",
-      "category": "government",
-      "fields_extracted": [
-        "va_case_number",
-        "loan_amount",
-        "funding_fee_percent",
-        "funding_fee_amount",
-        "first_use_or_subsequent",
-        "down_payment_percent",
-        "loan_type_purpose"
-      ]
-    },
-    "va_26_0286_loan_summary": {
-      "name": "VA 26-0286 Loan Summary",
-      "category": "government",
-      "fields_extracted": [
-        "borrower_first_name",
-        "borrower_last_name",
+        "cpl_issue_date",
         "property_address",
-        "property_type",
-        "number_of_units",
-        "sales_price",
-        "appraised_value",
-        "loan_amount",
-        "interest_rate",
-        "va_case_number",
-        "first_mortgage_pi",
-        "hoa_fee",
-        "lease_ground_rent",
-        "second_mortgage_pi",
-        "total_mortgage_payment",
-        "proposed_hazard_insurance",
-        "proposed_mortgage_insurance",
-        "proposed_taxes",
-        "hazard_insurance",
-        "taxes_special_assessments",
-        "supplemental_insurance"
+        "settlement_agent_name",
+        "settlement_agent_address",
+        "cpl_expiration_date",
+        "lender_name",
+        "underwriter_name"
       ]
     },
-    "va_26_6393_loan_analysis": {
-      "name": "VA 26-6393 Loan Analysis",
-      "category": "government",
+    "borrowers_certification": {
+      "name": "Borrower's Certification and Authorization",
+      "efolder_doc_type": "Borrower's Certification and Authorization",
+      "category": "disclosure",
+      "aliases": [
+        "Borrowers Certification and Authorization",
+        "Borrower Certification",
+        "Certification and Authorization",
+        "Borrower's Authorization"
+      ],
       "fields_extracted": [
-        "borrower_first_name",
-        "borrower_last_name",
-        "property_address",
-        "property_type",
-        "number_of_units",
-        "sales_price",
-        "appraised_value",
-        "loan_amount",
-        "interest_rate",
-        "va_case_number",
-        "first_mortgage_pi",
-        "hoa_fee",
-        "lease_ground_rent",
-        "second_mortgage_pi",
-        "total_mortgage_payment",
-        "proposed_hazard_insurance",
-        "proposed_mortgage_insurance",
-        "proposed_taxes",
-        "hazard_insurance",
-        "taxes_special_assessments",
-        "supplemental_insurance"
+        "borrower_name",
+        "coborrower_name",
+        "signature_date",
+        "is_signed"
       ]
     },
-    "va_nearest_living_relative": {
-      "name": "VA Nearest Living Relative",
-      "category": "government",
+    "state_disclosures": {
+      "name": "State Disclosure",
+      "efolder_doc_type": "State Disclosure",
+      "category": "disclosure",
+      "aliases": [
+        "State Disclosures",
+        "MD Notice",
+        "MD Notice Regarding Right for Assumption",
+        "State Notice",
+        "Initial Disclosure"
+      ],
       "fields_extracted": [
-        "veteran_borrower_name",
-        "nearest_relative_full_name",
-        "nearest_relative_relationship",
-        "nearest_relative_address_street",
-        "nearest_relative_address_city",
-        "nearest_relative_address_state",
-        "nearest_relative_address_zip",
-        "nearest_relative_phone"
-      ]
-    },
-    "va_26_1820": {
-      "name": "VA 26-1820",
-      "category": "government",
-      "fields_extracted": [
-        "va_1820_borrower_name",
-        "va_1820_property_address",
-        "va_1820_lender_name",
-        "va_1820_case_number",
-        "va_1820_loan_amount",
-        "va_1820_loan_purpose",
-        "va_1820_signature_date"
+        "disclosure_type",
+        "borrower_name",
+        "signature_date",
+        "is_signed",
+        "state"
       ]
     }
   },
   "categories": {
-    "identity": "Photo ID and identity verification documents",
-    "application": "Loan application forms",
-    "credit": "Credit reports and scores",
-    "compliance": "Fraud, NMLS, and regulatory compliance",
-    "underwriting": "Approval and underwriting documents",
-    "title": "Title commitment, CPL, and closing documents",
-    "property": "Appraisal, inspections, and property info",
-    "insurance": "Hazard, flood, and mortgage insurance",
-    "government": "FHA, VA, USDA loan-specific documents",
-    "fees": "Invoices and fee documentation",
-    "disclosure": "Loan Estimate, Closing Disclosure",
+    "application": "Loan application forms (1003 URLA, Transmittal Summary)",
+    "underwriting": "AUS findings and underwriting documents",
+    "income": "Income verification: VOE, paystubs, W-2, tax returns",
+    "assets": "Bank statements and investment/brokerage account statements",
     "contract": "Purchase agreement and contracts",
-    "payoff": "Payoff statements for refinances",
-    "income": "Income and tax return documents"
+    "credit": "Credit reports",
+    "identity": "Photo ID and identity verification (Driver's License)",
+    "disclosure": "Loan Estimate, Lock Confirmation, Initial Disclosures, CPL",
+    "insurance": "Hazard insurance, flood certificate",
+    "title": "Title report"
   }
 }

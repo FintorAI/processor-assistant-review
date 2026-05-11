@@ -26,6 +26,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -38,67 +39,121 @@ from urllib.error import HTTPError, URLError
 API_BASE_URL = os.getenv("EFOLDER_API_BASE_URL", "https://1doxzxvey2.execute-api.us-west-1.amazonaws.com/prod")
 API_TOKEN = os.getenv("EFOLDER_API_TOKEN", "esfuse-token")  # Load from env, fallback to default
 
-# Full list of supported document types (27 types)
-ALL_DOCUMENT_TYPES = [
-    # Core loan documents
-    "1003 URLA",                    # Uniform Residential Loan Application
-    "Credit Report",                # Borrower credit report
-    "Title Report",                 # Title commitment/report
-    "Compliance Report",            # NMLS compliance check
-    "Appraisal Report",             # Property appraisal (may be large - stored_no_extraction)
-    "Purchase Agreement",           # Sales contract (may be large - stored_no_extraction)
-    
-    # Insurance documents
-    "Evidence of Insurance",        # Hazard/homeowner's insurance
-    "Flood Insurance",              # Flood determination certificate
-    "Flood Certificate",            # Flood zone determination
-    
-    # Tax and financial
-    "Tax Summary",                  # Property tax information
-    "Loan Estimate",                # LE disclosure
-    "Appraisal Invoice",            # Appraisal fee invoice
-    
-    # Settlement documents
-    "Estimated Settlement Statement",  # ESS - preliminary closing costs
-    "Closing Disclosure",           # CD - final closing costs and terms
-    
-    # ID verification
-    "Driver's License",             # Borrower ID
-    "Passport",                     # Alternative ID
-    "Permanent Resident Card",      # Immigration status
-    "SSN Verification",             # Social security verification
-    
-    # FHA specific
-    "FHA Case Assignment",          # FHA case number
-    "FHA Transmittal Summary",      # HUD-92900-LT
-    
-    # VA specific
-    "VA Nearest Living Relative",   # VA form - relative not living with veteran
-    "VA 26-1820",                   # VA Request for Determination of Loan Guaranty
-    "VA Loan Summary",              # VA LAPP/SAR Summary
-    "VA 26-0286 Loan Summary",      # VA Form 26-0286 (common Encompass bucket title)
-    "VA 26-6393 Loan Analysis",     # VA Form 26-6393 loan analysis bucket
-    
-    # Conventional specific
-    "Transmittal Summary",          # FNMA 1008 / Uniform Underwriting Transmittal
-    
-    # Approval and conditions
-    "Approval Form",                # Conditional approval
-    "Closing Protection Letter",    # CPL from title company
-    
-    # Appraisal related
-    "Appraisal Acknowledgement",    # Proof of appraisal delivery
-    "Notice of Right to Appraisal", # Appraisal waiver notice
-    
-    # Other
-    "Fraud Report",                 # Fraud detection report
-    
-    # Income / Tax
-    "Tax Returns - Business",       # Business tax returns (1120/1065/K-1)
-    
-    # Trust
-    "Trust Document",               # Trust Paperwork/Beneficiary Confirmation
-]
+# Path to conditions config — resolved relative to this file so it works
+# whether efolder_client is imported from output/ or shared/.
+_CONDITIONS_PATH = Path(__file__).parent.parent / "output" / "config" / "required_docs_conditions.json"
+
+
+def get_document_types_for_loan(
+    loan_type: Optional[str] = None,
+    loan_purpose: Optional[str] = None,
+) -> List[str]:
+    """
+    Return the document list for a given loan type and purpose, loaded from
+    required_docs_conditions.json.
+
+    Matching rules (mirrors the original extract_sequential.select_condition logic):
+    - 'Refinance' and 'Cash-Out Refinance' are treated as equivalent.
+    - Falls through to the `fallback: true` entry if no specific match is found.
+    - Currently we have a single unified fallback, so all loan types get the
+      same 22-document list. When loan-type-specific rows are added to the
+      conditions file in the future, they will be picked up automatically here.
+
+    Args:
+        loan_type:    e.g. "Conventional", "FHA", "VA", "USDA" (case-insensitive)
+        loan_purpose: e.g. "Purchase", "Refinance", "Cash-Out Refinance"
+
+    Returns:
+        List of document type strings to pass to ExtractionRequest.
+    """
+    try:
+        with open(_CONDITIONS_PATH) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        # Graceful fallback — return hardcoded list if config file is missing
+        return list(ALL_DOCUMENT_TYPES)
+
+    conditions = cfg.get("conditions", [])
+
+    _lt = (loan_type or "").strip().lower()
+    _lp = (loan_purpose or "").strip().lower()
+    # Treat both refi flavours as equivalent
+    if _lp in ("cash-out refinance", "cash out refinance"):
+        _lp = "refinance"
+
+    fallback_entry = None
+    for entry in conditions:
+        cond = entry.get("condition", {})
+
+        if cond.get("fallback"):
+            fallback_entry = entry
+            continue
+
+        cond_lt = (cond.get("loan_type") or "").strip().lower()
+        cond_lp = (cond.get("loan_purpose") or "").strip().lower()
+        if cond_lp in ("cash-out refinance", "cash out refinance"):
+            cond_lp = "refinance"
+
+        if cond_lt == _lt and cond_lp == _lp:
+            return entry.get("document_list", [])
+
+    # No specific match — use fallback
+    if fallback_entry:
+        return fallback_entry.get("document_list", [])
+
+    return []
+
+
+def get_extraction_mode_for_loan(
+    loan_type: Optional[str] = None,
+    loan_purpose: Optional[str] = None,
+) -> Dict[str, str]:
+    """
+    Return the per-document extraction_mode overrides for a given loan type/purpose.
+    Keys are document type strings; values are "all" or "best".
+    Documents not listed here default to "best".
+    """
+    try:
+        with open(_CONDITIONS_PATH) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        return {}
+
+    conditions = cfg.get("conditions", [])
+
+    _lt = (loan_type or "").strip().lower()
+    _lp = (loan_purpose or "").strip().lower()
+    if _lp in ("cash-out refinance", "cash out refinance"):
+        _lp = "refinance"
+
+    fallback_mode = {}
+    for entry in conditions:
+        cond = entry.get("condition", {})
+
+        if cond.get("fallback"):
+            fallback_mode = {
+                k: v for k, v in entry.get("extraction_mode", {}).items()
+                if not k.startswith("_")
+            }
+            continue
+
+        cond_lt = (cond.get("loan_type") or "").strip().lower()
+        cond_lp = (cond.get("loan_purpose") or "").strip().lower()
+        if cond_lp in ("cash-out refinance", "cash out refinance"):
+            cond_lp = "refinance"
+
+        if cond_lt == _lt and cond_lp == _lp:
+            return {
+                k: v for k, v in entry.get("extraction_mode", {}).items()
+                if not k.startswith("_")
+            }
+
+    return fallback_mode
+
+
+# Convenience constant — the full unified list (matches fallback condition).
+# Use get_document_types_for_loan() in production code for future-proofing.
+ALL_DOCUMENT_TYPES: List[str] = get_document_types_for_loan()
 
 
 # =============================================================================
