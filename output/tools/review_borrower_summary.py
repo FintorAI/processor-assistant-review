@@ -54,11 +54,13 @@ def review_borrower_summary(
     borrower_accept_sms, borrower_dob, borrower_email, borrower_marital_status,
     coborrower_first_name, coborrower_last_name, coborrower_cell_phone, coborrower_accept_sms,
     coborrower_email, coborrower_marital_status, property_address, property_city, property_state,
-    property_zip, credit_score, loan_amount, appraised_value, loan_purpose, ami_eligibility
+    property_zip, credit_score, loan_amount, appraised_value, estimated_value, los_purchase_price,
+    loan_purpose, ami_eligibility
     Reads Docs: Driver's License, Purchase Agreement
     Flags: Required Field Empty, Borrower ID Expired, Property Address Mismatch, Loan Amount Missing,
-    Credit Score Missing, Email Missing
-    Writes: 1490 (borr cell ← home phone), 4920 (borr SMS), 4935 (coborr SMS)
+    Credit Score Missing, Email Missing, Purchase Price Mismatch, Estimated Value Mismatch
+    Writes: 1490 (borr cell ← home phone), 4920 (borr SMS), 4935 (coborr SMS),
+            356 (appraised value ← estimated value if 356 is empty)
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -100,13 +102,55 @@ def review_borrower_summary(
     credit_score_decision    = _los(state, "credit_score_decision")
     credit_reference_number  = _los(state, "credit_reference_number")
     loan_amount              = _los(state, "loan_amount")
-    appraised_value          = _los(state, "appraised_value")
-    loan_purpose             = _los(state, "loan_purpose")
+    appraised_value          = _los(state, "appraised_value")       # field 356
+    estimated_value          = _los(state, "estimated_value")       # field 1821
+    los_purchase_price       = _los(state, "los_purchase_price")    # field 136
+    loan_purpose             = _los(state, "loan_purpose")          # field 19
     property_address         = _los(state, "property_address")
     property_city            = _los(state, "property_city")
     property_state           = _los(state, "property_state")
     property_zip             = _los(state, "property_zip")
     ami_eligibility          = _los(state, "ami_eligibility")
+
+    # ── Transaction Details ───────────────────────────────────────────────
+    lender                   = _los(state, "lender")               # field 1264
+    loan_program             = _los(state, "loan_program")         # field 1401
+    closing_cost_program     = _los(state, "closing_cost_program") # field 1785
+    loan_number              = _los(state, "loan_number")          # field 364
+    mers_min                 = _los(state, "mers_min")             # field 1051
+
+    # ── Loan Info ─────────────────────────────────────────────────────────
+    occupancy                = _los(state, "occupancy")            # field 1811
+    loan_type                = _los(state, "loan_type")            # field 1172
+    lien_position            = _los(state, "lien_position")        # field 420
+    amort_type               = _los(state, "amort_type")           # field 608
+    loan_term_months         = _los(state, "loan_term_months")     # field 4
+    term_due_in_months       = _los(state, "term_due_in_months")   # field 325
+
+    # ── Rates ─────────────────────────────────────────────────────────────
+    note_rate                = _los(state, "note_rate")            # field 3
+    qual_rate                = _los(state, "qual_rate")            # field 1014
+    undiscounted_rate        = _los(state, "undiscounted_rate")    # field 3293
+
+    # ── Payments / Income ────────────────────────────────────────────────
+    monthly_payment          = _los(state, "monthly_payment")      # field 5
+    total_monthly_payment    = _los(state, "total_monthly_payment") # field 912
+    monthly_income           = _los(state, "monthly_income")       # field 736
+
+    # ── Down Payment ─────────────────────────────────────────────────────
+    down_payment_pct         = _los(state, "down_payment_pct")     # field 1771
+    down_payment_amount      = _los(state, "down_payment_amount")  # field 1335
+
+    # ── Lock / Rate Dates ────────────────────────────────────────────────
+    rate_is_locked           = _los(state, "rate_is_locked")       # field 2400
+    lock_date                = _los(state, "lock_date")            # field 761
+    lock_days                = _los(state, "lock_days")            # field 432
+    lock_expires             = _los(state, "lock_expires")         # field 762
+    last_rate_set_date       = _los(state, "last_rate_set_date")   # field 3253
+    rate_lock_disclosure_date_val = _los(state, "rate_lock_disclosure_date")  # field 3259
+    est_closing_date_val     = _los(state, "est_closing_date")     # field 763
+    borrower_est_closing_date_val = _los(state, "borrower_est_closing_date")  # field 4114
+    secondary_registration   = _los(state, "secondary_registration") # field 3941
 
     has_coborrower = bool(coborrower_first_name and coborrower_last_name)
 
@@ -253,6 +297,68 @@ def review_borrower_summary(
               f"Loan amount '{loan_amount}' could not be parsed.",
               "Enter a valid numeric loan amount.")
 
+    # ── Rule: Purchase Price — LOS vs Purchase Contract ──────────────────
+    def _parse_amount(val) -> float | None:
+        """Parse a dollar amount string like '$580,000' or '580000' to float."""
+        if not val:
+            return None
+        try:
+            return float(str(val).replace(",", "").replace("$", "").strip())
+        except (ValueError, TypeError):
+            return None
+
+    PRICE_TOLERANCE = 500.0  # flag if values differ by more than this
+
+    purchase_price_doc_amount = _parse_amount(purchase_price_doc)
+    los_purchase_price_amount = _parse_amount(los_purchase_price)
+    estimated_value_amount    = _parse_amount(estimated_value)
+    appraised_value_amount    = _parse_amount(appraised_value)
+
+    if purchase_price_doc_amount and los_purchase_price_amount:
+        diff = abs(purchase_price_doc_amount - los_purchase_price_amount)
+        if diff > PRICE_TOLERANCE:
+            _flag(flags, "2.1", "Purchase Price Mismatch", "warning",
+                  f"LOS purchase price (field 136): ${los_purchase_price_amount:,.0f} "
+                  f"vs Purchase Contract: ${purchase_price_doc_amount:,.0f} "
+                  f"(diff: ${diff:,.0f}).",
+                  "Correct the purchase price in Encompass to match the Purchase Contract.")
+    elif not los_purchase_price_amount and purchase_price_doc_amount:
+        _flag(flags, "2.1", "Purchase Price Missing in LOS", "warning",
+              f"Purchase Contract shows ${purchase_price_doc_amount:,.0f} but "
+              f"LOS purchase price (field 136) is blank.",
+              "Enter the purchase price in Encompass.")
+
+    # ── Rule: Estimated Value vs Purchase Price ───────────────────────────
+    if purchase_price_doc_amount and estimated_value_amount:
+        diff = abs(estimated_value_amount - purchase_price_doc_amount)
+        if diff > PRICE_TOLERANCE:
+            _flag(flags, "2.1", "Estimated Value vs Purchase Price Mismatch", "warning",
+                  f"Estimated value (field 1821): ${estimated_value_amount:,.0f} "
+                  f"vs Purchase Contract price: ${purchase_price_doc_amount:,.0f} "
+                  f"(diff: ${diff:,.0f}).",
+                  "Verify the estimated value is correct, or update to match the purchase price.")
+    elif not estimated_value_amount:
+        _flag(flags, "2.1", "Estimated Value Empty", "warning",
+              "Estimated value (field 1821) is blank.",
+              "Enter the estimated value in Encompass.")
+
+    # ── Rule: Appraised Value — copy from Estimated Value if empty ────────
+    if not appraised_value_amount and estimated_value_amount:
+        clean_est = str(int(estimated_value_amount)) if estimated_value_amount == int(estimated_value_amount) \
+            else str(estimated_value_amount)
+        _write_fields(
+            loan_id=loan_id,
+            updates={"356": clean_est},
+            substep="2.1",
+            flags=flags,
+            state=state,
+            labels={"356": "Appraised Value"},
+        )
+    elif not appraised_value_amount:
+        _flag(flags, "2.1", "Appraised Value Empty", "warning",
+              "Appraised value (field 356) is blank and no estimated value to copy from.",
+              "Enter the appraised value once the appraisal report is received.")
+
     # ── Rule: Property Address (reads from state["address_validation"] set by step 0.5) ──
     addr_val = state.get("address_validation", {})
     if addr_val:
@@ -293,6 +399,205 @@ def review_borrower_summary(
                       "Request a valid, non-expired government ID from the borrower.")
         except Exception:
             pass
+
+    # ── Rule: Transaction Details ─────────────────────────────────────────
+    EXPECTED_LENDER = "All Western Mortgage Inc."
+    if not lender:
+        _flag(flags, "2.1", "Lender Empty", "warning",
+              f"Lender (1264) is blank — must be '{EXPECTED_LENDER}'.",
+              f"Update Lender to '{EXPECTED_LENDER}'.")
+    elif lender != EXPECTED_LENDER:
+        _flag(flags, "2.1", "Lender Incorrect", "warning",
+              f"Lender (1264) = '{lender}', expected '{EXPECTED_LENDER}'.",
+              f"Update Lender to '{EXPECTED_LENDER}'.")
+
+    if not loan_program:
+        _flag(flags, "2.1", "Loan Program Empty", "warning",
+              "Loan Program (1401) is blank.",
+              "Select the correct Loan Program.")
+    else:
+        _flag(flags, "2.1", "Loan Program", "info",
+              f"Loan Program (1401) = '{loan_program}'.",
+              "Verify Loan Program is correct.")
+
+    # Closing Cost Program — cross-check against Loan Purpose
+    if closing_cost_program:
+        _cc = closing_cost_program.lower()
+        _purpose = str(loan_purpose or "").lower()
+        if ("purchase" in _cc and "refin" in _purpose) or (("refin" in _cc or "refi" in _cc) and "purchase" in _purpose):
+            _flag(flags, "2.1", "Closing Cost Program Mismatch", "warning",
+                  f"Closing Cost Program (1785) = '{closing_cost_program}' but Loan Purpose (19) = '{loan_purpose}'. "
+                  "Purchase program on a refinance (or vice versa) is a data error.",
+                  "Escalate to processor — update Closing Cost Program to match loan purpose.")
+        else:
+            _flag(flags, "2.1", "Closing Cost Program", "info",
+                  f"Closing Cost Program (1785) = '{closing_cost_program}'.",
+                  "Verify Closing Cost Program is correct.")
+    else:
+        _flag(flags, "2.1", "Closing Cost Program Empty", "warning",
+              "Closing Cost Program (1785) is blank.",
+              "Select the appropriate Closing Cost Program for this loan.")
+
+    if not loan_number:
+        _flag(flags, "2.1", "Loan Number Empty", "warning",
+              "Loan Number (364) is blank.",
+              "Update Loan Number in Borrower Summary.")
+    if mers_min:
+        _flag(flags, "2.1", "MERS MIN", "info",
+              f"MERS MIN (1051) = '{mers_min}'.", "Verify MERS MIN is registered and correct.")
+    else:
+        _flag(flags, "2.1", "MERS MIN Empty", "warning",
+              "MERS MIN (1051) is blank.", "Enter MERS MIN when available.")
+
+    # ── Rule: Loan Info fields (19 / 1811 / 1172 / 420 / 608) ───────────
+    _loan_info_presence = {
+        "Purpose of Loan (19)":          loan_purpose,
+        "Property Will Be / Occupancy (1811)": occupancy,
+        "Loan Type (1172)":              loan_type,
+        "Lien Position (420)":           lien_position,
+        "Amortization Type (608)":       amort_type,
+        "Loan Term / Months (4)":        loan_term_months,
+        "Term Due In Months (325)":      term_due_in_months,
+    }
+    for label, val in _loan_info_presence.items():
+        if val:
+            _flag(flags, "2.1", f"Loan Info — {label}", "info",
+                  f"{label} = '{val}'.", "Verify matches loan entity; update if needed.")
+        else:
+            _flag(flags, "2.1", f"Loan Info — {label} Empty", "warning",
+                  f"{label} is blank.", "Consult loan entity and update.")
+
+    # ── Rule: Rates ───────────────────────────────────────────────────────
+    if not note_rate:
+        _flag(flags, "2.1", "Note Rate Empty", "warning",
+              "Note Rate (field 3) is blank.", "Enter the note rate.")
+    else:
+        _flag(flags, "2.1", "Note Rate", "info",
+              f"Note Rate (3) = '{note_rate}'.", "Verify rate is correct.")
+
+    if not qual_rate:
+        _flag(flags, "2.1", "Qualifying Rate Empty", "warning",
+              "Qualifying Rate (1014) is blank.", "Enter the qualifying rate.")
+    if undiscounted_rate:
+        _flag(flags, "2.1", "Undiscounted Rate", "info",
+              f"Undiscounted Rate (3293) = '{undiscounted_rate}'.", "Verify undiscounted rate.")
+    else:
+        _flag(flags, "2.1", "Undiscounted Rate Empty", "warning",
+              "Undiscounted Rate (3293) is blank.", "Enter the undiscounted rate.")
+
+    # ── Rule: Payments / Income ───────────────────────────────────────────
+    if not monthly_payment:
+        _flag(flags, "2.1", "Monthly Payment (P&I) Empty", "warning",
+              "Monthly Payment / P&I (field 5) is blank.", "Verify loan terms are saved.")
+    if not total_monthly_payment:
+        _flag(flags, "2.1", "Total Monthly Payment Empty", "warning",
+              "Total Monthly Payment (912) is blank.", "Verify total payment is calculated.")
+    if not monthly_income:
+        _flag(flags, "2.1", "Monthly Income Empty", "warning",
+              "Monthly Income (736) is blank.", "Enter borrower monthly income.")
+
+    # ── Rule: Down Payment cross-check ────────────────────────────────────
+    down_pct_f  = _parse_amount(down_payment_pct)
+    down_amt_f  = _parse_amount(down_payment_amount)
+    pp_for_dp   = purchase_price_doc_amount or los_purchase_price_amount
+    if down_pct_f and pp_for_dp:
+        pct_value = down_pct_f / 100.0 if down_pct_f > 1 else down_pct_f
+        expected_dp = round(pp_for_dp * pct_value)
+        if down_amt_f:
+            diff = abs(down_amt_f - expected_dp)
+            if diff > PRICE_TOLERANCE:
+                _flag(flags, "2.1", "Down Payment Amount Mismatch", "warning",
+                      f"Down Payment % (1771) = {down_payment_pct}% × purchase price "
+                      f"${pp_for_dp:,.0f} = ${expected_dp:,.0f}, "
+                      f"but Down Payment Amount (1335) = ${down_amt_f:,.0f} (diff: ${diff:,.0f}).",
+                      "Verify down payment percentage and amount are consistent.")
+        else:
+            _flag(flags, "2.1", "Down Payment Amount Empty", "warning",
+                  f"Down Payment % (1771) = {down_payment_pct}% but Down Payment Amount (1335) is blank. "
+                  f"Expected ≈ ${expected_dp:,.0f}.",
+                  "Enter the down payment amount.")
+    elif not down_pct_f:
+        _flag(flags, "2.1", "Down Payment % Empty", "warning",
+              "Down Payment % (1771) is blank.", "Enter the down payment percentage.")
+
+    # ── Rule: Lock / Rate Dates ───────────────────────────────────────────
+    from datetime import date as _date
+    _is_locked = str(rate_is_locked or "").strip().lower() in ("y", "yes", "true", "1", "locked")
+    _today = datetime.now(timezone.utc).date()
+    _today_str = _today.strftime("%m/%d/%Y")
+
+    def _parse_date_str(s):
+        if not s or str(s).strip() in ("", "//", "None"):
+            return None
+        for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(str(s).strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    _lock_dt       = _parse_date_str(lock_date)
+    _last_rate_dt  = _parse_date_str(last_rate_set_date)
+    _rl_disc_dt    = _parse_date_str(rate_lock_disclosure_date_val)
+
+    if _is_locked:
+        if _lock_dt:
+            _flag(flags, "2.1", "Lock Date", "info",
+                  f"Lock Date (761) = '{lock_date}'. Loan is locked.",
+                  "Verify lock date is correct.")
+            if _last_rate_dt and _last_rate_dt != _lock_dt:
+                _flag(flags, "2.1", "Last Rate Set Date Mismatch", "warning",
+                      f"Last Rate Set Date (3253) = '{last_rate_set_date}' but Lock Date (761) = '{lock_date}'. "
+                      "For locked loans they should match.",
+                      "Update Last Rate Set Date to match Lock Date.")
+        else:
+            _flag(flags, "2.1", "Lock Date Missing (Locked Loan)", "warning",
+                  "Rate Is Locked (2400) = Y but Lock Date (761) is blank.",
+                  "Enter the Lock Date.")
+
+        if not lock_days:
+            _flag(flags, "2.1", "Lock Period Empty", "warning",
+                  "Lock Period / # of Days (432) is blank.",
+                  "Enter the lock period in days.")
+        if not lock_expires:
+            _flag(flags, "2.1", "Lock Expiration Date Empty", "warning",
+                  "Lock Expiration Date (762) is blank.",
+                  "Enter the lock expiration date.")
+
+        if _rl_disc_dt:
+            if _rl_disc_dt != _today:
+                _flag(flags, "2.1", "Rate Lock Disclosure Date Not Today", "warning",
+                      f"Rate Lock Disclosure Date (3259) = '{rate_lock_disclosure_date_val}' "
+                      f"but should be today's date '{_today_str}'.",
+                      f"Update Rate Lock Disclosure Date to '{_today_str}'.")
+        else:
+            _flag(flags, "2.1", "Rate Lock Disclosure Date Empty", "warning",
+                  f"Rate Lock Disclosure Date (3259) is blank — must be today '{_today_str}' when locked.",
+                  f"Set Rate Lock Disclosure Date to '{_today_str}'.")
+    else:
+        if _last_rate_dt and _last_rate_dt != _today:
+            _flag(flags, "2.1", "Last Rate Set Date Needs Update", "warning",
+                  f"Last Rate Set Date (3253) = '{last_rate_set_date}', expected today '{_today_str}' "
+                  "(loan is not locked).",
+                  f"Update Last Rate Set Date to '{_today_str}'.")
+        elif not last_rate_set_date:
+            _flag(flags, "2.1", "Last Rate Set Date Empty", "warning",
+                  "Last Rate Set Date (3253) is blank.",
+                  f"Set to today's date '{_today_str}'.")
+
+    if not est_closing_date_val:
+        _flag(flags, "2.1", "Est Closing Date Empty", "warning",
+              "Est Closing Date (763) is blank.", "Enter the estimated closing date.")
+    if not borrower_est_closing_date_val:
+        _flag(flags, "2.1", "Borrower Est Closing Date Empty", "warning",
+              "Borrower Est Closing Date (4114) is blank.", "Enter the borrower est closing date.")
+    if secondary_registration:
+        _flag(flags, "2.1", "Secondary Registration", "info",
+              f"Secondary Registration (3941) = '{secondary_registration}'.",
+              "Verify secondary registration is correct.")
+    else:
+        _flag(flags, "2.1", "Secondary Registration Empty", "warning",
+              "Secondary Registration (3941) is blank.", "Enter secondary registration if applicable.")
 
     # ── Build result ──────────────────────────────────────────────────────
     result = {

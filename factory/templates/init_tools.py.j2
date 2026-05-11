@@ -8,7 +8,7 @@ Each substep tool lives in its own file (named after the tool function).
 from .general import write_todo, get_workflow_status, save_step_report
 
 # Step 0: Data Gathering (auto-generated)
-from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary
+from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address
 
 {% for entry in substep_entries %}
 # {{ entry.step_id }} / {{ entry.substep_id }}: {{ entry.substep_name }}
@@ -27,6 +27,7 @@ def get_all_tools() -> list:
         fetch_los_fields,
         fetch_doc_fields,
         build_loan_summary,
+        validate_property_address,
     ]
 {% for entry in substep_entries %}
     tools.append({{ entry.tool_name }})
@@ -43,6 +44,7 @@ __all__ = [
     "fetch_los_fields",
     "fetch_doc_fields",
     "build_loan_summary",
+    "validate_property_address",
 {% for entry in substep_entries %}
     "{{ entry.tool_name }}",
 {% endfor %}

@@ -226,9 +226,165 @@ substeps:
     purpose: Confirm loan amount matches Purchase Contract
   - key: appraised_value
     field_id: '356'
-    field_name: Appraised / Estimated Value
+    field_name: Appraised Value
     category: collateral
-    purpose: Est -> Appraised value field check
+    purpose: If empty, copy estimated_value into this field (pre-appraisal fill)
+  - key: estimated_value
+    field_id: '1821'
+    field_name: Estimated Value
+    category: collateral
+    purpose: Compare against purchase price from Purchase Contract; copy to 356 if 356 is empty
+  - key: los_purchase_price
+    field_id: '136'
+    field_name: Purchase Price (LOS)
+    category: loan_info
+    purpose: Cross-check LOS purchase price against purchase price extracted from Purchase Contract
+  # ── Transaction Details ────────────────────────────────────────────
+  - key: lender
+    field_id: '1264'
+    field_name: Lender
+    category: loan_info
+    purpose: Must be "All Western Mortgage Inc."
+  - key: loan_program
+    field_id: '1401'
+    field_name: Loan Program
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: closing_cost_program
+    field_id: '1785'
+    field_name: Closing Cost Program
+    category: loan_info
+    purpose: Cross-check against loan purpose (19) for purchase/refi mismatch
+  - key: loan_number
+    field_id: '364'
+    field_name: Loan Number
+    category: loan_info
+    purpose: Presence check; warning if empty
+  - key: mers_min
+    field_id: '1051'
+    field_name: MERS MIN
+    category: loan_info
+    purpose: Info flag
+  # ── Loan Info (Occupancy / Type / Term) ────────────────────────────
+  - key: occupancy
+    field_id: '1811'
+    field_name: Property Will Be (Occupancy)
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: loan_type
+    field_id: '1172'
+    field_name: Loan Type
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: lien_position
+    field_id: '420'
+    field_name: Lien Position
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: amort_type
+    field_id: '608'
+    field_name: Amortization Type
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: loan_term_months
+    field_id: '4'
+    field_name: Loan Term (Months)
+    category: loan_info
+    purpose: Presence check; info flag
+  - key: term_due_in_months
+    field_id: '325'
+    field_name: Term Due In (Months)
+    category: loan_info
+    purpose: Presence check; info flag
+  # ── Rates ──────────────────────────────────────────────────────────
+  - key: note_rate
+    field_id: '3'
+    field_name: Note Rate
+    category: loan_info
+    purpose: Presence check; warning if empty
+  - key: qual_rate
+    field_id: '1014'
+    field_name: Qualifying Rate
+    category: loan_info
+    purpose: Presence check; warning if empty
+  - key: undiscounted_rate
+    field_id: '3293'
+    field_name: Undiscounted Rate
+    category: loan_info
+    purpose: Presence check; info flag
+  # ── Payments / Income ──────────────────────────────────────────────
+  - key: monthly_payment
+    field_id: '5'
+    field_name: Monthly Payment (P&I)
+    category: loan_info
+    purpose: Presence check; warning if empty
+  - key: total_monthly_payment
+    field_id: '912'
+    field_name: Total Monthly Payment
+    category: loan_info
+    purpose: Presence check; warning if empty
+  - key: monthly_income
+    field_id: '736'
+    field_name: Monthly Income
+    category: income
+    purpose: Presence check; warning if empty
+  # ── Down Payment ───────────────────────────────────────────────────
+  - key: down_payment_pct
+    field_id: '1771'
+    field_name: Down Payment %
+    category: loan_info
+    purpose: Cross-check down_payment_pct × purchase_price vs field 1335 (down payment amount)
+  - key: down_payment_amount
+    field_id: '1335'
+    field_name: Down Payment Amount
+    category: loan_info
+    purpose: Verify matches down_payment_pct × purchase_price
+  # ── Lock / Rate Dates ──────────────────────────────────────────────
+  - key: rate_is_locked
+    field_id: '2400'
+    field_name: Rate Is Locked (Y/N)
+    category: loan_info
+    purpose: Authoritative lock indicator; drives date validation logic
+  - key: lock_date
+    field_id: '761'
+    field_name: Lock Date
+    category: loan_info
+    purpose: Required if locked; must match last rate set date
+  - key: lock_days
+    field_id: '432'
+    field_name: Lock Period (# of Days)
+    category: loan_info
+    purpose: Presence check if locked
+  - key: lock_expires
+    field_id: '762'
+    field_name: Lock Expiration Date
+    category: loan_info
+    purpose: Presence check if locked
+  - key: last_rate_set_date
+    field_id: '3253'
+    field_name: Last Rate Set Date
+    category: loan_info
+    purpose: Must be today if unlocked; must match lock date if locked
+  - key: rate_lock_disclosure_date
+    field_id: '3259'
+    field_name: Rate Lock Disclosure Date
+    category: loan_info
+    purpose: Must be today if locked; can be blank if unlocked
+  - key: est_closing_date
+    field_id: '763'
+    field_name: Est Closing Date
+    category: closing
+    purpose: Presence check; warning if empty
+  - key: borrower_est_closing_date
+    field_id: '4114'
+    field_name: Borrower Est Closing Date
+    category: closing
+    purpose: Presence check; warning if empty
+  - key: secondary_registration
+    field_id: '3941'
+    field_name: Secondary Registration
+    category: loan_info
+    purpose: Presence check; info flag
   # ── Grant / AMI ────────────────────────────────────────────────────
   - key: ami_eligibility
     field_id: CX.AMI.ELIGIBILITY

@@ -1,6 +1,15 @@
 {
   "los_fields": [
     {
+      "key": "qual_rate",
+      "field_id": "1014",
+      "field_name": "Qualifying Rate",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "property_type",
       "field_id": "1041",
       "field_name": "Property Type",
@@ -9,6 +18,15 @@
         "STEP_03",
         "STEP_06",
         "STEP_09"
+      ]
+    },
+    {
+      "key": "mers_min",
+      "field_id": "1051",
+      "field_name": "MERS MIN",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -82,6 +100,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_01",
+        "STEP_02",
         "STEP_07"
       ]
     },
@@ -122,6 +141,15 @@
       ]
     },
     {
+      "key": "lender",
+      "field_id": "1264",
+      "field_name": "Lender",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "job_title",
       "field_id": "1286",
       "field_name": "Job Title",
@@ -140,12 +168,39 @@
       ]
     },
     {
+      "key": "down_payment_amount",
+      "field_id": "1335",
+      "field_name": "Down Payment Amount",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "los_purchase_price",
+      "field_id": "136",
+      "field_name": "Purchase Price (LOS)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "property_state",
       "field_id": "14",
       "field_name": "Property State",
       "category": "property",
       "used_by_steps": [
         "STEP_01",
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "loan_program",
+      "field_id": "1401",
+      "field_name": "Loan Program",
+      "category": "loan_info",
+      "used_by_steps": [
         "STEP_02"
       ]
     },
@@ -286,13 +341,41 @@
       ]
     },
     {
-      "key": "occupancy",
-      "field_id": "1811",
-      "field_name": "Occupancy",
+      "key": "down_payment_pct",
+      "field_id": "1771",
+      "field_name": "Down Payment %",
       "category": "loan_info",
       "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "closing_cost_program",
+      "field_id": "1785",
+      "field_name": "Closing Cost Program",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "occupancy",
+      "field_id": "1811",
+      "field_name": "Property Will Be (Occupancy)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02",
         "STEP_03",
         "STEP_08"
+      ]
+    },
+    {
+      "key": "estimated_value",
+      "field_id": "1821",
+      "field_name": "Estimated Value",
+      "category": "collateral",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -333,11 +416,21 @@
       ]
     },
     {
+      "key": "rate_is_locked",
+      "field_id": "2400",
+      "field_name": "Rate Is Locked (Y/N)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "note_rate",
       "field_id": "3",
       "field_name": "Note Rate",
       "category": "loan_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_09"
       ]
     },
@@ -346,6 +439,42 @@
       "field_id": "300",
       "field_name": "Credit Reference Number",
       "category": "credit",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "term_due_in_months",
+      "field_id": "325",
+      "field_name": "Term Due In (Months)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "last_rate_set_date",
+      "field_id": "3253",
+      "field_name": "Last Rate Set Date",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "rate_lock_disclosure_date",
+      "field_id": "3259",
+      "field_name": "Rate Lock Disclosure Date",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "undiscounted_rate",
+      "field_id": "3293",
+      "field_name": "Undiscounted Rate",
+      "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -389,8 +518,35 @@
     {
       "key": "appraised_value",
       "field_id": "356",
-      "field_name": "Appraised / Estimated Value",
+      "field_name": "Appraised Value",
       "category": "collateral",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "loan_number",
+      "field_id": "364",
+      "field_name": "Loan Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "secondary_registration",
+      "field_id": "3941",
+      "field_name": "Secondary Registration",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "loan_term_months",
+      "field_id": "4",
+      "field_name": "Loan Term (Months)",
+      "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -454,12 +610,39 @@
       ]
     },
     {
+      "key": "borrower_est_closing_date",
+      "field_id": "4114",
+      "field_name": "Borrower Est Closing Date",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "declaration_primary_residence",
       "field_id": "418",
       "field_name": "Declaration - Primary Residence Intent (5a-A)",
       "category": "declarations",
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "lien_position",
+      "field_id": "420",
+      "field_name": "Lien Position",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "lock_days",
+      "field_id": "432",
+      "field_name": "Lock Period (# of Days)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -485,6 +668,15 @@
       "field_id": "4935",
       "field_name": "Co-Borrower Accept Text/SMS",
       "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "monthly_payment",
+      "field_id": "5",
+      "field_name": "Monthly Payment (P&I)",
+      "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -530,6 +722,15 @@
       "field_id": "60",
       "field_name": "Co-Borrower Experian/FICO Score",
       "category": "credit",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "amort_type",
+      "field_id": "608",
+      "field_name": "Amortization Type",
+      "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -590,6 +791,42 @@
       ]
     },
     {
+      "key": "monthly_income",
+      "field_id": "736",
+      "field_name": "Monthly Income",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "lock_date",
+      "field_id": "761",
+      "field_name": "Lock Date",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "lock_expires",
+      "field_id": "762",
+      "field_name": "Lock Expiration Date",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "est_closing_date",
+      "field_id": "763",
+      "field_name": "Est Closing Date",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "qualifying_rate",
       "field_id": "799",
       "field_name": "Qualifying Rate",
@@ -603,6 +840,15 @@
       "field_id": "84",
       "field_name": "Co-Borrower Marital Status",
       "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "total_monthly_payment",
+      "field_id": "912",
+      "field_name": "Total Monthly Payment",
+      "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -1423,7 +1669,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 90,
+    "total_los_fields": 117,
     "total_doc_fields": 66,
     "total_document_types": 23,
     "total_steps": 11,

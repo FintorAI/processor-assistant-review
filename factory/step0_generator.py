@@ -114,6 +114,21 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         ),
     )
 
+    # ── Substep 0.5: Validate Property Address (USPS) ──
+    substep_05 = SubstepDef(
+        id="0.5",
+        name="Validate Property Address (USPS)",
+        tool="validate_property_address",
+        description=(
+            "Call USPS Address Validation API v3 to confirm the subject property "
+            "address is deliverable and return a normalized form. "
+            "Reads property_address/city/state/zip from state['los_fields'] and "
+            "purchase_property_address from state['doc_fields']. "
+            "Stores result in state['address_validation'] for use by "
+            "review_borrower_summary (substep 2.1)."
+        ),
+    )
+
     return StepDef(
         id="STEP_00",
         name="Data Gathering",
@@ -121,9 +136,9 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         description=(
             f"Auto-generated step that fetches all data needed by subsequent steps. "
             f"LOS: {len(all_los)} fields, Docs: {len(all_doc_types)} document types. "
-            f"Builds loan_summary (URLA) snapshot."
+            f"Builds loan_summary (URLA) snapshot. Validates property address via USPS."
         ),
-        substeps=[substep_01, substep_02, substep_03, substep_04],
+        substeps=[substep_01, substep_02, substep_03, substep_04, substep_05],
         dev=DevConfig(skip=False),
     )
 

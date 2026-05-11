@@ -65,3 +65,41 @@ def _profile(state: dict, key: str, default=None):
             ...
     """
     return state.get("loan_profile", {}).get(key, default)
+
+
+def _write_fields(
+    loan_id: str,
+    updates: dict,
+    substep: str,
+    flags: list,
+    state: dict,
+    labels: dict | None = None,
+) -> None:
+    """Write fields to Encompass with an audit trail appended to flags.
+
+    - Skips None values — safe to pass a conditional dict without pre-filtering.
+    - Appends one ``info`` flag per field written (auto-correction audit trail).
+    - Appends one ``warning`` flag if the write throws (instead of silently swallowing).
+    """
+    from shared.encompass_io import write_fields  # deferred to avoid circular imports at module load
+
+    filtered = {fid: val for fid, val in updates.items() if val is not None}
+    if not filtered:
+        return
+
+    try:
+        write_fields(loan_id, filtered, state=state)
+        for field_id, value in filtered.items():
+            label = (labels or {}).get(field_id, f"Field {field_id}")
+            flags.append({
+                "type": "info",
+                "substep": substep,
+                "field_id": field_id,
+                "message": f"Auto-corrected {label}: set to {value!r}",
+            })
+    except Exception as exc:
+        flags.append({
+            "type": "warning",
+            "substep": substep,
+            "message": f"Field write failed for {list(filtered.keys())}: {exc}",
+        })

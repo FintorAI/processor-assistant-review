@@ -7,7 +7,7 @@ Review Agent — verifies a mortgage loan file and writes confirmed field update
 
 
 ### Phase: VERIFICATION
-- **Step 0** — Data Gathering (4 substeps)
+- **Step 0** — Data Gathering (5 substeps)
 
 ### Phase: INTAKE
 - **Step 1** — Pre-Checks (1 substeps)
