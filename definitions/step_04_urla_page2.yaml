@@ -16,52 +16,343 @@ substeps:
     address via Google. Flag discrepancies. Check employment history — if current
     employment < 2 years, review prior history for gaps and explanations.
   los_fields_read:
-  - key: employer_name
-    field_id: '1169'
-    field_name: Employer Name
+  # ── Employment Entry 1 (BE01xx) ──────────────────────────────────────
+  - key: be01_employment_type
+    field_id: BE0109
+    field_name: Employment 1 — Type (Current / Prior)
     category: employment
-    purpose: Match against VOE
-  - key: employer_address
-    field_id: '1182'
-    field_name: Employer Address
+    purpose: Determines if entry 1 is current or prior employer; drives cross-check logic
+  - key: be01_voe_is_for
+    field_id: BE0108
+    field_name: Employment 1 — VOE Is For (Borrower / Co-Borrower)
     category: employment
-    purpose: Cross-reference via Google
-  - key: employment_start_date
-    field_id: '1068'
-    field_name: Employment Start Date (Hire Date)
+    purpose: Identifies which borrower this employment entry belongs to
+  - key: be01_foreign_address
+    field_id: BE0180
+    field_name: Employment 1 — Foreign Address Checkbox
     category: employment
-    purpose: Match against VOE original hire date
-  - key: base_monthly_income
-    field_id: '1072'
-    field_name: Base Monthly Income
+    purpose: Flags if employer is at a foreign address
+  - key: be01_employer_name
+    field_id: BE0102
+    field_name: Employment 1 — Employer Name
+    category: employment
+    purpose: Cross-check against VOE current_employer_name
+  - key: be01_employer_phone
+    field_id: BE0117
+    field_name: Employment 1 — Employer Phone
+    category: employment
+    purpose: Presence check; cross-check against VOE current_employer_phone
+  - key: be01_employer_street
+    field_id: BE0160
+    field_name: Employment 1 — Employer Street Address
+    category: employment
+    purpose: Cross-reference employer address
+  - key: be01_employer_unit_type
+    field_id: BE0158
+    field_name: Employment 1 — Unit Type (Suite / Apt / etc.)
+    category: employment
+    purpose: Address unit type
+  - key: be01_employer_unit_number
+    field_id: BE0159
+    field_name: Employment 1 — Unit Number
+    category: employment
+    purpose: Address unit number
+  - key: be01_employer_city
+    field_id: BE0105
+    field_name: Employment 1 — Employer City
+    category: employment
+    purpose: Cross-reference employer city
+  - key: be01_employer_state
+    field_id: BE0106
+    field_name: Employment 1 — Employer State
+    category: employment
+    purpose: Cross-reference employer state
+  - key: be01_employer_zip
+    field_id: BE0107
+    field_name: Employment 1 — Employer Zip
+    category: employment
+    purpose: Cross-reference employer zip
+  - key: be01_date_hired
+    field_id: BE0151
+    field_name: Employment 1 — Date Hired
+    category: employment
+    purpose: Cross-check against VOE current_original_hire_date
+  - key: be01_date_terminated
+    field_id: BE0114
+    field_name: Employment 1 — Date Terminated
+    category: employment
+    purpose: Null if current employer; populated for prior employment
+  - key: be01_years_in_job
+    field_id: BE0113
+    field_name: Employment 1 — Years in This Job
+    category: employment
+    purpose: Cross-check against VOE current_years_in_job
+  - key: be01_months_in_job
+    field_id: BE0133
+    field_name: Employment 1 — Months in This Job
+    category: employment
+    purpose: Combined with years to determine < 2 year rule
+  - key: be01_years_in_line_of_work
+    field_id: BE0116
+    field_name: Employment 1 — Years in Line of Work
+    category: employment
+    purpose: Total years in profession; cross-check against VOE
+  - key: be01_months_in_line_of_work
+    field_id: BE0152
+    field_name: Employment 1 — Months in Line of Work
+    category: employment
+    purpose: Combined with years in line of work
+  - key: be01_monthly_base_pay
+    field_id: BE0119
+    field_name: Employment 1 — Monthly Base Pay
     category: income
-    purpose: Match against VOE compensation base pay
-  - key: job_title
-    field_id: '1286'
-    field_name: Job Title
+    purpose: Cross-check against VOE current_monthly_base_pay
+  - key: be01_position_title
+    field_id: BE0110
+    field_name: Employment 1 — Position / Title / Type of Business
     category: employment
-    purpose: Completeness (N/A is acceptable)
-  - key: years_in_profession
-    field_id: '1073'
-    field_name: Years in Profession
+    purpose: Cross-check against VOE current_position_title
+  - key: be01_authorization_printed
+    field_id: BE0236
+    field_name: Employment 1 — Print Authorization on Signature Line
     category: employment
-    purpose: Total years — if < 2, check history
+    purpose: Must be checked; prints borrower authorization reference on signature line
+  # ── Employment Entry 2 (BE02xx) ──────────────────────────────────────
+  - key: be02_employment_type
+    field_id: BE0209
+    field_name: Employment 2 — Type (Current / Prior)
+    category: employment
+    purpose: Determines if entry 2 is current or prior employer
+  - key: be02_voe_is_for
+    field_id: BE0208
+    field_name: Employment 2 — VOE Is For (Borrower / Co-Borrower)
+    category: employment
+    purpose: Identifies which borrower this employment entry belongs to
+  - key: be02_foreign_address
+    field_id: BE0280
+    field_name: Employment 2 — Foreign Address Checkbox
+    category: employment
+    purpose: Flags if employer is at a foreign address
+  - key: be02_employer_name
+    field_id: BE0202
+    field_name: Employment 2 — Employer Name
+    category: employment
+    purpose: Cross-check against VOE previous_employer_name if type = Prior
+  - key: be02_employer_phone
+    field_id: BE0217
+    field_name: Employment 2 — Employer Phone
+    category: employment
+    purpose: Presence check
+  - key: be02_employer_street
+    field_id: BE0260
+    field_name: Employment 2 — Employer Street Address
+    category: employment
+    purpose: Cross-reference employer address
+  - key: be02_employer_unit_type
+    field_id: BE0258
+    field_name: Employment 2 — Unit Type
+    category: employment
+    purpose: Address unit type
+  - key: be02_employer_unit_number
+    field_id: BE0259
+    field_name: Employment 2 — Unit Number
+    category: employment
+    purpose: Address unit number
+  - key: be02_employer_city
+    field_id: BE0205
+    field_name: Employment 2 — Employer City
+    category: employment
+    purpose: Cross-reference employer city
+  - key: be02_employer_state
+    field_id: BE0206
+    field_name: Employment 2 — Employer State
+    category: employment
+    purpose: Cross-reference employer state
+  - key: be02_employer_zip
+    field_id: BE0207
+    field_name: Employment 2 — Employer Zip
+    category: employment
+    purpose: Cross-reference employer zip
+  - key: be02_date_hired
+    field_id: BE0251
+    field_name: Employment 2 — Date Hired
+    category: employment
+    purpose: Cross-check against VOE previous_original_hire_date if prior
+  - key: be02_date_terminated
+    field_id: BE0214
+    field_name: Employment 2 — Date Terminated
+    category: employment
+    purpose: Populated if prior employer; gap between terminated and be01_date_hired is the gap
+  - key: be02_years_in_job
+    field_id: BE0213
+    field_name: Employment 2 — Years in This Job
+    category: employment
+    purpose: Duration at prior employer
+  - key: be02_months_in_job
+    field_id: BE0233
+    field_name: Employment 2 — Months in This Job
+    category: employment
+    purpose: Duration at prior employer
+  - key: be02_years_in_line_of_work
+    field_id: BE0216
+    field_name: Employment 2 — Years in Line of Work
+    category: employment
+    purpose: Total years in profession
+  - key: be02_months_in_line_of_work
+    field_id: BE0252
+    field_name: Employment 2 — Months in Line of Work
+    category: employment
+    purpose: Total months in profession
+  - key: be02_position_title
+    field_id: BE0210
+    field_name: Employment 2 — Position / Title / Type of Business
+    category: employment
+    purpose: Position or title at second employer
+  - key: be02_monthly_base_pay
+    field_id: BE0219
+    field_name: Employment 2 — Monthly Base Pay
+    category: income
+    purpose: Cross-check against VOE previous_monthly_base_pay if prior
+  # ── Employment Entry 3 (BE03xx) ──────────────────────────────────────
+  - key: be03_employment_type
+    field_id: BE0309
+    field_name: Employment 3 — Type (Current / Prior)
+    category: employment
+    purpose: Determines if entry 3 is current or prior employer
+  - key: be03_voe_is_for
+    field_id: BE0308
+    field_name: Employment 3 — VOE Is For (Borrower / Co-Borrower)
+    category: employment
+    purpose: Identifies which borrower this employment entry belongs to
+  - key: be03_employer_name
+    field_id: BE0302
+    field_name: Employment 3 — Employer Name
+    category: employment
+    purpose: Third employment entry employer name
+  - key: be03_date_hired
+    field_id: BE0351
+    field_name: Employment 3 — Date Hired
+    category: employment
+    purpose: Third employment entry hire date
+  - key: be03_date_terminated
+    field_id: BE0314
+    field_name: Employment 3 — Date Terminated
+    category: employment
+    purpose: Third employment entry termination date (gap calculation)
+  - key: be03_years_in_job
+    field_id: BE0313
+    field_name: Employment 3 — Years in This Job
+    category: employment
+    purpose: Duration at third employer
+  - key: be03_months_in_job
+    field_id: BE0333
+    field_name: Employment 3 — Months in This Job
+    category: employment
+    purpose: Duration at third employer
+  - key: be03_position_title
+    field_id: BE0310
+    field_name: Employment 3 — Position / Title / Type of Business
+    category: employment
+    purpose: Position or title at third employer
+  - key: be03_monthly_base_pay
+    field_id: BE0319
+    field_name: Employment 3 — Monthly Base Pay
+    category: income
+    purpose: Income at third employer
+  # ── 1003 Section 1b — Income totals and Does Not Apply checkboxes ────
+  - key: borr_base_monthly_income
+    field_id: FE0119
+    field_name: Borrower — Base Monthly Income (Section 1b)
+    category: income
+    purpose: >
+      Total base monthly income for borrower per Section 1b. Must be populated
+      unless URLA.X201 (does not apply) is checked. Cross-check against BE01xx/BE03xx monthly_base_pay.
+  - key: coborr_base_monthly_income
+    field_id: FE0219
+    field_name: Co-Borrower — Base Monthly Income (Section 1b)
+    category: income
+    purpose: >
+      Total base monthly income for co-borrower per Section 1b. Must be populated
+      unless URLA.X202 (does not apply) is checked.
+  - key: borr_income_does_not_apply
+    field_id: URLA.X201
+    field_name: Borrower — Additional / Self Employment and Income Does Not Apply
+    category: employment
+    purpose: >
+      Checkbox: if checked, borrower has no additional or self-employment income.
+      When checked, borr_base_monthly_income (FE0119) absence is acceptable.
+  - key: coborr_income_does_not_apply
+    field_id: URLA.X202
+    field_name: Co-Borrower — Additional / Self Employment and Income Does Not Apply
+    category: employment
+    purpose: >
+      Checkbox: if checked, co-borrower has no additional or self-employment income.
+      When checked, coborr_base_monthly_income (FE0219) absence is acceptable.
   doc_types:
   - document_type: VOE
-    all_copies: false
+    all_copies: true
     fields:
-    - key: voe_employer_name
-      purpose: Employer name per VOE
-    - key: voe_hire_date
-      purpose: Original hire date per VOE
-    - key: voe_base_pay
-      purpose: Compensation base pay rate per VOE
-    - key: voe_employer_address
-      purpose: Employer address per VOE
-    - key: voe_doc_id
-      purpose: eFolder document ID for status marking at Step 17
-    - key: voe_job_title
-      purpose: Job title per VOE — N/A is acceptable but field must be populated
+    # Current employer fields (from VOE for Current entry)
+    - key: current_employer_name
+      purpose: Current employer name — cross-check against LOS be0x_employer_name where be0x_employment_type=Current
+    - key: current_position_title
+      purpose: Current position/title/type of business — cross-check against LOS be0x_position_title
+    - key: current_employer_phone
+      purpose: Current employer phone — presence check
+    - key: current_employer_street
+      purpose: Current employer street address component
+    - key: current_employer_city
+      purpose: Current employer city
+    - key: current_employer_state
+      purpose: Current employer state
+    - key: current_employer_zip
+      purpose: Current employer zip
+    - key: current_original_hire_date
+      purpose: Current hire date — cross-check against LOS be0x_date_hired
+    - key: current_date_terminated
+      purpose: Should be null/empty for current employer
+    - key: current_years_in_job
+      purpose: Cross-check against LOS be0x_years_in_job
+    - key: current_months_in_job
+      purpose: Cross-check against LOS be0x_months_in_job
+    - key: current_years_in_line_of_work
+      purpose: Cross-check against LOS be0x_years_in_line_of_work
+    - key: current_months_in_line_of_work
+      purpose: Cross-check against LOS be0x_months_in_line_of_work
+    - key: current_monthly_base_pay
+      purpose: Cross-check against LOS be0x_monthly_base_pay
+    # Previous/prior employer fields
+    - key: previous_employer_name
+      purpose: Prior employer name — cross-check against LOS be0x_employer_name where be0x_employment_type=Prior
+    - key: previous_position_title
+      purpose: Prior position/title/type of business — cross-check against LOS be0x_position_title
+    - key: previous_employer_phone
+      purpose: Prior employer phone
+    - key: previous_employer_street
+      purpose: Prior employer street address
+    - key: previous_employer_city
+      purpose: Prior employer city
+    - key: previous_employer_state
+      purpose: Prior employer state
+    - key: previous_employer_zip
+      purpose: Prior employer zip
+    - key: previous_original_hire_date
+      purpose: Prior hire date — cross-check against LOS be0x_date_hired
+    - key: previous_date_terminated
+      purpose: Termination date of prior employer — cross-check for gap calculation
+    - key: previous_years_in_job
+      purpose: Duration at prior employer
+    - key: previous_months_in_job
+      purpose: Duration at prior employer
+    - key: previous_monthly_base_pay
+      purpose: Income at prior employer
+    # Meta fields
+    - key: borrower_name
+      purpose: Borrower name per VOE — matches be0x_voe_is_for
+    - key: authorization_printed
+      purpose: Authorization reference printed on signature line (BE0236) — must be checked
+    - key: verification_date
+      purpose: Date VOE was verified/signed
   - document_type: Paystubs
     all_copies: true
     fields:
@@ -70,39 +361,104 @@ substeps:
     - key: paystub_gross_pay
       purpose: Current period gross pay for income cross-check against base_monthly_income
   rules:
+  - name: BE0109 Employment Type Populated
+    type: existence_check
+    logic: >
+      For each BE01/BE02/BE03 entry — skip if all fields empty (no entry).
+      If any employer field is populated, BE0109 (employment type) must be either
+      "Current" or "Prior". Entries with BE0109 = "Current" are cross-checked
+      against VOE current_ fields; entries with BE0109 = "Prior" against previous_ fields.
+  - name: VOE Is For — Borrower Identified
+    type: existence_check
+    logic: >
+      BE0108 (VOE is for) must be Borrower or Co-Borrower. Verify each employment
+      entry is attributed to the correct borrower.
+  - name: Authorization Checkbox Checked
+    type: existence_check
+    logic: >
+      BE0236 must be checked for the current employment entry. This prints
+      "see attached borrower's authorization" on the signature line.
   - name: Employer Name Matches VOE
     type: field_comparison
-    logic: Employer name in Encompass must match the VOE employer name.
+    logic: >
+      For each populated employment entry: LOS employer name (be0x_employer_name)
+      must match VOE current_employer_name (if Current) or previous_employer_name
+      (if Prior).
   - name: Hire Date Matches VOE
     type: field_comparison
-    logic: Employment start date must match VOE original hire date.
-  - name: Base Pay Matches VOE
+    logic: >
+      LOS date hired (be0x_date_hired) must match VOE current_original_hire_date
+      (if Current) or previous_original_hire_date (if Prior).
+  - name: Monthly Base Pay Matches VOE
     type: field_comparison
-    logic: Gross Monthly Base / Month must match VOE compensation base pay.
+    logic: >
+      LOS monthly base pay (be0x_monthly_base_pay) must match VOE
+      current_monthly_base_pay (if Current) or previous_monthly_base_pay (if Prior).
+  - name: Date Terminated — Current vs Prior
+    type: custom
+    logic: >
+      For entries with BE0109 = "Current": date terminated (BE0114) must be null/empty.
+      For entries with BE0109 = "Prior": date terminated must be populated.
+      If Prior and date terminated is empty, flag as warning.
+  - name: Base Monthly Income Populated (Section 1b)
+    type: existence_check
+    logic: >
+      FE0119 (borrower base monthly income) must be populated unless URLA.X201
+      is checked. FE0219 (co-borrower) must be populated unless URLA.X202 is
+      checked or no co-borrower exists.
   - name: Employment History Gap Check
     type: custom
     logic: >
-      If current employment start date shows < 2 years: review prior employment
-      entries. If FHA and gap < 6 months, require written explanation. If gap
-      > 6 months, document 2-year history before the gap and income continuity.
+      Calculate total time at current employer using be0x_years_in_job + be0x_months_in_job.
+      If current employment < 2 years total: review prior employment entries for
+      continuity and gaps. FHA: gap < 6 months requires explanation; gap > 6 months
+      requires 2-year documented history before the gap.
   flags:
+  - title: Employment Type Not Set (BE0109)
+    severity: blocking
+    condition: Employment entry has populated employer name but BE0109 is empty
+    suggestion: Set employment type to Current or Prior in Encompass
   - title: Employer Name Mismatch (VOE vs 1003)
     severity: warning
-    condition: Employer name in Encompass doesn't match VOE
+    condition: Employer name in Encompass doesn't match VOE employer name for the same entry type
     suggestion: Correct employer name to match VOE
   - title: Hire Date Mismatch (VOE vs 1003)
     severity: warning
-    condition: Hire date in Encompass doesn't match VOE original hire date
+    condition: Date hired in Encompass doesn't match VOE original hire date
     suggestion: Correct hire date to match VOE
-  - title: Base Pay Mismatch (VOE vs 1003)
+  - title: Monthly Base Pay Mismatch (VOE vs 1003)
     severity: warning
-    condition: Base monthly income doesn't match VOE base pay rate
+    condition: Monthly base pay in Encompass doesn't match VOE
     suggestion: Reconcile income figure with VOE
+  - title: Date Terminated Missing for Prior Employer
+    severity: warning
+    condition: Employment entry is marked Prior but date terminated is empty
+    suggestion: Enter termination date in Encompass for prior employer
+  - title: Date Terminated Populated for Current Employer
+    severity: warning
+    condition: Employment entry is marked Current but date terminated is populated
+    suggestion: Clear termination date for current employer
+  - title: Authorization Checkbox Not Checked (BE0236)
+    severity: warning
+    condition: BE0236 is unchecked for current employment entry
+    suggestion: Check the "Print see attached borrower's authorization" box in Encompass
   - title: Employment Gap Requires Explanation
     severity: warning
     condition: >
-      Employment gap < 6 months with FHA loan, or gap > 6 months with any loan type
+      Current employment < 2 years and gap between prior termination and current hire > 30 days
     suggestion: Obtain written explanation letter from borrower for employment gap
+  - title: Borrower Base Monthly Income Missing (FE0119)
+    severity: warning
+    condition: >
+      FE0119 (borrower base monthly income) is empty and URLA.X201
+      (does not apply) is not checked
+    suggestion: Enter the borrower's base monthly income in Section 1b or check the Does Not Apply box
+  - title: Co-Borrower Base Monthly Income Missing (FE0219)
+    severity: warning
+    condition: >
+      FE0219 (co-borrower base monthly income) is empty and URLA.X202
+      (does not apply) is not checked and a co-borrower is present on the loan
+    suggestion: Enter the co-borrower's base monthly income in Section 1b or check the Does Not Apply box
   field_updates: []
   rule_modifiers:
   - condition:
@@ -142,6 +498,20 @@ substeps:
     field_name: Other Income Amount (Monthly)
     category: income
     purpose: Monthly other income amount
+  - key: borr_other_income_dna
+    field_id: URLA.X40
+    field_name: Borrower — Income from Other Sources Does Not Apply (1e)
+    category: income
+    purpose: >
+      If checked, borrower has no other income sources. Suppresses
+      requirement for other_income_type/amount for the borrower.
+  - key: coborr_other_income_dna
+    field_id: URLA.X41
+    field_name: Co-Borrower — Income from Other Sources Does Not Apply (1e)
+    category: income
+    purpose: >
+      If checked, co-borrower has no other income sources. Suppresses
+      requirement for other_income_type/amount for the co-borrower.
   doc_types: []
   rules:
   - name: Other Income Documented
@@ -149,11 +519,26 @@ substeps:
     logic: >
       If other income is present in Encompass, verify it is documented in the file.
       Alimony requires court order; dividends require brokerage statements.
+  - name: Other Income Does Not Apply Checkbox (1e)
+    type: existence_check
+    logic: >
+      URLA.X40 (borrower) and URLA.X41 (co-borrower) flag that no other income
+      applies. If neither checkbox is checked and other_income_type/amount are
+      empty, flag as advisory. If a checkbox IS checked, no other income fields
+      are required for that borrower.
   flags:
   - title: Other Income Not Documented
     severity: warning
     condition: Other income amount is populated but supporting documents are missing
     suggestion: Obtain supporting documentation for other income type
+  - title: Other Income Section Incomplete (1e)
+    severity: info
+    condition: >
+      Other income type and amount are both empty and neither URLA.X40 nor
+      URLA.X41 (Does Not Apply) is checked
+    suggestion: >
+      Confirm with borrower whether other income exists. If not, check
+      URLA.X40 / URLA.X41 as applicable to explicitly indicate none.
   field_updates: []
 
 dev:

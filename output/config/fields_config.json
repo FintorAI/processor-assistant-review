@@ -30,33 +30,6 @@
       ]
     },
     {
-      "key": "employment_start_date",
-      "field_id": "1068",
-      "field_name": "Employment Start Date (Hire Date)",
-      "category": "employment",
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "base_monthly_income",
-      "field_id": "1072",
-      "field_name": "Base Monthly Income",
-      "category": "income",
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "years_in_profession",
-      "field_id": "1073",
-      "field_name": "Years in Profession",
-      "category": "employment",
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
       "key": "property_address",
       "field_id": "11",
       "field_name": "Property Street Address",
@@ -85,15 +58,6 @@
       ]
     },
     {
-      "key": "employer_name",
-      "field_id": "1169",
-      "field_name": "Employer Name",
-      "category": "employment",
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
       "key": "loan_type",
       "field_id": "1172",
       "field_name": "Mortgage Type",
@@ -111,15 +75,6 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
-      ]
-    },
-    {
-      "key": "employer_address",
-      "field_id": "1182",
-      "field_name": "Employer Address",
-      "category": "employment",
-      "used_by_steps": [
-        "STEP_04"
       ]
     },
     {
@@ -147,15 +102,6 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
-      ]
-    },
-    {
-      "key": "job_title",
-      "field_id": "1286",
-      "field_name": "Job Title",
-      "category": "employment",
-      "used_by_steps": [
-        "STEP_04"
       ]
     },
     {
@@ -919,6 +865,438 @@
       ]
     },
     {
+      "key": "be01_employer_name",
+      "field_id": "BE0102",
+      "field_name": "Employment 1 \u2014 Employer Name",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_city",
+      "field_id": "BE0105",
+      "field_name": "Employment 1 \u2014 Employer City",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_state",
+      "field_id": "BE0106",
+      "field_name": "Employment 1 \u2014 Employer State",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_zip",
+      "field_id": "BE0107",
+      "field_name": "Employment 1 \u2014 Employer Zip",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_voe_is_for",
+      "field_id": "BE0108",
+      "field_name": "Employment 1 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employment_type",
+      "field_id": "BE0109",
+      "field_name": "Employment 1 \u2014 Type (Current / Prior)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_position_title",
+      "field_id": "BE0110",
+      "field_name": "Employment 1 \u2014 Position / Title / Type of Business",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_years_in_job",
+      "field_id": "BE0113",
+      "field_name": "Employment 1 \u2014 Years in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_date_terminated",
+      "field_id": "BE0114",
+      "field_name": "Employment 1 \u2014 Date Terminated",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_years_in_line_of_work",
+      "field_id": "BE0116",
+      "field_name": "Employment 1 \u2014 Years in Line of Work",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_phone",
+      "field_id": "BE0117",
+      "field_name": "Employment 1 \u2014 Employer Phone",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_monthly_base_pay",
+      "field_id": "BE0119",
+      "field_name": "Employment 1 \u2014 Monthly Base Pay",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_months_in_job",
+      "field_id": "BE0133",
+      "field_name": "Employment 1 \u2014 Months in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_date_hired",
+      "field_id": "BE0151",
+      "field_name": "Employment 1 \u2014 Date Hired",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_months_in_line_of_work",
+      "field_id": "BE0152",
+      "field_name": "Employment 1 \u2014 Months in Line of Work",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_unit_type",
+      "field_id": "BE0158",
+      "field_name": "Employment 1 \u2014 Unit Type (Suite / Apt / etc.)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_unit_number",
+      "field_id": "BE0159",
+      "field_name": "Employment 1 \u2014 Unit Number",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_employer_street",
+      "field_id": "BE0160",
+      "field_name": "Employment 1 \u2014 Employer Street Address",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_foreign_address",
+      "field_id": "BE0180",
+      "field_name": "Employment 1 \u2014 Foreign Address Checkbox",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_name",
+      "field_id": "BE0202",
+      "field_name": "Employment 2 \u2014 Employer Name",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_city",
+      "field_id": "BE0205",
+      "field_name": "Employment 2 \u2014 Employer City",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_state",
+      "field_id": "BE0206",
+      "field_name": "Employment 2 \u2014 Employer State",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_zip",
+      "field_id": "BE0207",
+      "field_name": "Employment 2 \u2014 Employer Zip",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_voe_is_for",
+      "field_id": "BE0208",
+      "field_name": "Employment 2 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employment_type",
+      "field_id": "BE0209",
+      "field_name": "Employment 2 \u2014 Type (Current / Prior)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_position_title",
+      "field_id": "BE0210",
+      "field_name": "Employment 2 \u2014 Position / Title / Type of Business",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_years_in_job",
+      "field_id": "BE0213",
+      "field_name": "Employment 2 \u2014 Years in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_date_terminated",
+      "field_id": "BE0214",
+      "field_name": "Employment 2 \u2014 Date Terminated",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_years_in_line_of_work",
+      "field_id": "BE0216",
+      "field_name": "Employment 2 \u2014 Years in Line of Work",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_phone",
+      "field_id": "BE0217",
+      "field_name": "Employment 2 \u2014 Employer Phone",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_monthly_base_pay",
+      "field_id": "BE0219",
+      "field_name": "Employment 2 \u2014 Monthly Base Pay",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_months_in_job",
+      "field_id": "BE0233",
+      "field_name": "Employment 2 \u2014 Months in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be01_authorization_printed",
+      "field_id": "BE0236",
+      "field_name": "Employment 1 \u2014 Print Authorization on Signature Line",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_date_hired",
+      "field_id": "BE0251",
+      "field_name": "Employment 2 \u2014 Date Hired",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_months_in_line_of_work",
+      "field_id": "BE0252",
+      "field_name": "Employment 2 \u2014 Months in Line of Work",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_unit_type",
+      "field_id": "BE0258",
+      "field_name": "Employment 2 \u2014 Unit Type",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_unit_number",
+      "field_id": "BE0259",
+      "field_name": "Employment 2 \u2014 Unit Number",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_employer_street",
+      "field_id": "BE0260",
+      "field_name": "Employment 2 \u2014 Employer Street Address",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be02_foreign_address",
+      "field_id": "BE0280",
+      "field_name": "Employment 2 \u2014 Foreign Address Checkbox",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_employer_name",
+      "field_id": "BE0302",
+      "field_name": "Employment 3 \u2014 Employer Name",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_voe_is_for",
+      "field_id": "BE0308",
+      "field_name": "Employment 3 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_employment_type",
+      "field_id": "BE0309",
+      "field_name": "Employment 3 \u2014 Type (Current / Prior)",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_position_title",
+      "field_id": "BE0310",
+      "field_name": "Employment 3 \u2014 Position / Title / Type of Business",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_years_in_job",
+      "field_id": "BE0313",
+      "field_name": "Employment 3 \u2014 Years in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_date_terminated",
+      "field_id": "BE0314",
+      "field_name": "Employment 3 \u2014 Date Terminated",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_monthly_base_pay",
+      "field_id": "BE0319",
+      "field_name": "Employment 3 \u2014 Monthly Base Pay",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_months_in_job",
+      "field_id": "BE0333",
+      "field_name": "Employment 3 \u2014 Months in This Job",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "be03_date_hired",
+      "field_id": "BE0351",
+      "field_name": "Employment 3 \u2014 Date Hired",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "ami_eligibility",
       "field_id": "CX.AMI.ELIGIBILITY",
       "field_name": "AMI / Affordable Loan Eligibility",
@@ -1106,6 +1484,24 @@
       "category": "closing",
       "used_by_steps": [
         "STEP_15"
+      ]
+    },
+    {
+      "key": "borr_base_monthly_income",
+      "field_id": "FE0119",
+      "field_name": "Borrower \u2014 Base Monthly Income (Section 1b)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_base_monthly_income",
+      "field_id": "FE0219",
+      "field_name": "Co-Borrower \u2014 Base Monthly Income (Section 1b)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -1415,6 +1811,24 @@
       ]
     },
     {
+      "key": "borr_income_does_not_apply",
+      "field_id": "URLA.X201",
+      "field_name": "Borrower \u2014 Additional / Self Employment and Income Does Not Apply",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_income_does_not_apply",
+      "field_id": "URLA.X202",
+      "field_name": "Co-Borrower \u2014 Additional / Self Employment and Income Does Not Apply",
+      "category": "employment",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_language_preference",
       "field_id": "URLA.X21",
       "field_name": "Borrower Language Preference",
@@ -1448,6 +1862,24 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03"
+      ]
+    },
+    {
+      "key": "borr_other_income_dna",
+      "field_id": "URLA.X40",
+      "field_name": "Borrower \u2014 Income from Other Sources Does Not Apply (1e)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_other_income_dna",
+      "field_id": "URLA.X41",
+      "field_name": "Co-Borrower \u2014 Income from Other Sources Does Not Apply (1e)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -1561,6 +1993,15 @@
       ]
     },
     {
+      "key": "authorization_printed",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "bank_account_number",
       "source_documents": [
         "Bank Statement"
@@ -1651,6 +2092,15 @@
       ]
     },
     {
+      "key": "borrower_name",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "credit_report_date",
       "source_documents": [
         "Credit Report"
@@ -1666,6 +2116,132 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "current_date_terminated",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_city",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_name",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_phone",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_state",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_street",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_employer_zip",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_monthly_base_pay",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_months_in_job",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_months_in_line_of_work",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_original_hire_date",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_position_title",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_years_in_job",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "current_years_in_line_of_work",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -1886,6 +2462,114 @@
       ]
     },
     {
+      "key": "previous_date_terminated",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_city",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_name",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_phone",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_state",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_street",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_employer_zip",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_monthly_base_pay",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_months_in_job",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_original_hire_date",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_position_title",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "previous_years_in_job",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "property_tax_bill_present",
       "source_documents": [
         "Property Tax Bill"
@@ -1967,6 +2651,15 @@
       ]
     },
     {
+      "key": "verification_date",
+      "source_documents": [
+        "VOE"
+      ],
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "vod_account_balances",
       "source_documents": [
         "VOD"
@@ -1994,60 +2687,6 @@
       ]
     },
     {
-      "key": "voe_base_pay",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "voe_doc_id",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "voe_employer_address",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "voe_employer_name",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "voe_hire_date",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
-      "key": "voe_job_title",
-      "source_documents": [
-        "VOE"
-      ],
-      "used_by_steps": [
-        "STEP_04"
-      ]
-    },
-    {
       "key": "voe_present",
       "source_documents": [
         "VOE"
@@ -2058,8 +2697,8 @@
     }
   ],
   "stats": {
-    "total_los_fields": 160,
-    "total_doc_fields": 66,
+    "total_los_fields": 208,
+    "total_doc_fields": 89,
     "total_document_types": 23,
     "total_steps": 11,
     "categories": [
