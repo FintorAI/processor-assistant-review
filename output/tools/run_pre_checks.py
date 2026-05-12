@@ -92,7 +92,19 @@ def run_pre_checks(
     hazard_insurance_present = _doc(state, "hazard_insurance_present")
     title_report_present = _doc(state, "title_report_present")
     ldp_present          = _doc(state, "ldp_present")
-    state_disclosure_present = _doc(state, "state_disclosure_present")
+    # MD eDisclosure signed flags (each is True/False/None)
+    md_rescind_signed      = _doc(state, "md_rescind_signed")
+    md_dual_cap_signed     = _doc(state, "md_dual_cap_signed")
+    md_counseling_signed   = _doc(state, "md_counseling_signed")
+    md_assumption_signed   = _doc(state, "md_assumption_signed")
+    md_ins_provider_signed = _doc(state, "md_ins_provider_signed")
+    md_settlement_signed   = _doc(state, "md_settlement_signed")
+    _md_disc_flags = [md_rescind_signed, md_dual_cap_signed, md_counseling_signed,
+                      md_assumption_signed, md_ins_provider_signed, md_settlement_signed]
+    # At least one doc present in eFolder (any non-None value)
+    _md_any_present = any(v is not None for v in _md_disc_flags)
+    # At least one doc signed (True)
+    _md_any_signed  = any(v is True for v in _md_disc_flags)
 
     # ── Rule: AUS Required (critical — Step 10 orders depend on it) ──
     if not aus_run_date:
@@ -104,7 +116,7 @@ def run_pre_checks(
     # Critical = downstream steps cannot run without these
     critical_docs = {
         "1003 URLA": urla_signed,
-        "Borrower's Certification and Authorization": bca_present,
+        "Borrower's Certification & Authorization": bca_present,
         "Credit Report": credit_report_present,
     }
     # Warning = submission will be incomplete but earlier steps can proceed
@@ -167,17 +179,19 @@ def run_pre_checks(
               "Driver's License present but expiry date could not be read.",
               "Manually verify ID expiration date.")
 
-    # ── Rule Modifier: MD Right of Assumption ──
+    # ── Rule: State Disclosures Signed ──
     if property_state.upper() == "MD":
-        if not state_disclosure_present:
-            _flag(flags, "1.1", "MD Right of Assumption Disclosure Missing", "warning",
-                  "Maryland requires the 'Notice Regarding Right for Assumption Under "
-                  "Certain Circumstances' disclosure.",
-                  "Add MD disclosure before submission.")
-    elif not state_disclosure_present:
-        _flag(flags, "1.1", "State Disclosure Missing", "warning",
-              f"State-specific disclosure not found for {property_state or 'this state'}.",
-              "Locate and add the required state disclosure.")
+        if _md_any_signed:
+            pass  # At least one MD eDisclosure is signed — pass
+        elif _md_any_present:
+            _flag(flags, "1.1", "MD State Disclosure Not Signed", "warning",
+                  "MD eDisclosure documents found in eFolder but none are signed by the borrower.",
+                  "Confirm borrower has eSigned the required MD disclosures.")
+        else:
+            _flag(flags, "1.1", "MD State Disclosures Missing", "warning",
+                  "No Maryland eDisclosure documents found in eFolder.",
+                  "Add required MD disclosures (e.g. MD Notice Regarding Right for Assumption) "
+                  "before submission.")
 
     # ── Build result ──
     critical_flags = [f for f in flags if f["severity"] == "critical"]

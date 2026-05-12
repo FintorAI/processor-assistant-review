@@ -39,7 +39,7 @@ substeps:
     fields:
     - key: urla_signed
       purpose: Confirm borrower signature
-  - document_type: Borrower's Certification and Authorization
+  - document_type: Borrower's Certification & Authorization
     all_copies: false
     fields:
     - key: bca_present
@@ -96,11 +96,36 @@ substeps:
       purpose: Recency check — credit report should not be stale
     - key: fact_act_present
       purpose: FACT ACT disclosure form required per FCRA
-  - document_type: State Disclosure
+  - document_type: MD Notice of Right to Rescind
     all_copies: false
     fields:
-    - key: state_disclosure_present
-      purpose: State-specific disclosure signed and present (e.g. MD Right of Assumption)
+    - key: md_rescind_signed
+      purpose: is_signed — MD Right to Rescind eSigned by borrower
+  - document_type: MD DUAL CAPACITY IN REAL ESTATE
+    all_copies: false
+    fields:
+    - key: md_dual_cap_signed
+      purpose: is_signed — MD Dual Capacity disclosure eSigned by borrower
+  - document_type: MD Important Notice Regarding Counseling
+    all_copies: false
+    fields:
+    - key: md_counseling_signed
+      purpose: is_signed — MD Housing Counseling notice eSigned by borrower
+  - document_type: MD Notice Regarding Right for Assumption
+    all_copies: false
+    fields:
+    - key: md_assumption_signed
+      purpose: is_signed — MD Right for Assumption notice eSigned by borrower
+  - document_type: MD Right to Choose Insurance Provider
+    all_copies: false
+    fields:
+    - key: md_ins_provider_signed
+      purpose: is_signed — MD Right to Choose Insurance Provider eSigned by borrower
+  - document_type: MD Settlement Services/Right to Choose
+    all_copies: false
+    fields:
+    - key: md_settlement_signed
+      purpose: is_signed — MD Settlement Services/Right to Choose eSigned by borrower
   - document_type: Flood Certificate
     all_copies: false
     fields:

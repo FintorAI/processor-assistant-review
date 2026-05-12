@@ -30,7 +30,16 @@
     },
     "du_findings": {
       "name": "DU Findings / AUS Certificate",
+      "efolder_doc_type": "Underwriting",
       "category": "underwriting",
+      "aliases": [
+        "Underwriting",
+        "DU Findings / AUS Certificate",
+        "AUS Certificate",
+        "Desktop Underwriter",
+        "Automated Underwriting",
+        "DU Cert"
+      ],
       "fallback_docs": [
         "AUS Certificate",
         "Desktop Underwriter",
@@ -127,7 +136,8 @@
         "Pay Stub",
         "Pay Stubs",
         "Earnings Statement",
-        "Pay Statement"
+        "Pay Statement",
+        "Borrower Income and Employment Certification"
       ],
       "fields_extracted": [
         "borrower_name",
@@ -419,10 +429,11 @@
       ]
     },
     "borrowers_certification": {
-      "name": "Borrower's Certification and Authorization",
-      "efolder_doc_type": "Borrower's Certification and Authorization",
+      "name": "Borrower's Certification & Authorization",
+      "efolder_doc_type": "Borrower's Certification & Authorization",
       "category": "disclosure",
       "aliases": [
+        "Borrower's Certification and Authorization",
         "Borrowers Certification and Authorization",
         "Borrower Certification",
         "Certification and Authorization",
@@ -439,10 +450,9 @@
       "name": "State Disclosure",
       "efolder_doc_type": "State Disclosure",
       "category": "disclosure",
+      "_note": "Generic fallback. State-specific disclosures have their own entries below (e.g. md_*).",
       "aliases": [
         "State Disclosures",
-        "MD Notice",
-        "MD Notice Regarding Right for Assumption",
         "State Notice",
         "Initial Disclosure"
       ],
@@ -452,6 +462,66 @@
         "signature_date",
         "is_signed",
         "state"
+      ]
+    },
+    "md_notice_right_to_rescind": {
+      "name": "MD Notice of Right to Rescind",
+      "efolder_doc_type": "MD Notice of Right to Rescind",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
+      ]
+    },
+    "md_dual_capacity": {
+      "name": "MD DUAL CAPACITY IN REAL ESTATE",
+      "efolder_doc_type": "MD DUAL CAPACITY IN REAL ESTATE",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
+      ]
+    },
+    "md_important_notice_counseling": {
+      "name": "MD Important Notice Regarding Counseling",
+      "efolder_doc_type": "MD Important Notice Regarding Counseling",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
+      ]
+    },
+    "md_notice_right_assumption": {
+      "name": "MD Notice Regarding Right for Assumption",
+      "efolder_doc_type": "MD Notice Regarding Right for Assumption",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
+      ]
+    },
+    "md_right_choose_insurance": {
+      "name": "MD Right to Choose Insurance Provider",
+      "efolder_doc_type": "MD Right to Choose Insurance Provider",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
+      ]
+    },
+    "md_settlement_services": {
+      "name": "MD Settlement Services/Right to Choose",
+      "efolder_doc_type": "MD Settlement Services/Right to Choose",
+      "category": "disclosure",
+      "fields_extracted": [
+        "borrower_name",
+        "signature_date",
+        "is_signed"
       ]
     }
   },

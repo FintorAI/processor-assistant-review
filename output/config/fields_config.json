@@ -2195,7 +2195,7 @@
     {
       "key": "bca_present",
       "source_documents": [
-        "Borrower's Certification and Authorization"
+        "Borrower's Certification & Authorization"
       ],
       "used_by_steps": [
         "STEP_01"
@@ -2536,6 +2536,60 @@
       ]
     },
     {
+      "key": "md_assumption_signed",
+      "source_documents": [
+        "MD Notice Regarding Right for Assumption"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "md_counseling_signed",
+      "source_documents": [
+        "MD Important Notice Regarding Counseling"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "md_dual_cap_signed",
+      "source_documents": [
+        "MD DUAL CAPACITY IN REAL ESTATE"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "md_ins_provider_signed",
+      "source_documents": [
+        "MD Right to Choose Insurance Provider"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "md_rescind_signed",
+      "source_documents": [
+        "MD Notice of Right to Rescind"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
+      "key": "md_settlement_signed",
+      "source_documents": [
+        "MD Settlement Services/Right to Choose"
+      ],
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
       "key": "mortgage_statement_present",
       "source_documents": [
         "Mortgage Statement"
@@ -2725,15 +2779,6 @@
       ]
     },
     {
-      "key": "state_disclosure_present",
-      "source_documents": [
-        "State Disclosure"
-      ],
-      "used_by_steps": [
-        "STEP_01"
-      ]
-    },
-    {
       "key": "title_legal_description",
       "source_documents": [
         "Title Report"
@@ -2808,8 +2853,8 @@
   ],
   "stats": {
     "total_los_fields": 219,
-    "total_doc_fields": 89,
-    "total_document_types": 23,
+    "total_doc_fields": 94,
+    "total_document_types": 28,
     "total_steps": 11,
     "categories": [
       "assets",
@@ -2832,7 +2877,7 @@
       "1003 URLA",
       "Assets",
       "Bank Statement",
-      "Borrower's Certification and Authorization",
+      "Borrower's Certification & Authorization",
       "Credit Report",
       "Driver's License",
       "Estimated Settlement Statement",
@@ -2842,11 +2887,16 @@
       "Gift Letter",
       "HOA Statement",
       "LDP",
+      "MD DUAL CAPACITY IN REAL ESTATE",
+      "MD Important Notice Regarding Counseling",
+      "MD Notice Regarding Right for Assumption",
+      "MD Notice of Right to Rescind",
+      "MD Right to Choose Insurance Provider",
+      "MD Settlement Services/Right to Choose",
       "Mortgage Statement",
       "Paystubs",
       "Property Tax Bill",
       "Purchase Agreement",
-      "State Disclosure",
       "Title Report",
       "Underwriting (DU / LP)",
       "VOD",

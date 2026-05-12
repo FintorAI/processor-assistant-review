@@ -11,9 +11,12 @@
       "document_list": [
         "1003 URLA",
         "Transmittal Summary",
+        "Underwriting",
         "DU Findings / AUS Certificate",
+        "AUS Certificate",
         "VOE - non service provider",
         "Paystubs",
+        "Borrower Income and Employment Certification",
         "W-2",
         "Tax Summary",
         "Tax Returns - Business",
@@ -29,17 +32,28 @@
         "Loan Estimate",
         "Lock Confirmation",
         "Closing Protection Letter",
-        "Borrower's Certification and Authorization",
-        "State Disclosure"
+        "Borrower's Certification & Authorization",
+        "MD Notice of Right to Rescind",
+        "MD DUAL CAPACITY IN REAL ESTATE",
+        "MD Important Notice Regarding Counseling",
+        "MD Notice Regarding Right for Assumption",
+        "MD Right to Choose Insurance Provider",
+        "MD Settlement Services/Right to Choose"
       ],
       "extraction_mode": {
         "VOE - non service provider": "all",
         "Paystubs": "all",
+        "Borrower Income and Employment Certification": "all",
         "W-2": "all",
         "Driver's License": "all",
         "Loan Estimate": "all",
-        "Borrower's Certification and Authorization": "all",
-        "State Disclosure": "all"
+        "Borrower's Certification & Authorization": "all",
+        "MD Notice of Right to Rescind": "all",
+        "MD DUAL CAPACITY IN REAL ESTATE": "all",
+        "MD Important Notice Regarding Counseling": "all",
+        "MD Notice Regarding Right for Assumption": "all",
+        "MD Right to Choose Insurance Provider": "all",
+        "MD Settlement Services/Right to Choose": "all"
       }
     }
   ],
@@ -47,9 +61,12 @@
     "_comment": "Maps document display names (as used in document_list above) to docrepo keys in required_docs.json",
     "1003 URLA":                               { "docrepo_key": "urla_1003" },
     "Transmittal Summary":                     { "docrepo_key": "transmittal_summary" },
+    "Underwriting":                            { "docrepo_key": "du_findings" },
     "DU Findings / AUS Certificate":           { "docrepo_key": "du_findings" },
+    "AUS Certificate":                         { "docrepo_key": "du_findings" },
     "VOE - non service provider":              { "docrepo_key": "voe" },
     "Paystubs":                                { "docrepo_key": "paystubs" },
+    "Borrower Income and Employment Certification": { "docrepo_key": "paystubs" },
     "W-2":                                     { "docrepo_key": "w2" },
     "Tax Summary":                             { "docrepo_key": "tax_summary" },
     "Tax Returns - Business":                  { "docrepo_key": "tax_returns_business" },
@@ -65,7 +82,12 @@
     "Loan Estimate":                           { "docrepo_key": "loan_estimate" },
     "Lock Confirmation":                       { "docrepo_key": "lock_confirmation" },
     "Closing Protection Letter":               { "docrepo_key": "closing_protection_letter" },
-    "Borrower's Certification and Authorization": { "docrepo_key": "borrowers_certification" },
-    "State Disclosure":                        { "docrepo_key": "state_disclosures" }
+    "Borrower's Certification & Authorization": { "docrepo_key": "borrowers_certification" },
+    "MD Notice of Right to Rescind":           { "docrepo_key": "md_notice_right_to_rescind" },
+    "MD DUAL CAPACITY IN REAL ESTATE":         { "docrepo_key": "md_dual_capacity" },
+    "MD Important Notice Regarding Counseling": { "docrepo_key": "md_important_notice_counseling" },
+    "MD Notice Regarding Right for Assumption": { "docrepo_key": "md_notice_right_assumption" },
+    "MD Right to Choose Insurance Provider":   { "docrepo_key": "md_right_choose_insurance" },
+    "MD Settlement Services/Right to Choose":  { "docrepo_key": "md_settlement_services" }
   }
 }
