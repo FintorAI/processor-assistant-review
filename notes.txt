@@ -89,21 +89,26 @@ PROCESSOR FEEDBACK NOTES
           of `update_1003_urla(part="part1")`. The two pages display the same Encompass
           fields — only one tool writes them.
     - 1003 URLA Page 2
-        - VOE, check in docs: 
-            - Name of employer
-            - Original hire date
-            - Jan 15, 2025
-            - Compensation Base Pay Rate, check if matches in Gross Monthly Income > Base / Month
-            - Cross reference employer address in Google - just types it out, verify if matches, change as needed
-            - Job Title is N/A
-            - If curr employment < 2 years, check history
-                - Overlap is better than a gap
-                - If FHA and gap < 6 mos., then write explanation
-                - Else if gap > 6 mos., look at 2 year history before gap
-                - Look at income before gap
-                - Were they in the same line of work? A lot of factors
-            - Some auto-populated from Blend, can pull from Xactus
-            - Check how to do?
+        - VOE — fetched via Encompass v3 API:
+            GET /encompass/v3/loans/{loanId}/applications/{applicationId}/borrower/employment
+            - Returns all records (current + prior) in one array; distinguished by currentEmploymentIndicator
+            - If collection does not exist → flag "VOE Form Not Populated in Encompass" (blocking)
+            - Checks run per record:
+                - employerName: cross-referenced against VOE doc (current_employer_name / previous_employer_name)
+                - employmentStartDate (date hired): cross-referenced against VOE doc
+                - basePayAmount (monthly base pay): cross-referenced against VOE doc; diff > $1 → flag
+                - positionDescription: cross-referenced against VOE doc
+                - phoneNumber: presence check
+                - printAttachmentIndicator: must be True for current employer
+                - endDate: must be empty for current, must be populated for prior
+            - If current employment < 2 years (timeOnJobTermYears/Months < 24 total):
+                - No prior entry → flag "Employment History Gap — No Prior Employer"
+                - Gap (prior endDate → current startDate) > 30 days:
+                    - Gap < 6 months and FHA → flag "FHA Employment Gap — Explanation Required"
+                    - Gap ≥ 6 months → flag "Employment Gap > 6 Months — Documentation Required"
+                    - Overlap (negative gap) is acceptable — no flag
+            - Co-borrower: separate call to .../coborrower/employment; same checks
+            - Source: Encompass (auto-populated from Blend / Xactus via VOE form)
         - Income from other sources
             - Alimony, dividend stocks, etc.
     - 1003 URLA Part 3
@@ -147,10 +152,20 @@ PROCESSOR FEEDBACK NOTES
                 - Email agent to get copy of check
             - 2c.
                 - VOL (Liabilities and Debts)
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vols
+                  - Fields: holderName, liabilityType, owner, monthlyPaymentAmount,
+                    unpaidBalanceAmount, creditLimit, payoffIncludedIndicator,
+                    excludedFromTotalMonthlyPaymentIndicator
+                - IMPLEMENTED in review_urla_liabilities.py (FACTORY-LOCK: true)
                 - Exclude Mon Pay and To be Paid Off
-                    - Column 1: If Y, why was it excluded? Was it already paid off?
-                    - Column 2: If Y, need to request most recent credit card statement (JPMCB card)
-                    - Usually for cash-out refis?
+                    - Column 1 (excludedFromTotalMonthlyPaymentIndicator = Y):
+                        Flag: "Excluded Liability — Explanation Required: {creditor}" (warning)
+                        If Y, why was it excluded? Was it already paid off?
+                    - Column 2 (payoffIncludedIndicator = Y):
+                        Flag: "Payoff Statement Required: {creditor}" (warning)
+                        Request most recent statement for that creditor
+                    - Usually for cash-out refis
+                    - If VOL collection not created → blocking flag
             - 2d.
                 - Marked no so nothing
             - Section 3
@@ -355,3 +370,6 @@ Notes:
     - What is the logic in this? How were they able to say that it was okay/enough?
 - Cover Letter > Submission Notes: how do they know which docs are missing from file?
 - Could the property address verifications just be done via USPS?
+
+Clarifications (last edited May 13 2026):
+1. For cases where there is a mismatch between LOS and the document i.e. EMD is X in the document and Y in Encompass, do we want to write Encompass with X or just flag that they're different? Across all forms

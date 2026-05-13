@@ -378,6 +378,43 @@ def read_employment(
     return normalised
 
 
+def read_other_assets(
+    loan_id: str,
+    application_id: str = None,
+    state: dict = None,
+) -> List[Dict[str, Any]]:
+    """Fetch other assets for a loan from the Encompass v3 API.
+
+    GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherAssets
+
+    Each record shape (confirmed from test loan 2604964148)::
+
+        {
+          "id":               str,
+          "borrowerType":     "Borrower" | "CoBorrower",
+          "assetType":        "EarnestMoney" | "GiftFunds" | "LifeInsurance" | ...,
+          "cashOrMarketValue": float,
+          "altId":            str,
+        }
+
+    Returns empty list if collection does not exist (no rows yet).
+    """
+    try:
+        from encompass_client import get_other_assets
+    except ImportError:
+        logger.warning("encompass_client not available — read_other_assets will fail at runtime")
+        return []
+
+    try:
+        records = get_other_assets(loan_id, application_id=application_id, state=state)
+    except LookupError:
+        logger.info(f"[ENCOMPASS] read_other_assets: collection does not exist for loan {loan_id[:8]}")
+        return []
+
+    logger.info(f"[ENCOMPASS] read_other_assets: {len(records)} record(s) for loan {loan_id[:8]}")
+    return records
+
+
 def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     """Fetch and normalise all VOD entries for a loan from the Encompass v3 API.
 
@@ -444,3 +481,71 @@ def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     logger.info(f"[ENCOMPASS] read_vods: {len(raw_vods)} VOD object(s) → {len(rows)} account row(s)")
     return rows
 
+
+def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch all VOL (Verification of Liabilities) records from the Encompass v3 API.
+
+    Each element represents one liability row as returned by:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vols
+
+    Returned item shape::
+
+        {
+          "vol_id":               str,    # Encompass VOL object ID
+          "holder_name":          str,    # creditor / institution name
+          "liability_type":       str,    # e.g. "Revolving", "Installment"
+          "owner":                str,    # "Borrower" | "CoBorrower" | "Both"
+          "account_number":       str,    # may be masked
+          "monthly_payment":      float,  # monthlyPaymentAmount
+          "unpaid_balance":       float,  # unpaidBalanceAmount
+          "credit_limit":         float,  # creditLimit (revolving only)
+          "exclude_monthly_pay":  bool,   # "Exclude Monthly Payment" column
+          "payoff_included":      bool,   # "To Be Paid Off" column
+          "remaining_months":     int,    # remainingTermMonths
+        }
+
+    Raises:
+        LookupError: if the VOL collection does not exist yet in Encompass.
+    """
+    try:
+        from encompass_client import get_vols
+    except ImportError:
+        logger.warning("encompass_client not available — read_vols will fail at runtime")
+        return []
+
+    raw = get_vols(loan_id, state=state)  # may raise LookupError
+    rows: List[Dict[str, Any]] = []
+
+    for vol in raw:
+        try:
+            monthly = float(vol.get("monthlyPaymentAmount") or 0)
+        except (TypeError, ValueError):
+            monthly = 0.0
+        try:
+            balance = float(vol.get("unpaidBalanceAmount") or 0)
+        except (TypeError, ValueError):
+            balance = 0.0
+        try:
+            limit = float(vol.get("creditLimit") or 0)
+        except (TypeError, ValueError):
+            limit = 0.0
+        try:
+            remaining = int(vol.get("remainingTermMonths") or 0)
+        except (TypeError, ValueError):
+            remaining = 0
+
+        rows.append({
+            "vol_id":              vol.get("id", ""),
+            "holder_name":         (vol.get("holderName") or "").strip(),
+            "liability_type":      vol.get("liabilityType", ""),
+            "owner":               vol.get("owner", ""),
+            "account_number":      (vol.get("accountIdentifier") or "").strip(),
+            "monthly_payment":     monthly,
+            "unpaid_balance":      balance,
+            "credit_limit":        limit,
+            "exclude_monthly_pay": bool(vol.get("excludedFromTotalMonthlyPaymentIndicator", False)),
+            "payoff_included":     bool(vol.get("payoffIncludedIndicator", False)),
+            "remaining_months":    remaining,
+        })
+
+    return rows

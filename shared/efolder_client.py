@@ -41,7 +41,12 @@ API_TOKEN = os.getenv("EFOLDER_API_TOKEN", "esfuse-token")  # Load from env, fal
 
 # Path to conditions config — resolved relative to this file so it works
 # whether efolder_client is imported from output/ or shared/.
-_CONDITIONS_PATH = Path(__file__).parent.parent / "output" / "config" / "required_docs_conditions.json"
+# Resolve symlinks so the path is correct whether this file is loaded directly
+# (shared/efolder_client.py) or via the output/shared → shared symlink
+# (output/shared/efolder_client.py). Without .resolve(), __file__ when accessed
+# through the symlink gives output/shared/efolder_client.py and parent.parent
+# becomes output/, producing output/output/config/... (doubled path).
+_CONDITIONS_PATH = Path(__file__).resolve().parent.parent / "output" / "config" / "required_docs_conditions.json"
 
 
 def get_document_types_for_loan(
@@ -70,8 +75,27 @@ def get_document_types_for_loan(
         with open(_CONDITIONS_PATH) as f:
             cfg = json.load(f)
     except FileNotFoundError:
-        # Graceful fallback — return hardcoded list if config file is missing
-        return list(ALL_DOCUMENT_TYPES)
+        # Graceful fallback — config file missing (e.g. first boot before factory-reset).
+        # Cannot reference ALL_DOCUMENT_TYPES here because this function IS the initialiser
+        # for that constant (circular reference). Return the unified list inline instead.
+        return [
+            "1003 URLA", "Transmittal Summary", "Underwriting",
+            "DU Findings / AUS Certificate", "AUS Certificate",
+            "VOE - non service provider", "Paystubs",
+            "Borrower Income and Employment Certification",
+            "W-2", "Tax Summary", "Tax Returns - Business",
+            "Bank Statement", "Assets", "Purchase Agreement",
+            "Credit Report", "Driver's License",
+            "Estimated Settlement Statement", "Flood Certificate",
+            "Evidence of Insurance", "Title Report",
+            "Loan Estimate", "Lock Confirmation", "Closing Protection Letter",
+            "Borrower's Certification & Authorization",
+            "MD Notice of Right to Rescind", "MD DUAL CAPACITY IN REAL ESTATE",
+            "MD Important Notice Regarding Counseling",
+            "MD Notice Regarding Right for Assumption",
+            "MD Right to Choose Insurance Provider",
+            "MD Settlement Services/Right to Choose",
+        ]
 
     conditions = cfg.get("conditions", [])
 
