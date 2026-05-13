@@ -97,6 +97,7 @@
         "build_loan_summary",
         "fetch_doc_fields",
         "fetch_los_fields",
+        "fetch_vod_data",
         "find_loan",
         "validate_property_address"
       ],
@@ -129,6 +130,12 @@
           "name": "Validate Property Address (USPS)",
           "tools": [
             "validate_property_address"
+          ]
+        },
+        "6": {
+          "name": "Fetch VOD Data (Encompass v3)",
+          "tools": [
+            "fetch_vod_data"
           ]
         }
       }

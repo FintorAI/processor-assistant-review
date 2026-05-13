@@ -1179,3 +1179,141 @@ def update_trustee_entity(
         logger.error(f"[ENCOMPASS] Error updating Trustee: {error_msg}")
         return {"success": False, "error": error_msg}
 
+
+def get_loan_applications(loan_id: str, state: dict = None) -> list[dict[str, any]]:
+    """Get all applications (borrower pairs) for a loan.
+
+    Uses Encompass v3 API:
+        GET /encompass/v3/loans/{loanId}/applications
+
+    Returns a list of application objects. The first item is the primary
+    application and its ``id`` field is used as ``applicationId`` when
+    calling sub-resource endpoints such as /vods.
+
+    Args:
+        loan_id: Encompass loan GUID
+        state: Optional state dict to determine environment
+
+    Returns:
+        List of application dicts (may be empty on error)
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/applications"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 404:
+            logger.info(f"[ENCOMPASS] No applications found for loan {loan_id[:8]}")
+            return []
+
+        if response.status_code != 200:
+            logger.error(f"[ENCOMPASS] Error getting applications: {response.status_code} {response.text[:200]}")
+            raise Exception(f"API error {response.status_code}: {response.text[:200]}")
+
+        apps = response.json()
+        logger.info(f"[ENCOMPASS] Retrieved {len(apps)} application(s) for loan {loan_id[:8]}")
+        return apps
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error getting applications: {e}")
+        raise
+
+
+def get_vods(loan_id: str, application_id: str = None, state: dict = None) -> list[dict[str, any]]:
+    """Get all Verifications of Deposit (VODs) for a loan application.
+
+    Uses Encompass v3 API:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vods
+
+    The API returns one VOD object per depository institution. Each VOD
+    contains a list of ``accountInformation`` entries (one row per account
+    type/account number).
+
+    Typical VOD object shape::
+
+        {
+          "id": "abc123",
+          "vodIndex": 1,
+          "depInstitution": "PNC Bank",
+          "for": "BorrowerOnly",           # or "CoBorrowerOnly"
+          "accountInformation": [
+            {
+              "accountType": "CheckingAccount",
+              "accountInNameOf": "Cyndy Appell Jermain",
+              "accountNumber": "****2286",
+              "cashOrMarketValue": 4279.51
+            },
+            {
+              "accountType": "SavingsAccount",
+              "accountInNameOf": "Cyndy Appell Jermain",
+              "accountNumber": "****0104",
+              "cashOrMarketValue": 81473.81
+            }
+          ]
+        }
+
+    Args:
+        loan_id: Encompass loan GUID
+        application_id: Application ID string (default: auto-resolved via
+            ``get_loan_applications()``; falls back to ``"1"``).
+        state: Optional state dict to determine environment
+
+    Returns:
+        List of VOD dicts (empty list if none found)
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/applications/{application_id}/vods"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            response = requests.get(url, headers=headers, timeout=30)
+
+        if response.status_code == 404:
+            logger.info(f"[ENCOMPASS] No VODs found for loan {loan_id[:8]} application {application_id}")
+            return []
+
+        if response.status_code != 200:
+            logger.error(f"[ENCOMPASS] Error getting VODs: {response.status_code} {response.text[:200]}")
+            raise Exception(f"VOD API error {response.status_code}: {response.text[:200]}")
+
+        vods = response.json()
+        if not isinstance(vods, list):
+            vods = [vods]
+        logger.info(f"[ENCOMPASS] Retrieved {len(vods)} VOD(s) for loan {loan_id[:8]}")
+        return vods
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error getting VODs: {e}")
+        raise
+

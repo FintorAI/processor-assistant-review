@@ -113,15 +113,23 @@ PROCESSOR FEEDBACK NOTES
                 - Stock account, different from retirement account
                 - Renamed too to Edward Jones x(account number) - (date)
             - Bank statements
-                - Auto-populated from Blend
-                - PNC, account number, date
-                - 60-day history of transactions
-                - Current date = 04/14/2026, renamed document
-                - 2 months if conventional, 1 month if FHA
-                    - If not, make note to request
-                - ZEL? UW wants letter to explain what the ZELs are for, doesn’t have to be in detail
-                - Klarna, Firm
-                - Look out for green deposits too
+                - Auto-populated from Blend (selectionMode=All — captures all attached copies)
+                - Extracted fields: institution_name, account_holder_name, account_type,
+                  bank_account_number, statement_period_start/end, beginning/ending_balance,
+                  average_daily_balance, bank_large_deposits, payroll_deposits,
+                  bank_zel_deposits, total_deposits, total_withdrawals, nsf_count, overdraft_count
+                - Recency check:
+                    - Conventional: statement_period_end must be within 60 days → flag "Bank Statement Stale"
+                    - FHA: statement_period_end must be within 30 days → flag "Bank Statement Stale"
+                    - If not present, flag and request updated statements
+                - ZEL / Zelle / Klarna / Firm deposits → flag "ZEL/Zelle Deposit Requires Explanation"
+                    - UW wants LOE, doesn't need to be detailed
+                - Large / green deposits → flag "Large / Green Deposit Requires Sourcing"
+                    - Flagged when bank_large_deposits field is populated (extractor-identified)
+                - Cross-referenced against Encompass VOD (fetch_vod_data → state["vod_data"]):
+                    - Balance discrepancy (diff > $1) → flag "Bank Statement — Balance Discrepancy vs VOD"
+                    - Account not in VOD → flag "Bank Statement — Account Not Found in VOD"
+                    - Account type mismatch → flag "Bank Statement — Account Type Mismatch vs VOD"
         - 2a.
             - Click show all VOD
                 - PNC

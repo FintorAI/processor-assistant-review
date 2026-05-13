@@ -190,6 +190,7 @@ class ExtractionRequest:
     environment: Optional[str] = None          # Auto-derived from client_id if not set
     selection_mode: str = "All"                # "All" = ALL attachments in folder, "Best" = best match only
     use_cache: bool = True
+    force_reextract: bool = False              # If True, send forceReextract=True to bypass docrepo cache
     max_retries: int = 0                       # 0 = don't wait for pending, just return cached + flag pending
     retry_interval_seconds: int = 30          # 30 seconds (only used if max_retries > 0)
     override_not_found: bool = True           # If True, retry lookup for docs previously marked "not_found"
@@ -301,6 +302,7 @@ class EfolderClient:
             selection_mode=request.selection_mode,
             use_cache=request.use_cache,
             override_not_found=request.override_not_found,
+            force_reextract=request.force_reextract,
         )
         
         if not response.get('success'):
@@ -472,6 +474,7 @@ class EfolderClient:
         selection_mode: str,
         use_cache: bool,
         override_not_found: bool = False,
+        force_reextract: bool = False,
     ) -> Dict[str, Any]:
         """
         Call the EfolderConnect Direct Process API.
@@ -500,6 +503,8 @@ class EfolderClient:
             'documentTypes': document_types,
             'overrideNotFound': override_not_found,
         }
+        if force_reextract:
+            payload['forceReextract'] = True
         
         headers = {
             'Authorization': f'Bearer {self.token}',

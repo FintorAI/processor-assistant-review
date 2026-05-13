@@ -77,8 +77,8 @@ def run_pre_checks(
     urla_signed          = _doc(state, "urla_signed")
     bca_present          = _doc(state, "bca_present")
     aus_run_date         = _doc(state, "aus_run_date")
-    aus_collateral_relief = _doc(state, "aus_collateral_relief")
-    aus_income_raw_relief = _doc(state, "aus_income_raw_relief")
+    aus_collateral_relief = _doc(state, "collateral_rw_relief")   # renamed: was aus_collateral_relief
+    aus_income_raw_relief = _doc(state, "income_rw_relief")       # renamed: was aus_income_raw_relief
     voe_present          = _doc(state, "voe_present")
     paystubs_present     = _doc(state, "paystubs_present")
     assets_present       = _doc(state, "assets_present")

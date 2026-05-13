@@ -624,7 +624,7 @@ def fetch_doc_fields(
         ignored_count = len(all_docs_by_type) - len(docs_by_type)
 
         # For "all" extraction mode keep every copy; otherwise keep best single doc
-        multi_copy_types = {dt for dt, mode in extraction_modes.items() if mode == "all"}
+        multi_copy_types = {dt for dt, mode in extraction_modes.items() if str(mode).lower() == "all"}
         flat_docs_for_normalize: list[dict] = []
         for dt, doc_list in docs_by_type.items():
             if dt in multi_copy_types:
@@ -1183,4 +1183,60 @@ def validate_property_address(
     return Command(update={
         "address_validation": result,
         "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+    })
+
+
+@tool
+def fetch_vod_data(
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState],
+) -> Command:
+    """Fetch Verification of Deposit (VOD) entries directly from the Encompass v3 API.
+
+    Calls GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vods and
+    normalises the response into a flat list of account rows.
+
+    Stores:
+        state['vod_data']  — list of normalised account row dicts, each with:
+            {
+              vod_id, vod_index, institution_name, borrower_type,
+              account_type, account_holder, account_number, balance
+            }
+
+    Run this after fetch_los_fields so that loan_id is available in state.
+    Used by downstream tools (e.g. review_urla_assets) to cross-check extracted
+    bank-statement / asset doc fields against the LOS-entered VOD amounts.
+    """
+    from shared.encompass_io import read_vods
+
+    loan_id = state.get("loan_id")
+    if not loan_id:
+        msg = {"error": "No loan_id in state. Run find_loan first."}
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(msg), tool_call_id=tool_call_id)],
+        })
+
+    try:
+        rows = read_vods(loan_id, state=state)
+    except Exception as e:
+        logger.error(f"[FETCH_VOD] Failed to read VODs: {e}")
+        msg = {"error": f"VOD API call failed: {e}"}
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(msg), tool_call_id=tool_call_id)],
+        })
+
+    summary = {
+        "vod_rows":       len(rows),
+        "institutions":   list({r["institution_name"] for r in rows if r["institution_name"]}),
+        "total_balance":  round(sum(r["balance"] for r in rows), 2),
+        "account_types":  list({r["account_type"] for r in rows}),
+    }
+    logger.info(f"[FETCH_VOD] {summary}")
+
+    return Command(update={
+        "vod_data": rows,
+        "messages": [ToolMessage(
+            content=json.dumps({"status": "ok", **summary}),
+            tool_call_id=tool_call_id,
+        )],
     })

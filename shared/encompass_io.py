@@ -285,3 +285,70 @@ def get_loan_type(loan_id: str) -> Optional[str]:
     from .constants import FieldIds
     return read_field(loan_id, FieldIds.LOAN_TYPE)
 
+
+def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch and normalise all VOD entries for a loan from the Encompass v3 API.
+
+    Each element in the returned list represents one **account row** (a single
+    account type / account number) rather than one depository institution.
+    This makes downstream comparison with per-copy bank-statement extractions
+    straightforward.
+
+    Returned item shape::
+
+        {
+          "vod_id":           str,   # Encompass VOD object ID
+          "vod_index":        int,   # 1-based index within the loan
+          "institution_name": str,   # depository name  (e.g. "PNC Bank")
+          "borrower_type":    str,   # "BorrowerOnly" | "CoBorrowerOnly" | ...
+          "account_type":     str,   # "CheckingAccount" | "SavingsAccount" | ...
+          "account_holder":   str,   # name on account
+          "account_number":   str,   # may be masked (e.g. "****2286")
+          "balance":          float, # Cash or market value
+        }
+
+    Args:
+        loan_id: Encompass loan GUID
+        state: Optional state dict (passed to the underlying HTTP client)
+
+    Returns:
+        List of normalised account-row dicts (empty list if no VODs)
+    """
+    try:
+        from encompass_client import get_vods
+    except ImportError:
+        logger.warning("encompass_client not available — read_vods will fail at runtime")
+        return []
+
+    raw_vods = get_vods(loan_id, state=state)
+    rows: List[Dict[str, Any]] = []
+
+    for vod in raw_vods:
+        vod_id    = vod.get("id", "")
+        vod_index = vod.get("vodIndex", 0)
+        institution = (vod.get("depInstitution") or "").strip()
+        borrower_type = vod.get("for", "")
+
+        for acct in vod.get("accountInformation") or []:
+            acct_type   = acct.get("accountType", "")
+            acct_holder = (acct.get("accountInNameOf") or "").strip()
+            acct_num    = (acct.get("accountNumber") or "").strip()
+            try:
+                balance = float(acct.get("cashOrMarketValue") or 0)
+            except (TypeError, ValueError):
+                balance = 0.0
+
+            rows.append({
+                "vod_id":           vod_id,
+                "vod_index":        vod_index,
+                "institution_name": institution,
+                "borrower_type":    borrower_type,
+                "account_type":     acct_type,
+                "account_holder":   acct_holder,
+                "account_number":   acct_num,
+                "balance":          balance,
+            })
+
+    logger.info(f"[ENCOMPASS] read_vods: {len(raw_vods)} VOD object(s) → {len(rows)} account row(s)")
+    return rows
+
