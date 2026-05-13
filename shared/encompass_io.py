@@ -549,3 +549,52 @@ def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
         })
 
     return rows
+
+
+def read_other_liabilities(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch Other Liabilities (Section 2d) from the Encompass v3 API.
+
+    Uses:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherLiabilities
+
+    Each element represents one other-liability row.
+
+    Returned item shape::
+
+        {
+          "liability_id":     str,    # Encompass object ID
+          "liability_type":   str,    # e.g. "JobRelatedExpenses", "Alimony", etc.
+          "monthly_payment":  float,  # monthlyPaymentAmount
+          "owner":            str,    # "Borrower" | "CoBorrower" | "Both"
+          "description":      str,    # free-text description if present
+        }
+
+    Returns empty list if no rows exist (both empty collection and LookupError).
+    """
+    try:
+        from encompass_client import get_other_liabilities
+    except ImportError:
+        logger.warning("encompass_client not available — read_other_liabilities will fail at runtime")
+        return []
+
+    try:
+        raw = get_other_liabilities(loan_id, state=state)
+    except LookupError:
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for item in raw:
+        try:
+            monthly = float(item.get("monthlyPaymentAmount") or 0)
+        except (TypeError, ValueError):
+            monthly = 0.0
+
+        rows.append({
+            "liability_id":    item.get("id", ""),
+            "liability_type":  item.get("liabilityType", ""),
+            "monthly_payment": monthly,
+            "owner":           item.get("owner", ""),
+            "description":     (item.get("description") or item.get("holderName") or "").strip(),
+        })
+
+    return rows

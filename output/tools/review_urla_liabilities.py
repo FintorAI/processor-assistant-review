@@ -138,9 +138,36 @@ def review_urla_liabilities(
             ),
         ))
 
+    # ── Section 2d: Other Liabilities ──
+    # Flag as info if any other-liability rows exist (alimony, job-related expenses, etc.)
+    try:
+        from shared.encompass_io import read_other_liabilities
+        other_liabs = read_other_liabilities(loan_id, state=state)
+        logger.info(f"[REVIEW_URLA_LIABILITIES] {len(other_liabs)} other liability row(s)")
+    except Exception as exc:
+        logger.warning(f"[REVIEW_URLA_LIABILITIES] Could not fetch otherLiabilities: {exc}")
+        other_liabs = []
+
+    if other_liabs:
+        lines = []
+        for item in other_liabs:
+            label = item["description"] or item["liability_type"] or "Unknown"
+            owner = item["owner"] or "Borrower"
+            pmt   = item["monthly_payment"]
+            lines.append(f"  • {label} ({owner}): ${pmt:,.2f}/mo")
+        flags.append(_flag(
+            title="Section 2d — Other Liabilities Present",
+            severity="info",
+            details=(
+                f"{len(other_liabs)} other liabilit{'y' if len(other_liabs)==1 else 'ies'} "
+                f"found in Encompass (Section 2d):\n" + "\n".join(lines)
+            ),
+            suggestion="Verify these are correctly entered and accounted for in DTI.",
+        ))
+
     # ── Informational summary (no flags to raise) ──
-    if vols and not excluded and not payoffs:
-        logger.info("[REVIEW_URLA_LIABILITIES] No excluded or payoff-flagged VOL rows found.")
+    if vols and not excluded and not payoffs and not other_liabs:
+        logger.info("[REVIEW_URLA_LIABILITIES] No excluded, payoff-flagged, or other liability rows found.")
 
     # ── Build result ──
     result = {
@@ -150,9 +177,11 @@ def review_urla_liabilities(
         "vol_count": len(vols),
         "excluded_count": len(excluded),
         "payoff_count": len(payoffs),
+        "other_liabilities_count": len(other_liabs),
         "flags_count": len(flags),
         "message": (
-            f"VOL review complete — {len(vols)} liabilit{'y' if len(vols)==1 else 'ies'}, "
+            f"VOL review complete — {len(vols)} liabilit{'y' if len(vols)==1 else 'ies'} (2c), "
+            f"{len(other_liabs)} other liabilit{'y' if len(other_liabs)==1 else 'ies'} (2d), "
             f"{len(excluded)} excluded, {len(payoffs)} to-be-paid-off"
             + (f"; {len(flags)} flag(s) raised" if flags else "")
         ),

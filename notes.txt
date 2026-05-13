@@ -167,7 +167,11 @@ PROCESSOR FEEDBACK NOTES
                     - Usually for cash-out refis
                     - If VOL collection not created → blocking flag
             - 2d.
-                - Marked no so nothing
+                - Other Liabilities (alimony, job-related expenses, etc.)
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherLiabilities
+                - IMPLEMENTED in review_urla_liabilities.py (same tool as 2c)
+                - If any rows exist → info flag "Section 2d — Other Liabilities Present"
+                - If none → no flag (usual case: marked no)
             - Section 3
                 - If borrower owns property, mortgage statement, insurance deck page. HOA statement, tax bill; else move on
         - 1003 URLA Part 4
