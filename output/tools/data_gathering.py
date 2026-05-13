@@ -1216,8 +1216,14 @@ def fetch_vod_data(
             "messages": [ToolMessage(content=json.dumps(msg), tool_call_id=tool_call_id)],
         })
 
+    vod_not_created = False
     try:
         rows = read_vods(loan_id, state=state)
+    except LookupError as e:
+        # "collection does not exist" — no VOD form rows in Encompass yet
+        logger.warning(f"[FETCH_VOD] VOD collection missing: {e}")
+        rows = []
+        vod_not_created = True
     except Exception as e:
         logger.error(f"[FETCH_VOD] Failed to read VODs: {e}")
         msg = {"error": f"VOD API call failed: {e}"}
@@ -1226,17 +1232,36 @@ def fetch_vod_data(
         })
 
     summary = {
-        "vod_rows":       len(rows),
-        "institutions":   list({r["institution_name"] for r in rows if r["institution_name"]}),
-        "total_balance":  round(sum(r["balance"] for r in rows), 2),
-        "account_types":  list({r["account_type"] for r in rows}),
+        "vod_rows":        len(rows),
+        "institutions":    list({r["institution_name"] for r in rows if r["institution_name"]}),
+        "total_balance":   round(sum(r["balance"] for r in rows), 2),
+        "account_types":   list({r["account_type"] for r in rows}),
+        "vod_not_created": vod_not_created,
     }
     logger.info(f"[FETCH_VOD] {summary}")
 
-    return Command(update={
+    update: dict = {
         "vod_data": rows,
         "messages": [ToolMessage(
             content=json.dumps({"status": "ok", **summary}),
             tool_call_id=tool_call_id,
         )],
-    })
+    }
+
+    if vod_not_created:
+        from datetime import datetime, timezone
+        update["flags"] = [{
+            "substep": "0.6",
+            "title": "VOD Not Created in Encompass",
+            "severity": "warning",
+            "details": (
+                "The Encompass VOD form has no rows yet — "
+                "GET /applications/{id}/vods returned 'collection does not exist'. "
+                "Asset balances cannot be cross-referenced until VOD entries are added."
+            ),
+            "suggestion": "Open the VOD form in Encompass and add entries for each depository account.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+
+    return Command(update=update)

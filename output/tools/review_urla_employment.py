@@ -132,6 +132,33 @@ def review_urla_employment(
         "be03": _read_entry(state, "be03"),
     }
 
+    # ── Guard: no VOE rows created at all ─────────────────────────────────────
+    # This mirrors the Encompass API behaviour where fetching /voes returns a
+    # "collection does not exist" error when the form has never been filled in.
+    # At the LOS field level, all BE01xx/BE02xx/BE03xx fields will be empty.
+    if not any(_entry_populated(e) for e in entries.values()):
+        flags.append(_flag(
+            "4.1",
+            "VOE Form Not Populated in Encompass",
+            "blocking",
+            "No employment entries found (BE0102/BE0209 all empty). "
+            "The VOE form has not been filled in — equivalent to the Encompass API "
+            "returning 'collection does not exist' for /applications/{id}/voes.",
+            "Open the VOE form in Encompass and add the borrower's current (and prior, if < 2 years) employer entries.",
+        ))
+        result = {
+            "success": False,
+            "substep": "4.1",
+            "tool": "review_urla_employment",
+            "entries_found": 0,
+            "flags_count": len(flags),
+            "message": "Employment Verification blocked — no VOE entries in Encompass",
+        }
+        return Command(update={
+            "flags": flags,
+            "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+        })
+
     # ── Identify current and prior entries ────────────────────────────────────
     # BE0109 values: "Current" or "Prior" (Encompass uses these exact labels)
     current_entry = None

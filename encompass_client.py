@@ -1300,6 +1300,13 @@ def get_vods(loan_id: str, application_id: str = None, state: dict = None) -> li
             response = requests.get(url, headers=headers, timeout=30)
 
         if response.status_code == 404:
+            # Encompass returns 404 both for "no rows yet" and "resource truly missing".
+            # We distinguish by checking the error body for collection/application language.
+            body = response.text or ""
+            body_lc = body.lower()
+            if any(kw in body_lc for kw in ("collection", "application", "does not exist", "not found")):
+                logger.info(f"[ENCOMPASS] VOD collection does not exist for loan {loan_id[:8]} — no rows created yet")
+                raise LookupError("VOD collection does not exist — no VOD rows have been created in Encompass")
             logger.info(f"[ENCOMPASS] No VODs found for loan {loan_id[:8]} application {application_id}")
             return []
 
