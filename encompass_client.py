@@ -1336,6 +1336,60 @@ def get_vols(
         raise
 
 
+def get_reo_properties(
+    loan_id: str,
+    application_id: str = None,
+    state: dict = None,
+) -> list[dict[str, any]]:
+    """Get all REO (Real Estate Owned) properties for a loan application (Section 3).
+
+    Uses Encompass v3 API:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/reoProperties
+
+    Key fields confirmed from test loan:
+        streetAddress, city, dispositionStatusType (e.g. "Retain", "Sold", "PendingSale")
+        owner ("Borrower" | "CoBorrower" | "Both")
+        includeInAusExport, printAttachIndicator
+
+    Returns empty list if no REO rows exist.
+    Raises LookupError if the collection does not exist.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/applications/{application_id}/reoProperties"
+    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code == 404:
+            body_lc = (response.text or "").lower()
+            if any(kw in body_lc for kw in ("collection", "application", "does not exist", "not found")):
+                raise LookupError("reoProperties collection does not exist")
+            return []
+        if response.status_code != 200:
+            raise Exception(f"reoProperties API error {response.status_code}: {response.text[:200]}")
+        records = response.json()
+        if not isinstance(records, list):
+            records = [records]
+        logger.info(f"[ENCOMPASS] get_reo_properties: {len(records)} record(s) for loan {loan_id[:8]}")
+        return records
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error getting reoProperties: {e}")
+        raise
+
+
 def get_other_liabilities(
     loan_id: str,
     application_id: str = None,

@@ -174,6 +174,12 @@ PROCESSOR FEEDBACK NOTES
                 - If none → no flag (usual case: marked no)
             - Section 3
                 - If borrower owns property, mortgage statement, insurance deck page. HOA statement, tax bill; else move on
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/reoProperties
+                  - Fields: streetAddress, city, dispositionStatusType, owner
+                - IMPLEMENTED in review_urla_reo.py (FACTORY-LOCK: true)
+                - If any REO rows exist → info flag "Section 3 — REO Properties Present"
+                  listing each property + suggestion to verify docs in eFolder
+                - If none → no flag
         - 1003 URLA Part 4
             - Usually auto-populated
             - 4b. 

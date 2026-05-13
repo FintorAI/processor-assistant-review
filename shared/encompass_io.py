@@ -551,6 +551,52 @@ def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     return rows
 
 
+def read_reo_properties(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch REO (Real Estate Owned) properties from the Encompass v3 API (Section 3).
+
+    Uses:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/reoProperties
+
+    Returned item shape::
+
+        {
+          "reo_id":              str,   # Encompass object ID
+          "street_address":      str,
+          "city":                str,
+          "state":               str,
+          "postal_code":         str,
+          "owner":               str,   # "Borrower" | "CoBorrower" | "Both"
+          "disposition_status":  str,   # "Retain" | "Sold" | "PendingSale" | etc.
+        }
+
+    Returns empty list if no REO rows exist or collection not created.
+    """
+    try:
+        from encompass_client import get_reo_properties
+    except ImportError:
+        logger.warning("encompass_client not available — read_reo_properties will fail at runtime")
+        return []
+
+    try:
+        raw = get_reo_properties(loan_id, state=state)
+    except LookupError:
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for item in raw:
+        rows.append({
+            "reo_id":             item.get("id", ""),
+            "street_address":     (item.get("streetAddress") or item.get("urla2020StreetAddress") or "").strip(),
+            "city":               (item.get("city") or "").strip(),
+            "state":              (item.get("state") or item.get("addressState") or "").strip(),
+            "postal_code":        (item.get("postalCode") or item.get("addressPostalCode") or "").strip(),
+            "owner":              item.get("owner", ""),
+            "disposition_status": item.get("dispositionStatusType", ""),
+        })
+
+    return rows
+
+
 def read_other_liabilities(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     """Fetch Other Liabilities (Section 2d) from the Encompass v3 API.
 
