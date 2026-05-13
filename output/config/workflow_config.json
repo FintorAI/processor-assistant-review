@@ -97,7 +97,6 @@
         "build_loan_summary",
         "fetch_doc_fields",
         "fetch_los_fields",
-        "fetch_vod_data",
         "find_loan",
         "validate_property_address"
       ],
@@ -109,7 +108,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (219 fields)",
+          "name": "Fetch LOS Fields (220 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -131,12 +130,6 @@
           "tools": [
             "validate_property_address"
           ]
-        },
-        "6": {
-          "name": "Fetch VOD Data (Encompass v3)",
-          "tools": [
-            "fetch_vod_data"
-          ]
         }
       }
     },
@@ -145,6 +138,7 @@
       "phase": "INTAKE",
       "plan_file": "pre_checks.md",
       "tools": [
+        "review_file_contacts",
         "run_pre_checks"
       ],
       "substeps": {
@@ -163,6 +157,12 @@
               "description": "Maryland requires the \"Notice Regarding Right for Assumption Under Certain Circumstances\" disclosure. Flag if missing.\n",
               "source": "notes.txt:14"
             }
+          ]
+        },
+        "2": {
+          "name": "File Contacts Check",
+          "tools": [
+            "review_file_contacts"
           ]
         }
       }

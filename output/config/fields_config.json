@@ -801,6 +801,15 @@
       ]
     },
     {
+      "key": "seller_1_name",
+      "field_id": "638",
+      "field_name": "Seller 1 Name",
+      "category": "transaction",
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
       "key": "borrower_ssn",
       "field_id": "65",
       "field_name": "Borrower SSN",
@@ -2861,7 +2870,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 219,
+    "total_los_fields": 220,
     "total_doc_fields": 95,
     "total_document_types": 29,
     "total_steps": 11,
@@ -2880,7 +2889,8 @@
       "loan_info",
       "processor_workflow",
       "property",
-      "title"
+      "title",
+      "transaction"
     ],
     "document_types": [
       "1003 URLA",

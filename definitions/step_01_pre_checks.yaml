@@ -246,5 +246,31 @@ substeps:
       condition: MD Right of Assumption notice not found in eFolder
       suggestion: Add MD disclosure before submission
 
+- id: '1.2'
+  name: File Contacts Check
+  tool: review_file_contacts
+  description: >
+    Verify that the four key file contacts are assigned in Encompass:
+    Buyer's Agent, Seller's Agent, Seller 1, and Escrow Company.
+    Flag missing contacts as warnings so they can be linked before orders are placed.
+  los_fields_read:
+  - key: seller_1_name
+    field_id: '638'
+    field_name: Seller 1 Name
+    category: transaction
+    purpose: Seller 1 full name — cross-check against SELLER contact type
+  rules:
+  - name: Required Contacts Present
+    type: existence_check
+    logic: >
+      Buyer's Agent, Seller's Agent, Seller 1 (SELLER contact type), and Escrow Company
+      must all be assigned to the loan in Encompass. Flag each missing contact as a warning.
+  flags:
+  - title: Missing File Contact
+    severity: warning
+    condition: One or more required contacts not linked to the loan
+    suggestion: Go to File Contacts in Encompass and add the missing contact
+  field_updates: []
+
 dev:
   skip: false
