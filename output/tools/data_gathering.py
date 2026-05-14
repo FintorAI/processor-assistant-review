@@ -166,14 +166,14 @@ FIELD_MAP = {
     "1168": {"key": "credit_score", "field_name": "Credit Score (Middle)", "category": "credit"},
     "1169": {"key": "employer_name", "field_name": "Employer Name", "category": "employment"},
     "1172": {"key": "loan_type", "field_name": "Mortgage Type", "category": "loan_info"},
-    "1182": {"key": "employer_address", "field_name": "Employer Address", "category": "employment"},
+    # "1182": invalid field ID in Encompass batch API — removed 2026-05-14
     "12": {"key": "property_city", "field_name": "Property City", "category": "property"},
-    "1286": {"key": "job_title", "field_name": "Job Title", "category": "employment"},
+    # "1286": invalid field ID in Encompass batch API — removed 2026-05-14
     "14": {"key": "property_state", "field_name": "Property State", "category": "property"},
     "1402": {"key": "borrower_dob", "field_name": "Borrower Date of Birth", "category": "borrower_info"},
     "1480": {"key": "borrower_cell_phone", "field_name": "Borrower Cell Phone", "category": "borrower_info"},
     "1490": {"key": "declaration_primary_residence", "field_name": "Declaration - Primary Residence Intent", "category": "declarations"},
-    "1491": {"key": "declaration_ownership_3yr", "field_name": "Declaration - Owned Property in Last 3 Years", "category": "declarations"},
+    # "1491": invalid field ID in Encompass batch API — removed 2026-05-14
     "15": {"key": "property_zip", "field_name": "Property ZIP", "category": "property"},
     "1544": {"key": "borrower_ethnicity", "field_name": "Borrower Ethnicity", "category": "borrower_info"},
     "172": {"key": "other_income_type", "field_name": "Other Income Type", "category": "income"},
@@ -181,7 +181,7 @@ FIELD_MAP = {
     "1811": {"key": "occupancy", "field_name": "Occupancy", "category": "loan_info"},
     "186": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
     "19": {"key": "loan_purpose", "field_name": "Loan Purpose", "category": "loan_info"},
-    "218": {"key": "rental_income", "field_name": "Rental Income", "category": "income"},
+    # "218": invalid field ID in Encompass batch API — removed 2026-05-14
     "231": {"key": "gift_amount", "field_name": "Gift Amount", "category": "assets"},
     "3": {"key": "note_rate", "field_name": "Note Rate", "category": "loan_info"},
     "33": {"key": "estate_held", "field_name": "Estate Will Be Held In", "category": "title"},
@@ -1117,12 +1117,14 @@ def validate_property_address(
 
     if not street:
         result = {
-            "valid": False,
-            "error": "Property address not in state — run fetch_los_fields first.",
+            "valid": None,
+            "skipped": True,
+            "skip_reason": "property_address not in los_fields — fetch_los_fields may not have run yet or failed",
             "normalized": None,
             "mismatch_with_purchase_contract": None,
             "purchase_contract_address": purchase_contract_address or None,
         }
+        logger.warning("[VALIDATE_ADDRESS] Skipping — property_address not available in los_fields")
         return Command(update={
             "address_validation": result,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
