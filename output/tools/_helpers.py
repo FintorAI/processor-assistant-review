@@ -97,10 +97,13 @@ def _write_fields(
     """Write fields to Encompass with an audit trail appended to flags.
 
     - Skips None values — safe to pass a conditional dict without pre-filtering.
-    - Appends one ``info`` flag per field written (auto-correction audit trail).
-    - Appends one ``warning`` flag if the write throws (instead of silently swallowing).
+    - Appends one ``info-overwrite`` flag per field successfully written.
+    - On 400 invalid field IDs: retries without the bad IDs, then appends one
+      compiled ``warning`` flag listing all skipped bad IDs (not per-field, since
+      that is a config issue not a per-field business issue).
+    - Appends one ``warning`` flag for any other write error.
     """
-    from shared.encompass_io import write_fields  # deferred to avoid circular imports at module load
+    from shared.encompass_io import write_fields_resilient
 
     filtered = {fid: val for fid, val in updates.items() if val is not None}
     if not filtered:
@@ -109,8 +112,9 @@ def _write_fields(
     from datetime import datetime, timezone
 
     try:
-        write_fields(loan_id, filtered, state=state)
-        for field_id, value in filtered.items():
+        written, bad_ids = write_fields_resilient(loan_id, filtered, state=state)
+
+        for field_id, value in written.items():
             label = (labels or {}).get(field_id, f"Field {field_id}")
             flags.append({
                 "substep": substep,
@@ -121,6 +125,22 @@ def _write_fields(
                 "resolved": True,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
+
+        if bad_ids:
+            bad_labels = [f"{fid} ({(labels or {}).get(fid, 'unknown')})" for fid in sorted(bad_ids)]
+            flags.append({
+                "substep": substep,
+                "title": "Field Write Skipped — Invalid Field IDs",
+                "severity": "warning",
+                "details": (
+                    f"{len(bad_ids)} field ID(s) were rejected by Encompass as invalid and skipped: "
+                    f"{', '.join(bad_labels)}. The remaining {len(written)} field(s) were written successfully."
+                ),
+                "suggestion": "Remove or correct the invalid field IDs from the tool's FIELD_MAP or YAML definition.",
+                "resolved": False,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
     except Exception as exc:
         flags.append({
             "substep": substep,

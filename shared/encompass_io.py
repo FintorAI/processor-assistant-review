@@ -90,44 +90,77 @@ def read_field(loan_id: str, field_id: str, context: str = "", state: dict = Non
     return result.get(field_id)
 
 
+def _parse_invalid_field_ids(error_body: str) -> set:
+    """Parse Encompass 400 error body and return the set of invalid field ID strings.
+
+    Error format example:
+        {"errors": [{"summary": "contract[10]", "details": "Invalid field id: '1182'"}]}
+    """
+    import re
+    return set(re.findall(r"Invalid field id: '([^']+)'", error_body))
+
+
 def read_fields(loan_id: str, field_ids: List[str], context: str = "", state: dict = None) -> Dict[str, Any]:
     """Read multiple fields from a loan using EncompassConnect.
-    
-    Uses EncompassConnect.get_field() which handles:
-    - Automatic token refresh on 401 errors
-    - Credential-based re-authentication
-    
+
+    On a 400 "Invalid field id" response, automatically removes the offending
+    IDs and retries once so that a single bad field ID does not wipe out the
+    entire batch. Invalid IDs are logged as warnings.
+
     Args:
         loan_id: Encompass loan GUID
         field_ids: List of field IDs to read
         context: Optional logging context
         state: Optional state dict to determine environment
-        
+
     Returns:
-        Dictionary mapping field_id to value (None if empty)
+        Dictionary mapping field_id to value (None if empty/not found)
     """
     if not field_ids:
         return {}
-    
+
     ctx = f"{context} " if context else ""
-    logger.debug(f"{ctx}Reading {len(field_ids)} fields from loan {loan_id[:8]}...")
-    
-    try:
-        client = get_encompass_client(state=state)
-        result = client.get_field(loan_id, field_ids)
-        
-        # Normalize empty strings to None
+
+    def _normalize(result: dict, ids: list) -> dict:
         normalized = {}
-        for field_id in field_ids:
-            value = result.get(field_id)
-            if value is not None and str(value).strip() != "":
-                normalized[field_id] = value
-            else:
-                normalized[field_id] = None
-        
+        for fid in ids:
+            value = result.get(fid)
+            normalized[fid] = value if (value is not None and str(value).strip() not in ("", "//")) else None
         return normalized
-        
+
+    client = get_encompass_client(state=state)
+
+    try:
+        logger.debug(f"{ctx}Reading {len(field_ids)} fields from loan {loan_id[:8]}...")
+        result = client.get_field(loan_id, field_ids)
+        return _normalize(result, field_ids)
+
     except Exception as e:
+        error_str = str(e)
+
+        # Detect 400 with invalid field IDs — retry without the bad ones
+        if "400" in error_str and "Invalid field id" in error_str:
+            bad_ids = _parse_invalid_field_ids(error_str)
+            valid_ids = [fid for fid in field_ids if fid not in bad_ids]
+            logger.warning(
+                f"{ctx}400 Bad Request — removing {len(bad_ids)} invalid field ID(s): "
+                f"{sorted(bad_ids)}. Retrying with {len(valid_ids)} valid fields."
+            )
+            if not valid_ids:
+                logger.error(f"{ctx}All field IDs were invalid — returning empty result.")
+                return {fid: None for fid in field_ids}
+
+            try:
+                result = client.get_field(loan_id, valid_ids)
+                normalized = _normalize(result, valid_ids)
+                # Fill in None for the removed bad IDs
+                for fid in bad_ids:
+                    normalized[fid] = None
+                return normalized
+            except Exception as e2:
+                logger.error(f"{ctx}Retry also failed: {e2}")
+                raise e2
+
         logger.error(f"{ctx}Error reading fields: {e}")
         raise
 
@@ -159,25 +192,52 @@ def write_field(loan_id: str, field_id: str, value: Any, state: dict = None) -> 
 
 def write_fields(loan_id: str, updates: Dict[str, Any], state: dict = None) -> bool:
     """Write multiple fields to a loan using EncompassConnect.
-    
+
     Uses EncompassConnect.write_fields() which handles:
     - Automatic token refresh on 401 errors
     - Credential-based re-authentication
-    
+
     When dry_run is enabled (via registry), logs what would be written
     and returns True without touching Encompass.
-    
+
     Args:
         loan_id: Encompass loan GUID
         updates: Dictionary mapping field IDs to values
         state: Optional state dict to determine environment
-        
+
     Returns:
         True if successful
     """
+    written, bad_ids = write_fields_resilient(loan_id, updates, state=state)
+    if bad_ids:
+        logger.warning(f"write_fields: skipped {len(bad_ids)} invalid field ID(s): {sorted(bad_ids)}")
+    return True
+
+
+def write_fields_resilient(
+    loan_id: str,
+    updates: Dict[str, Any],
+    state: dict = None,
+) -> "tuple[Dict[str, Any], set]":
+    """Write fields to Encompass, retrying without invalid field IDs on 400 errors.
+
+    On a 400 "Invalid field id" response, automatically removes the offending
+    IDs and retries once so that a single bad field ID does not block valid
+    writes. Invalid IDs are surfaced to the caller so they can be flagged.
+
+    Args:
+        loan_id: Encompass loan GUID
+        updates: Dictionary mapping field IDs to values
+        state: Optional state dict to determine environment
+
+    Returns:
+        Tuple of (actually_written: dict, bad_ids: set).
+        ``actually_written`` contains only the fields that were successfully sent.
+        ``bad_ids`` is the set of field ID strings rejected by the API (empty on success).
+    """
     if not updates:
-        return True
-    
+        return {}, set()
+
     # Check dry_run from registry singleton
     dry_run = False
     try:
@@ -185,21 +245,46 @@ def write_fields(loan_id: str, updates: Dict[str, Any], state: dict = None) -> b
         dry_run = getattr(DEV_MODE, "dry_run", False)
     except Exception:
         pass
-    
+
     if dry_run:
         substep = (state or {}).get("current_substep", "?")
         logger.info(f"[DRY-RUN:{substep}] Would write {len(updates)} fields to {loan_id[:8]}: {updates}")
         _record_writes(updates, state, dry_run=True)
-        return True
-    
+        return dict(updates), set()
+
+    client = get_encompass_client(state=state)
+
     try:
-        client = get_encompass_client(state=state)
-        result = client.write_fields(loan_id, updates)
+        client.write_fields(loan_id, updates)
         logger.info(f"Wrote {len(updates)} fields to loan {loan_id[:8]}")
         _record_writes(updates, state, dry_run=False)
-        return result
-        
+        return dict(updates), set()
+
     except Exception as e:
+        error_str = str(e)
+
+        # Detect 400 with invalid field IDs — retry without the bad ones
+        if "400" in error_str and "Invalid field id" in error_str:
+            bad_ids = _parse_invalid_field_ids(error_str)
+            valid_updates = {fid: val for fid, val in updates.items() if fid not in bad_ids}
+            logger.warning(
+                f"400 Bad Request on write — removing {len(bad_ids)} invalid field ID(s): "
+                f"{sorted(bad_ids)}. Retrying with {len(valid_updates)} valid fields."
+            )
+
+            if not valid_updates:
+                logger.error("All write field IDs were invalid — nothing written.")
+                return {}, bad_ids
+
+            try:
+                client.write_fields(loan_id, valid_updates)
+                logger.info(f"Retry: wrote {len(valid_updates)} fields to loan {loan_id[:8]}")
+                _record_writes(valid_updates, state, dry_run=False)
+                return valid_updates, bad_ids
+            except Exception as e2:
+                logger.error(f"Retry write also failed: {e2}")
+                raise e2
+
         logger.error(f"Error writing fields: {e}")
         raise
 
