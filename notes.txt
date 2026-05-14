@@ -4,6 +4,11 @@ Submission
 Pipeline
 - Ash’s view
 
+{
+  "loan_number": "2604964148",
+  "env": "PROD"
+}
+
 2604964148
 
 Looks like a more elaborate disclosures workflow. Disclosure is more of a presence check, the only document we consistently check is Credit Report for the FACT ACT disclosure form. This new flow checks the same forms but has more verifications and document validations as well as some forms from Docs

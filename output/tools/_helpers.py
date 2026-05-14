@@ -25,6 +25,25 @@ def _doc(state: dict, key: str, default=None):
     return entry.get("value", default) if isinstance(entry, dict) else default
 
 
+def _efolder_present(state: dict, doc_type: str) -> bool:
+    """Return True if a document of doc_type exists in the eFolder (regardless of extraction).
+
+    Checks efolder_documents directly — use this for presence checks instead of
+    _doc() which returns an extracted field value (can be None even if doc exists).
+
+    Usage:
+        if not _efolder_present(state, "1003 URLA"):
+            # flag as missing
+    """
+    entry = state.get("efolder_documents", {}).get(doc_type)
+    if not entry:
+        return False
+    # Guard against empty/stub entries
+    if isinstance(entry, dict):
+        return bool(entry.get("copy_count", 0) or entry.get("attachment_id") or entry.get("extracted_fields"))
+    return bool(entry)
+
+
 def _doc_all(state: dict, key: str) -> list:
     """Get all values for a doc field across multiple document copies.
 
@@ -87,19 +106,28 @@ def _write_fields(
     if not filtered:
         return
 
+    from datetime import datetime, timezone
+
     try:
         write_fields(loan_id, filtered, state=state)
         for field_id, value in filtered.items():
             label = (labels or {}).get(field_id, f"Field {field_id}")
             flags.append({
-                "type": "info",
                 "substep": substep,
-                "field_id": field_id,
-                "message": f"Auto-corrected {label}: set to {value!r}",
+                "title": f"Auto-corrected: {label}",
+                "severity": "info-overwrite",
+                "details": f"Field {field_id} set to {value!r}",
+                "suggestion": "",
+                "resolved": True,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             })
     except Exception as exc:
         flags.append({
-            "type": "warning",
             "substep": substep,
-            "message": f"Field write failed for {list(filtered.keys())}: {exc}",
+            "title": "Field Write Error",
+            "severity": "warning",
+            "details": f"Could not write field(s) {list(filtered.keys())}: {exc}",
+            "suggestion": "Check if the loan is locked or the field ID is correct.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })

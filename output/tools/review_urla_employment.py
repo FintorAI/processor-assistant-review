@@ -43,14 +43,16 @@ def _normalize_name(v: Optional[str]) -> str:
     return re.sub(r"[^a-z0-9 ]", "", v.lower()).strip()
 
 
-def _parse_amount(v: Optional[str]) -> Optional[float]:
-    """Parse dollar string like '$7,500.00' or '7500' to float."""
-    if not v:
+def _parse_amount(v) -> Optional[float]:
+    """Parse dollar amount from string ('$7,500.00'), int, or float to float."""
+    if v is None:
         return None
-    cleaned = re.sub(r"[^0-9.]", "", v)
+    if isinstance(v, (int, float)):
+        return float(v)
     try:
-        return float(cleaned)
-    except ValueError:
+        cleaned = re.sub(r"[^0-9.]", "", str(v))
+        return float(cleaned) if cleaned else None
+    except (ValueError, TypeError):
         return None
 
 

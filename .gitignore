@@ -223,7 +223,6 @@ __marimo__/
 # Langgraph
 .langgraph_api/
 
-# Local
-rns_results/
-scripts/
+# Local — never committed (all local-only files live in local/)
+local/
 
