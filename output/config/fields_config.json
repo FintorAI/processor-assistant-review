@@ -1,12 +1,13 @@
 {
   "los_fields": [
     {
-      "key": "qual_rate",
+      "key": "qualifying_rate",
       "field_id": "1014",
       "field_name": "Qualifying Rate",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_09"
       ]
     },
     {
@@ -261,6 +262,15 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "transmittal_project_type",
+      "field_id": "1553",
+      "field_name": "Project Type (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -913,15 +923,6 @@
       ]
     },
     {
-      "key": "qualifying_rate",
-      "field_id": "799",
-      "field_name": "Qualifying Rate",
-      "category": "loan_info",
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
       "key": "coborrower_marital_status",
       "field_id": "84",
       "field_name": "Co-Borrower Marital Status",
@@ -1464,15 +1465,6 @@
       ]
     },
     {
-      "key": "condo_assessment_status",
-      "field_id": "CX.CONDO.ASSESSMENT.STATUS",
-      "field_name": "Condo Assessment Status",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
       "key": "condo_project_id",
       "field_id": "CX.CONDO.PROJECT.ID",
       "field_name": "Condo Project ID",
@@ -1485,15 +1477,6 @@
       "key": "condo_project_name",
       "field_id": "CX.CONDO.PROJECT.NAME",
       "field_name": "Condo Project Name",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
-      "key": "condo_project_type",
-      "field_id": "CX.CONDO.PROJECT.TYPE",
-      "field_name": "Condo Project Type",
       "category": "property",
       "used_by_steps": [
         "STEP_09"
@@ -2078,30 +2061,12 @@
       ]
     },
     {
-      "key": "aus_engine",
-      "source_documents": [
-        "Underwriting (DU / LP)"
-      ],
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
       "key": "aus_income_raw_relief",
       "source_documents": [
         "Underwriting (DU / LP)"
       ],
       "used_by_steps": [
         "STEP_01"
-      ]
-    },
-    {
-      "key": "aus_recommendation",
-      "source_documents": [
-        "Underwriting (DU / LP)"
-      ],
-      "used_by_steps": [
-        "STEP_09"
       ]
     },
     {
@@ -2872,8 +2837,8 @@
     }
   ],
   "stats": {
-    "total_los_fields": 220,
-    "total_doc_fields": 95,
+    "total_los_fields": 218,
+    "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,
     "categories": [

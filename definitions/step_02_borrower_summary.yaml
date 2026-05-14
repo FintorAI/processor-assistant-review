@@ -302,7 +302,7 @@ substeps:
     field_name: Note Rate
     category: loan_info
     purpose: Presence check; warning if empty
-  - key: qual_rate
+  - key: qualifying_rate
     field_id: '1014'
     field_name: Qualifying Rate
     category: loan_info

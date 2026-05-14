@@ -129,7 +129,7 @@ def review_borrower_summary(
 
     # ── Rates ─────────────────────────────────────────────────────────────
     note_rate                = _los(state, "note_rate")            # field 3
-    qual_rate                = _los(state, "qual_rate")            # field 1014
+    qual_rate                = _los(state, "qualifying_rate")      # field 1014
     undiscounted_rate        = _los(state, "undiscounted_rate")    # field 3293
 
     # ── Payments / Income ────────────────────────────────────────────────

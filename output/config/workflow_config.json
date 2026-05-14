@@ -42,10 +42,10 @@
     }
   },
   "rule_modifier_stats": {
-    "total_modifiers": 4,
+    "total_modifiers": 3,
     "by_field": {
       "state": 1,
-      "loan_type": 3
+      "loan_type": 2
     }
   },
   "phases": {
@@ -102,7 +102,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (220 fields)",
+          "name": "Fetch LOS Fields (218 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -349,17 +349,6 @@
           "name": "Update Transmittal Summary",
           "tools": [
             "update_transmittal_summary"
-          ],
-          "rule_modifiers": [
-            {
-              "condition": {
-                "field": "loan_type",
-                "equals": "Conventional"
-              },
-              "action": "add",
-              "description": "For Conventional/Condo: run Freddie Mac Condo Project Advisor lookup to determine Warrantable / Non-Warrantable / Established / etc.\n",
-              "source": "notes.txt"
-            }
           ]
         }
       }
