@@ -1,0 +1,132 @@
+step:
+  id: STEP_10
+  name: Processor Workflow and Closing
+  phase: FORM_UPDATES
+  description: >
+    Update the Processor Workflow screen and Processor Closing screen.
+    Covers: Conforming/Non-Del Inv. Approval, doc type, signing date,
+    and wire requested date.
+
+substeps:
+- id: '10.1'
+  name: Processor Workflow Update
+  tool: update_processor_workflow
+  description: >
+    Fill out the Processor Workflow screen: set Product Type (derived from loan type),
+    Non-Del Inv. Approval (usually No), and Documentation Type (Full Doc for
+    conventional loans).
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Drives product type mapping (Conventional → Conforming, FHA → FHA, etc.)
+  - key: product_type
+    field_id: CX.PRODUCTTYPE
+    field_name: Product Type
+    category: processor_workflow
+    purpose: Current value — verify and set if blank
+  - key: doc_type_submission
+    field_id: CX.DOCUMENTATIONTYPE
+    field_name: Documentation Type (NON-QM Submission)
+    category: processor_workflow
+    purpose: Set to Full Doc for conventional loans
+  - key: non_del_inv_approval
+    field_id: CX.NONDEL.INV.APPROVAL
+    field_name: Non-Del Inv. Approval
+    category: processor_workflow
+    purpose: Usually No — verify field ID before going live
+  doc_types: []
+  rules:
+  - name: Product Type Derived from Loan Type
+    type: custom
+    logic: >
+      Map loan type → product type: Conventional → Conforming, FHA → FHA,
+      VA → VA, USDA → USDA. Write CX.PRODUCTTYPE if blank or incorrect.
+  - name: Documentation Type Set to Full Doc
+    type: custom
+    logic: >
+      For conventional (Full Doc) loans, set CX.DOCUMENTATIONTYPE = "Full Doc".
+      Non-QM Submission doc type for conventional is Full Doc.
+  - name: Non-Del Inv. Approval
+    type: existence_check
+    logic: Set Non-Del Inv. Approval to No (standard for conforming loans).
+  flags:
+  - title: Product Type Not Set
+    severity: warning
+    condition: CX.PRODUCTTYPE is blank after attempted write
+    suggestion: Manually set Product Type on the Processor Workflow screen
+  - title: Documentation Type Not Set
+    severity: warning
+    condition: CX.DOCUMENTATIONTYPE is blank after attempted write
+    suggestion: Set Documentation Type to Full Doc on Processor Workflow screen
+  - title: Unknown Loan Type — Product Type Not Mapped
+    severity: warning
+    condition: Loan type does not match any known product type mapping
+    suggestion: Manually set Product Type on the Processor Workflow screen
+  field_updates:
+  - field_id: CX.PRODUCTTYPE
+    value: '{derived_product_type}'
+    condition: always
+  - field_id: CX.DOCUMENTATIONTYPE
+    value: Full Doc
+    condition: always
+  - field_id: CX.NONDEL.INV.APPROVAL
+    value: 'No'
+    condition: always
+
+- id: '10.2'
+  name: Processor Closing Update
+  tool: update_processor_closing
+  description: >
+    Fill out the Processor Closing screen. For purchase loans, signing date,
+    wire requested date, and closing date all match — write the closing date
+    value to both CUST50FV (Signing Date) and CX.WIREDATELO (Wire Requested Date).
+  los_fields_read:
+  - key: closing_date
+    field_id: '748'
+    field_name: Closing Date
+    category: closing
+    purpose: Source of truth for signing and wire dates on purchase loans
+  - key: signing_date
+    field_id: CUST50FV
+    field_name: Signing Date
+    category: closing
+    purpose: Set to closing date on purchase loans
+  - key: wire_requested_date
+    field_id: CX.WIREDATELO
+    field_name: Wire Requested Date
+    category: closing
+    purpose: Set to closing date on purchase loans
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Determines date logic (purchase = all three dates match)
+  doc_types: []
+  rules:
+  - name: Purchase Loan Date Alignment
+    type: custom
+    logic: >
+      For purchase loans: Signing Date = Wire Requested Date = Closing Date (field 748).
+      Read closing_date from LOS and write to both CUST50FV and CX.WIREDATELO.
+      Flag if closing_date is blank.
+  flags:
+  - title: Closing Date Not Set
+    severity: warning
+    condition: Closing date (field 748) is blank — cannot set signing or wire dates
+    suggestion: Set the closing date in Encompass before running this step
+  - title: Signing Date Not Set
+    severity: warning
+    condition: Signing date is still blank after write attempt
+    suggestion: Manually set signing date to match closing date on Processor Closing screen
+  field_updates:
+  - field_id: CUST50FV
+    value: '{closing_date}'
+    condition: loan_purpose == Purchase
+  - field_id: CX.WIREDATELO
+    value: '{closing_date}'
+    condition: loan_purpose == Purchase
+
+dev:
+  skip: false

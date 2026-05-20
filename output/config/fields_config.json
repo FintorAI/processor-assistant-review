@@ -1,12 +1,13 @@
 {
   "los_fields": [
     {
-      "key": "qual_rate",
+      "key": "qualifying_rate",
       "field_id": "1014",
       "field_name": "Qualifying Rate",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_09"
       ]
     },
     {
@@ -30,12 +31,12 @@
       ]
     },
     {
-      "key": "borrower_sex",
+      "key": "prior_title_held",
       "field_id": "1069",
-      "field_name": "Borrower Sex",
-      "category": "borrower_info",
+      "field_name": "Declaration 5a(A)(2) \u2014 How Title Was Held (Prior Property)",
+      "category": "declarations",
       "used_by_steps": [
-        "STEP_08"
+        "STEP_06"
       ]
     },
     {
@@ -46,6 +47,15 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03"
+      ]
+    },
+    {
+      "key": "coborr_ownership_3yr",
+      "field_id": "1108",
+      "field_name": "Declaration 5a(A) \u2014 Co-Borrower Ownership Interest Past 3 Years",
+      "category": "declarations",
+      "used_by_steps": [
+        "STEP_06"
       ]
     },
     {
@@ -74,7 +84,8 @@
       "used_by_steps": [
         "STEP_01",
         "STEP_02",
-        "STEP_07"
+        "STEP_07",
+        "STEP_10"
       ]
     },
     {
@@ -236,15 +247,6 @@
       ]
     },
     {
-      "key": "declaration_ownership_3yr",
-      "field_id": "1491",
-      "field_name": "Declaration - Owned Property in Last 3 Years",
-      "category": "declarations",
-      "used_by_steps": [
-        "STEP_06"
-      ]
-    },
-    {
       "key": "property_zip",
       "field_id": "15",
       "field_name": "Property ZIP",
@@ -260,6 +262,15 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "transmittal_project_type",
+      "field_id": "1553",
+      "field_name": "Project Type (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -443,7 +454,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03",
-        "STEP_08"
+        "STEP_08",
+        "STEP_10"
       ]
     },
     {
@@ -673,6 +685,15 @@
       ]
     },
     {
+      "key": "declaration_ownership_3yr",
+      "field_id": "403",
+      "field_name": "Declaration 5a(A) \u2014 Ownership Interest Past 3 Years",
+      "category": "declarations",
+      "used_by_steps": [
+        "STEP_06"
+      ]
+    },
+    {
       "key": "borrower_est_closing_date",
       "field_id": "4114",
       "field_name": "Borrower Est Closing Date",
@@ -706,6 +727,15 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_sex",
+      "field_id": "471",
+      "field_name": "Borrower Sex",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -801,6 +831,15 @@
       ]
     },
     {
+      "key": "seller_1_name",
+      "field_id": "638",
+      "field_name": "Seller 1 Name",
+      "category": "transaction",
+      "used_by_steps": [
+        "STEP_01"
+      ]
+    },
+    {
       "key": "borrower_ssn",
       "field_id": "65",
       "field_name": "Borrower SSN",
@@ -866,6 +905,15 @@
       ]
     },
     {
+      "key": "closing_date",
+      "field_id": "748",
+      "field_name": "Closing Date",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_10"
+      ]
+    },
+    {
       "key": "lock_date",
       "field_id": "761",
       "field_name": "Lock Date",
@@ -890,15 +938,6 @@
       "category": "closing",
       "used_by_steps": [
         "STEP_02"
-      ]
-    },
-    {
-      "key": "qualifying_rate",
-      "field_id": "799",
-      "field_name": "Qualifying Rate",
-      "category": "loan_info",
-      "used_by_steps": [
-        "STEP_09"
       ]
     },
     {
@@ -954,6 +993,15 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "prior_property_type",
+      "field_id": "981",
+      "field_name": "Declaration 5a(A)(1) \u2014 Type of Prior Property",
+      "category": "declarations",
+      "used_by_steps": [
+        "STEP_06"
       ]
     },
     {
@@ -1398,6 +1446,15 @@
       ]
     },
     {
+      "key": "signing_date",
+      "field_id": "CUST50FV",
+      "field_name": "Signing Date",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_10"
+      ]
+    },
+    {
       "key": "ami_eligibility",
       "field_id": "CX.AMI.ELIGIBILITY",
       "field_name": "AMI / Affordable Loan Eligibility",
@@ -1435,15 +1492,6 @@
       ]
     },
     {
-      "key": "condo_assessment_status",
-      "field_id": "CX.CONDO.ASSESSMENT.STATUS",
-      "field_name": "Condo Assessment Status",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
       "key": "condo_project_id",
       "field_id": "CX.CONDO.PROJECT.ID",
       "field_name": "Condo Project ID",
@@ -1462,21 +1510,12 @@
       ]
     },
     {
-      "key": "condo_project_type",
-      "field_id": "CX.CONDO.PROJECT.TYPE",
-      "field_name": "Condo Project Type",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
-      "key": "doc_type",
-      "field_id": "CX.DOC.TYPE",
-      "field_name": "Doc Type (Wet / E-sign / Hybrid)",
+      "key": "doc_type_submission",
+      "field_id": "CX.DOCUMENTATIONTYPE",
+      "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_15"
+        "STEP_10"
       ]
     },
     {
@@ -1486,15 +1525,6 @@
       "category": "grant_program",
       "used_by_steps": [
         "STEP_06"
-      ]
-    },
-    {
-      "key": "investor_type",
-      "field_id": "CX.INVESTOR.TYPE",
-      "field_name": "Investor Type (Conforming / Non-Del)",
-      "category": "processor_workflow",
-      "used_by_steps": [
-        "STEP_15"
       ]
     },
     {
@@ -1534,15 +1564,6 @@
       ]
     },
     {
-      "key": "current_milestone",
-      "field_id": "CX.MILESTONE.CURRENT",
-      "field_name": "Current Milestone",
-      "category": "loan_info",
-      "used_by_steps": [
-        "STEP_17"
-      ]
-    },
-    {
       "key": "nbs_flag",
       "field_id": "CX.NBSFLAG",
       "field_name": "Non-Borrowing Spouse Flag",
@@ -1561,30 +1582,30 @@
       ]
     },
     {
-      "key": "processor_name",
-      "field_id": "CX.PROCESSOR.NAME",
-      "field_name": "Processor Name",
-      "category": "loan_info",
+      "key": "non_del_inv_approval",
+      "field_id": "CX.NONDEL.INV.APPROVAL",
+      "field_name": "Non-Del Inv. Approval",
+      "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_17"
+        "STEP_10"
       ]
     },
     {
-      "key": "signing_date",
-      "field_id": "CX.SIGNING.DATE",
-      "field_name": "Signing Date",
-      "category": "closing",
+      "key": "product_type",
+      "field_id": "CX.PRODUCTTYPE",
+      "field_name": "Product Type",
+      "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_15"
+        "STEP_10"
       ]
     },
     {
       "key": "wire_requested_date",
-      "field_id": "CX.WIRE.REQUESTED.DATE",
+      "field_id": "CX.WIREDATELO",
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_15"
+        "STEP_10"
       ]
     },
     {
@@ -2067,30 +2088,12 @@
       ]
     },
     {
-      "key": "aus_engine",
-      "source_documents": [
-        "Underwriting (DU / LP)"
-      ],
-      "used_by_steps": [
-        "STEP_09"
-      ]
-    },
-    {
       "key": "aus_income_raw_relief",
       "source_documents": [
         "Underwriting (DU / LP)"
       ],
       "used_by_steps": [
         "STEP_01"
-      ]
-    },
-    {
-      "key": "aus_recommendation",
-      "source_documents": [
-        "Underwriting (DU / LP)"
-      ],
-      "used_by_steps": [
-        "STEP_09"
       ]
     },
     {
@@ -2861,10 +2864,10 @@
     }
   ],
   "stats": {
-    "total_los_fields": 219,
-    "total_doc_fields": 95,
+    "total_los_fields": 221,
+    "total_doc_fields": 93,
     "total_document_types": 29,
-    "total_steps": 11,
+    "total_steps": 10,
     "categories": [
       "assets",
       "borrower_info",
@@ -2880,7 +2883,8 @@
       "loan_info",
       "processor_workflow",
       "property",
-      "title"
+      "title",
+      "transaction"
     ],
     "document_types": [
       "1003 URLA",

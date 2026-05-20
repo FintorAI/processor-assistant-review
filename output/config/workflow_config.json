@@ -42,10 +42,10 @@
     }
   },
   "rule_modifier_stats": {
-    "total_modifiers": 4,
+    "total_modifiers": 3,
     "by_field": {
       "state": 1,
-      "loan_type": 3
+      "loan_type": 2
     }
   },
   "phases": {
@@ -65,13 +65,8 @@
     "FORM_UPDATES": [
       "STEP_07",
       "STEP_08",
-      "STEP_09"
-    ],
-    "PROCESSOR_UPDATE": [
-      "STEP_15"
-    ],
-    "SUBMISSION": [
-      "STEP_17"
+      "STEP_09",
+      "STEP_10"
     ]
   },
   "step_order": [
@@ -85,8 +80,7 @@
     "STEP_07",
     "STEP_08",
     "STEP_09",
-    "STEP_15",
-    "STEP_17"
+    "STEP_10"
   ],
   "steps": {
     "STEP_00": {
@@ -108,7 +102,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (219 fields)",
+          "name": "Fetch LOS Fields (221 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -138,6 +132,7 @@
       "phase": "INTAKE",
       "plan_file": "pre_checks.md",
       "tools": [
+        "review_file_contacts",
         "run_pre_checks"
       ],
       "substeps": {
@@ -156,6 +151,12 @@
               "description": "Maryland requires the \"Notice Regarding Right for Assumption Under Certain Circumstances\" disclosure. Flag if missing.\n",
               "source": "notes.txt:14"
             }
+          ]
+        },
+        "2": {
+          "name": "File Contacts Check",
+          "tools": [
+            "review_file_contacts"
           ]
         }
       }
@@ -348,24 +349,13 @@
           "name": "Update Transmittal Summary",
           "tools": [
             "update_transmittal_summary"
-          ],
-          "rule_modifiers": [
-            {
-              "condition": {
-                "field": "loan_type",
-                "equals": "Conventional"
-              },
-              "action": "add",
-              "description": "For Conventional/Condo: run Freddie Mac Condo Project Advisor lookup to determine Warrantable / Non-Warrantable / Established / etc.\n",
-              "source": "notes.txt"
-            }
           ]
         }
       }
     },
-    "STEP_15": {
+    "STEP_10": {
       "name": "Processor Workflow and Closing",
-      "phase": "PROCESSOR_UPDATE",
+      "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
         "update_processor_closing",
@@ -382,22 +372,6 @@
           "name": "Processor Closing Update",
           "tools": [
             "update_processor_closing"
-          ]
-        }
-      }
-    },
-    "STEP_17": {
-      "name": "Submission",
-      "phase": "SUBMISSION",
-      "plan_file": "submission.md",
-      "tools": [
-        "update_milestone"
-      ],
-      "substeps": {
-        "3": {
-          "name": "Milestone Change and Processor Name",
-          "tools": [
-            "update_milestone"
           ]
         }
       }

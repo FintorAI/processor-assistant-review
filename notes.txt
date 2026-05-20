@@ -4,6 +4,11 @@ Submission
 Pipeline
 - Ash’s view
 
+{
+  "loan_number": "2604964148",
+  "env": "PROD"
+}
+
 2604964148
 
 Looks like a more elaborate disclosures workflow. Disclosure is more of a presence check, the only document we consistently check is Credit Report for the FACT ACT disclosure form. This new flow checks the same forms but has more verifications and document validations as well as some forms from Docs
@@ -89,21 +94,26 @@ PROCESSOR FEEDBACK NOTES
           of `update_1003_urla(part="part1")`. The two pages display the same Encompass
           fields — only one tool writes them.
     - 1003 URLA Page 2
-        - VOE, check in docs: 
-            - Name of employer
-            - Original hire date
-            - Jan 15, 2025
-            - Compensation Base Pay Rate, check if matches in Gross Monthly Income > Base / Month
-            - Cross reference employer address in Google - just types it out, verify if matches, change as needed
-            - Job Title is N/A
-            - If curr employment < 2 years, check history
-                - Overlap is better than a gap
-                - If FHA and gap < 6 mos., then write explanation
-                - Else if gap > 6 mos., look at 2 year history before gap
-                - Look at income before gap
-                - Were they in the same line of work? A lot of factors
-            - Some auto-populated from Blend, can pull from Xactus
-            - Check how to do?
+        - VOE — fetched via Encompass v3 API:
+            GET /encompass/v3/loans/{loanId}/applications/{applicationId}/borrower/employment
+            - Returns all records (current + prior) in one array; distinguished by currentEmploymentIndicator
+            - If collection does not exist → flag "VOE Form Not Populated in Encompass" (blocking)
+            - Checks run per record:
+                - employerName: cross-referenced against VOE doc (current_employer_name / previous_employer_name)
+                - employmentStartDate (date hired): cross-referenced against VOE doc
+                - basePayAmount (monthly base pay): cross-referenced against VOE doc; diff > $1 → flag
+                - positionDescription: cross-referenced against VOE doc
+                - phoneNumber: presence check
+                - printAttachmentIndicator: must be True for current employer
+                - endDate: must be empty for current, must be populated for prior
+            - If current employment < 2 years (timeOnJobTermYears/Months < 24 total):
+                - No prior entry → flag "Employment History Gap — No Prior Employer"
+                - Gap (prior endDate → current startDate) > 30 days:
+                    - Gap < 6 months and FHA → flag "FHA Employment Gap — Explanation Required"
+                    - Gap ≥ 6 months → flag "Employment Gap > 6 Months — Documentation Required"
+                    - Overlap (negative gap) is acceptable — no flag
+            - Co-borrower: separate call to .../coborrower/employment; same checks
+            - Source: Encompass (auto-populated from Blend / Xactus via VOE form)
         - Income from other sources
             - Alimony, dividend stocks, etc.
     - 1003 URLA Part 3
@@ -113,15 +123,23 @@ PROCESSOR FEEDBACK NOTES
                 - Stock account, different from retirement account
                 - Renamed too to Edward Jones x(account number) - (date)
             - Bank statements
-                - Auto-populated from Blend
-                - PNC, account number, date
-                - 60-day history of transactions
-                - Current date = 04/14/2026, renamed document
-                - 2 months if conventional, 1 month if FHA
-                    - If not, make note to request
-                - ZEL? UW wants letter to explain what the ZELs are for, doesn’t have to be in detail
-                - Klarna, Firm
-                - Look out for green deposits too
+                - Auto-populated from Blend (selectionMode=All — captures all attached copies)
+                - Extracted fields: institution_name, account_holder_name, account_type,
+                  bank_account_number, statement_period_start/end, beginning/ending_balance,
+                  average_daily_balance, bank_large_deposits, payroll_deposits,
+                  bank_zel_deposits, total_deposits, total_withdrawals, nsf_count, overdraft_count
+                - Recency check:
+                    - Conventional: statement_period_end must be within 60 days → flag "Bank Statement Stale"
+                    - FHA: statement_period_end must be within 30 days → flag "Bank Statement Stale"
+                    - If not present, flag and request updated statements
+                - ZEL / Zelle / Klarna / Firm deposits → flag "ZEL/Zelle Deposit Requires Explanation"
+                    - UW wants LOE, doesn't need to be detailed
+                - Large / green deposits → flag "Large / Green Deposit Requires Sourcing"
+                    - Flagged when bank_large_deposits field is populated (extractor-identified)
+                - Cross-referenced against Encompass VOD (fetch_vod_data → state["vod_data"]):
+                    - Balance discrepancy (diff > $1) → flag "Bank Statement — Balance Discrepancy vs VOD"
+                    - Account not in VOD → flag "Bank Statement — Account Not Found in VOD"
+                    - Account type mismatch → flag "Bank Statement — Account Type Mismatch vs VOD"
         - 2a.
             - Click show all VOD
                 - PNC
@@ -139,14 +157,34 @@ PROCESSOR FEEDBACK NOTES
                 - Email agent to get copy of check
             - 2c.
                 - VOL (Liabilities and Debts)
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vols
+                  - Fields: holderName, liabilityType, owner, monthlyPaymentAmount,
+                    unpaidBalanceAmount, creditLimit, payoffIncludedIndicator,
+                    excludedFromTotalMonthlyPaymentIndicator
+                - IMPLEMENTED in review_urla_liabilities.py (FACTORY-LOCK: true)
                 - Exclude Mon Pay and To be Paid Off
-                    - Column 1: If Y, why was it excluded? Was it already paid off?
-                    - Column 2: If Y, need to request most recent credit card statement (JPMCB card)
-                    - Usually for cash-out refis?
+                    - Column 1 (excludedFromTotalMonthlyPaymentIndicator = Y):
+                        Flag: "Excluded Liability — Explanation Required: {creditor}" (warning)
+                        If Y, why was it excluded? Was it already paid off?
+                    - Column 2 (payoffIncludedIndicator = Y):
+                        Flag: "Payoff Statement Required: {creditor}" (warning)
+                        Request most recent statement for that creditor
+                    - Usually for cash-out refis
+                    - If VOL collection not created → blocking flag
             - 2d.
-                - Marked no so nothing
+                - Other Liabilities (alimony, job-related expenses, etc.)
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherLiabilities
+                - IMPLEMENTED in review_urla_liabilities.py (same tool as 2c)
+                - If any rows exist → info flag "Section 2d — Other Liabilities Present"
+                - If none → no flag (usual case: marked no)
             - Section 3
                 - If borrower owns property, mortgage statement, insurance deck page. HOA statement, tax bill; else move on
+                - API: GET /encompass/v3/loans/{loanId}/applications/{applicationId}/reoProperties
+                  - Fields: streetAddress, city, dispositionStatusType, owner
+                - IMPLEMENTED in review_urla_reo.py (FACTORY-LOCK: true)
+                - If any REO rows exist → info flag "Section 3 — REO Properties Present"
+                  listing each property + suggestion to verify docs in eFolder
+                - If none → no flag
         - 1003 URLA Part 4
             - Usually auto-populated
             - 4b. 
@@ -165,14 +203,15 @@ PROCESSOR FEEDBACK NOTES
                 - Considered as low-income borrower
                 - 2500, don’t have to do anything
                 - Gift of Cash
-                    - If Gift, send gift to borrower/ send details of gift
+                    - If Gift, send gift letter to borrower/ send details of gift for it to be signed by the borrower and the person that gifted it to them
             - 5. Declarations
                 - A. 2nd checkbox is No but should be Yes
                 - Because this borrower has been renting for 10 months, but owned  a property 3 years ago
                 - Primary, sole owner because no co-borrower
                 - If any are yes, then check
             - Ethnicity
-                - Validate with Driver’s License
+                - Validate with Drive3r’s License
+    - 1003 URLA Lender
             - Validate Attachment Type and Property Type with listing on Google
             - Estate will be held in Fee Simple
             - Manner in Which title will be held: Sole Ownership
@@ -347,3 +386,6 @@ Notes:
     - What is the logic in this? How were they able to say that it was okay/enough?
 - Cover Letter > Submission Notes: how do they know which docs are missing from file?
 - Could the property address verifications just be done via USPS?
+
+Clarifications (last edited May 13 2026):
+1. For cases where there is a mismatch between LOS and the document i.e. EMD is X in the document and Y in Encompass, do we want to write Encompass with X or just flag that they're different? Across all forms

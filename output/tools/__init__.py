@@ -12,6 +12,8 @@ from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build
 
 # STEP_01 / 1.1: Document Presence Check
 from .run_pre_checks import run_pre_checks
+# STEP_01 / 1.2: File Contacts Check
+from .review_file_contacts import review_file_contacts
 # STEP_02 / 2.1: Review Borrower Summary - Origination
 from .review_borrower_summary import review_borrower_summary
 # STEP_03 / 3.1: Review 1003 URLA Page 1
@@ -40,12 +42,10 @@ from .draft_cover_letter import draft_cover_letter
 from .update_borrower_vesting import update_borrower_vesting
 # STEP_09 / 9.1: Update Transmittal Summary
 from .update_transmittal_summary import update_transmittal_summary
-# STEP_15 / 15.1: Processor Workflow Update
+# STEP_10 / 10.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
-# STEP_15 / 15.2: Processor Closing Update
+# STEP_10 / 10.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
-# STEP_17 / 17.3: Milestone Change and Processor Name
-from .update_milestone import update_milestone
 
 def get_all_tools() -> list:
     """Return all tool functions."""
@@ -62,6 +62,7 @@ def get_all_tools() -> list:
         validate_property_address,
     ]
     tools.append(run_pre_checks)
+    tools.append(review_file_contacts)
     tools.append(review_borrower_summary)
     tools.append(review_urla_page1)
     tools.append(review_urla_employment)
@@ -78,7 +79,6 @@ def get_all_tools() -> list:
     tools.append(update_transmittal_summary)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
-    tools.append(update_milestone)
     return tools
 
 
@@ -93,6 +93,7 @@ __all__ = [
     "build_loan_summary",
     "validate_property_address",
     "run_pre_checks",
+    "review_file_contacts",
     "review_borrower_summary",
     "review_urla_page1",
     "review_urla_employment",
@@ -109,5 +110,4 @@ __all__ = [
     "update_transmittal_summary",
     "update_processor_workflow",
     "update_processor_closing",
-    "update_milestone",
 ]

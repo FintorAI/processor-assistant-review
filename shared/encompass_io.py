@@ -90,44 +90,77 @@ def read_field(loan_id: str, field_id: str, context: str = "", state: dict = Non
     return result.get(field_id)
 
 
+def _parse_invalid_field_ids(error_body: str) -> set:
+    """Parse Encompass 400 error body and return the set of invalid field ID strings.
+
+    Error format example:
+        {"errors": [{"summary": "contract[10]", "details": "Invalid field id: '1182'"}]}
+    """
+    import re
+    return set(re.findall(r"Invalid field id: '([^']+)'", error_body))
+
+
 def read_fields(loan_id: str, field_ids: List[str], context: str = "", state: dict = None) -> Dict[str, Any]:
     """Read multiple fields from a loan using EncompassConnect.
-    
-    Uses EncompassConnect.get_field() which handles:
-    - Automatic token refresh on 401 errors
-    - Credential-based re-authentication
-    
+
+    On a 400 "Invalid field id" response, automatically removes the offending
+    IDs and retries once so that a single bad field ID does not wipe out the
+    entire batch. Invalid IDs are logged as warnings.
+
     Args:
         loan_id: Encompass loan GUID
         field_ids: List of field IDs to read
         context: Optional logging context
         state: Optional state dict to determine environment
-        
+
     Returns:
-        Dictionary mapping field_id to value (None if empty)
+        Dictionary mapping field_id to value (None if empty/not found)
     """
     if not field_ids:
         return {}
-    
+
     ctx = f"{context} " if context else ""
-    logger.debug(f"{ctx}Reading {len(field_ids)} fields from loan {loan_id[:8]}...")
-    
-    try:
-        client = get_encompass_client(state=state)
-        result = client.get_field(loan_id, field_ids)
-        
-        # Normalize empty strings to None
+
+    def _normalize(result: dict, ids: list) -> dict:
         normalized = {}
-        for field_id in field_ids:
-            value = result.get(field_id)
-            if value is not None and str(value).strip() != "":
-                normalized[field_id] = value
-            else:
-                normalized[field_id] = None
-        
+        for fid in ids:
+            value = result.get(fid)
+            normalized[fid] = value if (value is not None and str(value).strip() not in ("", "//")) else None
         return normalized
-        
+
+    client = get_encompass_client(state=state)
+
+    try:
+        logger.debug(f"{ctx}Reading {len(field_ids)} fields from loan {loan_id[:8]}...")
+        result = client.get_field(loan_id, field_ids)
+        return _normalize(result, field_ids)
+
     except Exception as e:
+        error_str = str(e)
+
+        # Detect 400 with invalid field IDs — retry without the bad ones
+        if "400" in error_str and "Invalid field id" in error_str:
+            bad_ids = _parse_invalid_field_ids(error_str)
+            valid_ids = [fid for fid in field_ids if fid not in bad_ids]
+            logger.warning(
+                f"{ctx}400 Bad Request — removing {len(bad_ids)} invalid field ID(s): "
+                f"{sorted(bad_ids)}. Retrying with {len(valid_ids)} valid fields."
+            )
+            if not valid_ids:
+                logger.error(f"{ctx}All field IDs were invalid — returning empty result.")
+                return {fid: None for fid in field_ids}
+
+            try:
+                result = client.get_field(loan_id, valid_ids)
+                normalized = _normalize(result, valid_ids)
+                # Fill in None for the removed bad IDs
+                for fid in bad_ids:
+                    normalized[fid] = None
+                return normalized
+            except Exception as e2:
+                logger.error(f"{ctx}Retry also failed: {e2}")
+                raise e2
+
         logger.error(f"{ctx}Error reading fields: {e}")
         raise
 
@@ -159,25 +192,52 @@ def write_field(loan_id: str, field_id: str, value: Any, state: dict = None) -> 
 
 def write_fields(loan_id: str, updates: Dict[str, Any], state: dict = None) -> bool:
     """Write multiple fields to a loan using EncompassConnect.
-    
+
     Uses EncompassConnect.write_fields() which handles:
     - Automatic token refresh on 401 errors
     - Credential-based re-authentication
-    
+
     When dry_run is enabled (via registry), logs what would be written
     and returns True without touching Encompass.
-    
+
     Args:
         loan_id: Encompass loan GUID
         updates: Dictionary mapping field IDs to values
         state: Optional state dict to determine environment
-        
+
     Returns:
         True if successful
     """
+    written, bad_ids = write_fields_resilient(loan_id, updates, state=state)
+    if bad_ids:
+        logger.warning(f"write_fields: skipped {len(bad_ids)} invalid field ID(s): {sorted(bad_ids)}")
+    return True
+
+
+def write_fields_resilient(
+    loan_id: str,
+    updates: Dict[str, Any],
+    state: dict = None,
+) -> "tuple[Dict[str, Any], set]":
+    """Write fields to Encompass, retrying without invalid field IDs on 400 errors.
+
+    On a 400 "Invalid field id" response, automatically removes the offending
+    IDs and retries once so that a single bad field ID does not block valid
+    writes. Invalid IDs are surfaced to the caller so they can be flagged.
+
+    Args:
+        loan_id: Encompass loan GUID
+        updates: Dictionary mapping field IDs to values
+        state: Optional state dict to determine environment
+
+    Returns:
+        Tuple of (actually_written: dict, bad_ids: set).
+        ``actually_written`` contains only the fields that were successfully sent.
+        ``bad_ids`` is the set of field ID strings rejected by the API (empty on success).
+    """
     if not updates:
-        return True
-    
+        return {}, set()
+
     # Check dry_run from registry singleton
     dry_run = False
     try:
@@ -185,21 +245,46 @@ def write_fields(loan_id: str, updates: Dict[str, Any], state: dict = None) -> b
         dry_run = getattr(DEV_MODE, "dry_run", False)
     except Exception:
         pass
-    
+
     if dry_run:
         substep = (state or {}).get("current_substep", "?")
         logger.info(f"[DRY-RUN:{substep}] Would write {len(updates)} fields to {loan_id[:8]}: {updates}")
         _record_writes(updates, state, dry_run=True)
-        return True
-    
+        return dict(updates), set()
+
+    client = get_encompass_client(state=state)
+
     try:
-        client = get_encompass_client(state=state)
-        result = client.write_fields(loan_id, updates)
+        client.write_fields(loan_id, updates)
         logger.info(f"Wrote {len(updates)} fields to loan {loan_id[:8]}")
         _record_writes(updates, state, dry_run=False)
-        return result
-        
+        return dict(updates), set()
+
     except Exception as e:
+        error_str = str(e)
+
+        # Detect 400 with invalid field IDs — retry without the bad ones
+        if "400" in error_str and "Invalid field id" in error_str:
+            bad_ids = _parse_invalid_field_ids(error_str)
+            valid_updates = {fid: val for fid, val in updates.items() if fid not in bad_ids}
+            logger.warning(
+                f"400 Bad Request on write — removing {len(bad_ids)} invalid field ID(s): "
+                f"{sorted(bad_ids)}. Retrying with {len(valid_updates)} valid fields."
+            )
+
+            if not valid_updates:
+                logger.error("All write field IDs were invalid — nothing written.")
+                return {}, bad_ids
+
+            try:
+                client.write_fields(loan_id, valid_updates)
+                logger.info(f"Retry: wrote {len(valid_updates)} fields to loan {loan_id[:8]}")
+                _record_writes(valid_updates, state, dry_run=False)
+                return valid_updates, bad_ids
+            except Exception as e2:
+                logger.error(f"Retry write also failed: {e2}")
+                raise e2
+
         logger.error(f"Error writing fields: {e}")
         raise
 
@@ -285,3 +370,411 @@ def get_loan_type(loan_id: str) -> Optional[str]:
     from .constants import FieldIds
     return read_field(loan_id, FieldIds.LOAN_TYPE)
 
+
+def read_employment(
+    loan_id: str,
+    application_id: str = None,
+    applicant_type: str = "borrower",
+    state: dict = None,
+) -> List[Dict[str, Any]]:
+    """Fetch and normalise employment records from the Encompass v3 API.
+
+    Calls:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/{applicantType}/employment
+
+    Normalises each record into a consistent shape aligned with the existing
+    BE01xx/BE02xx field key names used throughout the tools layer::
+
+        {
+          "id":                   str,
+          "current":              bool,   # currentEmploymentIndicator
+          "employer_name":        str,
+          "employer_phone":       str,    # phoneNumber
+          "employer_street":      str,    # urla2020StreetAddress or addressStreetLine1
+          "employer_unit_type":   str,
+          "employer_unit_number": str,
+          "employer_city":        str,    # addressCity
+          "employer_state":       str,    # addressState
+          "employer_zip":         str,    # addressPostalCode
+          "position_title":       str,    # positionDescription
+          "date_hired":           str,    # employmentStartDate
+          "date_terminated":      str,    # endDate
+          "years_in_job":         int,    # timeOnJobTermYears
+          "months_in_job":        int,    # timeOnJobTermMonths
+          "years_in_line_of_work":int,    # timeInLineOfWorkYears
+          "monthly_base_pay":     float,  # basePayAmount
+          "monthly_income":       float,  # monthlyIncomeAmount
+          "self_employed":        bool,   # selfEmployedIndicator
+          "_raw":                 dict,   # original API record
+        }
+
+    Raises:
+        LookupError: if the API returns "collection does not exist"
+            (no employment rows created yet in Encompass).
+
+    Args:
+        loan_id: Encompass loan GUID
+        application_id: Auto-resolved if omitted
+        applicant_type: "borrower" (default) or "coborrower"
+        state: Optional state dict (passed to the HTTP client)
+    """
+    try:
+        from encompass_client import get_employment
+    except ImportError:
+        logger.warning("encompass_client not available — read_employment will fail at runtime")
+        return []
+
+    records = get_employment(
+        loan_id,
+        application_id=application_id,
+        applicant_type=applicant_type,
+        state=state,
+    )
+
+    normalised = []
+    for r in records:
+        street = r.get("urla2020StreetAddress") or r.get("addressStreetLine1") or ""
+        normalised.append({
+            "id":                    r.get("id", ""),
+            "current":               bool(r.get("currentEmploymentIndicator", False)),
+            "employer_name":         (r.get("employerName") or "").strip(),
+            "employer_phone":        (r.get("phoneNumber") or "").strip(),
+            "employer_street":       street.strip(),
+            "employer_unit_type":    (r.get("unitType") or "").strip(),
+            "employer_unit_number":  (r.get("unitNumber") or "").strip(),
+            "employer_city":         (r.get("addressCity") or "").strip(),
+            "employer_state":        (r.get("addressState") or "").strip(),
+            "employer_zip":          (r.get("addressPostalCode") or "").strip(),
+            "position_title":        (r.get("positionDescription") or "").strip(),
+            "date_hired":            (r.get("employmentStartDate") or "").strip(),
+            "date_terminated":       (r.get("endDate") or "").strip(),
+            "years_in_job":          r.get("timeOnJobTermYears"),
+            "months_in_job":         r.get("timeOnJobTermMonths"),
+            "years_in_line_of_work": r.get("timeInLineOfWorkYears"),
+            "monthly_base_pay":      r.get("basePayAmount"),
+            "monthly_income":        r.get("monthlyIncomeAmount"),
+            "self_employed":         bool(r.get("selfEmployedIndicator", False)),
+            "_raw":                  r,
+        })
+
+    logger.info(
+        f"[ENCOMPASS] read_employment: {len(normalised)} {applicant_type} record(s) for loan {loan_id[:8]}"
+    )
+    return normalised
+
+
+def read_other_assets(
+    loan_id: str,
+    application_id: str = None,
+    state: dict = None,
+) -> List[Dict[str, Any]]:
+    """Fetch other assets for a loan from the Encompass v3 API.
+
+    GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherAssets
+
+    Each record shape (confirmed from test loan 2604964148)::
+
+        {
+          "id":               str,
+          "borrowerType":     "Borrower" | "CoBorrower",
+          "assetType":        "EarnestMoney" | "GiftFunds" | "LifeInsurance" | ...,
+          "cashOrMarketValue": float,
+          "altId":            str,
+        }
+
+    Returns empty list if collection does not exist (no rows yet).
+    """
+    try:
+        from encompass_client import get_other_assets
+    except ImportError:
+        logger.warning("encompass_client not available — read_other_assets will fail at runtime")
+        return []
+
+    try:
+        records = get_other_assets(loan_id, application_id=application_id, state=state)
+    except LookupError:
+        logger.info(f"[ENCOMPASS] read_other_assets: collection does not exist for loan {loan_id[:8]}")
+        return []
+
+    logger.info(f"[ENCOMPASS] read_other_assets: {len(records)} record(s) for loan {loan_id[:8]}")
+    return records
+
+
+def read_gifts_grants(
+    loan_id: str,
+    application_id: str = None,
+    state: dict = None,
+) -> List[Dict[str, Any]]:
+    """Fetch and normalise all gifts and grants for a loan from the Encompass v3 API.
+
+    GET /encompass/v3/loans/{loanId}/applications/{applicationId}/giftsGrants
+
+    Each returned item shape (confirmed from test loan 2604964148)::
+
+        {
+          "id":                str,
+          "asset_type":        str,   # "Grant" | "GiftOfCash" | "GiftOfEquity" | ...
+          "source":            str,   # "FederalAgency" | "Relative" | "Employer" | ...
+          "amount":            float,
+          "owner":             str,   # "Borrower" | "CoBorrower" | "Both"
+          "deposited":         bool,  # True if already in borrower account
+        }
+
+    Returns empty list if collection does not exist (no rows yet).
+    """
+    try:
+        from encompass_client import get_gifts_grants
+    except ImportError:
+        logger.warning("encompass_client not available — read_gifts_grants will fail at runtime")
+        return []
+
+    try:
+        records = get_gifts_grants(loan_id, application_id=application_id, state=state)
+    except LookupError:
+        logger.info(f"[ENCOMPASS] read_gifts_grants: collection does not exist for loan {loan_id[:8]}")
+        return []
+
+    normalized = []
+    for r in records:
+        normalized.append({
+            "id":         r.get("id", ""),
+            "asset_type": r.get("assetType", ""),
+            "source":     r.get("source", ""),
+            "amount":     r.get("amount") or 0.0,
+            "owner":      r.get("owner", "Borrower"),
+            "deposited":  r.get("depositedIndicator", False),
+        })
+
+    logger.info(f"[ENCOMPASS] read_gifts_grants: {len(normalized)} record(s) for loan {loan_id[:8]}")
+    return normalized
+
+
+def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch and normalise all VOD entries for a loan from the Encompass v3 API.
+
+    Each element in the returned list represents one **account row** (a single
+    account type / account number) rather than one depository institution.
+    This makes downstream comparison with per-copy bank-statement extractions
+    straightforward.
+
+    Returned item shape::
+
+        {
+          "vod_id":           str,   # Encompass VOD object ID
+          "vod_index":        int,   # 1-based index within the loan
+          "institution_name": str,   # depository name  (e.g. "PNC Bank")
+          "borrower_type":    str,   # "BorrowerOnly" | "CoBorrowerOnly" | ...
+          "account_type":     str,   # "CheckingAccount" | "SavingsAccount" | ...
+          "account_holder":   str,   # name on account
+          "account_number":   str,   # may be masked (e.g. "****2286")
+          "balance":          float, # Cash or market value
+        }
+
+    Args:
+        loan_id: Encompass loan GUID
+        state: Optional state dict (passed to the underlying HTTP client)
+
+    Returns:
+        List of normalised account-row dicts (empty list if no VODs)
+    """
+    try:
+        from encompass_client import get_vods
+    except ImportError:
+        logger.warning("encompass_client not available — read_vods will fail at runtime")
+        return []
+
+    raw_vods = get_vods(loan_id, state=state)
+    rows: List[Dict[str, Any]] = []
+
+    for vod in raw_vods:
+        vod_id    = vod.get("id", "")
+        vod_index = vod.get("vodIndex", 0)
+        institution = (vod.get("depInstitution") or "").strip()
+        borrower_type = vod.get("for", "")
+
+        for acct in vod.get("accountInformation") or []:
+            acct_type   = acct.get("accountType", "")
+            acct_holder = (acct.get("accountInNameOf") or "").strip()
+            acct_num    = (acct.get("accountNumber") or "").strip()
+            try:
+                balance = float(acct.get("cashOrMarketValue") or 0)
+            except (TypeError, ValueError):
+                balance = 0.0
+
+            rows.append({
+                "vod_id":           vod_id,
+                "vod_index":        vod_index,
+                "institution_name": institution,
+                "borrower_type":    borrower_type,
+                "account_type":     acct_type,
+                "account_holder":   acct_holder,
+                "account_number":   acct_num,
+                "balance":          balance,
+            })
+
+    logger.info(f"[ENCOMPASS] read_vods: {len(raw_vods)} VOD object(s) → {len(rows)} account row(s)")
+    return rows
+
+
+def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch all VOL (Verification of Liabilities) records from the Encompass v3 API.
+
+    Each element represents one liability row as returned by:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vols
+
+    Returned item shape::
+
+        {
+          "vol_id":               str,    # Encompass VOL object ID
+          "holder_name":          str,    # creditor / institution name
+          "liability_type":       str,    # e.g. "Revolving", "Installment"
+          "owner":                str,    # "Borrower" | "CoBorrower" | "Both"
+          "account_number":       str,    # may be masked
+          "monthly_payment":      float,  # monthlyPaymentAmount
+          "unpaid_balance":       float,  # unpaidBalanceAmount
+          "credit_limit":         float,  # creditLimit (revolving only)
+          "exclude_monthly_pay":  bool,   # "Exclude Monthly Payment" column
+          "payoff_included":      bool,   # "To Be Paid Off" column
+          "remaining_months":     int,    # remainingTermMonths
+        }
+
+    Raises:
+        LookupError: if the VOL collection does not exist yet in Encompass.
+    """
+    try:
+        from encompass_client import get_vols
+    except ImportError:
+        logger.warning("encompass_client not available — read_vols will fail at runtime")
+        return []
+
+    raw = get_vols(loan_id, state=state)  # may raise LookupError
+    rows: List[Dict[str, Any]] = []
+
+    for vol in raw:
+        try:
+            monthly = float(vol.get("monthlyPaymentAmount") or 0)
+        except (TypeError, ValueError):
+            monthly = 0.0
+        try:
+            balance = float(vol.get("unpaidBalanceAmount") or 0)
+        except (TypeError, ValueError):
+            balance = 0.0
+        try:
+            limit = float(vol.get("creditLimit") or 0)
+        except (TypeError, ValueError):
+            limit = 0.0
+        try:
+            remaining = int(vol.get("remainingTermMonths") or 0)
+        except (TypeError, ValueError):
+            remaining = 0
+
+        rows.append({
+            "vol_id":              vol.get("id", ""),
+            "holder_name":         (vol.get("holderName") or "").strip(),
+            "liability_type":      vol.get("liabilityType", ""),
+            "owner":               vol.get("owner", ""),
+            "account_number":      (vol.get("accountIdentifier") or "").strip(),
+            "monthly_payment":     monthly,
+            "unpaid_balance":      balance,
+            "credit_limit":        limit,
+            "exclude_monthly_pay": bool(vol.get("excludedFromTotalMonthlyPaymentIndicator", False)),
+            "payoff_included":     bool(vol.get("payoffIncludedIndicator", False)),
+            "remaining_months":    remaining,
+        })
+
+    return rows
+
+
+def read_reo_properties(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch REO (Real Estate Owned) properties from the Encompass v3 API (Section 3).
+
+    Uses:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/reoProperties
+
+    Returned item shape::
+
+        {
+          "reo_id":              str,   # Encompass object ID
+          "street_address":      str,
+          "city":                str,
+          "state":               str,
+          "postal_code":         str,
+          "owner":               str,   # "Borrower" | "CoBorrower" | "Both"
+          "disposition_status":  str,   # "Retain" | "Sold" | "PendingSale" | etc.
+        }
+
+    Returns empty list if no REO rows exist or collection not created.
+    """
+    try:
+        from encompass_client import get_reo_properties
+    except ImportError:
+        logger.warning("encompass_client not available — read_reo_properties will fail at runtime")
+        return []
+
+    try:
+        raw = get_reo_properties(loan_id, state=state)
+    except LookupError:
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for item in raw:
+        rows.append({
+            "reo_id":             item.get("id", ""),
+            "street_address":     (item.get("streetAddress") or item.get("urla2020StreetAddress") or "").strip(),
+            "city":               (item.get("city") or "").strip(),
+            "state":              (item.get("state") or item.get("addressState") or "").strip(),
+            "postal_code":        (item.get("postalCode") or item.get("addressPostalCode") or "").strip(),
+            "owner":              item.get("owner", ""),
+            "disposition_status": item.get("dispositionStatusType", ""),
+        })
+
+    return rows
+
+
+def read_other_liabilities(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch Other Liabilities (Section 2d) from the Encompass v3 API.
+
+    Uses:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/otherLiabilities
+
+    Each element represents one other-liability row.
+
+    Returned item shape::
+
+        {
+          "liability_id":     str,    # Encompass object ID
+          "liability_type":   str,    # e.g. "JobRelatedExpenses", "Alimony", etc.
+          "monthly_payment":  float,  # monthlyPaymentAmount
+          "owner":            str,    # "Borrower" | "CoBorrower" | "Both"
+          "description":      str,    # free-text description if present
+        }
+
+    Returns empty list if no rows exist (both empty collection and LookupError).
+    """
+    try:
+        from encompass_client import get_other_liabilities
+    except ImportError:
+        logger.warning("encompass_client not available — read_other_liabilities will fail at runtime")
+        return []
+
+    try:
+        raw = get_other_liabilities(loan_id, state=state)
+    except LookupError:
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for item in raw:
+        try:
+            monthly = float(item.get("monthlyPaymentAmount") or 0)
+        except (TypeError, ValueError):
+            monthly = 0.0
+
+        rows.append({
+            "liability_id":    item.get("id", ""),
+            "liability_type":  item.get("liabilityType", ""),
+            "monthly_payment": monthly,
+            "owner":           item.get("owner", ""),
+            "description":     (item.get("description") or item.get("holderName") or "").strip(),
+        })
+
+    return rows

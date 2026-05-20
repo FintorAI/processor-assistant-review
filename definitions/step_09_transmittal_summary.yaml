@@ -12,93 +12,72 @@ substeps:
   name: Update Transmittal Summary
   tool: update_transmittal_summary
   description: >
-    Populate the 1008 Transmittal Summary: project type, project ID, project name,
-    qualifying rate. If condo, run Freddie Mac Condo Project Advisor lookup and
-    populate project type (Warrantable / Non-Warrantable / Established).
-    Verify note rate == qualifying rate.
+    Review the 1008 Transmittal Summary. Checks this agent can do now:
+      1. Rate check — compare Note Rate (field 3) vs Qualifying Rate (field 1014).
+         Flag warning if they differ (fixed-rate loans: they should match).
+      2. Project Type info — read field 1553 and flag info showing current value.
+    Condo-specific fields (Project Name, CPM Project ID#) are populated by the
+    computer-use agent after Freddie Mac Condo Project Advisor browser lookup.
+    See ARCHITECTURE.md "Transmittal Summary — Condo Split" for details.
   los_fields_read:
-  - key: property_type
-    field_id: '1041'
-    field_name: Property Type
-    category: property
-    purpose: Condo triggers Condo Project Advisor lookup
-  - key: condo_project_type
-    field_id: CX.CONDO.PROJECT.TYPE
-    field_name: Condo Project Type
-    category: property
-    purpose: Warrantable / Non-Warrantable / Established
-  - key: condo_project_name
-    field_id: CX.CONDO.PROJECT.NAME
-    field_name: Condo Project Name
-    category: property
-    purpose: From Condo Project Advisor
-  - key: condo_project_id
-    field_id: CX.CONDO.PROJECT.ID
-    field_name: Condo Project ID
-    category: property
-    purpose: From Condo Project Advisor
   - key: note_rate
     field_id: '3'
     field_name: Note Rate
     category: loan_info
-    purpose: Must equal qualifying rate
+    purpose: Must equal qualifying rate for fixed-rate loans
   - key: qualifying_rate
-    field_id: '799'
-    field_name: Qualifying Rate
+    field_id: '1014'
+    field_name: Qualifying Rate (Transmittal Summary)
     category: loan_info
-    purpose: Must equal note rate (unless ARM)
-  - key: condo_assessment_status
-    field_id: CX.CONDO.ASSESSMENT.STATUS
-    field_name: Condo Assessment Status
+    purpose: Confirmed from Encompass Transmittal Summary screen (field 1014)
+  - key: transmittal_project_type
+    field_id: '1553'
+    field_name: Project Type (Transmittal Summary)
     category: property
-    purpose: Complete vs. Incomplete result from Freddie Mac CPA — Incomplete triggers vendor condo doc order
-  doc_types:
-  - document_type: Underwriting (DU / LP)
-    all_copies: false
-    fields:
-    - key: aus_recommendation
-      purpose: AUS decision (e.g. Approve/Eligible, Accept/Eligible, Refer) — surfaced to processor
-    - key: aus_engine
-      purpose: DU (Fannie/Conventional) or LP (Freddie) — used to confirm correct AUS was run
+    purpose: Read and surface for info — e.g. Established Project, New Project
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: If Condo/PUD, raise pending flag for CUA condo advisor substep
+  - key: condo_project_name
+    field_id: CX.CONDO.PROJECT.NAME
+    field_name: Condo Project Name
+    category: property
+    purpose: Written by CUA after Freddie Mac CPA lookup — read to check if already populated
+  - key: condo_project_id
+    field_id: CX.CONDO.PROJECT.ID
+    field_name: Condo Project ID
+    category: property
+    purpose: Written by CUA after Freddie Mac CPA lookup — read to check if already populated
+  doc_types: []
   rules:
   - name: Note Rate Equals Qualifying Rate
     type: field_comparison
-    logic: Note rate must match the qualifying rate on the Transmittal Summary.
+    logic: >
+      Compare field 3 (Note Rate) vs field 1014 (Qualifying Rate on Transmittal Summary).
+      For fixed-rate loans they must match. Flag warning if they differ.
     check: note_rate == qualifying_rate
+  - name: Condo Project Fields Pending CUA
+    type: custom
+    logic: >
+      If property_type contains Condo or PUD and condo_project_name/id are blank,
+      raise an info flag indicating condo fields await the computer-use agent
+      (Freddie Mac Condo Project Advisor browser lookup).
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning
-    condition: Note rate doesn't match qualifying rate on Transmittal Summary
+    condition: Note rate (field 3) doesn't match qualifying rate (field 1014)
     suggestion: Reconcile rates — qualifying rate should equal note rate for fixed-rate loans
-  - title: Condo Project Fields Not Populated
-    severity: warning
-    condition: Condo property but project type/name/ID not populated
-    suggestion: Run Freddie Mac Condo Project Advisor to populate project details
-  - title: Condo Assessment Incomplete
-    severity: warning
-    condition: Freddie Mac CPA returned Incomplete assessment status
-    suggestion: Order condo docs from vendor (condoanalytics or homewisedocs) — Step 10 will handle
+  - title: Project Type
+    severity: info
+    condition: Always raised — shows current value of field 1553 for processor awareness
+    suggestion: Verify project type is correct for this property
+  - title: Condo Project Fields Pending — CUA Required
+    severity: info
+    condition: Condo/PUD property and project name/ID not yet populated
+    suggestion: Computer-use agent will run Freddie Mac Condo Project Advisor to populate project name and ID
   field_updates: []
-  rule_modifiers:
-  - condition:
-      field: loan_type
-      equals: Conventional
-    action: add
-    description: >
-      For Conventional/Condo: run Freddie Mac Condo Project Advisor lookup
-      to determine Warrantable / Non-Warrantable / Established / etc.
-    source: notes.txt
-    rules:
-    - name: Condo Project Advisor Lookup
-      type: custom
-      logic: >
-        Run Freddie Mac Condo Project Advisor (FMCPA) for this property.
-        Return project type, project name, and project ID.
-    flags:
-    - title: Condo Project Advisor Not Run
-      severity: warning
-      condition: Condo property without FMCPA result
-      suggestion: Run Freddie Mac Condo Project Advisor lookup
 
 dev:
   skip: false

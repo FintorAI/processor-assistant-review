@@ -141,6 +141,7 @@ class ProcessorAgentState(AgentState):
     los_fields: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
     doc_fields: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
     loan_summary: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
+    vod_data: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
 
     # ── Issues and tracking ──
     flags: Annotated[NotRequired[list[dict]], OmitFromInput, dedupe_flags]

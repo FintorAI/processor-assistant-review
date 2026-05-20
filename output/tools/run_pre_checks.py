@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc, _efolder_present, _profile
 
 logger = logging.getLogger(__name__)
 
@@ -74,25 +74,30 @@ def run_pre_checks(
     property_state = _los(state, "property_state") or _profile(state, "state") or ""
 
     # ── Doc fields ──
-    urla_signed          = _doc(state, "urla_signed")
-    bca_present          = _doc(state, "bca_present")
+    # Presence: use _efolder_present (checks efolder_documents directly, not extracted value)
+    # so a doc is only "missing" if it's truly absent from the eFolder — not if a field
+    # inside it couldn't be extracted (e.g. urla_signed = None despite doc existing).
+    urla_present         = _efolder_present(state, "1003 URLA")
+    urla_signed          = _doc(state, "urla_signed")   # True/False/None — separate from presence
+    bca_present          = _efolder_present(state, "Borrower's Certification & Authorization")
     aus_run_date         = _doc(state, "aus_run_date")
-    aus_collateral_relief = _doc(state, "aus_collateral_relief")
-    aus_income_raw_relief = _doc(state, "aus_income_raw_relief")
-    voe_present          = _doc(state, "voe_present")
-    paystubs_present     = _doc(state, "paystubs_present")
-    assets_present       = _doc(state, "assets_present")
+    aus_collateral_relief = _doc(state, "collateral_rw_relief")
+    aus_income_raw_relief = _doc(state, "income_rw_relief")
+    voe_present          = _efolder_present(state, "VOE - non service provider")
+    paystubs_present     = _efolder_present(state, "Paystubs")
+    assets_present       = _efolder_present(state, "Assets")
     bank_statement_months = _doc(state, "bank_statement_months")
-    vod_present          = _doc(state, "vod_present")
-    dl_present           = _doc(state, "dl_present")
+    vod_present          = _efolder_present(state, "VOD")
+    dl_present           = _efolder_present(state, "Driver's License")
     dl_expiry            = _doc(state, "dl_expiry")
-    ess_present          = _doc(state, "ess_present")
-    credit_report_present = _doc(state, "credit_report_present")
-    fact_act_present     = _doc(state, "fact_act_present")
-    flood_cert_present   = _doc(state, "flood_cert_present")
-    hazard_insurance_present = _doc(state, "hazard_insurance_present")
-    title_report_present = _doc(state, "title_report_present")
-    ldp_present          = _doc(state, "ldp_present")
+    ess_present          = _efolder_present(state, "Estimated Settlement Statement")
+    credit_report_present = _efolder_present(state, "Credit Report")
+    fact_act_present     = _doc(state, "fact_act_present")   # field inside credit report
+    flood_cert_present   = _efolder_present(state, "Flood Certificate")
+    hazard_insurance_present = _efolder_present(state, "Evidence of Hazard Insurance") or \
+                               _efolder_present(state, "Evidence of Insurance")
+    title_report_present = _efolder_present(state, "Title Report")
+    ldp_present          = _efolder_present(state, "LDP")
     # MD eDisclosure signed flags (each is True/False/None)
     md_rescind_signed      = _doc(state, "md_rescind_signed")
     md_dual_cap_signed     = _doc(state, "md_dual_cap_signed")
@@ -116,7 +121,7 @@ def run_pre_checks(
     # ── Rule: Required Docs Present ──
     # Critical = downstream steps cannot run without these
     critical_docs = {
-        "1003 URLA": urla_signed,
+        "1003 URLA": urla_present,
         "Borrower's Certification & Authorization": bca_present,
         "Credit Report": credit_report_present,
     }

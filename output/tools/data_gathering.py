@@ -8,6 +8,7 @@ Originally auto-generated from field registry, then extended with:
 The factory will NOT overwrite this file if it already exists.
 To regenerate from scratch, delete this file first, then run `generate --all`.
 """
+# FACTORY-LOCK: true
 
 import json
 import logging
@@ -129,35 +130,36 @@ def _derive_loan_characteristics(state: dict) -> tuple[str, str, int]:
     los = state.get("los_fields", {})
     summary = state.get("loan_summary", {})
 
-    # loan_type
+    # loan_type — prefer loan_summary (post-build_loan_summary), fall back to los_fields
     loan_type = ""
     if summary and summary.get("derived", {}).get("loan_type"):
         loan_type = summary["derived"]["loan_type"]
-    elif los.get("preflight_mortgage_type", {}).get("value"):
-        loan_type = los["preflight_mortgage_type"]["value"]
+    elif los.get("loan_type", {}).get("value"):
+        loan_type = los["loan_type"]["value"]
 
     # loan_purpose
     loan_purpose = ""
     if summary and summary.get("derived", {}).get("loan_purpose"):
         loan_purpose = summary["derived"]["loan_purpose"]
-    elif los.get("preflight_loan_purpose", {}).get("value"):
-        loan_purpose = los["preflight_loan_purpose"]["value"]
+    elif los.get("loan_purpose", {}).get("value"):
+        loan_purpose = los["loan_purpose"]["value"]
 
-    # borrower_count
+    # borrower_count — use coborrower_first_name as a presence signal
     borrower_count = 1
     if summary and summary.get("derived", {}).get("has_coborrower"):
         borrower_count = 2
-    elif los.get("preflight_has_coborrower", {}).get("value"):
-        val = los["preflight_has_coborrower"]["value"]
-        if val and str(val).strip():
-            borrower_count = 2
+    elif los.get("coborrower_first_name", {}).get("value"):
+        borrower_count = 2
 
     return loan_type, loan_purpose, borrower_count
 
 # ── Field mapping: field_id -> {key, field_name, category} ──
 FIELD_MAP = {
     "1041": {"key": "property_type", "field_name": "Property Type", "category": "property"},
-    "1065": {"key": "marital_status", "field_name": "Borrower Marital Status", "category": "borrower_info"},
+    "52": {"key": "borrower_marital_status", "field_name": "Borrower Marital Status", "category": "borrower_info"},
+    "53": {"key": "borrower_dependents_count", "field_name": "Borrower Dependents Count", "category": "borrower_info"},
+    "54": {"key": "borrower_dependent_ages", "field_name": "Borrower Dependent Ages", "category": "borrower_info"},
+    "84": {"key": "coborrower_marital_status", "field_name": "Co-Borrower Marital Status", "category": "borrower_info"},
     "1068": {"key": "employment_start_date", "field_name": "Employment Start Date (Hire Date)", "category": "employment"},
     "1072": {"key": "base_monthly_income", "field_name": "Base Monthly Income", "category": "income"},
     "1073": {"key": "years_in_profession", "field_name": "Years in Profession", "category": "employment"},
@@ -166,14 +168,14 @@ FIELD_MAP = {
     "1168": {"key": "credit_score", "field_name": "Credit Score (Middle)", "category": "credit"},
     "1169": {"key": "employer_name", "field_name": "Employer Name", "category": "employment"},
     "1172": {"key": "loan_type", "field_name": "Mortgage Type", "category": "loan_info"},
-    "1182": {"key": "employer_address", "field_name": "Employer Address", "category": "employment"},
+    # "1182": invalid field ID in Encompass batch API — removed 2026-05-14
     "12": {"key": "property_city", "field_name": "Property City", "category": "property"},
-    "1286": {"key": "job_title", "field_name": "Job Title", "category": "employment"},
+    # "1286": invalid field ID in Encompass batch API — removed 2026-05-14
     "14": {"key": "property_state", "field_name": "Property State", "category": "property"},
     "1402": {"key": "borrower_dob", "field_name": "Borrower Date of Birth", "category": "borrower_info"},
-    "1480": {"key": "borrower_cell_phone", "field_name": "Borrower Cell Phone", "category": "borrower_info"},
-    "1490": {"key": "declaration_primary_residence", "field_name": "Declaration - Primary Residence Intent", "category": "declarations"},
-    "1491": {"key": "declaration_ownership_3yr", "field_name": "Declaration - Owned Property in Last 3 Years", "category": "declarations"},
+    "1480": {"key": "coborrower_cell_phone", "field_name": "Co-Borrower Cell Phone", "category": "borrower_info"},
+    "1490": {"key": "borrower_cell_phone", "field_name": "Borrower Cell Phone", "category": "borrower_info"},
+    # "1491": invalid field ID in Encompass batch API — removed 2026-05-14
     "15": {"key": "property_zip", "field_name": "Property ZIP", "category": "property"},
     "1544": {"key": "borrower_ethnicity", "field_name": "Borrower Ethnicity", "category": "borrower_info"},
     "172": {"key": "other_income_type", "field_name": "Other Income Type", "category": "income"},
@@ -181,7 +183,7 @@ FIELD_MAP = {
     "1811": {"key": "occupancy", "field_name": "Occupancy", "category": "loan_info"},
     "186": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
     "19": {"key": "loan_purpose", "field_name": "Loan Purpose", "category": "loan_info"},
-    "218": {"key": "rental_income", "field_name": "Rental Income", "category": "income"},
+    # "218": invalid field ID in Encompass batch API — removed 2026-05-14
     "231": {"key": "gift_amount", "field_name": "Gift Amount", "category": "assets"},
     "3": {"key": "note_rate", "field_name": "Note Rate", "category": "loan_info"},
     "33": {"key": "estate_held", "field_name": "Estate Will Be Held In", "category": "title"},
@@ -200,8 +202,9 @@ FIELD_MAP = {
     "732": {"key": "total_assets", "field_name": "Total Assets", "category": "assets"},
     "733": {"key": "checking_balance", "field_name": "Checking Account Balance", "category": "assets"},
     "734": {"key": "savings_balance", "field_name": "Savings Account Balance", "category": "assets"},
-    "762": {"key": "lock_expiration", "field_name": "Lock Expiration Date", "category": "lock"},
-    "799": {"key": "qualifying_rate", "field_name": "Qualifying Rate", "category": "loan_info"},
+    "762": {"key": "lock_expires", "field_name": "Lock Expiration Date", "category": "lock"},
+    "1014": {"key": "qualifying_rate", "field_name": "Qualifying Rate (Transmittal Summary)", "category": "loan_info"},
+    "1553": {"key": "transmittal_project_type", "field_name": "Project Type (Transmittal Summary)", "category": "property"},
     "CX.AMI.ELIGIBILITY": {"key": "ami_eligibility", "field_name": "AMI / Affordable Loan Eligibility", "category": "grant_program"},
     "CX.AMI.PERCENTAGE": {"key": "ami_percentage", "field_name": "AMI Percentage", "category": "grant_program"},
     "CX.APPRAISAL.WAIVER": {"key": "appraisal_waiver", "field_name": "Appraisal Waiver", "category": "collateral"},
@@ -224,11 +227,194 @@ FIELD_MAP = {
     "CX.PROCESSOR.NAME": {"key": "processor_name", "field_name": "Processor Name", "category": "loan_info"},
     "CX.REALTOR.EMAIL": {"key": "realtor_email", "field_name": "Realtor Email", "category": "file_contacts"},
     "CX.REQUIRED.FIELDS.STATUS": {"key": "required_fields_status", "field_name": "Encompass Required Fields Status", "category": "submission"},
-    "CX.SIGNING.DATE": {"key": "signing_date", "field_name": "Signing Date", "category": "closing"},
+    "CUST50FV": {"key": "signing_date", "field_name": "Signing Date", "category": "closing"},
     "CX.TITLE.COMPANY.EMAIL": {"key": "title_company_email", "field_name": "Title Company Email", "category": "file_contacts"},
     "CX.TITLE.COMPANY.NAME": {"key": "title_company_name", "field_name": "Title Company Name", "category": "file_contacts"},
     "CX.VESTING.DESCRIPTION": {"key": "vesting_description", "field_name": "Vesting Description", "category": "title"},
-    "CX.WIRE.REQUESTED.DATE": {"key": "wire_requested_date", "field_name": "Wire Requested Date", "category": "closing"},
+    "CX.WIREDATELO": {"key": "wire_requested_date", "field_name": "Wire Requested Date", "category": "closing"},
+    "748": {"key": "closing_date", "field_name": "Closing Date", "category": "closing"},
+    # ── Borrower Contact Info ──
+    "1240": {"key": "borrower_email", "field_name": "Borrower Email", "category": "borrower_info"},
+    "1179": {"key": "coborrower_email", "field_name": "Co-Borrower Email", "category": "borrower_info"},
+    "1715": {"key": "borrower_work_phone", "field_name": "Borrower Business/Work Phone", "category": "borrower_info"},
+    "1716": {"key": "coborrower_work_phone", "field_name": "Co-Borrower Business/Work Phone", "category": "borrower_info"},
+    "98": {"key": "coborrower_home_phone", "field_name": "Co-Borrower Home Phone", "category": "borrower_info"},
+    "4920": {"key": "borrower_accept_sms", "field_name": "Borrower Accept Text/SMS", "category": "borrower_info"},
+    "4935": {"key": "coborrower_accept_sms", "field_name": "Co-Borrower Accept Text/SMS", "category": "borrower_info"},
+    "4003": {"key": "borrower_name_suffix", "field_name": "Borrower Name Suffix", "category": "borrower_info"},
+    "97": {"key": "coborrower_ssn", "field_name": "Co-Borrower SSN", "category": "borrower_info"},
+    "1403": {"key": "coborrower_dob", "field_name": "Co-Borrower Date of Birth", "category": "borrower_info"},
+    "4114": {"key": "borrower_est_closing_date", "field_name": "Borrower Est Closing Date", "category": "borrower_info"},
+    # ── Credit ──
+    "67": {"key": "experian_score", "field_name": "Borrower Experian/FICO Score", "category": "credit"},
+    "60": {"key": "coborrower_experian_score", "field_name": "Co-Borrower Experian/FICO Score", "category": "credit"},
+    "1414": {"key": "equifax_score", "field_name": "Borrower Equifax/Beacon Score", "category": "credit"},
+    "1415": {"key": "coborrower_equifax_score", "field_name": "Co-Borrower Equifax/Beacon Score", "category": "credit"},
+    "1450": {"key": "transunion_score", "field_name": "Borrower TransUnion/Empirica Score", "category": "credit"},
+    "1452": {"key": "coborrower_transunion_score", "field_name": "Co-Borrower TransUnion/Empirica Score", "category": "credit"},
+    "300": {"key": "credit_reference_number", "field_name": "Credit Reference Number", "category": "credit"},
+    "VASUMM.X23": {"key": "credit_score_decision", "field_name": "Credit Score for Decision Making", "category": "credit"},
+    # ── Loan Info (Borrower Summary fields) ──
+    "1264": {"key": "lender", "field_name": "Lender", "category": "loan_info"},
+    "1401": {"key": "loan_program", "field_name": "Loan Program", "category": "loan_info"},
+    "1785": {"key": "closing_cost_program", "field_name": "Closing Cost Program", "category": "loan_info"},
+    "1051": {"key": "mers_min", "field_name": "MERS MIN", "category": "loan_info"},
+    "420": {"key": "lien_position", "field_name": "Lien Position", "category": "loan_info"},
+    "608": {"key": "amort_type", "field_name": "Amortization Type", "category": "loan_info"},
+    "4": {"key": "loan_term_months", "field_name": "Loan Term (Months)", "category": "loan_info"},
+    "325": {"key": "term_due_in_months", "field_name": "Term Due In (Months)", "category": "loan_info"},
+    "3293": {"key": "undiscounted_rate", "field_name": "Undiscounted Rate", "category": "loan_info"},
+    "3941": {"key": "secondary_registration", "field_name": "Secondary Registration", "category": "loan_info"},
+    "432": {"key": "lock_days", "field_name": "Lock Period (# of Days)", "category": "loan_info"},
+    "761": {"key": "lock_date", "field_name": "Lock Date", "category": "loan_info"},
+    "2400": {"key": "rate_is_locked", "field_name": "Rate Is Locked (Y/N)", "category": "loan_info"},
+    "3253": {"key": "last_rate_set_date", "field_name": "Last Rate Set Date", "category": "loan_info"},
+    "3259": {"key": "rate_lock_disclosure_date", "field_name": "Rate Lock Disclosure Date", "category": "loan_info"},
+    # ── Income / Payment ──
+    "5": {"key": "monthly_payment", "field_name": "Monthly Payment (P&I)", "category": "income"},
+    "912": {"key": "total_monthly_payment", "field_name": "Total Monthly Payment", "category": "income"},
+    "736": {"key": "monthly_income", "field_name": "Monthly Income", "category": "income"},
+    # ── Assets / Down Payment ──
+    "136": {"key": "los_purchase_price", "field_name": "Purchase Price (LOS)", "category": "assets"},
+    "1771": {"key": "down_payment_pct", "field_name": "Down Payment %", "category": "assets"},
+    "1335": {"key": "down_payment_amount", "field_name": "Down Payment Amount", "category": "assets"},
+    # ── Property ──
+    "13": {"key": "property_county", "field_name": "Property County", "category": "property"},
+    "1821": {"key": "estimated_value", "field_name": "Estimated Value", "category": "property"},
+    # ── Closing ──
+    "763": {"key": "est_closing_date", "field_name": "Est Closing Date", "category": "closing"},
+    # ── Declarations ──
+    "418": {"key": "declaration_primary_residence", "field_name": "Declaration 5a — Will Occupy as Primary Residence", "category": "declarations"},
+    "403": {"key": "declaration_ownership_3yr", "field_name": "Declaration 5a(A) — Ownership Interest Past 3 Years", "category": "declarations"},
+    "981": {"key": "prior_property_type", "field_name": "Declaration 5a(A)(1) — Type of Prior Property", "category": "declarations"},
+    "1069": {"key": "prior_title_held", "field_name": "Declaration 5a(A)(2) — How Title Was Held (Prior Property)", "category": "declarations"},
+    "1108": {"key": "coborr_ownership_3yr", "field_name": "Declaration 5a(A) — Co-Borrower Ownership Interest Past 3 Years", "category": "declarations"},
+    # Note: field 1491 is invalid in the Encompass batch API — removed 2026-05-19
+    "218": {"key": "rental_income", "field_name": "Rental Income", "category": "income"},
+    # ── Step 01 — File Contacts ──
+    "638": {"key": "seller_1_name", "field_name": "Seller 1 Name", "category": "file_contacts"},
+    # ── Step 02 — Co-Borrower Name ──
+    "4006": {"key": "coborrower_last_name", "field_name": "Co-Borrower Last Name", "category": "borrower_info"},
+    # ── Step 03 — URLA Page 1 ──
+    "16": {"key": "property_units", "field_name": "Subject Property Number of Units", "category": "property"},
+    "85": {"key": "coborr_dependents_count", "field_name": "Co-Borrower Number of Dependents", "category": "borrower_info"},
+    "86": {"key": "coborr_dependents_ages", "field_name": "Co-Borrower Dependents Ages", "category": "borrower_info"},
+    "URLA.X1": {"key": "borrower_citizenship", "field_name": "Borrower Citizenship", "category": "borrower_info"},
+    "URLA.X2": {"key": "coborrower_citizenship", "field_name": "Co-Borrower Citizenship", "category": "borrower_info"},
+    "URLA.X21": {"key": "borr_language_preference", "field_name": "Borrower Language Preference", "category": "borrower_info"},
+    "URLA.X22": {"key": "coborr_language_preference", "field_name": "Co-Borrower Language Preference", "category": "borrower_info"},
+    "URLA.X13": {"key": "borr_military_service", "field_name": "Borrower Military Service Indicator", "category": "borrower_info"},
+    "URLA.X14": {"key": "coborr_military_service", "field_name": "Co-Borrower Military Service Indicator", "category": "borrower_info"},
+    "URLA.X19": {"key": "borr_military_surviving_spouse", "field_name": "Borrower Surviving Spouse", "category": "borrower_info"},
+    "URLA.X20": {"key": "coborr_military_surviving_spouse", "field_name": "Co-Borrower Surviving Spouse", "category": "borrower_info"},
+    "URLA.X123": {"key": "borr_military_active_duty", "field_name": "Borrower Currently Serving on Active Duty", "category": "borrower_info"},
+    "URLA.X124": {"key": "borr_military_retired", "field_name": "Borrower Retired/Discharged/Separated", "category": "borrower_info"},
+    "URLA.X125": {"key": "borr_military_reserve", "field_name": "Borrower Non-Activated Reserve/National Guard", "category": "borrower_info"},
+    "URLA.X126": {"key": "coborr_military_active_duty", "field_name": "Co-Borrower Currently Serving on Active Duty", "category": "borrower_info"},
+    "URLA.X127": {"key": "coborr_military_retired", "field_name": "Co-Borrower Retired/Discharged/Separated", "category": "borrower_info"},
+    "URLA.X128": {"key": "coborr_military_reserve", "field_name": "Co-Borrower Non-Activated Reserve/National Guard", "category": "borrower_info"},
+    "URLA.X265": {"key": "borr_former_addr_does_not_apply", "field_name": "Borrower Former Address Does Not Apply", "category": "borrower_info"},
+    "URLA.X266": {"key": "coborr_former_addr_does_not_apply", "field_name": "Co-Borrower Former Address Does Not Apply", "category": "borrower_info"},
+    "FR0126": {"key": "borr_present_addr", "field_name": "Borrower Present Street Address", "category": "borrower_info"},
+    "FR0106": {"key": "borr_present_city", "field_name": "Borrower Present City", "category": "borrower_info"},
+    "FR0107": {"key": "borr_present_state", "field_name": "Borrower Present State", "category": "borrower_info"},
+    "FR0108": {"key": "borr_present_zip", "field_name": "Borrower Present Zip", "category": "borrower_info"},
+    "FR0112": {"key": "borr_present_yrs", "field_name": "Borrower Years at Current Address", "category": "borrower_info"},
+    "FR0115": {"key": "borr_housing_type", "field_name": "Borrower Current Housing Type", "category": "borrower_info"},
+    "FR0116": {"key": "borr_housing_amount", "field_name": "Borrower Current Housing Expense Amount", "category": "borrower_info"},
+    "FR0124": {"key": "borr_present_mos", "field_name": "Borrower Months at Current Address", "category": "borrower_info"},
+    "FR0212": {"key": "coborr_present_yrs", "field_name": "Co-Borrower Years at Current Address", "category": "borrower_info"},
+    "FR0224": {"key": "coborr_present_mos", "field_name": "Co-Borrower Months at Current Address", "category": "borrower_info"},
+    "FR0326": {"key": "borr_former_addr", "field_name": "Borrower Former Street Address", "category": "borrower_info"},
+    "FR0306": {"key": "borr_former_city", "field_name": "Borrower Former City", "category": "borrower_info"},
+    "FR0307": {"key": "borr_former_state", "field_name": "Borrower Former State", "category": "borrower_info"},
+    "FR0308": {"key": "borr_former_zip", "field_name": "Borrower Former Zip", "category": "borrower_info"},
+    "FR0315": {"key": "borr_former_housing_type", "field_name": "Borrower Former Housing Type", "category": "borrower_info"},
+    "FR0316": {"key": "borr_former_housing_amount", "field_name": "Borrower Former Housing Expense Amount", "category": "borrower_info"},
+    "FR0415": {"key": "coborr_housing_type", "field_name": "Co-Borrower Current Housing Type", "category": "borrower_info"},
+    "FR0416": {"key": "coborr_housing_amount", "field_name": "Co-Borrower Current Housing Expense Amount", "category": "borrower_info"},
+    "FR0426": {"key": "coborr_former_addr", "field_name": "Co-Borrower Former Street Address", "category": "borrower_info"},
+    "FR0406": {"key": "coborr_former_city", "field_name": "Co-Borrower Former City", "category": "borrower_info"},
+    "FR0407": {"key": "coborr_former_state", "field_name": "Co-Borrower Former State", "category": "borrower_info"},
+    "FR0408": {"key": "coborr_former_zip", "field_name": "Co-Borrower Former Zip", "category": "borrower_info"},
+    "1819": {"key": "borr_mailing_same_as_present", "field_name": "Borrower Mailing Address Same as Present", "category": "borrower_info"},
+    "1820": {"key": "coborr_mailing_same_as_present", "field_name": "Co-Borrower Mailing Address Same as Present", "category": "borrower_info"},
+    # ── Step 04 — Employment / Income ──
+    "FE0119": {"key": "borr_base_monthly_income", "field_name": "Borrower — Base Monthly Income (Section 1b)", "category": "income"},
+    "FE0219": {"key": "coborr_base_monthly_income", "field_name": "Co-Borrower — Base Monthly Income (Section 1b)", "category": "income"},
+    "URLA.X201": {"key": "borr_income_does_not_apply", "field_name": "Borrower — Employment Income Does Not Apply", "category": "employment"},
+    "URLA.X202": {"key": "coborr_income_does_not_apply", "field_name": "Co-Borrower — Employment Income Does Not Apply", "category": "employment"},
+    "URLA.X40": {"key": "borr_other_income_dna", "field_name": "Borrower — Other Income Does Not Apply (1e)", "category": "income"},
+    "URLA.X41": {"key": "coborr_other_income_dna", "field_name": "Co-Borrower — Other Income Does Not Apply (1e)", "category": "income"},
+    "BE0102": {"key": "be01_employer_name", "field_name": "Employment 1 — Employer Name", "category": "employment"},
+    "BE0105": {"key": "be01_employer_city", "field_name": "Employment 1 — Employer City", "category": "employment"},
+    "BE0106": {"key": "be01_employer_state", "field_name": "Employment 1 — Employer State", "category": "employment"},
+    "BE0107": {"key": "be01_employer_zip", "field_name": "Employment 1 — Employer Zip", "category": "employment"},
+    "BE0108": {"key": "be01_voe_is_for", "field_name": "Employment 1 — VOE Is For (Borrower / Co-Borrower)", "category": "employment"},
+    "BE0109": {"key": "be01_employment_type", "field_name": "Employment 1 — Type (Current / Prior)", "category": "employment"},
+    "BE0110": {"key": "be01_position_title", "field_name": "Employment 1 — Position / Title", "category": "employment"},
+    "BE0113": {"key": "be01_years_in_job", "field_name": "Employment 1 — Years in This Job", "category": "employment"},
+    "BE0114": {"key": "be01_date_terminated", "field_name": "Employment 1 — Date Terminated", "category": "employment"},
+    "BE0116": {"key": "be01_years_in_line_of_work", "field_name": "Employment 1 — Years in Line of Work", "category": "employment"},
+    "BE0117": {"key": "be01_employer_phone", "field_name": "Employment 1 — Employer Phone", "category": "employment"},
+    "BE0119": {"key": "be01_monthly_base_pay", "field_name": "Employment 1 — Monthly Base Pay", "category": "employment"},
+    "BE0133": {"key": "be01_months_in_job", "field_name": "Employment 1 — Months in This Job", "category": "employment"},
+    "BE0151": {"key": "be01_date_hired", "field_name": "Employment 1 — Date Hired", "category": "employment"},
+    "BE0152": {"key": "be01_months_in_line_of_work", "field_name": "Employment 1 — Months in Line of Work", "category": "employment"},
+    "BE0158": {"key": "be01_employer_unit_type", "field_name": "Employment 1 — Unit Type", "category": "employment"},
+    "BE0159": {"key": "be01_employer_unit_number", "field_name": "Employment 1 — Unit Number", "category": "employment"},
+    "BE0160": {"key": "be01_employer_street", "field_name": "Employment 1 — Employer Street Address", "category": "employment"},
+    "BE0180": {"key": "be01_foreign_address", "field_name": "Employment 1 — Foreign Address", "category": "employment"},
+    "BE0236": {"key": "be01_authorization_printed", "field_name": "Employment 1 — Print Authorization", "category": "employment"},
+    "BE0202": {"key": "be02_employer_name", "field_name": "Employment 2 — Employer Name", "category": "employment"},
+    "BE0205": {"key": "be02_employer_city", "field_name": "Employment 2 — Employer City", "category": "employment"},
+    "BE0206": {"key": "be02_employer_state", "field_name": "Employment 2 — Employer State", "category": "employment"},
+    "BE0207": {"key": "be02_employer_zip", "field_name": "Employment 2 — Employer Zip", "category": "employment"},
+    "BE0208": {"key": "be02_voe_is_for", "field_name": "Employment 2 — VOE Is For", "category": "employment"},
+    "BE0209": {"key": "be02_employment_type", "field_name": "Employment 2 — Type (Current / Prior)", "category": "employment"},
+    "BE0210": {"key": "be02_position_title", "field_name": "Employment 2 — Position / Title", "category": "employment"},
+    "BE0213": {"key": "be02_years_in_job", "field_name": "Employment 2 — Years in This Job", "category": "employment"},
+    "BE0214": {"key": "be02_date_terminated", "field_name": "Employment 2 — Date Terminated", "category": "employment"},
+    "BE0216": {"key": "be02_years_in_line_of_work", "field_name": "Employment 2 — Years in Line of Work", "category": "employment"},
+    "BE0217": {"key": "be02_employer_phone", "field_name": "Employment 2 — Employer Phone", "category": "employment"},
+    "BE0219": {"key": "be02_monthly_base_pay", "field_name": "Employment 2 — Monthly Base Pay", "category": "employment"},
+    "BE0233": {"key": "be02_months_in_job", "field_name": "Employment 2 — Months in This Job", "category": "employment"},
+    "BE0251": {"key": "be02_date_hired", "field_name": "Employment 2 — Date Hired", "category": "employment"},
+    "BE0252": {"key": "be02_months_in_line_of_work", "field_name": "Employment 2 — Months in Line of Work", "category": "employment"},
+    "BE0258": {"key": "be02_employer_unit_type", "field_name": "Employment 2 — Unit Type", "category": "employment"},
+    "BE0259": {"key": "be02_employer_unit_number", "field_name": "Employment 2 — Unit Number", "category": "employment"},
+    "BE0260": {"key": "be02_employer_street", "field_name": "Employment 2 — Employer Street Address", "category": "employment"},
+    "BE0280": {"key": "be02_foreign_address", "field_name": "Employment 2 — Foreign Address", "category": "employment"},
+    "BE0302": {"key": "be03_employer_name", "field_name": "Employment 3 — Employer Name", "category": "employment"},
+    "BE0308": {"key": "be03_voe_is_for", "field_name": "Employment 3 — VOE Is For", "category": "employment"},
+    "BE0309": {"key": "be03_employment_type", "field_name": "Employment 3 — Type (Current / Prior)", "category": "employment"},
+    "BE0310": {"key": "be03_position_title", "field_name": "Employment 3 — Position / Title", "category": "employment"},
+    "BE0313": {"key": "be03_years_in_job", "field_name": "Employment 3 — Years in This Job", "category": "employment"},
+    "BE0314": {"key": "be03_date_terminated", "field_name": "Employment 3 — Date Terminated", "category": "employment"},
+    "BE0319": {"key": "be03_monthly_base_pay", "field_name": "Employment 3 — Monthly Base Pay", "category": "employment"},
+    "BE0333": {"key": "be03_months_in_job", "field_name": "Employment 3 — Months in This Job", "category": "employment"},
+    "BE0351": {"key": "be03_date_hired", "field_name": "Employment 3 — Date Hired", "category": "employment"},
+    # ── Step 08 — Borrower Vesting ──
+    "479": {"key": "marital_status", "field_name": "Borrower Marital Status (Vesting)", "category": "vesting"},
+    "471": {"key": "borrower_sex", "field_name": "Borrower Sex (Male/Female)", "category": "borrower_info"},
+    "478": {"key": "coborrower_sex", "field_name": "Co-Borrower Sex (Male/Female)", "category": "borrower_info"},
+    "1069": {"key": "prior_title_held", "field_name": "Declaration — How Title Was Held (Prior Property)", "category": "declarations"},
+    "1867": {"key": "final_vesting", "field_name": "Final Vesting", "category": "vesting"},
+    "1868": {"key": "borrower_vesting_name", "field_name": "Borrower Vesting Name", "category": "vesting"},
+    "1871": {"key": "borrower_vesting_type", "field_name": "Borrower Vesting Type", "category": "vesting"},
+    "1872": {"key": "borrower_vesting_desc", "field_name": "Borrower Vesting Description", "category": "vesting"},
+    "1873": {"key": "coborrower_vesting_name", "field_name": "Co-Borrower Vesting Name", "category": "vesting"},
+    "1876": {"key": "coborrower_vesting_type", "field_name": "Co-Borrower Vesting Type", "category": "vesting"},
+    "1877": {"key": "coborrower_vesting_desc", "field_name": "Co-Borrower Vesting Description", "category": "vesting"},
+    "4005": {"key": "coborrower_middle_name", "field_name": "Co-Borrower Middle Name", "category": "borrower_info"},
+    "Borr.OccupancyIntent": {"key": "borrower_occupancy_intent", "field_name": "Borrower Occupancy Intent", "category": "borrower_info"},
+    "CoBorr.OccupancyIntent": {"key": "coborrower_occupancy_intent", "field_name": "Co-Borrower Occupancy Intent", "category": "borrower_info"},
+    "CX.NBSFLAG": {"key": "nbs_flag", "field_name": "Non-Borrowing Spouse Flag", "category": "vesting"},
+    "CX.NBSINFO": {"key": "nbs_info", "field_name": "Non-Borrowing Spouse Name", "category": "vesting"},
+    # ── Step 10 — Processor Workflow ──
+    "CX.PRODUCTTYPE": {"key": "product_type", "field_name": "Product Type", "category": "processor_workflow"},
+    "CX.NONDEL.INV.APPROVAL": {"key": "non_del_inv_approval", "field_name": "Non-Del Inv. Approval", "category": "processor_workflow"},
+    "CX.DOCUMENTATIONTYPE": {"key": "doc_type_submission", "field_name": "Documentation Type (Submission)", "category": "processor_workflow"},
 }
 
 ALL_FIELD_IDS = list(FIELD_MAP.keys())
@@ -624,7 +810,7 @@ def fetch_doc_fields(
         ignored_count = len(all_docs_by_type) - len(docs_by_type)
 
         # For "all" extraction mode keep every copy; otherwise keep best single doc
-        multi_copy_types = {dt for dt, mode in extraction_modes.items() if mode == "all"}
+        multi_copy_types = {dt for dt, mode in extraction_modes.items() if str(mode).lower() == "all"}
         flat_docs_for_normalize: list[dict] = []
         for dt, doc_list in docs_by_type.items():
             if dt in multi_copy_types:
@@ -1117,12 +1303,14 @@ def validate_property_address(
 
     if not street:
         result = {
-            "valid": False,
-            "error": "Property address not in state — run fetch_los_fields first.",
+            "valid": None,
+            "skipped": True,
+            "skip_reason": "property_address not in los_fields — fetch_los_fields may not have run yet or failed",
             "normalized": None,
             "mismatch_with_purchase_contract": None,
             "purchase_contract_address": purchase_contract_address or None,
         }
+        logger.warning("[VALIDATE_ADDRESS] Skipping — property_address not available in los_fields")
         return Command(update={
             "address_validation": result,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
@@ -1184,3 +1372,84 @@ def validate_property_address(
         "address_validation": result,
         "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
     })
+
+
+@tool
+def fetch_vod_data(
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState],
+) -> Command:
+    """Fetch Verification of Deposit (VOD) entries directly from the Encompass v3 API.
+
+    Calls GET /encompass/v3/loans/{loanId}/applications/{applicationId}/vods and
+    normalises the response into a flat list of account rows.
+
+    Stores:
+        state['vod_data']  — list of normalised account row dicts, each with:
+            {
+              vod_id, vod_index, institution_name, borrower_type,
+              account_type, account_holder, account_number, balance
+            }
+
+    Run this after fetch_los_fields so that loan_id is available in state.
+    Used by downstream tools (e.g. review_urla_assets) to cross-check extracted
+    bank-statement / asset doc fields against the LOS-entered VOD amounts.
+    """
+    from shared.encompass_io import read_vods
+
+    loan_id = state.get("loan_id")
+    if not loan_id:
+        msg = {"error": "No loan_id in state. Run find_loan first."}
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(msg), tool_call_id=tool_call_id)],
+        })
+
+    vod_not_created = False
+    try:
+        rows = read_vods(loan_id, state=state)
+    except LookupError as e:
+        # "collection does not exist" — no VOD form rows in Encompass yet
+        logger.warning(f"[FETCH_VOD] VOD collection missing: {e}")
+        rows = []
+        vod_not_created = True
+    except Exception as e:
+        logger.error(f"[FETCH_VOD] Failed to read VODs: {e}")
+        msg = {"error": f"VOD API call failed: {e}"}
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(msg), tool_call_id=tool_call_id)],
+        })
+
+    summary = {
+        "vod_rows":        len(rows),
+        "institutions":    list({r["institution_name"] for r in rows if r["institution_name"]}),
+        "total_balance":   round(sum(r["balance"] for r in rows), 2),
+        "account_types":   list({r["account_type"] for r in rows}),
+        "vod_not_created": vod_not_created,
+    }
+    logger.info(f"[FETCH_VOD] {summary}")
+
+    update: dict = {
+        "vod_data": rows,
+        "messages": [ToolMessage(
+            content=json.dumps({"status": "ok", **summary}),
+            tool_call_id=tool_call_id,
+        )],
+    }
+
+    if vod_not_created:
+        from datetime import datetime, timezone
+        update["flags"] = [{
+            "substep": "0.6",
+            "title": "VOD Not Created in Encompass",
+            "severity": "warning",
+            "details": (
+                "The Encompass VOD form has no rows yet — "
+                "GET /applications/{id}/vods returned 'collection does not exist'. "
+                "Asset balances cannot be cross-referenced until VOD entries are added."
+            ),
+            "suggestion": "Open the VOD form in Encompass and add entries for each depository account.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+
+    return Command(update=update)

@@ -129,7 +129,7 @@ def review_borrower_summary(
 
     # ── Rates ─────────────────────────────────────────────────────────────
     note_rate                = _los(state, "note_rate")            # field 3
-    qual_rate                = _los(state, "qual_rate")            # field 1014
+    qual_rate                = _los(state, "qualifying_rate")      # field 1014
     undiscounted_rate        = _los(state, "undiscounted_rate")    # field 3293
 
     # ── Payments / Income ────────────────────────────────────────────────
@@ -361,7 +361,7 @@ def review_borrower_summary(
 
     # ── Rule: Property Address (reads from state["address_validation"] set by step 0.5) ──
     addr_val = state.get("address_validation", {})
-    if addr_val:
+    if addr_val and not addr_val.get("skipped"):
         if addr_val.get("valid") is False:
             _flag(flags, "2.1", "Property Address Invalid", "warning",
                   f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. "
