@@ -570,24 +570,45 @@ def find_loan(
         loan_number: The loan number to search for (preferred).
         borrower_name: Borrower name to search for (fallback).
     """
+    from shared.encompass_io import is_guid, sanitize_guid
+
     ln = loan_number or state.get("loan_number")
     bn = borrower_name or state.get("borrower_name")
 
-    # If loan_id already in state, just confirm it
+    # If state already has a REAL Encompass GUID (set by a prior find_loan
+    # call), short-circuit. Critically, we validate the shape — without this,
+    # an orchestrator that passes a loan_number through state["loan_id"]
+    # (the original orchestrator contract bug) would cause find_loan to
+    # "succeed" trusting the loan_number as a GUID, then every downstream
+    # tool would 404 against /v3/loans/<loan_number>. See LG-discOrch
+    # UAT2 §42 for the bug class.
     existing_loan_id = state.get("loan_id")
-    if existing_loan_id:
-        logger.info(f"[FIND_LOAN] Loan ID already in state: {existing_loan_id[:8]}...")
+    if existing_loan_id and is_guid(str(existing_loan_id)):
+        sanitized = sanitize_guid(str(existing_loan_id))
+        logger.info(f"[FIND_LOAN] Loan ID already in state: {sanitized[:8]}...")
         result = {
             "success": True,
-            "loan_id": existing_loan_id,
+            "loan_id": sanitized,
             "loan_number": ln,
-            "message": f"Loan ID already available: {existing_loan_id[:8]}...",
+            "message": f"Loan ID already available: {sanitized[:8]}...",
             "source": "state",
         }
         return Command(update={
+            "loan_id": sanitized,
             "loan_number": ln,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
+
+    if existing_loan_id and not is_guid(str(existing_loan_id)):
+        # The orchestrator gave us garbage in state["loan_id"] (probably a
+        # loan number). Treat it as a loan_number hint if we don't have one
+        # yet, then fall through to the real Encompass search.
+        if not ln:
+            ln = str(existing_loan_id).strip()
+            logger.info(
+                f"[FIND_LOAN] state.loan_id={existing_loan_id!r} is not a GUID — "
+                f"treating as loan_number={ln!r} and searching Encompass."
+            )
 
     if not ln and not bn:
         return Command(update={"messages": [ToolMessage(
@@ -602,11 +623,13 @@ def find_loan(
         try:
             from encompass_client import get_encompass_client
         except ImportError:
-            from shared.field_utils import resolve_loan_id
-            # Fallback: try to extract loan_id from additional_info
+            # Fallback: try to extract loan_id from additional_info, but only
+            # if it actually looks like a GUID (same hallucination defense
+            # as the main state.loan_id short-circuit above).
             additional = state.get("additional_info", {})
-            if isinstance(additional, dict) and "loan_id" in additional:
-                loan_id = additional["loan_id"]
+            additional_loan_id = additional.get("loan_id") if isinstance(additional, dict) else None
+            if additional_loan_id and is_guid(str(additional_loan_id)):
+                loan_id = sanitize_guid(str(additional_loan_id))
                 result = {
                     "success": True,
                     "loan_id": loan_id,
@@ -636,7 +659,19 @@ def find_loan(
                 tool_call_id=tool_call_id,
             )]})
 
-        loan_id = results[0] if isinstance(results[0], str) else results[0].get("loanGuid", results[0].get("id"))
+        raw_loan_id = results[0] if isinstance(results[0], str) else results[0].get("loanGuid", results[0].get("id"))
+        loan_id = sanitize_guid(str(raw_loan_id)) if raw_loan_id else ""
+
+        if not is_guid(loan_id):
+            # Encompass returned something that doesn't look like a GUID.
+            # Refuse to commit it to state — downstream tools would 404.
+            return Command(update={"messages": [ToolMessage(
+                content=json.dumps({
+                    "error": f"Encompass returned non-GUID loan identifier: {raw_loan_id!r}",
+                    "search_term": ln or bn,
+                }),
+                tool_call_id=tool_call_id,
+            )]})
 
         result = {
             "success": True,

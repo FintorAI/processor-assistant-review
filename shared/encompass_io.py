@@ -7,10 +7,101 @@ automatic token refresh.
 """
 
 import logging
+import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# GUID HELPERS — defense against LLM hallucination
+#
+# Ported from LG-discOrch/tools/shared/encompass_io.py. These ensure that any
+# value flowing into Encompass v3 API calls is actually shaped like a GUID;
+# loan numbers, template strings, and other LLM-generated junk are rejected
+# instead of producing 404s against /v3/loans/<garbage>. See UAT2 §42 in
+# LG-discOrch for the bug that motivated this discipline.
+# =============================================================================
+
+# GUID regex pattern: 8-4-4-4-12 hexadecimal characters with optional braces
+_GUID_PATTERN = re.compile(
+    r"^[{]?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}[}]?$"
+)
+
+# Template-string junk the LLM is known to pass as a "GUID" parameter.
+PLACEHOLDER_PATTERNS = [
+    "{loan_guid}", "loan_guid", "{loan_id}", "loan_id",
+    "loan_guid_placeholder", "loan_guid_from_state",
+    "{", "...", "<state", "placeholder",
+]
+
+
+def is_guid(value: Optional[str]) -> bool:
+    """Return True if *value* looks like a real Encompass loan GUID."""
+    if not value:
+        return False
+    return bool(_GUID_PATTERN.match(str(value).strip()))
+
+
+def is_loan_number(value: Optional[str]) -> bool:
+    """Return True if *value* looks like an Encompass loan number (8-12 digits)."""
+    if not value:
+        return False
+    cleaned = str(value).strip()
+    return cleaned.isdigit() and 8 <= len(cleaned) <= 12
+
+
+def sanitize_guid(loan_id: Optional[str]) -> str:
+    """Strip curly braces from a GUID. Encompass sometimes returns `{guid}`
+    but the v3 API rejects them — this is the canonical place to clean."""
+    if not loan_id:
+        return ""
+    sanitized = str(loan_id).strip().replace("{", "").replace("}", "")
+    if sanitized != str(loan_id).strip():
+        logger.debug("Sanitized GUID: '%s' -> '%s'", loan_id, sanitized)
+    return sanitized
+
+
+def get_loan_guid_from_state(
+    state: Optional[Dict[str, Any]],
+    loan_guid_param: str = "",
+) -> Tuple[str, str]:
+    """Canonical accessor for the loan GUID inside a tool.
+
+    Always reads from `state["loan_id"]` (set by find_loan in Step 0) and
+    validates it is actually a GUID. Any value an LLM passed as a parameter
+    is IGNORED — but logged if it differs from state, which is useful when
+    debugging hallucinations.
+
+    Returns ``(guid, "")`` on success or ``("", error_message)`` on failure.
+    """
+    loan_guid_param = str(loan_guid_param).strip() if loan_guid_param else ""
+
+    if not state or not isinstance(state, dict):
+        return "", "No state available. State is required to get loan GUID (set by find_loan)."
+
+    state_loan_id = state.get("loan_id", "")
+    if state_loan_id and is_guid(str(state_loan_id)):
+        if loan_guid_param and is_guid(loan_guid_param):
+            param_sanitized = sanitize_guid(loan_guid_param)
+            state_sanitized = sanitize_guid(str(state_loan_id))
+            if param_sanitized != state_sanitized:
+                logger.warning(
+                    "[GUID] Parameter mismatch ignored! Param=%s... but state.loan_id=%s... — using state (authoritative).",
+                    param_sanitized[:8], state_sanitized[:8],
+                )
+        return sanitize_guid(str(state_loan_id)), ""
+
+    state_loan_guid = state.get("loan_guid", "")
+    if state_loan_guid and is_guid(str(state_loan_guid)):
+        return sanitize_guid(str(state_loan_guid)), ""
+
+    return "", (
+        f"Could not find valid loan GUID in state. "
+        f"state.loan_id={state_loan_id!r}, state.loan_guid={state_loan_guid!r}. "
+        f"Ensure find_loan was called first to set the loan_id in state."
+    )
 
 # ── Field-writes ledger ──────────────────────────────────────────────
 # Module-level accumulator that write_fields() appends to on every
