@@ -27,44 +27,66 @@ def resolve_loan_id(
     step_label: str = "",
 ) -> Optional[str]:
     """Resolve loan_id from state, ignoring LLM-provided parameter.
-    
-    The LLM can hallucinate wrong GUIDs. This function ALWAYS prefers
-    the loan_id stored in state (set by find_loan in Step 0) over any
-    value the LLM passes as a tool parameter.
-    
+
+    The LLM can hallucinate wrong GUIDs. This function ALWAYS prefers the
+    loan_id stored in state (set by find_loan in Step 0) over any value the
+    LLM passes as a tool parameter.
+
+    GUID validation:
+        Both ``state["loan_id"]`` and ``param_loan_id`` are checked against
+        the canonical GUID regex (see shared.encompass_io.is_guid). A loan
+        NUMBER masquerading as a GUID (e.g. "2605926537", which the
+        orchestrator may have passed through unresolved) is treated as
+        ``not present`` rather than blindly returned. This is the orchestrator
+        boundary that previously let "2605926537" propagate as a GUID and
+        produce 404s against ``/v3/loans/<loan_number>``.
+
     Args:
         state: The workflow state dict (from InjectedState)
         param_loan_id: The loan_id parameter the LLM passed (used only as
                        last-resort fallback, with a warning)
         step_label: Optional label for log messages (e.g., "STEP5.3")
-        
+
     Returns:
-        The resolved loan_id, or None if not found anywhere
+        A real Encompass loan GUID, or None if none is available.
     """
+    # Local import to avoid hard module-load coupling.
+    try:
+        from shared.encompass_io import is_guid, sanitize_guid  # type: ignore
+    except Exception:  # pragma: no cover — defensive
+        is_guid = lambda v: bool(v)  # noqa: E731
+        sanitize_guid = lambda v: str(v).strip() if v else ""  # noqa: E731
+
     prefix = f"[{step_label}] " if step_label else ""
-    
-    # Priority 1: ALWAYS use state.loan_id (set by find_loan in Step 0)
+
     state_loan_id = state.get("loan_id") if state else None
-    
-    if state_loan_id:
-        # Log warning if LLM passed a DIFFERENT value (hallucination detected)
-        if param_loan_id and param_loan_id != state_loan_id:
+
+    if state_loan_id and is_guid(str(state_loan_id)):
+        if param_loan_id and is_guid(str(param_loan_id)) and str(param_loan_id) != str(state_loan_id):
             logger.warning(
-                f"{prefix}LOAN_ID MISMATCH: LLM passed '{param_loan_id[:8]}...' "
-                f"but state has '{state_loan_id[:8]}...'. Using state value."
+                f"{prefix}LOAN_ID MISMATCH: LLM passed '{str(param_loan_id)[:8]}...' "
+                f"but state has '{str(state_loan_id)[:8]}...'. Using state value."
             )
-        return state_loan_id
-    
-    # Priority 2: Fallback to LLM parameter (with warning)
-    if param_loan_id:
+        return sanitize_guid(str(state_loan_id))
+
+    if state_loan_id and not is_guid(str(state_loan_id)):
+        # State has a value but it is not a GUID — likely a raw loan_number
+        # the orchestrator passed through before find_loan resolved it.
+        # Do NOT promote it; let the caller surface a "run find_loan first"
+        # error instead of letting a non-GUID hit the Encompass API.
+        logger.warning(
+            f"{prefix}state.loan_id={state_loan_id!r} is not a GUID — ignoring. "
+            f"find_loan must run first to populate a real GUID."
+        )
+
+    if param_loan_id and is_guid(str(param_loan_id)):
         logger.warning(
             f"{prefix}loan_id not found in state, falling back to LLM parameter: "
-            f"'{param_loan_id[:8]}...'. This may be incorrect."
+            f"'{str(param_loan_id)[:8]}...'. This may be incorrect."
         )
-        return param_loan_id
-    
-    # Neither source has a value
-    logger.error(f"{prefix}No loan_id found in state or parameters. Run find_loan first.")
+        return sanitize_guid(str(param_loan_id))
+
+    logger.error(f"{prefix}No valid loan GUID found in state or parameters. Run find_loan first.")
     return None
 
 

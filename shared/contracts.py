@@ -11,10 +11,26 @@ when sibling repos are fully operational.
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+# GUID regex: 8-4-4-4-12 hex chars, optional curly braces.
+# Imported from LG-discOrch/tools/shared/encompass_io.py — kept duplicated
+# here so the orchestrator can validate inputs without pulling in sub-agent
+# code.
+_GUID_PATTERN = re.compile(
+    r"^[{]?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}[}]?$"
+)
+
+
+def _looks_like_guid(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    return bool(_GUID_PATTERN.match(str(value).strip()))
 
 
 # ─────────────────────────────────────────────────────────────
@@ -91,16 +107,41 @@ class AgentInput(BaseModel):
     """
     Universal input accepted by every sub-agent deployment.
 
+    Identifier convention (mirrors LG-discOrch / LG-docsOrch):
+        - `loan_number` is what callers actually have on hand (human-readable,
+          e.g. "2509946673"). It is the PRIMARY input.
+        - `loan_id` is the Encompass loan GUID
+          (e.g. "abc12345-def6-7890-abcd-ef0123456789"). It is OPTIONAL on
+          input — the orchestrator resolves it via substep 0.1 (`find_loan`)
+          and forwards it to every subsequent sub-agent so they don't repeat
+          the lookup.
+
+    At least one of `loan_number` / `loan_id` must be provided. If only
+    `loan_id` is provided and it doesn't look like a GUID, it is treated as
+    a loan_number — this preserves back-compat with older callers that
+    passed loan numbers in the `loan_id` slot.
+
     Workflow mode (orchestrator calling):
-        - Pass loan_id (already resolved by the orchestrator) and optionally
+        - Pass loan_number (and loan_id once resolved) plus optional
           pre-fetched inputs to avoid redundant Encompass fetches.
         - Leave action=None to run the agent's full internal workflow.
 
     One-off mode (UI calling a single action directly):
         - Set action to the tool name, e.g. "order_appraisal".
-        - The agent runs just that substep, fetching its own inputs from Encompass.
+        - The agent runs just that substep, fetching its own inputs from
+          Encompass.
     """
-    loan_id: str = Field(..., description="Encompass loan GUID (UUID), not the loan number")
+    loan_number: Optional[str] = Field(
+        None,
+        description="Human-readable Encompass loan number (e.g. '2509946673'). Primary input."
+    )
+    loan_id: Optional[str] = Field(
+        None,
+        description=(
+            "Encompass loan GUID. Populated by the orchestrator after find_loan "
+            "resolves it. Optional on inbound input from the UI."
+        ),
+    )
     action: Optional[str] = Field(
         None,
         description="Tool name to run as a one-off action. None = run full internal workflow."
@@ -118,6 +159,27 @@ class AgentInput(BaseModel):
         description="'Prod' or 'Test' — controls which Encompass environment is used"
     )
 
+    @model_validator(mode="after")
+    def _coerce_identifiers(self) -> "AgentInput":
+        # Back-compat: if only loan_id is set and it doesn't look like a GUID,
+        # the caller almost certainly handed us a loan number in the loan_id
+        # slot. Move it to loan_number and clear loan_id so find_loan resolves
+        # a real GUID rather than the tool blindly trusting the value.
+        if self.loan_id and not self.loan_number and not _looks_like_guid(self.loan_id):
+            self.loan_number = str(self.loan_id).strip()
+            self.loan_id = None
+
+        # If the supplied loan_id is a GUID, sanitize curly braces (Encompass
+        # sometimes returns `{guid}` but its API rejects them).
+        if self.loan_id and _looks_like_guid(self.loan_id):
+            self.loan_id = str(self.loan_id).strip().replace("{", "").replace("}", "")
+
+        if not self.loan_number and not self.loan_id:
+            raise ValueError(
+                "AgentInput requires at least one of loan_number or loan_id."
+            )
+        return self
+
 
 class AgentOutput(BaseModel):
     """
@@ -125,8 +187,21 @@ class AgentOutput(BaseModel):
 
     The orchestrator aggregates flags and field_writes from all sub-agents
     and presents them at the HITL review step.
+
+    Identifier echo:
+        - `loan_id` is the resolved Encompass GUID. Sub-agents SHOULD populate
+          this once find_loan has resolved it (the orchestrator reads it back
+          and stashes it in state so downstream substeps don't repeat lookup).
+        - `loan_number` echoes the human-readable identifier for log/UI use.
     """
-    loan_id: str
+    loan_id: Optional[str] = Field(
+        None,
+        description="Resolved Encompass loan GUID. Optional — may be unset if find_loan failed.",
+    )
+    loan_number: Optional[str] = Field(
+        None,
+        description="Human-readable loan number echoed back for log/UI use.",
+    )
     action: Optional[str] = Field(None, description="Echoes the input action, or None for full run")
     status: RunStatus = Field(..., description="Overall run status")
 
