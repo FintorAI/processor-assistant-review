@@ -9,7 +9,10 @@ Pipeline
   "env": "PROD"
 }
 
-2604964148
+2604964148 
+
+2507943889 
+Processor, Task Test 1
 
 Looks like a more elaborate disclosures workflow. Disclosure is more of a presence check, the only document we consistently check is Credit Report for the FACT ACT disclosure form. This new flow checks the same forms but has more verifications and document validations as well as some forms from Docs
 
@@ -277,7 +280,7 @@ PROCESSOR FEEDBACK NOTES
         - Keep CPL and Closing, Escrow Wire, Evidence of Hazard Insurance, Title Report
         - Delete UW buckets. MI Quote, Ocrolus Processing, Paystubs, W2 - all years
     - Order Additional Services
-        - Ocrolus
+        - Ocrolus, 59:00
         - Set Freddie Mac
         - Download
         - Export as pdf and saved as Income Calc Jermaine
@@ -389,3 +392,154 @@ Notes:
 
 Clarifications (last edited May 13 2026):
 1. For cases where there is a mismatch between LOS and the document i.e. EMD is X in the document and Y in Encompass, do we want to write Encompass with X or just flag that they're different? Across all forms
+
+====
+Video 2 Notes
+
+- Copied Almas' email & pasted in Cover Letter Form
+    - What UW sees 
+    - Removed 
+        - Client Name, Property Address, Closing Date, "Borrower(s) on Loan: Both\nBorrower(s) on Title: Both", "Employment & Income\nVOE Contact Email: Self Employed\n", "Need Business Return...", Dependents.., Asset.. (only for a cash out refi), Team Contacts, Appraisal
+    - Included 
+        - AUS Findings, Income Breakdown
+    - Added to "Documents still needed:"
+        - Appraisal (always required unless has waiver), HOI, title (both always required too)
+    - Cash Out Refi usually gets money back, checked CTC
+        - Normally don't include Assets in file
+
+- Borrower Summary - Origination
+    - copied home phone to cell phone if cell is empty
+    - consult govt id field with id in efolder
+        - id bucket is blank, fine non blocker
+    - current address
+        - primary residence cash-out refi so checks if address in header is same as this
+
+- 1003 Part 2
+    - Surface info for 1b, 1c if not empty
+    - include gross income for both
+    - if any section is empty, click does not apply checkbox
+    - VOE
+        - AUS validation results raised this: if has AutoLeasing - BM or something similar and more than 1 borrower and married, copy details from borr to co-borr (date hires, years in this job, years in line of work)
+            - maybe apply this in general for VOE?
+
+- 1003 Part 3
+    - has investment properties so will need assets (checked additional property), investment properties need reserves
+    - added back assets for reserves in cover letter
+    - checked retirement statement and bank statement efolder buckets for assets 
+        - can ask borrower to get these
+    - no assets in this file but will need reserves (6 months for investment properties)
+    - VOL
+        - surface those that have Y in either columns (Exclude or To be Paid off)
+        - flag as warning and to double check with almas
+            - her feedback was appended in cover letter
+- 1003 Part 4
+    - Double check 5a
+        - will you occupy the property as your primary residence
+            - if yes, double check the fields below it (403, 981, 1069)
+
+    - double checked mortgage statement to check borr and co-borr names
+    - checked credit report instead
+        - shellpoint mortgage 
+
+- 1003 Lender 
+    - manner in which title held field (URLA.X138)
+        - is usually "Tenancy by the Entirety" if borrowers are husband and wife; if siblings, "Tenancy in Common"
+
+- FHA Management
+    - 1 unit for property type field (2996)
+    - searched in zillow
+        - looked at details (single family, no hoa, so 1 unit)
+
+- Borrower Info - Vesting 
+    - Intent is will occupy because status is primary 
+    - vesting is wife and husband because wife is listed First
+    - manner... is tenancy by the entirety and click build final vesting
+
+- HUD.. FHA Loan Transmittal
+    - construction is existing (no purchase price so existing)
+
+- already ordered appraisal and title in average_daily_balance
+    - are we able to get the status of each order?
+
+- Transmittal Sumamry
+    - property type is 1 unit (1553)
+    - project type is not in a pud so value is "Other: G/Not in a Project or Development" (1012)
+    - level of property review 
+        - property review (1541) is exterior / interior
+        - form number (1542) is 1004
+        - property form type (TSUM.PropertyFormType) is Uniform Residential Appraisal Report
+
+- File Contacts
+    - not a purchase so no buyer's and seller's agents, only need to fill out escrow Company
+
+- efolder 
+    - deleted ocrolus buckets?
+    - updated income calculation (what almas does/udpates)
+    - maybe flag these for info??
+    - clean up:
+        - deleted other credit report? pre-qual and outdated
+        - no VOE, paystubs, etc. because self Employed
+    - other owned property documents 
+        - mortgage loan statement for investment property, statement date is a year old
+            - need to go to xactus and order a credit supplement for both mortgages
+            - make sure credit report is not late
+            - make sure mortgages are current by ordering supplement
+                - click on all mortgages
+            - no mortgage for current property -> missing item in cover letter (mortgage statement is important for refinance, makes file cleaner)
+            - also no hoi so include in cover letter
+        - should also have hoa, if none, prepare a letter stating we dont have one (blend thing)
+            - include in cover letter ("no HOA letter for subject property (requested)")
+    - put unassigned buckets ot recycle/misc bin
+    - tax Returns 
+        - checked schedule e? for physical address
+
+
+- xactus
+    - checked mortgage statement & added new liability: Rushmore servicing, account number, balance, borrower / co-borr?
+
+- downloaded borrower's certification & Authorization
+
+- no mortgage statement so cant show order payoff
+
+- complicated file because of all tax Returns
+
+- run LP and DU for conventional files
+    - LPA can return validation issues so make sure to flag this, assuming its same for DU
+    - catch this in flags too
+
+- print 1008 and 1003 
+    - "1008 - Transmittal Summary"
+    - "2020 URLA (1003/65) - All Pages"
+
+- tasks list
+    - order flood, fraudgaurd, ldp/gsa, ssn verification, tax summary
+        - should double check because we assume these are already done
+        - ash checks flood and fraudguard
+
+    - could automate pulling tax bill? there was no tax summary in file
+
+Randazzo file
+- connect.qualia.com??
+    - title documents downloaded and upload to efolder
+    - associated "Property Title Prelim" condition for these documents
+    - Raven Title Services -> Closing / Miscellanous, Closing Protection Letter -> CPL bucket, 
+        - still need to check if borrower details match with loan file in encompass
+    - go to UW conditions -> Property Title prelim
+        - hit fulfilled 
+
+- if has gift letter (sent from mom), will send directly to title company so will get receipt like an outbound wire
+- title company will send the inbound wire 
+
+- if loan is locked, request locked LE. sometimes request CD instead of locked LE
+
+====
+File 3
+Petrello-Rosen, Gina A 
+- copied notes again to cover letter
+
+
+Questions for Ash:
+1. How do you request the title documents from Qualia? Is this different from the title report order email you send? Is this done for every loan?
+
+
+
