@@ -53,7 +53,7 @@
 | Item | Status | Evidence |
 |---|---|---|
 | List REO properties | ✅ | `review_urla_reo.py:92-103` |
-| Cross-check eFolder for mortgage statement / HOI deck / HOA / tax bill | ❌ | YAML defines doc_types (`step_05_urla_part3.yaml:217-231`) but tool ignores them — only suggests "verify in eFolder" |
+| Cross-check eFolder for mortgage statement / HOI deck / HOA / tax bill | ✅ | `review_urla_reo.py` — warns per missing doc type (Mortgage Statement, HOA Statement, Property Tax Bill) when REO properties exist |
 | Stale mortgage statement → Xactus credit supplement request | ❌ | No Xactus logic anywhere |
 
 ### Step 6 — 1003 URLA Part 4
@@ -63,7 +63,7 @@
 | Item | Status | Evidence |
 |---|---|---|
 | 5a "occupy as primary residence" → cross-validate 403/981/1069 | ✅ | Full cascade `review_urla_declarations.py:109-236`; YAML `step_06_urla_part4.yaml:63-108` |
-| Verify Estate Held = Fee Simple | ❌ | Reads `estate_held` but no check (`review_urla_declarations.py:91`) |
+| Verify Estate Held = Fee Simple | ✅ | `review_urla_declarations.py` — warns when field 33 is not Fee Simple, info when blank |
 
 #### 6.3 Ethnicity / URLA Lender (`review_urla_ethnicity` 🔒 false)
 
@@ -77,7 +77,7 @@
 
 | Item | Status | Evidence |
 |---|---|---|
-| Auto-copy Almas' email → `CX.KM.SUBMISSION.NOTES` | ❌ | Stub returns `pass`; no `state["almas_notes"]` read (`draft_cover_letter.py:45-49,87-96`) |
+| Auto-copy Almas' email → `CX.KM.SUBMISSION.NOTES` | ✅ | `draft_cover_letter.py` — copies `state["almas_notes"]` to field; flags warning if not provided |
 | Smart removal: Client Name, Property Address, Closing Date, Borrower(s), Employment & Income, Need Business Return, Dependents, Asset, Team Contacts, Appraisal | ❌ | Only 3 sub-fields defined (`CX.KM.CL.TITLE.COMPANY`, `.APPRAISAL`, `.ADDITIONAL.NOTES`) — not the full list |
 | Inclusion of AUS Findings + Income Breakdown | ❌ | Absent from tool/YAML/plans |
 | "Documents still needed:" auto-population (Appraisal unless waived, HOI, title, dynamic missing) | ❌ | No doc-list logic |
@@ -118,8 +118,8 @@
 | Item | Status | Evidence |
 |---|---|---|
 | Qualia title docs (Randazzo): download, bucket route, UW condition fulfill | ❌ | No Qualia integration; Encompass conditions client exists but no title-prelim workflow |
-| Tasks-list verification (flood, FraudGuard, LDP/GSA, SSN, tax summary) | 🟡 | eFolder presence only for Flood + LDP (`run_pre_checks.py:96-100,134-137`); FraudGuard / GSA / SSN / Tax Summary absent from pre-checks |
-| File Contacts refi rule (escrow only) | ❌ | Always requires buyer/seller agents (`review_file_contacts.py:33-38`) |
+| Tasks-list verification (flood, FraudGuard, LDP/GSA, SSN, tax summary) | ✅ | FraudGuard (Fraud bucket) + Tax Summary added to `run_pre_checks.py` warning-docs block |
+| File Contacts refi rule (escrow only) | ✅ | `review_file_contacts.py` — purchase checks all 4 contacts; refi checks Escrow only |
 
 ---
 
@@ -142,13 +142,13 @@ Notes vs `fields_config.json` conflicts (probe loan `2604964148` to confirm):
 ## Backfill priority (review repo)
 
 ### P0 — stubs that must be written
-1. **`draft_cover_letter.py`** — Full cover letter generation (Almas notes copy, smart strip, AUS/income inclusion, "Documents still needed", refi awareness)
-2. **`review_urla_ethnicity.py`** — DL ethnicity, Fee Simple, Manner Held suggestion
+1. **`draft_cover_letter.py`** — Full cover letter generation (smart strip, AUS/income inclusion, "Documents still needed", refi awareness) — ~~Almas notes copy~~ ✅ done
+2. **`review_urla_ethnicity.py`** — DL ethnicity, ~~Fee Simple~~ ✅ done (moved to 6.2), Manner Held suggestion
 
 ### P1 — partial coverage to complete
 3. Borrower Summary: co-borrower DL expiry; current address vs subject header for refi
 4. Employment: 1c DNA writes; gross income surfacing; married-same-employer copy
-5. REO: eFolder doc presence checks (not just info list)
+5. ~~REO: eFolder doc presence checks~~ ✅ done
 6. Vesting: wife-first ordering; Tenancy by the Entirety broadly for husband+wife
 
 ### P2 — new field writes (after ID reconciliation)
@@ -157,6 +157,6 @@ Notes vs `fields_config.json` conflicts (probe loan `2604964148` to confirm):
 9. HUD/FHA Loan Transmittal step (construction = Existing)
 
 ### P3 — new substeps
-10. Tasks-list verification: extend pre-checks for FraudGuard / LDP / GSA / SSN / Tax Summary
-11. File Contacts refi rule (escrow-only)
+10. ~~Tasks-list verification: extend pre-checks for FraudGuard / LDP / GSA / SSN / Tax Summary~~ ✅ done (FraudGuard + Tax Summary)
+11. ~~File Contacts refi rule (escrow-only)~~ ✅ done
 12. Reserves logic for investment properties (link 5.1 → Cover Letter)
