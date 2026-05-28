@@ -98,6 +98,8 @@ def run_pre_checks(
                                _efolder_present(state, "Evidence of Insurance")
     title_report_present = _efolder_present(state, "Title Report")
     ldp_present          = _efolder_present(state, "LDP")
+    fraudguard_present   = _efolder_present(state, "Fraud")
+    tax_summary_present  = _efolder_present(state, "Tax Summary")
     # MD eDisclosure signed flags (each is True/False/None)
     md_rescind_signed      = _doc(state, "md_rescind_signed")
     md_dual_cap_signed     = _doc(state, "md_dual_cap_signed")
@@ -135,6 +137,8 @@ def run_pre_checks(
         "Evidence of Hazard Insurance": hazard_insurance_present,
         "Title Report": title_report_present,
         "LDP": ldp_present,
+        "Fraud": fraudguard_present,
+        "Tax Summary": tax_summary_present,
     }
 
     for doc_name, present in critical_docs.items():

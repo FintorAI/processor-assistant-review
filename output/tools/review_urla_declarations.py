@@ -257,6 +257,25 @@ def review_urla_declarations(
                 "Verify co-borrower prior property is correctly documented.",
             )
 
+    # ────────────────────────────────────────────────────────────────────────
+    # Estate Held = Fee Simple (field 33)
+    # ────────────────────────────────────────────────────────────────────────
+    _estate = str(estate_held or "").strip().lower().replace(" ", "")
+    if not _estate:
+        _flag(
+            "Estate Held Not Set",
+            "info",
+            "Field 33 (Estate Will Be Held In) is blank.",
+            "Confirm 'Fee Simple' in the 1003 URLA Lender section.",
+        )
+    elif _estate not in ("feesimple",):
+        _flag(
+            "Estate Not Held in Fee Simple",
+            "warning",
+            f"Estate will be held in '{estate_held}'. Standard residential loans expect Fee Simple.",
+            "Verify with processor — Leasehold and other tenures require additional review.",
+        )
+
     # ── Build result ──
     result = {
         "success": True,

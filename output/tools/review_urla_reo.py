@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc, _profile, _efolder_present
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -77,7 +77,7 @@ def review_urla_reo(
         logger.warning(f"[REVIEW_URLA_REO] Failed to fetch reoProperties: {exc}")
         reo_props = []
 
-    # ── Flag: info if any REO rows present ──
+    # ── Flag: info if any REO rows present + per-property doc checks ──
     if reo_props:
         lines = []
         for prop in reo_props:
@@ -101,6 +101,26 @@ def review_urla_reo(
                 "mortgage statement, insurance deck page, HOA statement (if applicable), tax bill."
             ),
         ))
+
+        # Per-property required doc checks — one warning per missing doc type
+        # (eFolder doesn't support per-property buckets, so we check global presence once)
+        reo_doc_checks = [
+            ("Mortgage Statement",  "Mortgage Statement"),
+            ("HOA Statement",       "HOA Statement"),
+            ("Property Tax Bill",   "Property Tax Bill"),
+        ]
+        for doc_label, bucket_name in reo_doc_checks:
+            if not _efolder_present(state, bucket_name):
+                flags.append(_flag(
+                    title=f"REO Doc Missing — {doc_label}",
+                    severity="warning",
+                    details=(
+                        f"{doc_label} not found in eFolder. "
+                        f"Required because borrower owns {len(reo_props)} "
+                        f"propert{'y' if len(reo_props)==1 else 'ies'}."
+                    ),
+                    suggestion=f"Obtain and upload {doc_label} to the eFolder.",
+                ))
 
     # ── Build result ──
     result = {
