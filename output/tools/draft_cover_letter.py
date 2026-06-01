@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _write_fields
+from ._helpers import _los, _write_fields, _efolder_present
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -59,18 +59,62 @@ def draft_cover_letter(
     )
     almas_notes = str(almas_notes).strip()
 
+    # ── Build "Documents still needed:" appendix ──
+    missing_docs: list[str] = []
+
+    # Appraisal — required unless waiver flag set or Appraisal Acknowledgement in eFolder
+    appraisal_waiver = (_los(state, "appraisal_waiver") or "").strip().lower()
+    has_waiver = appraisal_waiver in ("y", "yes", "true", "1", "waived")
+    appraisal_in_efolder = (
+        _efolder_present(state, "Appraisal Report")
+        or _efolder_present(state, "Appraisal Acknowledgement")
+        or _efolder_present(state, "Appraisal Invoice")
+    )
+    if not has_waiver and not appraisal_in_efolder:
+        missing_docs.append("Appraisal")
+
+    # HOI — always required
+    if not _efolder_present(state, "Evidence of Insurance"):
+        missing_docs.append("HOI (Evidence of Insurance)")
+
+    # Title Report — always required
+    if not _efolder_present(state, "Title Report"):
+        missing_docs.append("Title Report")
+
+    # Assets (Bank Statement / Retirement) — required when REO properties exist
+    reo_props = state.get("reo_properties") or []
+    if reo_props:
+        has_assets = (
+            _efolder_present(state, "Bank Statement")
+            or _efolder_present(state, "Assets")
+        )
+        if not has_assets:
+            missing_docs.append("Assets / Bank Statement (reserves for investment property)")
+
+    # Append to notes if any are missing
+    if missing_docs:
+        docs_section = "\n\nDocuments still needed:\n" + "".join(
+            f"- {d}\n" for d in missing_docs
+        )
+        almas_notes = almas_notes + docs_section if almas_notes else docs_section.strip()
+
     # ── Rule: Copy Almas notes → CX.KM.SUBMISSION.NOTES ──
     if almas_notes:
         field_updates = {"CX.KM.SUBMISSION.NOTES": almas_notes}
         write_flags = _write_fields(loan_id, field_updates, "7.1", state=state)
         flags.extend(write_flags)
+        missing_summary = (
+            f" Appended 'Documents still needed:' with {len(missing_docs)} item(s): "
+            + ", ".join(missing_docs) + "."
+            if missing_docs else " No missing docs appended (all present in eFolder)."
+        )
         flags.append({
             "substep": "7.1",
             "title": "Cover Letter — Submission Notes Written",
             "severity": "info-overwrite",
             "details": (
                 f"Almas' notes copied to CX.KM.SUBMISSION.NOTES "
-                f"({len(almas_notes)} characters)."
+                f"({len(almas_notes)} characters).{missing_summary}"
             ),
             "suggestion": (
                 "Review the submission notes and remove any sections not applicable "

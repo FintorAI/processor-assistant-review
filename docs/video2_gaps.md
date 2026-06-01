@@ -71,7 +71,7 @@
 |---|---|---|
 | Ethnicity cross-check vs DL | ✅ | `review_urla_ethnicity.py` (substep 6.3) — implemented with `_ethnicity_bucket()` normalizer (hispanic / not_hispanic / unknown). Gates on `dl_ethnicity_indicator` being populated (most US DLs don't print ethnicity — no flag if null). `warning` on mismatch, `info` on match or if LOS is blank. Also: attachment type blank → `info`, estate held (field 1066) → moved here from 6.2. `dl_ethnicity_indicator` is confirmed in live CatchingDoc API schema for Driver's License. |
 | Manner Held suggestion logic: Tenancy by the Entirety (husband+wife) vs Tenancy in Common (siblings) | ✅ | `update_borrower_vesting.py` `_determine_manner_held()` — computes correct manner from marital status, co-borrower, property state (MD→Tenancy By The Entirety, NV→As Joint Tenants force-override, community property states, solo unmarried, etc.) and flags incompatible LOS values. Both field 33 and `URLA.X138` now written together with correct enum mapping via `_manner_to_urla_x138()`. Field ID corrected (was wrongly 34). |
-| Estate held = Fee Simple verification | ❌ | Commented TODO (`review_urla_ethnicity.py:87-100`) |
+| Estate held = Fee Simple verification | ✅ | `review_urla_ethnicity.py:127-143` (substep 6.3) — reads `estate_held` (field 1066, 1003 URLA Lender). Blank → `info` "Estate Held Not Set". Non-FeeSimple → `warning` "Estate Not Held in Fee Simple". Moved here from 6.2 (Declarations) since field 1066 is a URLA Lender field, not URLA Part 4 Declarations. |
 
 ### Step 7 — Cover Letter (`draft_cover_letter` 🔒 false)
 
@@ -80,7 +80,7 @@
 | Auto-copy Almas' email → `CX.KM.SUBMISSION.NOTES` | ✅ | `draft_cover_letter.py` — copies `state["almas_notes"]` to field; flags warning if not provided |
 | Smart removal: Client Name, Property Address, Closing Date, Borrower(s), Employment & Income, Need Business Return, Dependents, Asset, Team Contacts, Appraisal | ❌ | Only 3 sub-fields defined (`CX.KM.CL.TITLE.COMPANY`, `.APPRAISAL`, `.ADDITIONAL.NOTES`) — not the full list |
 | Inclusion of AUS Findings + Income Breakdown | ❌ | Absent from tool/YAML/plans |
-| "Documents still needed:" auto-population (Appraisal unless waived, HOI, title, dynamic missing) | ❌ | No doc-list logic |
+| "Documents still needed:" auto-population (Appraisal unless waived, HOI, title, dynamic missing) | ✅ | `draft_cover_letter.py` (substep 7.1) — before writing `CX.KM.SUBMISSION.NOTES`, checks eFolder presence and appends `"\n\nDocuments still needed:\n- ..."` for any missing: **Appraisal** (skipped if `CX.APPRAISAL.WAIVER` = Y or Appraisal Report/Acknowledgement/Invoice in eFolder), **HOI** (`Evidence of Insurance`), **Title Report** (both always required), **Assets / Bank Statement** (only if REO properties in state, for reserves). Missing items listed in `info-overwrite` flag details. |
 | Cash-out refi awareness (CTC check; don't include Assets) | ❌ | CTC prefetched (`data_gathering.py:1083`) but unused by cover letter |
 | HOA-letter request append when no HOA on subject | ❌ | No HOA linkage |
 | Mortgage statement importance flag for refis | ❌ | No refi-specific flag |

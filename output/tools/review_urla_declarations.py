@@ -257,8 +257,9 @@ def review_urla_declarations(
                 "Verify co-borrower prior property is correctly documented.",
             )
 
-    # Estate Held check moved to substep 6.3 (review_urla_ethnicity) which owns
-    # the Title section of URLA Part 4.
+    # Estate Held check (field 1066) is in the 1003 URLA Lender form — not Part 4 Declarations.
+    # It lives in substep 6.3 (review_urla_ethnicity) because that substep already reads
+    # URLA Lender form fields (field 1544 borrower_ethnicity, field 1066 estate_held).
 
     # ── Build result ──
     result = {
