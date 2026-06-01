@@ -26,6 +26,50 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
+# Lines in Almas' email that UW does not need — stripped before writing to Encompass.
+# Match is case-insensitive, prefix-only (up to first newline).
+_STRIP_PREFIXES = (
+    "client name",
+    "property address",
+    "closing date",
+    "borrower(s) on loan:",
+    "borrower(s) on title:",
+    "employment & income",
+    "voe contact email:",
+    "need business return",
+    "dependents",
+    "assets",          # investment/reserve detail — not relevant for UW cover letter
+    "asset ",          # catches "Asset (cash-out)" variants
+    "team contacts",
+    "appraisal",       # handled separately in "Documents still needed" section
+)
+
+
+def _strip_boilerplate(notes: str) -> str:
+    """Remove boilerplate lines from Almas' email before writing to CX.KM.SUBMISSION.NOTES.
+
+    Any line whose stripped content starts with a prefix in _STRIP_PREFIXES is dropped.
+    Consecutive blank lines left behind are collapsed to a single blank line.
+    """
+    cleaned: list[str] = []
+    for line in notes.splitlines():
+        stripped = line.strip().lower()
+        if any(stripped.startswith(p) for p in _STRIP_PREFIXES):
+            continue
+        cleaned.append(line)
+
+    # Collapse runs of more than one blank line
+    result: list[str] = []
+    prev_blank = False
+    for line in cleaned:
+        is_blank = line.strip() == ""
+        if is_blank and prev_blank:
+            continue
+        result.append(line)
+        prev_blank = is_blank
+
+    return "\n".join(result).strip()
+
 
 @tool
 def draft_cover_letter(
@@ -57,7 +101,7 @@ def draft_cover_letter(
         or state.get("almas_notes")
         or ""
     )
-    almas_notes = str(almas_notes).strip()
+    almas_notes = _strip_boilerplate(str(almas_notes).strip())
 
     # ── Build "Documents still needed:" appendix ──
     missing_docs: list[str] = []
