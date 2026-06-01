@@ -25,7 +25,7 @@
 
 | Item | Status | Evidence |
 |---|---|---|
-| Married + same-employer → copy date hired / years in job / years in line of work from borr → co-borr | ❌ | No AutoLeasing or married-same-employer field-copy logic |
+| Married + same-employer → copy date hired / years in job / years in line of work from borr → co-borr | ✅ | `review_urla_employment.py` — gates on `borrower_marital_status == "MARRIED"` + co-borrower present. Finds borrower and co-borrower current slots via `BE0X08` (voe_is_for) + `BE0X09` (employment_type). If employer names match (normalized), copies `date_hired`, `years_in_job`, `months_in_job`, `years_in_line_of_work`, `months_in_line_of_work` to co-borrower's BE slot via `_write_fields`. Flags `info-overwrite` on success, `warning` if borrower tenure fields are blank. |
 | "Does not apply" checkbox detection for empty 1b | 🟡 | Flag when FE0119/FE0219 empty + URLA.X201/X202 unchecked (`review_urla_employment.py:355-384`); does **not** auto-write DNA boxes |
 | "Does not apply" for 1c | ❌ | Step 4 has only 4.1 + 4.2; no 1c substep/tool exists |
 | Gross income surfacing both borrowers | ❌ | Only base monthly (`FE0119`/`FE0219`) checked; `paystub_gross_pay` referenced in YAML (`step_04_urla_page2.yaml:361-362`) but unused |

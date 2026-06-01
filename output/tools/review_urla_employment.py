@@ -17,7 +17,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc, _profile, _write_fields
 from shared.encompass_io import read_employment
 
 logger = logging.getLogger(__name__)
@@ -420,6 +420,64 @@ def review_urla_employment(
                                 ))
                 except Exception:
                     pass
+
+    # ── Rule: Married + Same Employer → copy tenure fields to co-borrower slot ──
+    _borr_marital   = (_los(state, "borrower_marital_status") or "").strip().upper()
+    _has_coborrower = bool(_los(state, "coborrower_first_name"))
+
+    if _borr_marital == "MARRIED" and _has_coborrower:
+        # Identify borrower and co-borrower current slots from pre-fetched BE fields.
+        # BE0X08 = "Borrower" or "Co-Borrower"; BE0X09 = "Current" or "Prior".
+        _borr_slot = _cobr_slot = None
+        for _s in ("01", "02", "03"):
+            _voe_for  = (_los(state, f"be{_s}_voe_is_for") or "").replace("-", "").replace(" ", "").lower()
+            _emp_type = (_los(state, f"be{_s}_employment_type") or "").lower()
+            _emp_name = _los(state, f"be{_s}_employer_name") or ""
+            if not _emp_name:
+                continue
+            if "coborrower" in _voe_for and "current" in _emp_type:
+                _cobr_slot = _s
+            elif "borrower" in _voe_for and "current" in _emp_type and not _borr_slot:
+                _borr_slot = _s
+
+        if _borr_slot and _cobr_slot:
+            _borr_emp = _normalize_name(_los(state, f"be{_borr_slot}_employer_name"))
+            _cobr_emp = _normalize_name(_los(state, f"be{_cobr_slot}_employer_name"))
+
+            if _borr_emp and _cobr_emp and _borr_emp == _cobr_emp:
+                # Same employer — build field ID map using slot digit (01→1, 02→2, 03→3)
+                _cd = _cobr_slot[-1]   # co-borrower slot digit
+                _copy = {
+                    f"BE0{_cd}51": _los(state, f"be{_borr_slot}_date_hired") or "",
+                    f"BE0{_cd}13": str(_los(state, f"be{_borr_slot}_years_in_job") or ""),
+                    f"BE0{_cd}33": str(_los(state, f"be{_borr_slot}_months_in_job") or ""),
+                    f"BE0{_cd}16": str(_los(state, f"be{_borr_slot}_years_in_line_of_work") or ""),
+                    f"BE0{_cd}52": str(_los(state, f"be{_borr_slot}_months_in_line_of_work") or ""),
+                }
+                _copy = {k: v for k, v in _copy.items() if v and v not in ("None", "0", "")}
+
+                if _copy:
+                    _write_flags = _write_fields(loan_id, _copy, "4.1", state=state)
+                    flags.extend(_write_flags)
+                    flags.append(_flag("4.1",
+                        "Same-Employer Co-Borrower — Tenure Fields Copied",
+                        "info-overwrite",
+                        f"Borrower and co-borrower both work at "
+                        f"'{_los(state, f'be{_borr_slot}_employer_name')}'. "
+                        f"Copied date hired, years/months in job, years/months in line of work "
+                        f"from borrower slot {_borr_slot} to co-borrower slot {_cobr_slot}.",
+                        "Verify copied tenure values in the VOE form are correct for the co-borrower.",
+                    ))
+                else:
+                    flags.append(_flag("4.1",
+                        "Same-Employer Co-Borrower — Borrower Tenure Fields Empty",
+                        "warning",
+                        f"Borrower and co-borrower both at "
+                        f"'{_los(state, f'be{_borr_slot}_employer_name')}' but borrower's "
+                        "date hired / tenure fields are all blank.",
+                        "Enter borrower hire date, years in job, and years in line of work "
+                        "in the VOE form first.",
+                    ))
 
     # ── Build result ──────────────────────────────────────────────────────────
     populated_entries = len(api_entries)
