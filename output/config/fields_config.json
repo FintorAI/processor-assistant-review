@@ -31,6 +31,15 @@
       ]
     },
     {
+      "key": "estate_held",
+      "field_id": "1066",
+      "field_name": "Estate Will Be Held In",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_06"
+      ]
+    },
+    {
       "key": "prior_title_held",
       "field_id": "1069",
       "field_name": "Declaration 5a(A)(2) \u2014 How Title Was Held (Prior Property)",
@@ -541,22 +550,13 @@
       ]
     },
     {
-      "key": "estate_held",
+      "key": "manner_of_title",
       "field_id": "33",
-      "field_name": "Estate Will Be Held In",
+      "field_name": "Manner in Which Title Will Be Held",
       "category": "title",
       "used_by_steps": [
         "STEP_06",
         "STEP_08"
-      ]
-    },
-    {
-      "key": "manner_of_title",
-      "field_id": "34",
-      "field_name": "Manner in Which Title Will Be Held",
-      "category": "title",
-      "used_by_steps": [
-        "STEP_06"
       ]
     },
     {

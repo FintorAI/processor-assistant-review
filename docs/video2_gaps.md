@@ -63,14 +63,14 @@
 | Item | Status | Evidence |
 |---|---|---|
 | 5a "occupy as primary residence" → cross-validate 403/981/1069 | ✅ | Full cascade `review_urla_declarations.py:109-236`; YAML `step_06_urla_part4.yaml:63-108` |
-| Verify Estate Held = Fee Simple | ✅ | `review_urla_declarations.py` — warns when field 33 is not Fee Simple, info when blank |
+| Verify Estate Held = Fee Simple | ✅ | `review_urla_declarations.py` — warns when field 1066 (Estate Will Be Held In, 1003 URLA Lender) is not FeeSimple, info when blank. Field 33 = Manner of Title (separate field). |
 
 #### 6.3 Ethnicity / URLA Lender (`review_urla_ethnicity` 🔒 false)
 
 | Item | Status | Evidence |
 |---|---|---|
 | Ethnicity cross-check vs DL | ❌ | Stub: reads then `pass` (`review_urla_ethnicity.py:45-70`) |
-| URLA.X138 Manner Held: Tenancy by Entirety (husband+wife) vs Tenancy in Common (siblings) | ❌ | URLA.X138 referenced only in notes; repo uses field 34 (`fields_config.json:554-560`) and field 33 inconsistently — no suggestion logic |
+| Manner Held suggestion logic: Tenancy by the Entirety (husband+wife) vs Tenancy in Common (siblings) | ✅ | `update_borrower_vesting.py` `_determine_manner_held()` — computes correct manner from marital status, co-borrower, property state (MD→Tenancy By The Entirety, NV→As Joint Tenants force-override, community property states, solo unmarried, etc.) and flags incompatible LOS values. Both field 33 and `URLA.X138` now written together with correct enum mapping via `_manner_to_urla_x138()`. Field ID corrected (was wrongly 34). |
 | Estate held = Fee Simple verification | ❌ | Commented TODO (`review_urla_ethnicity.py:87-100`) |
 
 ### Step 7 — Cover Letter (`draft_cover_letter` 🔒 false)

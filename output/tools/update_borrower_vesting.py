@@ -108,6 +108,64 @@ def _determine_manner_held(property_state, marital_status, has_coborrower,
     return "Sole Ownership"
 
 
+_MANNER_TO_URLA_X138 = {
+    # Confirmed via live Encompass API read-back on test instance (2026-06-01).
+    # Field 33 display text → URLA.X138 camelCase enum value.
+    # Lender form checkboxes only cover these 6 categories; Borrower Vesting
+    # dropdown has many more values that collapse into these buckets.
+    "sole ownership":                                          "Individual",
+    "individual":                                             "Individual",
+    "single man":                                             "Individual",
+    "single woman":                                           "Individual",
+    "unmarried man":                                          "Individual",
+    "unmarried woman":                                        "Individual",
+    "married man":                                            "Individual",
+    "married woman":                                          "Individual",
+    "as his sole and separate property":                      "Individual",
+    "as her sole and separate property":                      "Individual",
+    "joint tenancy with right of survivorship":               "JointTenantsWithRightOfSurvivorship",
+    "joint tenancy with rights of survivorship":              "JointTenantsWithRightOfSurvivorship",
+    "as joint tenants":                                       "JointTenantsWithRightOfSurvivorship",
+    "all as joint tenants":                                   "JointTenantsWithRightOfSurvivorship",
+    "joint tenants":                                          "JointTenantsWithRightOfSurvivorship",
+    "as joint tenants with right of survivorship":            "JointTenantsWithRightOfSurvivorship",
+    "husband and wife as joint tenants":                      "JointTenantsWithRightOfSurvivorship",
+    "husband and wife as joint tenants with right of survivorship": "JointTenantsWithRightOfSurvivorship",
+    "tenancy by the entirety":                                "TenantsByTheEntirety",
+    "tenancy by entirety":                                    "TenantsByTheEntirety",
+    "as tenancy by entirety":                                 "TenantsByTheEntirety",
+    "tenants by the entirety":                                "TenantsByTheEntirety",
+    "husband and wife":                                       "TenantsByTheEntirety",
+    "wife and husband":                                       "TenantsByTheEntirety",
+    "spouses married to each other":                          "TenantsByTheEntirety",
+    "tenancy in common":                                      "TenantsInCommon",
+    "tenants in common":                                      "TenantsInCommon",
+    "as tenants in common":                                   "TenantsInCommon",
+    "all as tenants in common":                               "TenantsInCommon",
+    "husband and wife as tenants in common":                  "TenantsInCommon",
+    "both unmarried":                                         "TenantsInCommon",
+    "each as to an undivided one half interest":              "TenantsInCommon",
+    "each as to an undivided one third interest":             "TenantsInCommon",
+    "each as to an undivided one fourth interest":            "TenantsInCommon",
+    "life estate":                                            "LifeEstate",
+    "as community property":                                  "Other",
+    "community property":                                     "Other",
+    "to be decided in escrow":                                "Other",
+    "other":                                                  "Other",
+}
+
+
+def _manner_to_urla_x138(field_33_value: str) -> str:
+    """Map a field 33 display value to the URLA.X138 camelCase enum.
+
+    Returns "Other" for any unrecognised value so the lender form always gets
+    a valid enum rather than an empty/rejected write.
+    """
+    return _MANNER_TO_URLA_X138.get(
+        (field_33_value or "").strip().lower(), "Other"
+    )
+
+
 def _manner_held_compatible(los_value: str, computed: str) -> bool:
     """True if the LOS manner held is compatible with the computed value.
 
@@ -359,7 +417,10 @@ def update_borrower_vesting(
 
     if not current_manner:
         field_updates["33"] = computed_manner
-        actions.append(f"SET 33 (Manner Held) = '{computed_manner}' (was empty)")
+        field_updates["URLA.X138"] = _manner_to_urla_x138(computed_manner)
+        actions.append(
+            f"SET 33 = '{computed_manner}' / URLA.X138 = '{field_updates['URLA.X138']}' (was empty)"
+        )
         flags.append(_flag("8.1",
             "Manner Held Auto-Set",
             "info-overwrite",
@@ -375,7 +436,11 @@ def update_borrower_vesting(
         force = prop_st in _FORCE_OVERWRITE_STATES and computed_manner == "As Joint Tenants"
         if force:
             field_updates["33"] = computed_manner
-            actions.append(f"SET 33 (Manner Held) FORCE = '{computed_manner}' (was '{current_manner}', {prop_st} rule)")
+            field_updates["URLA.X138"] = _manner_to_urla_x138(computed_manner)
+            actions.append(
+                f"SET 33 = '{computed_manner}' / URLA.X138 = '{field_updates['URLA.X138']}'"
+                f" FORCE (was '{current_manner}', {prop_st} rule)"
+            )
             flags.append(_flag("8.1",
                 f"Manner Held Auto-Corrected ({prop_st})",
                 "info-overwrite",

@@ -88,7 +88,7 @@ def review_urla_declarations(
     occupancy         = _los(state, "occupancy")                      # 1811: PrimaryResidence/etc.
     coborrower_name   = _los(state, "coborrower_first_name")          # 4004: co-borrower presence check
     loan_purpose      = _los(state, "loan_purpose")                   # 19: Purchase/Refinance/etc.
-    estate_held       = _los(state, "estate_held")                    # 33: FeeSimple/Leasehold
+    estate_held       = _los(state, "estate_held")                    # 1066: Estate Will Be Held In (FeeSimple/Leasehold) — 1003 URLA Lender
 
     has_coborrower = bool(coborrower_name and str(coborrower_name).strip())
 
@@ -258,14 +258,14 @@ def review_urla_declarations(
             )
 
     # ────────────────────────────────────────────────────────────────────────
-    # Estate Held = Fee Simple (field 33)
+    # Estate Held = Fee Simple (field 1066 — 1003 URLA Lender)
     # ────────────────────────────────────────────────────────────────────────
     _estate = str(estate_held or "").strip().lower().replace(" ", "")
     if not _estate:
         _flag(
             "Estate Held Not Set",
             "info",
-            "Field 33 (Estate Will Be Held In) is blank.",
+            "Field 1066 (Estate Will Be Held In) is blank.",
             "Confirm 'Fee Simple' in the 1003 URLA Lender section.",
         )
     elif _estate not in ("feesimple",):

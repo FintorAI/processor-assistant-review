@@ -11,6 +11,10 @@ Pipeline
 
 2604964148 
 
+2605926537
+Test
+Scarboro
+
 2507943889 
 Processor, Task Test 1
 
@@ -540,6 +544,14 @@ Petrello-Rosen, Gina A
 
 Questions for Ash:
 1. How do you request the title documents from Qualia? Is this different from the title report order email you send? Is this done for every loan?
+
+Future Enhancement — Notes Cleanup:
+- notes.txt has grown long with raw session notes mixed with implementation details.
+  Consider splitting into:
+    - notes.txt → open questions + clarifications only
+    - docs/processor-workflow.md → structured workflow reference (what Ash does step by step)
+    - docs/video2_gaps.md → already tracks implementation status (keep as-is)
+  Remove or archive sections that have been fully implemented and documented.
 
 
 

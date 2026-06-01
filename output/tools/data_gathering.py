@@ -149,7 +149,7 @@ def _derive_loan_characteristics(state: dict) -> tuple[str, str, int]:
     if summary and summary.get("derived", {}).get("has_coborrower"):
         borrower_count = 2
     elif los.get("coborrower_first_name", {}).get("value"):
-        borrower_count = 2
+            borrower_count = 2
 
     return loan_type, loan_purpose, borrower_count
 
@@ -186,8 +186,12 @@ FIELD_MAP = {
     # "218": invalid field ID in Encompass batch API — removed 2026-05-14
     "231": {"key": "gift_amount", "field_name": "Gift Amount", "category": "assets"},
     "3": {"key": "note_rate", "field_name": "Note Rate", "category": "loan_info"},
-    "33": {"key": "estate_held", "field_name": "Estate Will Be Held In", "category": "title"},
-    "34": {"key": "manner_of_title", "field_name": "Manner in Which Title Will Be Held", "category": "title"},
+    # Field 33 = Manner in Which Title Will Be Held (Borrower Vesting form).
+    # URLA.X138 = same data in the 1003 URLA Lender form — always write both together.
+    # Field 1066 = Estate Will Be Held In (dropdown: FeeSimple / Leasehold) — 1003 URLA Lender.
+    "33": {"key": "manner_of_title", "field_name": "Manner in Which Title Will Be Held", "category": "title"},
+    "URLA.X138": {"key": "manner_of_title_lender", "field_name": "Manner in Which Title Will Be Held (Lender Form)", "category": "title"},
+    "1066": {"key": "estate_held", "field_name": "Estate Will Be Held In", "category": "title"},
     "35": {"key": "borrower_current_address", "field_name": "Borrower Current Street Address", "category": "borrower_info"},
     "350": {"key": "total_monthly_payments", "field_name": "Total Monthly Liabilities", "category": "liabilities"},
     "356": {"key": "appraised_value", "field_name": "Appraised / Estimated Value", "category": "collateral"},
