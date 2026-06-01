@@ -129,8 +129,7 @@ def update_transmittal_summary(
     if not _is_condo(property_type):
         current_1012 = (project_type_1012 or "").strip()
         if not current_1012:
-            write_flags = _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "9.1", state=state)
-            flags.extend(write_flags)
+            _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "9.1", flags, state=state)
             flags.append({
                 "substep": "9.1",
                 "title": "Project Type (1012) Set — Not in PUD",
@@ -185,8 +184,7 @@ def update_transmittal_summary(
         _form_writes["TSUM.PropertyFormType"] = _expected_form_type
 
     if _form_writes:
-        write_flags = _write_fields(loan_id, _form_writes, "9.1", state=state)
-        flags.extend(write_flags)
+        _write_fields(loan_id, _form_writes, "9.1", flags, state=state)
         written_desc = ", ".join(f"{k}='{v}'" for k, v in _form_writes.items())
         flags.append({
             "substep": "9.1",

@@ -545,8 +545,7 @@ def review_urla_employment(
                 _copy = {k: v for k, v in _copy.items() if v and v not in ("None", "0", "")}
 
                 if _copy:
-                    _write_flags = _write_fields(loan_id, _copy, "4.1", state=state)
-                    flags.extend(_write_flags)
+                    _write_fields(loan_id, _copy, "4.1", flags, state=state)
                     flags.append(_flag("4.1",
                         "Same-Employer Co-Borrower — Tenure Fields Copied",
                         "info-overwrite",

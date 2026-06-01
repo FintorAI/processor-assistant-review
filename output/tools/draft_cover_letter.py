@@ -145,8 +145,7 @@ def draft_cover_letter(
     # ── Rule: Copy Almas notes → CX.KM.SUBMISSION.NOTES ──
     if almas_notes:
         field_updates = {"CX.KM.SUBMISSION.NOTES": almas_notes}
-        write_flags = _write_fields(loan_id, field_updates, "7.1", state=state)
-        flags.extend(write_flags)
+        _write_fields(loan_id, field_updates, "7.1", flags, state=state)
         missing_summary = (
             f" Appended 'Documents still needed:' with {len(missing_docs)} item(s): "
             + ", ".join(missing_docs) + "."
