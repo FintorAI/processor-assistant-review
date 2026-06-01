@@ -17,7 +17,7 @@
 | Cell phone empty → copy from home phone (FIELD WRITE) | ✅ | `review_borrower_summary.py:187-207`; YAML `step_02_borrower_summary.yaml:462-464` |
 | Driver's License expiry check (borrower) | 🟡 | `review_borrower_summary.py:384-401` — co-borrower DL expiry defined in YAML (`step_02_borrower_summary.yaml:437-440`) but not in Python |
 | Current address vs subject property (cash-out refi) | ✅ | `review_borrower_summary.py` — gates on `loan_purpose` containing "cashout"; compares `FR0126` (borr current street) vs `URLA.X73` / field `11` (subject property). Flags `warning` if mismatch (confirm occupancy), `info` if match (consistent with primary residence refi). FR city/state/zip also read for full address display. |
-| Govt ID bucket blank as info non-blocker | ❌ | Missing DL is warning in pre-checks (`run_pre_checks.py:146-150`); no "blank-is-fine" info flag in Borrower Summary |
+| Govt ID bucket blank as info non-blocker | ✅ | `run_pre_checks.py` — Driver's License moved out of `warning_docs`; now raises `info` "Govt ID Not Yet Uploaded" when eFolder bucket is empty. Non-blocking. |
 
 ### Step 4 — 1003 URLA Page 2
 

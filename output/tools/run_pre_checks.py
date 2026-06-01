@@ -131,7 +131,6 @@ def run_pre_checks(
     warning_docs = {
         "Assets": assets_present,
         "VOD": vod_present,
-        "Driver's License": dl_present,
         "Estimated Settlement Statement": ess_present,
         "Flood Certificate": flood_cert_present,
         "Evidence of Hazard Insurance": hazard_insurance_present,
@@ -152,6 +151,12 @@ def run_pre_checks(
             _flag(flags, "1.1", "Missing Required Document", "warning",
                   f"{doc_name} not found in eFolder.",
                   "Locate or request the missing document before proceeding.")
+
+    # ── Rule: Govt ID (Driver's License) — info non-blocker ──
+    if not dl_present:
+        _flag(flags, "1.1", "Govt ID Not Yet Uploaded", "info",
+              "Driver's License not found in eFolder. Not required at this stage but needed before submission.",
+              "Upload borrower's government-issued ID to the eFolder when available.")
 
     # ── Rule: Income Docs (VOE and/or Paystubs) ──
     # At least one income verification doc must be present
