@@ -351,6 +351,10 @@ FIELD_MAP = {
     "URLA.X200": {"key": "coborr_1b_dna", "field_name": "Co-Borrower — Section 1b Does Not Apply", "category": "income"},
     # ── Section 1c: Additional/Self-Employment Income ─────────────────────────
     # Borrower FE03xx
+    "FE0112": {"key": "borr_1c_total_gross_income", "field_name": "Borrower 1c — Total Gross Income", "category": "income"},
+    "FE0156": {"key": "borr_1c_monthly_income", "field_name": "Borrower 1c — Monthly Income (or Loss)", "category": "income"},
+    "FE0212": {"key": "coborr_1c_total_gross_income", "field_name": "Co-Borrower 1c — Total Gross Income", "category": "income"},
+    "FE0256": {"key": "coborr_1c_monthly_income", "field_name": "Co-Borrower 1c — Monthly Income (or Loss)", "category": "income"},
     "FE0302": {"key": "borr_1c_employer_name", "field_name": "Borrower 1c — Employer or Business Name", "category": "income"},
     "FE0380": {"key": "borr_1c_foreign_address", "field_name": "Borrower 1c — Foreign Address", "category": "income"},
     "FE0360": {"key": "borr_1c_street", "field_name": "Borrower 1c — Street Address", "category": "income"},
@@ -383,6 +387,10 @@ FIELD_MAP = {
     "URLA.X202": {"key": "coborr_1c_dna", "field_name": "Co-Borrower — Section 1c Does Not Apply", "category": "income"},
     # ── Section 1d: Previous Employment and Income ────────────────────────────
     # Borrower FE05xx
+    "FE0312": {"key": "borr_1d_total_gross_income", "field_name": "Borrower 1d — Total Gross Income", "category": "income"},
+    "FE0356": {"key": "borr_1d_monthly_income", "field_name": "Borrower 1d — Monthly Income (or Loss)", "category": "income"},
+    "FE0412": {"key": "coborr_1d_total_gross_income", "field_name": "Co-Borrower 1d — Total Gross Income", "category": "income"},
+    "FE0456": {"key": "coborr_1d_monthly_income", "field_name": "Co-Borrower 1d — Monthly Income (or Loss)", "category": "income"},
     "FE0502": {"key": "borr_1d_employer_name", "field_name": "Borrower 1d — Employer or Business Name", "category": "income"},
     "FE0580": {"key": "borr_1d_foreign_address", "field_name": "Borrower 1d — Foreign Address", "category": "income"},
     "FE0560": {"key": "borr_1d_street", "field_name": "Borrower 1d — Street Address", "category": "income"},

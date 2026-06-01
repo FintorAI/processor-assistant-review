@@ -1618,9 +1618,36 @@
       ]
     },
     {
+      "key": "borr_1c_total_gross_income",
+      "field_id": "FE0112",
+      "field_name": "Borrower 1c \u2014 Total Gross Income",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_base_monthly_income",
       "field_id": "FE0119",
       "field_name": "Borrower \u2014 Base Monthly Income (Section 1b)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_monthly_income",
+      "field_id": "FE0156",
+      "field_name": "Borrower 1c \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_total_gross_income",
+      "field_id": "FE0212",
+      "field_name": "Co-Borrower 1c \u2014 Total Gross Income",
       "category": "income",
       "used_by_steps": [
         "STEP_04"
@@ -1636,9 +1663,27 @@
       ]
     },
     {
+      "key": "coborr_1c_monthly_income",
+      "field_id": "FE0256",
+      "field_name": "Co-Borrower 1c \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_1c_employer_name",
       "field_id": "FE0302",
       "field_name": "Borrower 1c \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_total_gross_income",
+      "field_id": "FE0312",
+      "field_name": "Borrower 1d \u2014 Total Gross Income",
       "category": "income",
       "used_by_steps": [
         "STEP_04"
@@ -1672,9 +1717,27 @@
       ]
     },
     {
+      "key": "borr_1d_monthly_income",
+      "field_id": "FE0356",
+      "field_name": "Borrower 1d \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "coborr_1c_employer_name",
       "field_id": "FE0402",
       "field_name": "Co-Borrower 1c \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_total_gross_income",
+      "field_id": "FE0412",
+      "field_name": "Co-Borrower 1d \u2014 Total Gross Income",
       "category": "income",
       "used_by_steps": [
         "STEP_04"
@@ -1702,6 +1765,15 @@
       "key": "coborr_1c_months_in_line",
       "field_id": "FE0452",
       "field_name": "Co-Borrower 1c \u2014 Months in Line of Work",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_monthly_income",
+      "field_id": "FE0456",
+      "field_name": "Co-Borrower 1d \u2014 Monthly Income (or Loss)",
       "category": "income",
       "used_by_steps": [
         "STEP_04"
@@ -3039,7 +3111,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 240,
+    "total_los_fields": 248,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,

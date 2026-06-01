@@ -286,6 +286,26 @@ substeps:
     category: income
     purpose: If checked, co-borrower has no employee/employer income — FE0219 blank is acceptable.
   # ── Section 1c: Additional / Self-Employment Income ────────────────────────
+  - key: borr_1c_total_gross_income
+    field_id: FE0112
+    field_name: Borrower 1c — Total Gross Income
+    category: income
+    purpose: Surfaced as info flag when 1c is populated.
+  - key: borr_1c_monthly_income
+    field_id: FE0156
+    field_name: Borrower 1c — Monthly Income (or Loss)
+    category: income
+    purpose: Surfaced as info flag alongside total gross income.
+  - key: coborr_1c_total_gross_income
+    field_id: FE0212
+    field_name: Co-Borrower 1c — Total Gross Income
+    category: income
+    purpose: Surfaced as info flag when co-borrower 1c is populated.
+  - key: coborr_1c_monthly_income
+    field_id: FE0256
+    field_name: Co-Borrower 1c — Monthly Income (or Loss)
+    category: income
+    purpose: Surfaced as info flag alongside total gross income.
   - key: borr_1c_employer_name
     field_id: FE0302
     field_name: Borrower 1c — Employer or Business Name
@@ -337,6 +357,26 @@ substeps:
     category: income
     purpose: If checked, co-borrower has no additional/self-employment income.
   # ── Section 1d: Previous Employment and Income ─────────────────────────────
+  - key: borr_1d_total_gross_income
+    field_id: FE0312
+    field_name: Borrower 1d — Total Gross Income
+    category: income
+    purpose: Surfaced as info flag when 1d is populated.
+  - key: borr_1d_monthly_income
+    field_id: FE0356
+    field_name: Borrower 1d — Monthly Income (or Loss)
+    category: income
+    purpose: Surfaced as info flag alongside total gross income.
+  - key: coborr_1d_total_gross_income
+    field_id: FE0412
+    field_name: Co-Borrower 1d — Total Gross Income
+    category: income
+    purpose: Surfaced as info flag when co-borrower 1d is populated.
+  - key: coborr_1d_monthly_income
+    field_id: FE0456
+    field_name: Co-Borrower 1d — Monthly Income (or Loss)
+    category: income
+    purpose: Surfaced as info flag alongside total gross income.
   - key: borr_1d_employer_name
     field_id: FE0502
     field_name: Borrower 1d — Employer or Business Name

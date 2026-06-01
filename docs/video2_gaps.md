@@ -27,8 +27,8 @@
 |---|---|---|
 | Married + same-employer → copy date hired / years in job / years in line of work from borr → co-borr | ✅ | `review_urla_employment.py` — gates on `borrower_marital_status == "MARRIED"` + co-borrower present. Finds borrower and co-borrower current slots via `BE0X08` (voe_is_for) + `BE0X09` (employment_type). If employer names match (normalized), copies `date_hired`, `years_in_job`, `months_in_job`, `years_in_line_of_work`, `months_in_line_of_work` to co-borrower's BE slot via `_write_fields`. Flags `info-overwrite` on success, `warning` if borrower tenure fields are blank. |
 | "Does not apply" checkbox detection for empty 1b/1c/1d | ✅ | `review_urla_employment.py` — `info` flag for each section (1b/1c/1d, borrower + co-borrower) when key field empty AND DNA checkbox unchecked. 1b: `FE0119`/`FE0219` vs `URLA.X199`/`X200`. 1c: `FE0302`/`FE0402` vs `URLA.X201`/`X202`. 1d: `FE0502`/`FE0602` vs `URLA.X203`/`X204`. All FE03-FE06 fields + DNA fields added to `data_gathering.py` and `step_04_urla_page2.yaml`. URLA.X201/X202 relabeled from "Employment" → Section 1c. |
-| "Does not apply" for 1c | ❌ | Step 4 has only 4.1 + 4.2; no 1c substep/tool exists |
-| Gross income surfacing both borrowers | ❌ | Only base monthly (`FE0119`/`FE0219`) checked; `paystub_gross_pay` referenced in YAML (`step_04_urla_page2.yaml:361-362`) but unused |
+| "Does not apply" for 1c | ✅ | Handled in `review_urla_employment.py` (substep 4.1) alongside 1b and 1d — see row above. `URLA.X201`/`X202` now correctly labeled as Section 1c DNA; `FE0302`/`FE0402` (employer name) used as presence gate. |
+| Gross income surfacing both borrowers | ✅ | `review_urla_employment.py` — when 1c or 1d employer name is populated, flags `info` showing total gross (FE0112/FE0212/FE0312/FE0412) and monthly income (FE0156/FE0256/FE0356/FE0456) for borrower and co-borrower. All 8 fields added to `data_gathering.py` and `step_04_urla_page2.yaml`. |
 | FHA gap rules | ✅ | `review_urla_employment.py:407-420`; YAML `step_04_urla_page2.yaml:463-482`; `workflow_config.json:210-219` |
 
 ### Step 5 — 1003 URLA Part 3

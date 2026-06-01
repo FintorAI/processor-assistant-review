@@ -200,11 +200,19 @@ def review_urla_employment(
     borr_1b_dna             = _los(state, "borr_1b_dna")                   # URLA.X199
     coborr_1b_dna           = _los(state, "coborr_1b_dna")                 # URLA.X200
     borr_1c_employer        = _los(state, "borr_1c_employer_name")         # FE0302
+    borr_1c_gross           = _los(state, "borr_1c_total_gross_income")    # FE0112
+    borr_1c_monthly         = _los(state, "borr_1c_monthly_income")        # FE0156
     coborr_1c_employer      = _los(state, "coborr_1c_employer_name")       # FE0402
+    coborr_1c_gross         = _los(state, "coborr_1c_total_gross_income")  # FE0212
+    coborr_1c_monthly       = _los(state, "coborr_1c_monthly_income")      # FE0256
     borr_1c_dna             = _los(state, "borr_1c_dna")                   # URLA.X201
     coborr_1c_dna           = _los(state, "coborr_1c_dna")                 # URLA.X202
     borr_1d_employer        = _los(state, "borr_1d_employer_name")         # FE0502
+    borr_1d_gross           = _los(state, "borr_1d_total_gross_income")    # FE0312
+    borr_1d_monthly         = _los(state, "borr_1d_monthly_income")        # FE0356
     coborr_1d_employer      = _los(state, "coborr_1d_employer_name")       # FE0602
+    coborr_1d_gross         = _los(state, "coborr_1d_total_gross_income")  # FE0412
+    coborr_1d_monthly       = _los(state, "coborr_1d_monthly_income")      # FE0456
     borr_1d_dna             = _los(state, "borr_1d_dna")                   # URLA.X203
     coborr_1d_dna           = _los(state, "coborr_1d_dna")                 # URLA.X204
 
@@ -424,6 +432,44 @@ def review_urla_employment(
                 "FE0602 (co-borrower 1d employer name) is blank and URLA.X204 (1d Does Not Apply) is not checked.",
                 "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 1d.",
             ))
+
+    # ── Gross income surfacing: 1c and 1d when section is populated ───────────
+    def _fmt_income(gross, monthly) -> str:
+        parts = []
+        if gross:
+            parts.append(f"total gross: {gross}")
+        if monthly:
+            parts.append(f"monthly: {monthly}")
+        return ", ".join(parts) if parts else "(not entered)"
+
+    if (borr_1c_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1c Income — Borrower ({borr_1c_employer})",
+            "info",
+            f"1c populated. {_fmt_income(borr_1c_gross, borr_1c_monthly)}.",
+            "Verify gross income and monthly amounts match the VOE / self-employment docs.",
+        ))
+    if (coborr_1c_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1c Income — Co-Borrower ({coborr_1c_employer})",
+            "info",
+            f"1c populated. {_fmt_income(coborr_1c_gross, coborr_1c_monthly)}.",
+            "Verify co-borrower gross income and monthly amounts match supporting docs.",
+        ))
+    if (borr_1d_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1d Income — Borrower ({borr_1d_employer})",
+            "info",
+            f"1d (previous employment) populated. {_fmt_income(borr_1d_gross, borr_1d_monthly)}.",
+            "Verify prior income amounts are consistent with employment history docs.",
+        ))
+    if (coborr_1d_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1d Income — Co-Borrower ({coborr_1d_employer})",
+            "info",
+            f"1d (previous employment) populated. {_fmt_income(coborr_1d_gross, coborr_1d_monthly)}.",
+            "Verify co-borrower prior income amounts match employment history docs.",
+        ))
 
     # ── Employment gap checks ─────────────────────────────────────────────────
     if current_entry and prior_entries:
