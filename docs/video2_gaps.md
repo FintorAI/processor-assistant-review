@@ -54,7 +54,7 @@
 |---|---|---|
 | List REO properties | ✅ | `review_urla_reo.py:92-103` |
 | Cross-check eFolder for mortgage statement / HOI deck / HOA / tax bill | ✅ | `review_urla_reo.py` — warns per missing doc type (Mortgage Statement, HOA Statement, Property Tax Bill) when REO properties exist |
-| Stale mortgage statement → Xactus credit supplement request | ❌ | No Xactus logic anywhere |
+| Stale mortgage statement → Xactus credit supplement request | ✅ | `review_urla_reo.py`: reads `_doc(state, "statement_date")` (extracted via new "Mortgage Statement" schema registered in eFolder API, bucket `Other Owned Property Documents`). Parses date with multi-format fallback. If >90 days old → `warning` "Mortgage Statement — Stale (>90 Days)" with suggestion to pull Xactus credit supplement. If ≤90 days → `info` "Mortgage Statement — Current". Schema fields also wired into `required_docs.json` (9 fields) and `required_docs_conditions.json` so `fetch_doc_fields` normalizes them into state. Xactus API call itself not yet in scope. |
 
 ### Step 6 — 1003 URLA Part 4
 
@@ -69,7 +69,7 @@
 
 | Item | Status | Evidence |
 |---|---|---|
-| Ethnicity cross-check vs DL | ❌ | Stub: reads then `pass` (`review_urla_ethnicity.py:45-70`) |
+| Ethnicity cross-check vs DL | ✅ | `review_urla_ethnicity.py` (substep 6.3) — implemented with `_ethnicity_bucket()` normalizer (hispanic / not_hispanic / unknown). Gates on `dl_ethnicity_indicator` being populated (most US DLs don't print ethnicity — no flag if null). `warning` on mismatch, `info` on match or if LOS is blank. Also: attachment type blank → `info`, estate held (field 1066) → moved here from 6.2. `dl_ethnicity_indicator` is confirmed in live CatchingDoc API schema for Driver's License. |
 | Manner Held suggestion logic: Tenancy by the Entirety (husband+wife) vs Tenancy in Common (siblings) | ✅ | `update_borrower_vesting.py` `_determine_manner_held()` — computes correct manner from marital status, co-borrower, property state (MD→Tenancy By The Entirety, NV→As Joint Tenants force-override, community property states, solo unmarried, etc.) and flags incompatible LOS values. Both field 33 and `URLA.X138` now written together with correct enum mapping via `_manner_to_urla_x138()`. Field ID corrected (was wrongly 34). |
 | Estate held = Fee Simple verification | ❌ | Commented TODO (`review_urla_ethnicity.py:87-100`) |
 

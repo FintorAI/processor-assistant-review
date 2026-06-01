@@ -678,6 +678,21 @@
         "signature_date",
         "md_settlement_signed"
       ]
+    },
+    "mortgage_statement": {
+      "name": "Mortgage Statement",
+      "category": "reo",
+      "fields_extracted": [
+        "statement_date",
+        "borrower_name",
+        "coborrower_name",
+        "servicer_name",
+        "loan_number",
+        "property_address",
+        "current_payment_due",
+        "unpaid_principal_balance",
+        "payment_due_date"
+      ]
     }
   },
   "categories": {
@@ -690,6 +705,7 @@
     "identity": "Photo ID and identity verification (Driver's License)",
     "disclosure": "Loan Estimate, Lock Confirmation, Initial Disclosures, CPL",
     "insurance": "Hazard insurance, flood certificate",
-    "title": "Title report"
+    "title": "Title report",
+    "reo": "REO / other owned property documents (Mortgage Statement, HOA, tax bill)"
   }
 }

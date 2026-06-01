@@ -38,7 +38,8 @@
         "MD Important Notice Regarding Counseling",
         "MD Notice Regarding Right for Assumption",
         "MD Right to Choose Insurance Provider",
-        "MD Settlement Services/Right to Choose"
+        "MD Settlement Services/Right to Choose",
+        "Mortgage Statement"
       ],
       "extraction_mode": {
         "Underwriting": "all",
@@ -153,6 +154,9 @@
     },
     "MD Settlement Services/Right to Choose": {
       "docrepo_key": "md_settlement_services"
+    },
+    "Mortgage Statement": {
+      "docrepo_key": "mortgage_statement"
     }
   }
 }

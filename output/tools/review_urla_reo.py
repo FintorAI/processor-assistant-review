@@ -122,6 +122,49 @@ def review_urla_reo(
                     suggestion=f"Obtain and upload {doc_label} to the eFolder.",
                 ))
 
+        # ── Stale Mortgage Statement check (>90 days old) ──
+        raw_stmt_date = _doc(state, "statement_date")
+        if raw_stmt_date:
+            try:
+                for fmt in ("%m/%d/%Y", "%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+                    try:
+                        stmt_dt = datetime.strptime(str(raw_stmt_date).strip(), fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    stmt_dt = None
+
+                if stmt_dt:
+                    age_days = (datetime.now() - stmt_dt).days
+                    if age_days > 90:
+                        flags.append(_flag(
+                            title="Mortgage Statement — Stale (>90 Days)",
+                            severity="warning",
+                            details=(
+                                f"Mortgage Statement is dated {raw_stmt_date} "
+                                f"({age_days} days ago), which exceeds the 90-day "
+                                "freshness threshold."
+                            ),
+                            suggestion=(
+                                "Pull a Xactus credit supplement to obtain a current "
+                                "mortgage payment history. Upload to eFolder under "
+                                "'Other Owned Property Documents'."
+                            ),
+                        ))
+                    else:
+                        flags.append(_flag(
+                            title="Mortgage Statement — Current",
+                            severity="info",
+                            details=(
+                                f"Mortgage Statement is dated {raw_stmt_date} "
+                                f"({age_days} days ago) — within the 90-day window."
+                            ),
+                            suggestion="No action needed.",
+                        ))
+            except Exception as exc:
+                logger.warning(f"[REVIEW_URLA_REO] Could not parse statement_date '{raw_stmt_date}': {exc}")
+
     # ── Build result ──
     result = {
         "success": True,
