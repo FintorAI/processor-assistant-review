@@ -194,11 +194,19 @@ def review_urla_employment(
     voe_cur_position   = _doc(state, "current_position_title")
     voe_cur_auth       = _doc(state, "authorization_printed")
 
-    # ── Section 1b income totals + Does Not Apply checkboxes ─────────────
+    # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
     coborr_base_income      = _los(state, "coborr_base_monthly_income")    # FE0219
-    borr_dna                = _los(state, "borr_income_does_not_apply")    # URLA.X201
-    coborr_dna              = _los(state, "coborr_income_does_not_apply")  # URLA.X202
+    borr_1b_dna             = _los(state, "borr_1b_dna")                   # URLA.X199
+    coborr_1b_dna           = _los(state, "coborr_1b_dna")                 # URLA.X200
+    borr_1c_employer        = _los(state, "borr_1c_employer_name")         # FE0302
+    coborr_1c_employer      = _los(state, "coborr_1c_employer_name")       # FE0402
+    borr_1c_dna             = _los(state, "borr_1c_dna")                   # URLA.X201
+    coborr_1c_dna           = _los(state, "coborr_1c_dna")                 # URLA.X202
+    borr_1d_employer        = _los(state, "borr_1d_employer_name")         # FE0502
+    coborr_1d_employer      = _los(state, "coborr_1d_employer_name")       # FE0602
+    borr_1d_dna             = _los(state, "borr_1d_dna")                   # URLA.X203
+    coborr_1d_dna           = _los(state, "coborr_1d_dna")                 # URLA.X204
 
     voe_prev_position  = _doc(state, "previous_position_title")
     voe_prev_name      = _doc(state, "previous_employer_name")
@@ -352,35 +360,69 @@ def review_urla_employment(
                         "Reconcile prior employer base pay with the VOE",
                     ))
 
-    # ── Section 1b: FE0119 / FE0219 base monthly income + URLA.X201/X202 ─────────
-    # Borrower
-    borr_dna_checked = str(borr_dna or "").strip().lower() in ("true", "yes", "1", "checked")
-    if not borr_dna_checked:
-        if not borr_base_income or not borr_base_income.strip():
-            flags.append(_flag("4.1",
-                "Borrower Base Monthly Income Missing (FE0119)",
-                "warning",
-                "FE0119 (borrower base monthly income, Section 1b) is empty and URLA.X201 (does not apply) is not checked.",
-                "Enter the borrower's base monthly income or check the 'Does Not Apply' box (URLA.X201)",
-            ))
+    # ── Does Not Apply checkbox detection: sections 1b / 1c / 1d ────────────
+    def _dna_checked(val) -> bool:
+        return str(val or "").strip().lower() in ("true", "yes", "1", "checked", "x")
 
-    # Co-borrower — only check if a co-borrower entry exists in the loan
-    coborr_dna_checked = str(coborr_dna or "").strip().lower() in ("true", "yes", "1", "checked")
-    # Co-borrower check: try fetching co-borrower employment from the API
+    # Determine if loan has a co-borrower (re-use entries already fetched, or detect from state)
     try:
         coborr_entries = read_employment(loan_id, state=state, applicant_type="coborrower")
         has_coborr = len(coborr_entries) > 0
-    except LookupError:
-        has_coborr = False
-    except Exception:
-        has_coborr = False
-    if has_coborr and not coborr_dna_checked:
-        if not coborr_base_income or not coborr_base_income.strip():
+    except (LookupError, Exception):
+        has_coborr = bool(_los(state, "coborrower_first_name"))
+
+    # ── 1b: Employee / Employer income (FE0119 / FE0219) ─────────────────────
+    if not _dna_checked(borr_1b_dna):
+        if not (borr_base_income or "").strip():
             flags.append(_flag("4.1",
-                "Co-Borrower Base Monthly Income Missing (FE0219)",
-                "warning",
-                "FE0219 (co-borrower base monthly income, Section 1b) is empty and URLA.X202 (does not apply) is not checked.",
-                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box (URLA.X202)",
+                "Section 1b Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0119 (borrower base monthly income) is blank and URLA.X199 (1b Does Not Apply) is not checked.",
+                "Enter the base monthly income or check the 'Does Not Apply' box for Section 1b.",
+            ))
+    if has_coborr and not _dna_checked(coborr_1b_dna):
+        if not (coborr_base_income or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1b Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0219 (co-borrower base monthly income) is blank and URLA.X200 (1b Does Not Apply) is not checked.",
+                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box for Section 1b.",
+            ))
+
+    # ── 1c: Additional / Self-Employment income (FE0302 / FE0402) ────────────
+    if not _dna_checked(borr_1c_dna):
+        if not (borr_1c_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1c Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0302 (borrower 1c employer name) is blank and URLA.X201 (1c Does Not Apply) is not checked.",
+                "Enter self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+            ))
+    if has_coborr and not _dna_checked(coborr_1c_dna):
+        if not (coborr_1c_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1c Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0402 (co-borrower 1c employer name) is blank and URLA.X202 (1c Does Not Apply) is not checked.",
+                "Enter co-borrower self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+            ))
+
+    # ── 1d: Previous Employment income (FE0502 / FE0602) ─────────────────────
+    if not _dna_checked(borr_1d_dna):
+        if not (borr_1d_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1d Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0502 (borrower 1d employer name) is blank and URLA.X203 (1d Does Not Apply) is not checked.",
+                "Enter previous employment details or check the 'Does Not Apply' box for Section 1d.",
+            ))
+    if has_coborr and not _dna_checked(coborr_1d_dna):
+        if not (coborr_1d_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1d Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0602 (co-borrower 1d employer name) is blank and URLA.X204 (1d Does Not Apply) is not checked.",
+                "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 1d.",
             ))
 
     # ── Employment gap checks ─────────────────────────────────────────────────

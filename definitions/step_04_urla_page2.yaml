@@ -260,34 +260,123 @@ substeps:
     category: income
     purpose: Income at third employer
   # ── 1003 Section 1b — Income totals and Does Not Apply checkboxes ────
+  # ── Section 1b: Employee / Employer Income ────────────────────────────────
   - key: borr_base_monthly_income
     field_id: FE0119
     field_name: Borrower — Base Monthly Income (Section 1b)
     category: income
     purpose: >
       Total base monthly income for borrower per Section 1b. Must be populated
-      unless URLA.X201 (does not apply) is checked. Cross-check against BE01xx/BE03xx monthly_base_pay.
+      unless URLA.X199 (1b does not apply) is checked.
   - key: coborr_base_monthly_income
     field_id: FE0219
     field_name: Co-Borrower — Base Monthly Income (Section 1b)
     category: income
     purpose: >
       Total base monthly income for co-borrower per Section 1b. Must be populated
-      unless URLA.X202 (does not apply) is checked.
-  - key: borr_income_does_not_apply
+      unless URLA.X200 (1b does not apply) is checked.
+  - key: borr_1b_dna
+    field_id: URLA.X199
+    field_name: Borrower — Section 1b Does Not Apply
+    category: income
+    purpose: If checked, borrower has no employee/employer income — FE0119 blank is acceptable.
+  - key: coborr_1b_dna
+    field_id: URLA.X200
+    field_name: Co-Borrower — Section 1b Does Not Apply
+    category: income
+    purpose: If checked, co-borrower has no employee/employer income — FE0219 blank is acceptable.
+  # ── Section 1c: Additional / Self-Employment Income ────────────────────────
+  - key: borr_1c_employer_name
+    field_id: FE0302
+    field_name: Borrower 1c — Employer or Business Name
+    category: income
+    purpose: Presence indicates borrower has self/additional employment. Gate for DNA check.
+  - key: borr_1c_start_date
+    field_id: FE0351
+    field_name: Borrower 1c — Start Date
+    category: income
+    purpose: Start date of additional/self employment
+  - key: borr_1c_years_in_line
+    field_id: FE0316
+    field_name: Borrower 1c — Years in Line of Work
+    category: income
+    purpose: Duration check
+  - key: borr_1c_months_in_line
+    field_id: FE0352
+    field_name: Borrower 1c — Months in Line of Work
+    category: income
+    purpose: Duration check
+  - key: coborr_1c_employer_name
+    field_id: FE0402
+    field_name: Co-Borrower 1c — Employer or Business Name
+    category: income
+    purpose: Presence indicates co-borrower has self/additional employment. Gate for DNA check.
+  - key: coborr_1c_start_date
+    field_id: FE0451
+    field_name: Co-Borrower 1c — Start Date
+    category: income
+    purpose: Start date of additional/self employment
+  - key: coborr_1c_years_in_line
+    field_id: FE0416
+    field_name: Co-Borrower 1c — Years in Line of Work
+    category: income
+    purpose: Duration check
+  - key: coborr_1c_months_in_line
+    field_id: FE0452
+    field_name: Co-Borrower 1c — Months in Line of Work
+    category: income
+    purpose: Duration check
+  - key: borr_1c_dna
     field_id: URLA.X201
-    field_name: Borrower — Additional / Self Employment and Income Does Not Apply
-    category: employment
-    purpose: >
-      Checkbox: if checked, borrower has no additional or self-employment income.
-      When checked, borr_base_monthly_income (FE0119) absence is acceptable.
-  - key: coborr_income_does_not_apply
+    field_name: Borrower — Section 1c Does Not Apply
+    category: income
+    purpose: If checked, borrower has no additional/self-employment income — 1c section blank is acceptable.
+  - key: coborr_1c_dna
     field_id: URLA.X202
-    field_name: Co-Borrower — Additional / Self Employment and Income Does Not Apply
-    category: employment
-    purpose: >
-      Checkbox: if checked, co-borrower has no additional or self-employment income.
-      When checked, coborr_base_monthly_income (FE0219) absence is acceptable.
+    field_name: Co-Borrower — Section 1c Does Not Apply
+    category: income
+    purpose: If checked, co-borrower has no additional/self-employment income.
+  # ── Section 1d: Previous Employment and Income ─────────────────────────────
+  - key: borr_1d_employer_name
+    field_id: FE0502
+    field_name: Borrower 1d — Employer or Business Name
+    category: income
+    purpose: Presence indicates prior employer. Gate for DNA check.
+  - key: borr_1d_start_date
+    field_id: FE0551
+    field_name: Borrower 1d — Start Date
+    category: income
+    purpose: Prior employment start date
+  - key: borr_1d_end_date
+    field_id: FE0514
+    field_name: Borrower 1d — End Date
+    category: income
+    purpose: Prior employment end date
+  - key: coborr_1d_employer_name
+    field_id: FE0602
+    field_name: Co-Borrower 1d — Employer or Business Name
+    category: income
+    purpose: Presence indicates prior employer. Gate for DNA check.
+  - key: coborr_1d_start_date
+    field_id: FE0651
+    field_name: Co-Borrower 1d — Start Date
+    category: income
+    purpose: Prior employment start date
+  - key: coborr_1d_end_date
+    field_id: FE0614
+    field_name: Co-Borrower 1d — End Date
+    category: income
+    purpose: Prior employment end date
+  - key: borr_1d_dna
+    field_id: URLA.X203
+    field_name: Borrower — Section 1d Does Not Apply
+    category: income
+    purpose: If checked, borrower has no previous employment — 1d section blank is acceptable.
+  - key: coborr_1d_dna
+    field_id: URLA.X204
+    field_name: Co-Borrower — Section 1d Does Not Apply
+    category: income
+    purpose: If checked, co-borrower has no previous employment.
   doc_types:
   - document_type: VOE
     all_copies: true
