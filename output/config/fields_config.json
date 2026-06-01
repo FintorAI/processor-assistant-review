@@ -739,6 +739,15 @@
       ]
     },
     {
+      "key": "coborrower_sex",
+      "field_id": "478",
+      "field_name": "Co-Borrower Sex",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "marital_status",
       "field_id": "479",
       "field_name": "Borrower Marital Status",
@@ -3111,7 +3120,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 248,
+    "total_los_fields": 249,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,

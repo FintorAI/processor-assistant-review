@@ -91,7 +91,7 @@
 | Item | Status | Evidence |
 |---|---|---|
 | Intent = "Will Occupy" when primary | ✅ | `_compute_occupancy_intent`; `update_borrower_vesting.py:157-164,241-273` |
-| Vesting order: wife first if URLA-first | ❌ | Fixed order: 1868 borrower, 1873 co-borrower (`update_borrower_vesting.py:275-351`) |
+| Vesting order: wife first if URLA-first | ✅ | `update_borrower_vesting.py` — `wife_first` flag set when `coborrower_sex=FEMALE` AND `borrower_sex=MALE`. When true: co-borrower (wife) written to slot 1868, borrower (husband) to slot 1873. `info` flag "Vesting Order — Wife Listed First" emitted. `coborrower_sex` (field 478) added to `step_08_borrower_vesting.yaml`. Validation: PASSED. |
 | "Manner: Tenancy by the Entirety" for husband+wife | 🟡 | Returns Tenancy by Entirety only for MD (`update_borrower_vesting.py:42,94-95`); other states get "Husband And Wife" / "Wife And Husband" (`:96`) |
 | "Build Final Vesting" click | 🟡 | Doesn't auto-click; flags when 1867 empty (`:416-424`); sets 1872/1877 to support build |
 
