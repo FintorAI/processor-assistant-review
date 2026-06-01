@@ -38,9 +38,12 @@ logger = logging.getLogger(__name__)
 # ── State-specific vesting rules ──────────────────────────────────────────────
 
 _COMMUNITY_PROPERTY_STATES = {"AZ", "CA", "ID", "LA", "NV", "NM", "TX", "WA", "WI"}
-_JOINT_TENANTS_STATES = {"NV"}           # married couples → As Joint Tenants
-_TENANCY_ENTIRETY_STATES = {"MD"}        # married couples → Tenancy By The Entirety
+_JOINT_TENANTS_STATES = {"NV"}           # married couples → As Joint Tenants (force overwrite)
 _FORCE_OVERWRITE_STATES = {"NV"}         # overwrite even when 33 is populated
+# Tenancy by the Entirety is the default for married + co-borrower in all states
+# EXCEPT community property states (own rules) and NV (As Joint Tenants override).
+# Community property states: AZ CA ID LA NM TX WA WI — these use CP or separate property.
+_NO_TENANCY_ENTIRETY_STATES = _COMMUNITY_PROPERTY_STATES  # same exclusion set
 
 _SPOUSE_VESTING_VARIANTS = {"HUSBAND AND WIFE", "WIFE AND HUSBAND"}
 
@@ -91,8 +94,10 @@ def _determine_manner_held(property_state, marital_status, has_coborrower,
     if both_on_title and is_married:
         if prop_st in _JOINT_TENANTS_STATES:
             return "As Joint Tenants"
-        if prop_st in _TENANCY_ENTIRETY_STATES:
+        if prop_st not in _NO_TENANCY_ENTIRETY_STATES:
+            # Default for married couples in all non-community-property states
             return "Tenancy By The Entirety"
+        # Community property states — fall through to CP handling below
         return "Wife And Husband" if is_female else "Husband And Wife"
 
     if both_on_title:
@@ -106,6 +111,64 @@ def _determine_manner_held(property_state, marital_status, has_coborrower,
         return "Married Woman" if is_female else "Married Man"
 
     return "Sole Ownership"
+
+
+_MANNER_TO_URLA_X138 = {
+    # Confirmed via live Encompass API read-back on test instance (2026-06-01).
+    # Field 33 display text → URLA.X138 camelCase enum value.
+    # Lender form checkboxes only cover these 6 categories; Borrower Vesting
+    # dropdown has many more values that collapse into these buckets.
+    "sole ownership":                                          "Individual",
+    "individual":                                             "Individual",
+    "single man":                                             "Individual",
+    "single woman":                                           "Individual",
+    "unmarried man":                                          "Individual",
+    "unmarried woman":                                        "Individual",
+    "married man":                                            "Individual",
+    "married woman":                                          "Individual",
+    "as his sole and separate property":                      "Individual",
+    "as her sole and separate property":                      "Individual",
+    "joint tenancy with right of survivorship":               "JointTenantsWithRightOfSurvivorship",
+    "joint tenancy with rights of survivorship":              "JointTenantsWithRightOfSurvivorship",
+    "as joint tenants":                                       "JointTenantsWithRightOfSurvivorship",
+    "all as joint tenants":                                   "JointTenantsWithRightOfSurvivorship",
+    "joint tenants":                                          "JointTenantsWithRightOfSurvivorship",
+    "as joint tenants with right of survivorship":            "JointTenantsWithRightOfSurvivorship",
+    "husband and wife as joint tenants":                      "JointTenantsWithRightOfSurvivorship",
+    "husband and wife as joint tenants with right of survivorship": "JointTenantsWithRightOfSurvivorship",
+    "tenancy by the entirety":                                "TenantsByTheEntirety",
+    "tenancy by entirety":                                    "TenantsByTheEntirety",
+    "as tenancy by entirety":                                 "TenantsByTheEntirety",
+    "tenants by the entirety":                                "TenantsByTheEntirety",
+    "husband and wife":                                       "TenantsByTheEntirety",
+    "wife and husband":                                       "TenantsByTheEntirety",
+    "spouses married to each other":                          "TenantsByTheEntirety",
+    "tenancy in common":                                      "TenantsInCommon",
+    "tenants in common":                                      "TenantsInCommon",
+    "as tenants in common":                                   "TenantsInCommon",
+    "all as tenants in common":                               "TenantsInCommon",
+    "husband and wife as tenants in common":                  "TenantsInCommon",
+    "both unmarried":                                         "TenantsInCommon",
+    "each as to an undivided one half interest":              "TenantsInCommon",
+    "each as to an undivided one third interest":             "TenantsInCommon",
+    "each as to an undivided one fourth interest":            "TenantsInCommon",
+    "life estate":                                            "LifeEstate",
+    "as community property":                                  "Other",
+    "community property":                                     "Other",
+    "to be decided in escrow":                                "Other",
+    "other":                                                  "Other",
+}
+
+
+def _manner_to_urla_x138(field_33_value: str) -> str:
+    """Map a field 33 display value to the URLA.X138 camelCase enum.
+
+    Returns "Other" for any unrecognised value so the lender form always gets
+    a valid enum rather than an empty/rejected write.
+    """
+    return _MANNER_TO_URLA_X138.get(
+        (field_33_value or "").strip().lower(), "Other"
+    )
 
 
 def _manner_held_compatible(los_value: str, computed: str) -> bool:
@@ -212,6 +275,7 @@ def update_borrower_vesting(
     cobr_last   = _los(state, "coborrower_last_name")
     cobr_ssn    = _los(state, "coborrower_ssn")
     cobr_dob    = _los(state, "coborrower_dob")
+    cobr_sex    = _los(state, "coborrower_sex")
 
     nbs_flag = _los(state, "nbs_flag")
     nbs_info = _los(state, "nbs_info")
@@ -232,6 +296,12 @@ def update_borrower_vesting(
     prop_st = (property_state or "").strip().upper()
     is_refinance = "REFI" in loan_purpose
     is_female = (borr_sex or "").strip().upper() == "FEMALE"
+
+    # Wife-first vesting order: if co-borrower is female and borrower is male,
+    # list the wife first (slot 1868) and husband second (slot 1873).
+    cobr_is_female = (cobr_sex or "").strip().upper() == "FEMALE"
+    borr_is_male   = (borr_sex or "").strip().upper() == "MALE"
+    wife_first = has_coborrower and cobr_is_female and borr_is_male
 
     logger.info(
         f"[UPDATE_BORROWER_VESTING] state={prop_st}, marital={marital_status}, "
@@ -274,17 +344,33 @@ def update_borrower_vesting(
 
     # ── B. Borrower vesting name / type ───────────────────────────────────────
     borr_full = " ".join(p for p in [borr_first, borr_middle, borr_last] if p and str(p).strip()).strip()
-    if borr_full:
+    cobr_full_for_order = " ".join(p for p in [cobr_first, cobr_middle, cobr_last] if p and str(p).strip()).strip() if has_coborrower else ""
+
+    # wife_first: co-borrower (wife) takes slot 1868, borrower (husband) takes 1873
+    slot_1868_name = cobr_full_for_order if wife_first else borr_full
+    slot_1868_label = "Co-Borrower (wife, listed first)" if wife_first else "Borrower"
+
+    if slot_1868_name:
         if not prev_borr_name:
-            field_updates["1868"] = borr_full
-            actions.append(f"SET 1868 (Borrower Vesting Name) = '{borr_full}'")
-        elif prev_borr_name.upper() != borr_full.upper():
+            field_updates["1868"] = slot_1868_name
+            actions.append(f"SET 1868 (Vesting Name 1 — {slot_1868_label}) = '{slot_1868_name}'")
+        elif prev_borr_name.upper() != slot_1868_name.upper():
             flags.append(_flag("8.1",
-                "Borrower Vesting Name Mismatch",
+                "Vesting Name 1 (1868) Mismatch",
                 "warning",
-                f"Field 1868 has '{prev_borr_name}' but borrower name is '{borr_full}'.",
-                "Correct field 1868 to match borrower name from 4000/4001/4002",
+                f"Field 1868 has '{prev_borr_name}' but expected '{slot_1868_name}' ({slot_1868_label}).",
+                f"Correct field 1868 to '{slot_1868_name}' — {'wife goes first per URLA order' if wife_first else 'borrower name from 4000/4001/4002'}",
             ))
+    if wife_first:
+        flags.append(_flag("8.1",
+            "Vesting Order — Wife Listed First",
+            "info",
+            f"Co-borrower ({cobr_full_for_order}) is female and borrower ({borr_full}) is male. "
+            "Wife placed in vesting slot 1868 (first), husband in slot 1873 (second) per URLA order convention.",
+            "No action needed — order matches URLA convention.",
+            resolved=True,
+        ))
+
     field_updates["1871"] = "Individual"
     actions.append("SET 1871 (Borrower Vesting Type) = 'Individual'")
 
@@ -317,17 +403,22 @@ def update_borrower_vesting(
 
     # ── C. Co-borrower vesting name / type ────────────────────────────────────
     if has_coborrower:
-        cobr_full = " ".join(p for p in [cobr_first, cobr_middle, cobr_last] if p and str(p).strip()).strip()
-        if cobr_full:
+        cobr_full = cobr_full_for_order  # already computed above
+
+        # wife_first: husband (borrower) goes in slot 1873
+        slot_1873_name  = borr_full if wife_first else cobr_full
+        slot_1873_label = "Borrower (husband, listed second)" if wife_first else "Co-Borrower"
+
+        if slot_1873_name:
             if not prev_cobr_name:
-                field_updates["1873"] = cobr_full
-                actions.append(f"SET 1873 (Co-Borrower Vesting Name) = '{cobr_full}'")
-            elif prev_cobr_name.upper() != cobr_full.upper():
+                field_updates["1873"] = slot_1873_name
+                actions.append(f"SET 1873 (Vesting Name 2 — {slot_1873_label}) = '{slot_1873_name}'")
+            elif prev_cobr_name.upper() != slot_1873_name.upper():
                 flags.append(_flag("8.1",
-                    "Co-Borrower Vesting Name Mismatch",
+                    "Vesting Name 2 (1873) Mismatch",
                     "warning",
-                    f"Field 1873 has '{prev_cobr_name}' but co-borrower name is '{cobr_full}'.",
-                    "Correct field 1873 to match co-borrower name",
+                    f"Field 1873 has '{prev_cobr_name}' but expected '{slot_1873_name}' ({slot_1873_label}).",
+                    f"Correct field 1873 to '{slot_1873_name}' — {'husband listed second per wife-first order' if wife_first else 'co-borrower name from 4004/4005/4006'}",
                 ))
         field_updates["1876"] = "Individual"
         actions.append("SET 1876 (Co-Borrower Vesting Type) = 'Individual'")
@@ -359,7 +450,10 @@ def update_borrower_vesting(
 
     if not current_manner:
         field_updates["33"] = computed_manner
-        actions.append(f"SET 33 (Manner Held) = '{computed_manner}' (was empty)")
+        field_updates["URLA.X138"] = _manner_to_urla_x138(computed_manner)
+        actions.append(
+            f"SET 33 = '{computed_manner}' / URLA.X138 = '{field_updates['URLA.X138']}' (was empty)"
+        )
         flags.append(_flag("8.1",
             "Manner Held Auto-Set",
             "info-overwrite",
@@ -375,7 +469,11 @@ def update_borrower_vesting(
         force = prop_st in _FORCE_OVERWRITE_STATES and computed_manner == "As Joint Tenants"
         if force:
             field_updates["33"] = computed_manner
-            actions.append(f"SET 33 (Manner Held) FORCE = '{computed_manner}' (was '{current_manner}', {prop_st} rule)")
+            field_updates["URLA.X138"] = _manner_to_urla_x138(computed_manner)
+            actions.append(
+                f"SET 33 = '{computed_manner}' / URLA.X138 = '{field_updates['URLA.X138']}'"
+                f" FORCE (was '{current_manner}', {prop_st} rule)"
+            )
             flags.append(_flag("8.1",
                 f"Manner Held Auto-Corrected ({prop_st})",
                 "info-overwrite",

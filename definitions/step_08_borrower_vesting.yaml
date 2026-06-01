@@ -68,6 +68,11 @@ substeps:
     field_name: Borrower Sex
     category: borrower_info
     purpose: Determines Man/Woman in unmarried vesting suffix
+  - key: coborrower_sex
+    field_id: '478'
+    field_name: Co-Borrower Sex
+    category: borrower_info
+    purpose: Used with borrower_sex to determine wife-first vesting order
   - key: marital_status
     field_id: '479'
     field_name: Borrower Marital Status
@@ -156,13 +161,16 @@ substeps:
     category: borrower_info
     purpose: NBS name → written to TR0101 (vesting entity)
   # ── Manner Held / Final Vesting ───────────────────────────────────────
-  - key: estate_held
+  - key: manner_of_title
     field_id: '33'
     field_name: Manner in Which Title Will Be Held
     category: title
     purpose: >
       Written when empty from computed value. Never overwritten if populated
       except NV (forced As Joint Tenants for married couples).
+      Field 33 = Manner of Title (Borrower Vesting form). NOT Estate Will Be Held In.
+      URLA.X138 = same data shown in the 1003 URLA Lender form — always write both together.
+      Estate Will Be Held In is field 1066 (separate field, dropdown: FeeSimple/Leasehold).
   - key: final_vesting
     field_id: '1867'
     field_name: Final Vesting

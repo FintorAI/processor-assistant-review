@@ -1,6 +1,15 @@
 {
   "los_fields": [
     {
+      "key": "project_type_1012",
+      "field_id": "1012",
+      "field_name": "Project Type dropdown (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
       "key": "qualifying_rate",
       "field_id": "1014",
       "field_name": "Qualifying Rate",
@@ -28,6 +37,15 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "estate_held",
+      "field_id": "1066",
+      "field_name": "Estate Will Be Held In",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_06"
       ]
     },
     {
@@ -253,6 +271,24 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "property_review_type",
+      "field_id": "1541",
+      "field_name": "Level of Property Review (Exterior/Interior)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
+      "key": "appraisal_form_number",
+      "field_id": "1542",
+      "field_name": "Appraisal Form Number",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -541,22 +577,13 @@
       ]
     },
     {
-      "key": "estate_held",
+      "key": "manner_of_title",
       "field_id": "33",
-      "field_name": "Estate Will Be Held In",
+      "field_name": "Manner in Which Title Will Be Held",
       "category": "title",
       "used_by_steps": [
         "STEP_06",
         "STEP_08"
-      ]
-    },
-    {
-      "key": "manner_of_title",
-      "field_id": "34",
-      "field_name": "Manner in Which Title Will Be Held",
-      "category": "title",
-      "used_by_steps": [
-        "STEP_06"
       ]
     },
     {
@@ -733,6 +760,15 @@
       "key": "borrower_sex",
       "field_id": "471",
       "field_name": "Borrower Sex",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "coborrower_sex",
+      "field_id": "478",
+      "field_name": "Co-Borrower Sex",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_08"
@@ -1618,9 +1654,36 @@
       ]
     },
     {
+      "key": "borr_1c_total_gross_income",
+      "field_id": "FE0112",
+      "field_name": "Borrower 1c \u2014 Total Gross Income",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_base_monthly_income",
       "field_id": "FE0119",
       "field_name": "Borrower \u2014 Base Monthly Income (Section 1b)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_monthly_income",
+      "field_id": "FE0156",
+      "field_name": "Borrower 1c \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_total_gross_income",
+      "field_id": "FE0212",
+      "field_name": "Co-Borrower 1c \u2014 Total Gross Income",
       "category": "income",
       "used_by_steps": [
         "STEP_04"
@@ -1636,11 +1699,183 @@
       ]
     },
     {
+      "key": "coborr_1c_monthly_income",
+      "field_id": "FE0256",
+      "field_name": "Co-Borrower 1c \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_employer_name",
+      "field_id": "FE0302",
+      "field_name": "Borrower 1c \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_total_gross_income",
+      "field_id": "FE0312",
+      "field_name": "Borrower 1d \u2014 Total Gross Income",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_years_in_line",
+      "field_id": "FE0316",
+      "field_name": "Borrower 1c \u2014 Years in Line of Work",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_start_date",
+      "field_id": "FE0351",
+      "field_name": "Borrower 1c \u2014 Start Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1c_months_in_line",
+      "field_id": "FE0352",
+      "field_name": "Borrower 1c \u2014 Months in Line of Work",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_monthly_income",
+      "field_id": "FE0356",
+      "field_name": "Borrower 1d \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_employer_name",
+      "field_id": "FE0402",
+      "field_name": "Co-Borrower 1c \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_total_gross_income",
+      "field_id": "FE0412",
+      "field_name": "Co-Borrower 1d \u2014 Total Gross Income",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_years_in_line",
+      "field_id": "FE0416",
+      "field_name": "Co-Borrower 1c \u2014 Years in Line of Work",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_start_date",
+      "field_id": "FE0451",
+      "field_name": "Co-Borrower 1c \u2014 Start Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_months_in_line",
+      "field_id": "FE0452",
+      "field_name": "Co-Borrower 1c \u2014 Months in Line of Work",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_monthly_income",
+      "field_id": "FE0456",
+      "field_name": "Co-Borrower 1d \u2014 Monthly Income (or Loss)",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_employer_name",
+      "field_id": "FE0502",
+      "field_name": "Borrower 1d \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_end_date",
+      "field_id": "FE0514",
+      "field_name": "Borrower 1d \u2014 End Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_start_date",
+      "field_id": "FE0551",
+      "field_name": "Borrower 1d \u2014 Start Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_employer_name",
+      "field_id": "FE0602",
+      "field_name": "Co-Borrower 1d \u2014 Employer or Business Name",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_end_date",
+      "field_id": "FE0614",
+      "field_name": "Co-Borrower 1d \u2014 End Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_start_date",
+      "field_id": "FE0651",
+      "field_name": "Co-Borrower 1d \u2014 Start Date",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_present_city",
       "field_id": "FR0106",
       "field_name": "Borrower Present City",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
@@ -1650,15 +1885,17 @@
       "field_name": "Borrower Present State",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
     {
       "key": "borr_present_zip",
       "field_id": "FR0108",
-      "field_name": "Borrower Present Zip",
+      "field_name": "Borrower Present ZIP",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
@@ -1704,6 +1941,7 @@
       "field_name": "Borrower Present Street Address",
       "category": "borrower_info",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03"
       ]
     },
@@ -1834,6 +2072,15 @@
       ]
     },
     {
+      "key": "property_form_type",
+      "field_id": "TSUM.PropertyFormType",
+      "field_name": "Property Form Type (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
       "key": "borrower_citizenship",
       "field_id": "URLA.X1",
       "field_name": "Borrower Citizenship",
@@ -1924,6 +2171,15 @@
       ]
     },
     {
+      "key": "borr_1b_dna",
+      "field_id": "URLA.X199",
+      "field_name": "Borrower \u2014 Section 1b Does Not Apply",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "coborrower_citizenship",
       "field_id": "URLA.X2",
       "field_name": "Co-Borrower Citizenship",
@@ -1942,19 +2198,46 @@
       ]
     },
     {
-      "key": "borr_income_does_not_apply",
-      "field_id": "URLA.X201",
-      "field_name": "Borrower \u2014 Additional / Self Employment and Income Does Not Apply",
-      "category": "employment",
+      "key": "coborr_1b_dna",
+      "field_id": "URLA.X200",
+      "field_name": "Co-Borrower \u2014 Section 1b Does Not Apply",
+      "category": "income",
       "used_by_steps": [
         "STEP_04"
       ]
     },
     {
-      "key": "coborr_income_does_not_apply",
+      "key": "borr_1c_dna",
+      "field_id": "URLA.X201",
+      "field_name": "Borrower \u2014 Section 1c Does Not Apply",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1c_dna",
       "field_id": "URLA.X202",
-      "field_name": "Co-Borrower \u2014 Additional / Self Employment and Income Does Not Apply",
-      "category": "employment",
+      "field_name": "Co-Borrower \u2014 Section 1c Does Not Apply",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_1d_dna",
+      "field_id": "URLA.X203",
+      "field_name": "Borrower \u2014 Section 1d Does Not Apply",
+      "category": "income",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_1d_dna",
+      "field_id": "URLA.X204",
+      "field_name": "Co-Borrower \u2014 Section 1d Does Not Apply",
+      "category": "income",
       "used_by_steps": [
         "STEP_04"
       ]
@@ -2011,6 +2294,15 @@
       "category": "income",
       "used_by_steps": [
         "STEP_04"
+      ]
+    },
+    {
+      "key": "property_address_urla",
+      "field_id": "URLA.X73",
+      "field_name": "Property Street Address (URLA Lender \u2014 editable)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -2864,7 +3156,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 221,
+    "total_los_fields": 253,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,

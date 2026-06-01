@@ -29,13 +29,20 @@ logger = logging.getLogger(__name__)
 
 SUBSTEP = "1.2"
 
-# Contact types we require to be linked on every loan
-REQUIRED_CONTACTS = [
-    {"type": "BUYERS_AGENT",   "label": "Buyer's Agent"},
-    {"type": "SELLERS_AGENT",  "label": "Seller's Agent"},
-    {"type": "SELLER",         "label": "Seller 1"},
-    {"type": "ESCROW_COMPANY", "label": "Escrow Company"},
-]
+def _required_contacts(loan_purpose: str) -> list:
+    """Return the list of required contacts based on loan purpose.
+
+    Purchases require all four contacts.
+    Refis only require an Escrow Company (no buyer/seller agents or seller).
+    """
+    contacts = [{"type": "ESCROW_COMPANY", "label": "Escrow Company"}]
+    if "purchase" in str(loan_purpose).lower():
+        contacts += [
+            {"type": "BUYERS_AGENT",  "label": "Buyer's Agent"},
+            {"type": "SELLERS_AGENT", "label": "Seller's Agent"},
+            {"type": "SELLER",        "label": "Seller 1"},
+        ]
+    return contacts
 
 
 def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str, Any]:
@@ -97,13 +104,12 @@ def review_file_contacts(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Verify that the four key file contacts are assigned in Encompass.
+    """Verify that the required file contacts are assigned in Encompass.
 
-    Checks via GET /v3/loans/{loanId}/contacts that the following are linked:
-      - Buyer's Agent  (BUYERS_AGENT)
-      - Seller's Agent (SELLERS_AGENT)
-      - Seller 1       (SELLER)
-      - Escrow Company (ESCROW_COMPANY)
+    Checks via GET /v3/loans/{loanId}/contacts. Required contacts vary by
+    loan purpose:
+      - Purchase: Buyer's Agent, Seller's Agent, Seller 1, Escrow Company
+      - Refi / all other: Escrow Company only
 
     Flags a warning for each missing contact. Raises an info flag listing all
     present contacts for processor awareness.
@@ -120,6 +126,13 @@ def review_file_contacts(
     logger.info(f"[REVIEW_FILE_CONTACTS] Starting for loan {str(loan_id)[:8]}...")
 
     flags: List[Dict[str, Any]] = []
+
+    # ── Determine required contacts based on loan purpose ──
+    loan_purpose = _los(state, "loan_purpose") or ""
+    required_contacts = _required_contacts(loan_purpose)
+    logger.info(f"[REVIEW_FILE_CONTACTS] Loan purpose: '{loan_purpose}' — "
+                f"checking {len(required_contacts)} contact(s): "
+                f"{[c['label'] for c in required_contacts]}")
 
     # ── Fetch contacts ──
     all_contacts = _get_loan_contacts(loan_id, state)
@@ -148,7 +161,7 @@ def review_file_contacts(
     present: List[str] = []
     missing: List[str] = []
 
-    for req in REQUIRED_CONTACTS:
+    for req in required_contacts:
         ct = req["type"]
         label = req["label"]
         contact = contact_map.get(ct)

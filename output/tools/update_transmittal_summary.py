@@ -27,7 +27,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile
+from ._helpers import _los, _profile, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,10 @@ def update_transmittal_summary(
     note_rate            = _los(state, "note_rate")             # field 3
     qualifying_rate      = _los(state, "qualifying_rate")       # field 1014
     project_type         = _los(state, "transmittal_project_type")  # field 1553
+    project_type_1012    = _los(state, "project_type_1012")     # field 1012 — project type dropdown
+    property_review_type = _los(state, "property_review_type")  # field 1541
+    appraisal_form_number = _los(state, "appraisal_form_number") # field 1542 — UNVERIFIED field ID
+    property_form_type   = _los(state, "property_form_type")    # TSUM.PropertyFormType
     property_type        = _los(state, "property_type")         # field 1041
     condo_project_name   = _los(state, "condo_project_name")    # CX.CONDO.PROJECT.NAME
     condo_project_id     = _los(state, "condo_project_id")      # CX.CONDO.PROJECT.ID
@@ -116,6 +120,109 @@ def update_transmittal_summary(
             "severity": "warning",
             "details": f"Cannot compare rates — {', '.join(missing)} is blank.",
             "suggestion": "Ensure note rate and qualifying rate are populated in Encompass.",
+            "resolved": False,
+            "timestamp": ts,
+        })
+
+    # ── Rule: Project Type (field 1012) — set to G/Not in PUD for non-condo/PUD ──
+    _NOT_IN_PUD_VALUE = "Other: G/Not in a Project or Development"
+    if not _is_condo(property_type):
+        current_1012 = (project_type_1012 or "").strip()
+        if not current_1012:
+            write_flags = _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "9.1", state=state)
+            flags.extend(write_flags)
+            flags.append({
+                "substep": "9.1",
+                "title": "Project Type (1012) Set — Not in PUD",
+                "severity": "info-overwrite",
+                "details": (
+                    f"Field 1012 was blank. Property type ({property_type!r}) is not a Condo/PUD. "
+                    f"Set to '{_NOT_IN_PUD_VALUE}'."
+                ),
+                "suggestion": "Confirm property is not in a planned unit development or condo project.",
+                "resolved": True,
+                "timestamp": ts,
+            })
+            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
+        elif _NOT_IN_PUD_VALUE.lower() not in current_1012.lower():
+            flags.append({
+                "substep": "9.1",
+                "title": "Project Type (1012) — Unexpected Value",
+                "severity": "warning",
+                "details": (
+                    f"Field 1012 = {current_1012!r}. Expected '{_NOT_IN_PUD_VALUE}' "
+                    f"for a non-condo/PUD property ({property_type!r})."
+                ),
+                "suggestion": "Verify whether this property is in a PUD or development project. Correct field 1012 if needed.",
+                "resolved": False,
+                "timestamp": ts,
+            })
+        else:
+            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
+
+    # ── Rule: Appraisal Form Number (field 1542) + Property Form Type ──────
+    # NOTE: Field ID 1542 has NOT been verified against live Encompass.
+    # Logic is correct but writes will silently no-op if 1542 maps to a different field.
+    _prop_lower = (property_type or "").lower()
+    if "condo" in _prop_lower or "condominium" in _prop_lower:
+        _expected_form = "1073"
+        _expected_form_type = "Individual Condominium Unit Appraisal Report"
+    elif any(u in _prop_lower for u in ("2 unit", "2-unit", "3 unit", "3-unit", "4 unit", "4-unit")):
+        _expected_form = "1025"
+        _expected_form_type = "Small Residential Income Property Appraisal Report"
+    else:
+        # Single-family, 1-unit, detached, townhouse — default
+        _expected_form = "1004"
+        _expected_form_type = "Uniform Residential Appraisal Report"
+
+    _current_form = (appraisal_form_number or "").strip()
+    _current_form_type = (property_form_type or "").strip()
+
+    _form_writes: dict = {}
+    if not _current_form:
+        _form_writes["1542"] = _expected_form
+    if not _current_form_type:
+        _form_writes["TSUM.PropertyFormType"] = _expected_form_type
+
+    if _form_writes:
+        write_flags = _write_fields(loan_id, _form_writes, "9.1", state=state)
+        flags.extend(write_flags)
+        written_desc = ", ".join(f"{k}='{v}'" for k, v in _form_writes.items())
+        flags.append({
+            "substep": "9.1",
+            "title": f"Appraisal Form Number Set — {_expected_form}",
+            "severity": "info-overwrite",
+            "details": (
+                f"Wrote: {written_desc}. "
+                f"Derived from property type ({property_type!r}). "
+                "⚠️ Field ID 1542 unverified — confirm with field_rw.py before relying on this write."
+            ),
+            "suggestion": "Verify field 1542 is correct in Encompass after this run.",
+            "resolved": True,
+            "timestamp": ts,
+        })
+    elif _current_form and _current_form != _expected_form:
+        flags.append({
+            "substep": "9.1",
+            "title": "Appraisal Form Number — Unexpected Value",
+            "severity": "warning",
+            "details": (
+                f"Field 1542 = {_current_form!r}, expected {_expected_form!r} "
+                f"for property type {property_type!r}."
+            ),
+            "suggestion": f"Verify and correct field 1542 to '{_expected_form}' if appropriate.",
+            "resolved": False,
+            "timestamp": ts,
+        })
+
+    # Surface property review type (field 1541) as info
+    if property_review_type:
+        flags.append({
+            "substep": "9.1",
+            "title": "Level of Property Review",
+            "severity": "info",
+            "details": f"Field 1541 (Level of Property Review) = {property_review_type!r}.",
+            "suggestion": "Confirm review type matches the appraisal ordered (Exterior = drive-by, Interior = full).",
             "resolved": False,
             "timestamp": ts,
         })

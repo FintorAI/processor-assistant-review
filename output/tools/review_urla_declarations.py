@@ -88,7 +88,7 @@ def review_urla_declarations(
     occupancy         = _los(state, "occupancy")                      # 1811: PrimaryResidence/etc.
     coborrower_name   = _los(state, "coborrower_first_name")          # 4004: co-borrower presence check
     loan_purpose      = _los(state, "loan_purpose")                   # 19: Purchase/Refinance/etc.
-    estate_held       = _los(state, "estate_held")                    # 33: FeeSimple/Leasehold
+    estate_held       = _los(state, "estate_held")                    # 1066: Estate Will Be Held In (FeeSimple/Leasehold) — 1003 URLA Lender
 
     has_coborrower = bool(coborrower_name and str(coborrower_name).strip())
 
@@ -256,6 +256,10 @@ def review_urla_declarations(
                 f"Cross-check co-borrower prior property details with loan entity.",
                 "Verify co-borrower prior property is correctly documented.",
             )
+
+    # Estate Held check (field 1066) is in the 1003 URLA Lender form — not Part 4 Declarations.
+    # It lives in substep 6.3 (review_urla_ethnicity) because that substep already reads
+    # URLA Lender form fields (field 1544 borrower_ethnicity, field 1066 estate_held).
 
     # ── Build result ──
     result = {

@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc, _profile, _efolder_present
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -77,7 +77,7 @@ def review_urla_reo(
         logger.warning(f"[REVIEW_URLA_REO] Failed to fetch reoProperties: {exc}")
         reo_props = []
 
-    # ── Flag: info if any REO rows present ──
+    # ── Flag: info if any REO rows present + per-property doc checks ──
     if reo_props:
         lines = []
         for prop in reo_props:
@@ -101,6 +101,69 @@ def review_urla_reo(
                 "mortgage statement, insurance deck page, HOA statement (if applicable), tax bill."
             ),
         ))
+
+        # Per-property required doc checks — one warning per missing doc type
+        # (eFolder doesn't support per-property buckets, so we check global presence once)
+        reo_doc_checks = [
+            ("Mortgage Statement",  "Mortgage Statement"),
+            ("HOA Statement",       "HOA Statement"),
+            ("Property Tax Bill",   "Property Tax Bill"),
+        ]
+        for doc_label, bucket_name in reo_doc_checks:
+            if not _efolder_present(state, bucket_name):
+                flags.append(_flag(
+                    title=f"REO Doc Missing — {doc_label}",
+                    severity="warning",
+                    details=(
+                        f"{doc_label} not found in eFolder. "
+                        f"Required because borrower owns {len(reo_props)} "
+                        f"propert{'y' if len(reo_props)==1 else 'ies'}."
+                    ),
+                    suggestion=f"Obtain and upload {doc_label} to the eFolder.",
+                ))
+
+        # ── Stale Mortgage Statement check (>90 days old) ──
+        raw_stmt_date = _doc(state, "statement_date")
+        if raw_stmt_date:
+            try:
+                for fmt in ("%m/%d/%Y", "%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+                    try:
+                        stmt_dt = datetime.strptime(str(raw_stmt_date).strip(), fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    stmt_dt = None
+
+                if stmt_dt:
+                    age_days = (datetime.now() - stmt_dt).days
+                    if age_days > 90:
+                        flags.append(_flag(
+                            title="Mortgage Statement — Stale (>90 Days)",
+                            severity="warning",
+                            details=(
+                                f"Mortgage Statement is dated {raw_stmt_date} "
+                                f"({age_days} days ago), which exceeds the 90-day "
+                                "freshness threshold."
+                            ),
+                            suggestion=(
+                                "Pull a Xactus credit supplement to obtain a current "
+                                "mortgage payment history. Upload to eFolder under "
+                                "'Other Owned Property Documents'."
+                            ),
+                        ))
+                    else:
+                        flags.append(_flag(
+                            title="Mortgage Statement — Current",
+                            severity="info",
+                            details=(
+                                f"Mortgage Statement is dated {raw_stmt_date} "
+                                f"({age_days} days ago) — within the 90-day window."
+                            ),
+                            suggestion="No action needed.",
+                        ))
+            except Exception as exc:
+                logger.warning(f"[REVIEW_URLA_REO] Could not parse statement_date '{raw_stmt_date}': {exc}")
 
     # ── Build result ──
     result = {

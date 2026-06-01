@@ -193,6 +193,35 @@ substeps:
     field_name: Property Street Address
     category: property
     purpose: Verified against online listing and Purchase Contract
+  - key: property_address_urla
+    field_id: URLA.X73
+    field_name: Property Street Address (URLA Lender — editable)
+    category: property
+    purpose: >
+      Editable version of property street address on 1003 URLA Lender form.
+      Used as primary source when field 11 is read-only. Used for cash-out refi
+      current address comparison.
+  # ── Borrower Current Address (for cash-out refi occupancy check) ───────
+  - key: borr_present_addr
+    field_id: FR0126
+    field_name: Borrower Present Street Address
+    category: borrower_info
+    purpose: Cash-out refi check — compare to subject property address
+  - key: borr_present_city
+    field_id: FR0106
+    field_name: Borrower Present City
+    category: borrower_info
+    purpose: Cash-out refi occupancy check
+  - key: borr_present_state
+    field_id: FR0107
+    field_name: Borrower Present State
+    category: borrower_info
+    purpose: Cash-out refi occupancy check
+  - key: borr_present_zip
+    field_id: FR0108
+    field_name: Borrower Present ZIP
+    category: borrower_info
+    purpose: Cash-out refi occupancy check
   - key: property_city
     field_id: '12'
     field_name: Property City

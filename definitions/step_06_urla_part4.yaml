@@ -132,15 +132,20 @@ substeps:
     category: property
     purpose: Verify against property listing
   - key: estate_held
-    field_id: '33'
+    field_id: '1066'
     field_name: Estate Will Be Held In
     category: title
-    purpose: Should be Fee Simple for standard purchase
+    purpose: >
+      Should be Fee Simple for standard purchase. Dropdown field on 1003 URLA Lender form.
+      Values: FeeSimple, Leasehold. Field 1066 = Estate Will Be Held In.
   - key: manner_of_title
-    field_id: '34'
+    field_id: '33'
     field_name: Manner in Which Title Will Be Held
     category: title
-    purpose: Sole Ownership / Joint / Trust etc.
+    purpose: >
+      Sole Ownership / Joint Tenancy / Tenants in Common / etc.
+      Field 33 = Manner of Title (Borrower Vesting form).
+      URLA.X138 = same data in the 1003 URLA Lender form — always write both together.
   doc_types:
   - document_type: Driver's License
     all_copies: false

@@ -17,7 +17,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc, _profile, _write_fields
 from shared.encompass_io import read_employment
 
 logger = logging.getLogger(__name__)
@@ -194,11 +194,27 @@ def review_urla_employment(
     voe_cur_position   = _doc(state, "current_position_title")
     voe_cur_auth       = _doc(state, "authorization_printed")
 
-    # ── Section 1b income totals + Does Not Apply checkboxes ─────────────
+    # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
     coborr_base_income      = _los(state, "coborr_base_monthly_income")    # FE0219
-    borr_dna                = _los(state, "borr_income_does_not_apply")    # URLA.X201
-    coborr_dna              = _los(state, "coborr_income_does_not_apply")  # URLA.X202
+    borr_1b_dna             = _los(state, "borr_1b_dna")                   # URLA.X199
+    coborr_1b_dna           = _los(state, "coborr_1b_dna")                 # URLA.X200
+    borr_1c_employer        = _los(state, "borr_1c_employer_name")         # FE0302
+    borr_1c_gross           = _los(state, "borr_1c_total_gross_income")    # FE0112
+    borr_1c_monthly         = _los(state, "borr_1c_monthly_income")        # FE0156
+    coborr_1c_employer      = _los(state, "coborr_1c_employer_name")       # FE0402
+    coborr_1c_gross         = _los(state, "coborr_1c_total_gross_income")  # FE0212
+    coborr_1c_monthly       = _los(state, "coborr_1c_monthly_income")      # FE0256
+    borr_1c_dna             = _los(state, "borr_1c_dna")                   # URLA.X201
+    coborr_1c_dna           = _los(state, "coborr_1c_dna")                 # URLA.X202
+    borr_1d_employer        = _los(state, "borr_1d_employer_name")         # FE0502
+    borr_1d_gross           = _los(state, "borr_1d_total_gross_income")    # FE0312
+    borr_1d_monthly         = _los(state, "borr_1d_monthly_income")        # FE0356
+    coborr_1d_employer      = _los(state, "coborr_1d_employer_name")       # FE0602
+    coborr_1d_gross         = _los(state, "coborr_1d_total_gross_income")  # FE0412
+    coborr_1d_monthly       = _los(state, "coborr_1d_monthly_income")      # FE0456
+    borr_1d_dna             = _los(state, "borr_1d_dna")                   # URLA.X203
+    coborr_1d_dna           = _los(state, "coborr_1d_dna")                 # URLA.X204
 
     voe_prev_position  = _doc(state, "previous_position_title")
     voe_prev_name      = _doc(state, "previous_employer_name")
@@ -352,36 +368,108 @@ def review_urla_employment(
                         "Reconcile prior employer base pay with the VOE",
                     ))
 
-    # ── Section 1b: FE0119 / FE0219 base monthly income + URLA.X201/X202 ─────────
-    # Borrower
-    borr_dna_checked = str(borr_dna or "").strip().lower() in ("true", "yes", "1", "checked")
-    if not borr_dna_checked:
-        if not borr_base_income or not borr_base_income.strip():
-            flags.append(_flag("4.1",
-                "Borrower Base Monthly Income Missing (FE0119)",
-                "warning",
-                "FE0119 (borrower base monthly income, Section 1b) is empty and URLA.X201 (does not apply) is not checked.",
-                "Enter the borrower's base monthly income or check the 'Does Not Apply' box (URLA.X201)",
-            ))
+    # ── Does Not Apply checkbox detection: sections 1b / 1c / 1d ────────────
+    def _dna_checked(val) -> bool:
+        return str(val or "").strip().lower() in ("true", "yes", "1", "checked", "x")
 
-    # Co-borrower — only check if a co-borrower entry exists in the loan
-    coborr_dna_checked = str(coborr_dna or "").strip().lower() in ("true", "yes", "1", "checked")
-    # Co-borrower check: try fetching co-borrower employment from the API
+    # Determine if loan has a co-borrower (re-use entries already fetched, or detect from state)
     try:
         coborr_entries = read_employment(loan_id, state=state, applicant_type="coborrower")
         has_coborr = len(coborr_entries) > 0
-    except LookupError:
-        has_coborr = False
-    except Exception:
-        has_coborr = False
-    if has_coborr and not coborr_dna_checked:
-        if not coborr_base_income or not coborr_base_income.strip():
+    except (LookupError, Exception):
+        has_coborr = bool(_los(state, "coborrower_first_name"))
+
+    # ── 1b: Employee / Employer income (FE0119 / FE0219) ─────────────────────
+    if not _dna_checked(borr_1b_dna):
+        if not (borr_base_income or "").strip():
             flags.append(_flag("4.1",
-                "Co-Borrower Base Monthly Income Missing (FE0219)",
-                "warning",
-                "FE0219 (co-borrower base monthly income, Section 1b) is empty and URLA.X202 (does not apply) is not checked.",
-                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box (URLA.X202)",
+                "Section 1b Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0119 (borrower base monthly income) is blank and URLA.X199 (1b Does Not Apply) is not checked.",
+                "Enter the base monthly income or check the 'Does Not Apply' box for Section 1b.",
             ))
+    if has_coborr and not _dna_checked(coborr_1b_dna):
+        if not (coborr_base_income or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1b Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0219 (co-borrower base monthly income) is blank and URLA.X200 (1b Does Not Apply) is not checked.",
+                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box for Section 1b.",
+            ))
+
+    # ── 1c: Additional / Self-Employment income (FE0302 / FE0402) ────────────
+    if not _dna_checked(borr_1c_dna):
+        if not (borr_1c_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1c Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0302 (borrower 1c employer name) is blank and URLA.X201 (1c Does Not Apply) is not checked.",
+                "Enter self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+            ))
+    if has_coborr and not _dna_checked(coborr_1c_dna):
+        if not (coborr_1c_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1c Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0402 (co-borrower 1c employer name) is blank and URLA.X202 (1c Does Not Apply) is not checked.",
+                "Enter co-borrower self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+            ))
+
+    # ── 1d: Previous Employment income (FE0502 / FE0602) ─────────────────────
+    if not _dna_checked(borr_1d_dna):
+        if not (borr_1d_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1d Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "info",
+                "FE0502 (borrower 1d employer name) is blank and URLA.X203 (1d Does Not Apply) is not checked.",
+                "Enter previous employment details or check the 'Does Not Apply' box for Section 1d.",
+            ))
+    if has_coborr and not _dna_checked(coborr_1d_dna):
+        if not (coborr_1d_employer or "").strip():
+            flags.append(_flag("4.1",
+                "Section 1d Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "info",
+                "FE0602 (co-borrower 1d employer name) is blank and URLA.X204 (1d Does Not Apply) is not checked.",
+                "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 1d.",
+            ))
+
+    # ── Gross income surfacing: 1c and 1d when section is populated ───────────
+    def _fmt_income(gross, monthly) -> str:
+        parts = []
+        if gross:
+            parts.append(f"total gross: {gross}")
+        if monthly:
+            parts.append(f"monthly: {monthly}")
+        return ", ".join(parts) if parts else "(not entered)"
+
+    if (borr_1c_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1c Income — Borrower ({borr_1c_employer})",
+            "info",
+            f"1c populated. {_fmt_income(borr_1c_gross, borr_1c_monthly)}.",
+            "Verify gross income and monthly amounts match the VOE / self-employment docs.",
+        ))
+    if (coborr_1c_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1c Income — Co-Borrower ({coborr_1c_employer})",
+            "info",
+            f"1c populated. {_fmt_income(coborr_1c_gross, coborr_1c_monthly)}.",
+            "Verify co-borrower gross income and monthly amounts match supporting docs.",
+        ))
+    if (borr_1d_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1d Income — Borrower ({borr_1d_employer})",
+            "info",
+            f"1d (previous employment) populated. {_fmt_income(borr_1d_gross, borr_1d_monthly)}.",
+            "Verify prior income amounts are consistent with employment history docs.",
+        ))
+    if (coborr_1d_employer or "").strip():
+        flags.append(_flag("4.1",
+            f"Section 1d Income — Co-Borrower ({coborr_1d_employer})",
+            "info",
+            f"1d (previous employment) populated. {_fmt_income(coborr_1d_gross, coborr_1d_monthly)}.",
+            "Verify co-borrower prior income amounts match employment history docs.",
+        ))
 
     # ── Employment gap checks ─────────────────────────────────────────────────
     if current_entry and prior_entries:
@@ -420,6 +508,64 @@ def review_urla_employment(
                                 ))
                 except Exception:
                     pass
+
+    # ── Rule: Married + Same Employer → copy tenure fields to co-borrower slot ──
+    _borr_marital   = (_los(state, "borrower_marital_status") or "").strip().upper()
+    _has_coborrower = bool(_los(state, "coborrower_first_name"))
+
+    if _borr_marital == "MARRIED" and _has_coborrower:
+        # Identify borrower and co-borrower current slots from pre-fetched BE fields.
+        # BE0X08 = "Borrower" or "Co-Borrower"; BE0X09 = "Current" or "Prior".
+        _borr_slot = _cobr_slot = None
+        for _s in ("01", "02", "03"):
+            _voe_for  = (_los(state, f"be{_s}_voe_is_for") or "").replace("-", "").replace(" ", "").lower()
+            _emp_type = (_los(state, f"be{_s}_employment_type") or "").lower()
+            _emp_name = _los(state, f"be{_s}_employer_name") or ""
+            if not _emp_name:
+                continue
+            if "coborrower" in _voe_for and "current" in _emp_type:
+                _cobr_slot = _s
+            elif "borrower" in _voe_for and "current" in _emp_type and not _borr_slot:
+                _borr_slot = _s
+
+        if _borr_slot and _cobr_slot:
+            _borr_emp = _normalize_name(_los(state, f"be{_borr_slot}_employer_name"))
+            _cobr_emp = _normalize_name(_los(state, f"be{_cobr_slot}_employer_name"))
+
+            if _borr_emp and _cobr_emp and _borr_emp == _cobr_emp:
+                # Same employer — build field ID map using slot digit (01→1, 02→2, 03→3)
+                _cd = _cobr_slot[-1]   # co-borrower slot digit
+                _copy = {
+                    f"BE0{_cd}51": _los(state, f"be{_borr_slot}_date_hired") or "",
+                    f"BE0{_cd}13": str(_los(state, f"be{_borr_slot}_years_in_job") or ""),
+                    f"BE0{_cd}33": str(_los(state, f"be{_borr_slot}_months_in_job") or ""),
+                    f"BE0{_cd}16": str(_los(state, f"be{_borr_slot}_years_in_line_of_work") or ""),
+                    f"BE0{_cd}52": str(_los(state, f"be{_borr_slot}_months_in_line_of_work") or ""),
+                }
+                _copy = {k: v for k, v in _copy.items() if v and v not in ("None", "0", "")}
+
+                if _copy:
+                    _write_flags = _write_fields(loan_id, _copy, "4.1", state=state)
+                    flags.extend(_write_flags)
+                    flags.append(_flag("4.1",
+                        "Same-Employer Co-Borrower — Tenure Fields Copied",
+                        "info-overwrite",
+                        f"Borrower and co-borrower both work at "
+                        f"'{_los(state, f'be{_borr_slot}_employer_name')}'. "
+                        f"Copied date hired, years/months in job, years/months in line of work "
+                        f"from borrower slot {_borr_slot} to co-borrower slot {_cobr_slot}.",
+                        "Verify copied tenure values in the VOE form are correct for the co-borrower.",
+                    ))
+                else:
+                    flags.append(_flag("4.1",
+                        "Same-Employer Co-Borrower — Borrower Tenure Fields Empty",
+                        "warning",
+                        f"Borrower and co-borrower both at "
+                        f"'{_los(state, f'be{_borr_slot}_employer_name')}' but borrower's "
+                        "date hired / tenure fields are all blank.",
+                        "Enter borrower hire date, years in job, and years in line of work "
+                        "in the VOE form first.",
+                    ))
 
     # ── Build result ──────────────────────────────────────────────────────────
     populated_entries = len(api_entries)

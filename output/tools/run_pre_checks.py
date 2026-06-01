@@ -98,6 +98,8 @@ def run_pre_checks(
                                _efolder_present(state, "Evidence of Insurance")
     title_report_present = _efolder_present(state, "Title Report")
     ldp_present          = _efolder_present(state, "LDP")
+    fraudguard_present   = _efolder_present(state, "Fraud")
+    tax_summary_present  = _efolder_present(state, "Tax Summary")
     # MD eDisclosure signed flags (each is True/False/None)
     md_rescind_signed      = _doc(state, "md_rescind_signed")
     md_dual_cap_signed     = _doc(state, "md_dual_cap_signed")
@@ -129,12 +131,13 @@ def run_pre_checks(
     warning_docs = {
         "Assets": assets_present,
         "VOD": vod_present,
-        "Driver's License": dl_present,
         "Estimated Settlement Statement": ess_present,
         "Flood Certificate": flood_cert_present,
         "Evidence of Hazard Insurance": hazard_insurance_present,
         "Title Report": title_report_present,
         "LDP": ldp_present,
+        "Fraud": fraudguard_present,
+        "Tax Summary": tax_summary_present,
     }
 
     for doc_name, present in critical_docs.items():
@@ -148,6 +151,12 @@ def run_pre_checks(
             _flag(flags, "1.1", "Missing Required Document", "warning",
                   f"{doc_name} not found in eFolder.",
                   "Locate or request the missing document before proceeding.")
+
+    # ── Rule: Govt ID (Driver's License) — info non-blocker ──
+    if not dl_present:
+        _flag(flags, "1.1", "Govt ID Not Yet Uploaded", "info",
+              "Driver's License not found in eFolder. Not required at this stage but needed before submission.",
+              "Upload borrower's government-issued ID to the eFolder when available.")
 
     # ── Rule: Income Docs (VOE and/or Paystubs) ──
     # At least one income verification doc must be present
