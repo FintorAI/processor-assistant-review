@@ -38,9 +38,12 @@ logger = logging.getLogger(__name__)
 # ── State-specific vesting rules ──────────────────────────────────────────────
 
 _COMMUNITY_PROPERTY_STATES = {"AZ", "CA", "ID", "LA", "NV", "NM", "TX", "WA", "WI"}
-_JOINT_TENANTS_STATES = {"NV"}           # married couples → As Joint Tenants
-_TENANCY_ENTIRETY_STATES = {"MD"}        # married couples → Tenancy By The Entirety
+_JOINT_TENANTS_STATES = {"NV"}           # married couples → As Joint Tenants (force overwrite)
 _FORCE_OVERWRITE_STATES = {"NV"}         # overwrite even when 33 is populated
+# Tenancy by the Entirety is the default for married + co-borrower in all states
+# EXCEPT community property states (own rules) and NV (As Joint Tenants override).
+# Community property states: AZ CA ID LA NM TX WA WI — these use CP or separate property.
+_NO_TENANCY_ENTIRETY_STATES = _COMMUNITY_PROPERTY_STATES  # same exclusion set
 
 _SPOUSE_VESTING_VARIANTS = {"HUSBAND AND WIFE", "WIFE AND HUSBAND"}
 
@@ -91,8 +94,10 @@ def _determine_manner_held(property_state, marital_status, has_coborrower,
     if both_on_title and is_married:
         if prop_st in _JOINT_TENANTS_STATES:
             return "As Joint Tenants"
-        if prop_st in _TENANCY_ENTIRETY_STATES:
+        if prop_st not in _NO_TENANCY_ENTIRETY_STATES:
+            # Default for married couples in all non-community-property states
             return "Tenancy By The Entirety"
+        # Community property states — fall through to CP handling below
         return "Wife And Husband" if is_female else "Husband And Wife"
 
     if both_on_title:

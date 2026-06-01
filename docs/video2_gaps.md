@@ -92,7 +92,7 @@
 |---|---|---|
 | Intent = "Will Occupy" when primary | ✅ | `_compute_occupancy_intent`; `update_borrower_vesting.py:157-164,241-273` |
 | Vesting order: wife first if URLA-first | ✅ | `update_borrower_vesting.py` — `wife_first` flag set when `coborrower_sex=FEMALE` AND `borrower_sex=MALE`. When true: co-borrower (wife) written to slot 1868, borrower (husband) to slot 1873. `info` flag "Vesting Order — Wife Listed First" emitted. `coborrower_sex` (field 478) added to `step_08_borrower_vesting.yaml`. Validation: PASSED. |
-| "Manner: Tenancy by the Entirety" for husband+wife | 🟡 | Returns Tenancy by Entirety only for MD (`update_borrower_vesting.py:42,94-95`); other states get "Husband And Wife" / "Wife And Husband" (`:96`) |
+| "Manner: Tenancy by the Entirety" for husband+wife | ✅ | `update_borrower_vesting.py` — now the default for married + co-borrower in all states **except** community property states (AZ, CA, ID, LA, NM, TX, WA, WI) and NV (forced "As Joint Tenants"). Community property states fall back to "Husband And Wife" / "Wife And Husband". Matches `notes.txt:450`: *"usually Tenancy by the Entirety if husband and wife"*. |
 | "Build Final Vesting" click | 🟡 | Doesn't auto-click; flags when 1867 empty (`:416-424`); sets 1872/1877 to support build |
 
 ### Step 9 — Transmittal Summary (`update_transmittal_summary` 🔒 true)
@@ -100,10 +100,10 @@
 | Item | Status | Evidence |
 |---|---|---|
 | Property type 1553 = "1 unit" | ❌ | Field 1553 mapped as **Project Type** in repo, read-only (`update_transmittal_summary.py:79,123-136`) — notes/code field-ID mismatch |
-| Project type 1012 = "Other: G/Not in a Project or Development" | ❌ | Field 1012 absent from registry |
+| Project type 1012 = "Other: G/Not in a Project or Development" | ✅ | `update_transmittal_summary.py` (substep 9.1) — reads `project_type_1012` (field 1012). If property is NOT condo/PUD and field is blank → writes `"Other: G/Not in a Project or Development"` via `_write_fields`, flags `info-overwrite`. If populated with unexpected value → `warning`. Field 1012 added to `data_gathering.py` and `step_09_transmittal_summary.yaml`. Validation: PASSED. |
 | Property review 1541 = exterior/interior | ❌ | Field 1541 absent |
-| Form number 1542 = 1004 | ❌ | Field 1542 absent |
-| `TSUM.PropertyFormType` = "Uniform Residential Appraisal Report" | ❌ | Absent |
+| Form number 1542 = 1004 | ✅ | `update_transmittal_summary.py` (substep 9.1) — writes field 1542 and `TSUM.PropertyFormType` when blank, derived from property type: 1-unit/SFR → `1004` + "Uniform Residential Appraisal Report"; condo → `1073`; 2-4 unit → `1025`. Also surfaces field 1541 (Level of Property Review) as `info`. **⚠️ Field ID 1542 unverified against live Encompass** — confirm with `field_rw.py` before relying on writes. Fields added to `data_gathering.py` and `step_09_transmittal_summary.yaml`. |
+| `TSUM.PropertyFormType` = "Uniform Residential Appraisal Report" | ✅ | Implemented alongside field 1542 in substep 9.1 (see row above) — written when blank, derived from property type. |
 | Note rate vs qualifying rate + condo CPM CUA pending flag | ✅ | `update_transmittal_summary.py:86-164` |
 
 ### New steps needed

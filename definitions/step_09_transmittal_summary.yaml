@@ -30,6 +30,33 @@ substeps:
     field_name: Qualifying Rate (Transmittal Summary)
     category: loan_info
     purpose: Confirmed from Encompass Transmittal Summary screen (field 1014)
+  - key: project_type_1012
+    field_id: '1012'
+    field_name: Project Type dropdown (Transmittal Summary)
+    category: property
+    purpose: >
+      Written when property is NOT a condo/PUD: "Other: G/Not in a Project or Development".
+      Values include E/Detached, F/Attached, G/Not in a Project or Development, P/PUD, T/2-4 Unit.
+  - key: property_review_type
+    field_id: '1541'
+    field_name: Level of Property Review (Exterior/Interior)
+    category: property
+    purpose: Read to surface current review type (Exterior / Interior / Full)
+  - key: appraisal_form_number
+    field_id: '1542'
+    field_name: Appraisal Form Number
+    category: property
+    purpose: >
+      Written based on property type: 1004 (single-family/1-unit), 1073 (condo),
+      1025 (2-4 unit). Standard residential = 1004.
+      NOTE: Field ID 1542 unverified against live Encompass — confirm before relying on writes.
+  - key: property_form_type
+    field_id: TSUM.PropertyFormType
+    field_name: Property Form Type (Transmittal Summary)
+    category: property
+    purpose: >
+      Written alongside field 1542 — standard value is
+      "Uniform Residential Appraisal Report" for 1-unit non-condo.
   - key: transmittal_project_type
     field_id: '1553'
     field_name: Project Type (Transmittal Summary)

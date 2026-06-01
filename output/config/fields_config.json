@@ -1,6 +1,15 @@
 {
   "los_fields": [
     {
+      "key": "project_type_1012",
+      "field_id": "1012",
+      "field_name": "Project Type dropdown (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
       "key": "qualifying_rate",
       "field_id": "1014",
       "field_name": "Qualifying Rate",
@@ -262,6 +271,24 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "property_review_type",
+      "field_id": "1541",
+      "field_name": "Level of Property Review (Exterior/Interior)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
+      "key": "appraisal_form_number",
+      "field_id": "1542",
+      "field_name": "Appraisal Form Number",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
       ]
     },
     {
@@ -2045,6 +2072,15 @@
       ]
     },
     {
+      "key": "property_form_type",
+      "field_id": "TSUM.PropertyFormType",
+      "field_name": "Property Form Type (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_09"
+      ]
+    },
+    {
       "key": "borrower_citizenship",
       "field_id": "URLA.X1",
       "field_name": "Borrower Citizenship",
@@ -3120,7 +3156,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 249,
+    "total_los_fields": 253,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,
