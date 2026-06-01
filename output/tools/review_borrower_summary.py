@@ -107,9 +107,14 @@ def review_borrower_summary(
     los_purchase_price       = _los(state, "los_purchase_price")    # field 136
     loan_purpose             = _los(state, "loan_purpose")          # field 19
     property_address         = _los(state, "property_address")
+    property_address_urla    = _los(state, "property_address_urla")  # URLA.X73 — editable
     property_city            = _los(state, "property_city")
     property_state           = _los(state, "property_state")
     property_zip             = _los(state, "property_zip")
+    borr_present_addr        = _los(state, "borr_present_addr")      # FR0126
+    borr_present_city        = _los(state, "borr_present_city")      # FR0106
+    borr_present_state       = _los(state, "borr_present_state")     # FR0107
+    borr_present_zip         = _los(state, "borr_present_zip")       # FR0108
     ami_eligibility          = _los(state, "ami_eligibility")
 
     # ── Transaction Details ───────────────────────────────────────────────
@@ -380,6 +385,29 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{property_address}' vs Purchase Contract: '{purchase_property_address_doc}'.",
                   "Correct the property address in Encompass and flag for Lock Desk if needed.")
+
+    # ── Rule: Cash-Out Refi — Borrower Current Address vs Subject Property ──
+    _is_cashout = "cashout" in (loan_purpose or "").lower().replace("-", "").replace(" ", "")
+    if _is_cashout and borr_present_addr:
+        # Use URLA.X73 as primary (editable); fall back to field 11
+        _subj_street = (property_address_urla or property_address or "").strip().lower()
+        _borr_street = (borr_present_addr or "").strip().lower()
+        # Compare on street number only (robust to minor formatting differences)
+        _subj_num = _subj_street.split()[0] if _subj_street else ""
+        _borr_num  = _borr_street.split()[0] if _borr_street else ""
+        _subj_full = f"{property_address_urla or property_address}, {property_city}, {property_state} {property_zip}".strip(", ")
+        _borr_full = f"{borr_present_addr}, {borr_present_city}, {borr_present_state} {borr_present_zip}".strip(", ")
+        if _subj_num and _borr_num and _subj_num != _borr_num:
+            _flag(flags, "2.1", "Cash-Out Refi — Borrower Not at Subject Property", "warning",
+                  f"Borrower current address ({_borr_full}) does not match subject property "
+                  f"({_subj_full}). This is a cash-out refinance.",
+                  "Confirm occupancy type is correct. If primary residence, verify borrower "
+                  "has moved or update the current address in Encompass.")
+        elif _subj_num and _borr_num and _subj_num == _borr_num:
+            _flag(flags, "2.1", "Cash-Out Refi — Borrower at Subject Property", "info",
+                  f"Borrower current address matches subject property ({_subj_full}). "
+                  "Consistent with primary residence cash-out refinance.",
+                  "No action needed — occupancy consistent with loan purpose.")
 
     # ── Rule: ID Not Expired ──────────────────────────────────────────────
     if dl_expiry_doc:
