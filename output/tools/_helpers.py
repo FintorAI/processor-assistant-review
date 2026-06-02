@@ -15,6 +15,8 @@ def _los(state: dict, key: str, default=None):
     return entry.get("value", default) if isinstance(entry, dict) else default
 
 
+
+
 def _doc(state: dict, key: str, default=None):
     """Get a doc field value from state.
 

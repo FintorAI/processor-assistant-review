@@ -298,7 +298,10 @@ FIELD_MAP = {
     "1069": {"key": "prior_title_held", "field_name": "Declaration 5a(A)(2) — How Title Was Held (Prior Property)", "category": "declarations"},
     "1108": {"key": "coborr_ownership_3yr", "field_name": "Declaration 5a(A) — Co-Borrower Ownership Interest Past 3 Years", "category": "declarations"},
     # Note: field 1491 is invalid in the Encompass batch API — removed 2026-05-19
-    "218": {"key": "rental_income", "field_name": "Rental Income", "category": "income"},
+    # Note: field 218 is invalid in the Encompass batch API — removed 2026-06-02
+    # ── URLA Part 4 Section 4c — Rental Income (Purchase only) ──
+    "1005": {"key": "rental_income", "field_name": "Expected Monthly Rental Income (4c)", "category": "income"},
+    "1487": {"key": "rental_occupancy_rate", "field_name": "Occupancy Rate % (4c)", "category": "income"},
     # ── Step 01 — File Contacts ──
     "638": {"key": "seller_1_name", "field_name": "Seller 1 Name", "category": "file_contacts"},
     # ── Step 02 — Co-Borrower Name ──
@@ -407,8 +410,9 @@ FIELD_MAP = {
     "FE0510": {"key": "borr_1d_position_title", "field_name": "Borrower 1d — Position or Title", "category": "income"},
     "FE0551": {"key": "borr_1d_start_date", "field_name": "Borrower 1d — Start Date", "category": "income"},
     "FE0514": {"key": "borr_1d_end_date", "field_name": "Borrower 1d — End Date", "category": "income"},
-    "FE0516": {"key": "borr_1d_years_in_line", "field_name": "Borrower 1d — Years in Line of Work", "category": "income"},
-    "FE0552": {"key": "borr_1d_months_in_line", "field_name": "Borrower 1d — Months in Line of Work", "category": "income"},
+    # FE0516/FE0552 crash (500) or are invalid (400) on fieldReader — correct IDs are BE03xx:
+    "BE0316": {"key": "borr_1d_years_in_line", "field_name": "Borrower 1d — Years in Line of Work", "category": "income"},
+    "BE0352": {"key": "borr_1d_months_in_line", "field_name": "Borrower 1d — Months in Line of Work", "category": "income"},
     # Co-Borrower FE06xx (same structure, FE06 prefix)
     "FE0602": {"key": "coborr_1d_employer_name", "field_name": "Co-Borrower 1d — Employer or Business Name", "category": "income"},
     "FE0680": {"key": "coborr_1d_foreign_address", "field_name": "Co-Borrower 1d — Foreign Address", "category": "income"},
@@ -422,8 +426,9 @@ FIELD_MAP = {
     "FE0610": {"key": "coborr_1d_position_title", "field_name": "Co-Borrower 1d — Position or Title", "category": "income"},
     "FE0651": {"key": "coborr_1d_start_date", "field_name": "Co-Borrower 1d — Start Date", "category": "income"},
     "FE0614": {"key": "coborr_1d_end_date", "field_name": "Co-Borrower 1d — End Date", "category": "income"},
-    "FE0616": {"key": "coborr_1d_years_in_line", "field_name": "Co-Borrower 1d — Years in Line of Work", "category": "income"},
-    "FE0652": {"key": "coborr_1d_months_in_line", "field_name": "Co-Borrower 1d — Months in Line of Work", "category": "income"},
+    # FE0616/FE0652 crash (500) or are invalid (400) on fieldReader — correct IDs are BE04xx:
+    "BE0416": {"key": "coborr_1d_years_in_line", "field_name": "Co-Borrower 1d — Years in Line of Work", "category": "income"},
+    "BE0452": {"key": "coborr_1d_months_in_line", "field_name": "Co-Borrower 1d — Months in Line of Work", "category": "income"},
     # DNA checkboxes for 1d
     "URLA.X203": {"key": "borr_1d_dna", "field_name": "Borrower — Section 1d Does Not Apply", "category": "income"},
     "URLA.X204": {"key": "coborr_1d_dna", "field_name": "Co-Borrower — Section 1d Does Not Apply", "category": "income"},
