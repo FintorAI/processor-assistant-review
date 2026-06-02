@@ -240,7 +240,7 @@ FIELD_MAP = {
     "CX.TITLE.COMPANY.NAME": {"key": "title_company_name", "field_name": "Title Company Name", "category": "file_contacts"},
     "CX.VESTING.DESCRIPTION": {"key": "vesting_description", "field_name": "Vesting Description", "category": "title"},
     "CX.WIREDATELO": {"key": "wire_requested_date", "field_name": "Wire Requested Date", "category": "closing"},
-    "748": {"key": "closing_date", "field_name": "Closing Date", "category": "closing"},
+    "748": {"key": "actual_closing_date", "field_name": "Closing Date (Actual)", "category": "closing"},
     # ── Borrower Contact Info ──
     "1240": {"key": "borrower_email", "field_name": "Borrower Email", "category": "borrower_info"},
     "1179": {"key": "coborrower_email", "field_name": "Co-Borrower Email", "category": "borrower_info"},
@@ -290,7 +290,7 @@ FIELD_MAP = {
     "13": {"key": "property_county", "field_name": "Property County", "category": "property"},
     "1821": {"key": "estimated_value", "field_name": "Estimated Value", "category": "property"},
     # ── Closing ──
-    "763": {"key": "est_closing_date", "field_name": "Est Closing Date", "category": "closing"},
+    "763": {"key": "closing_date", "field_name": "Est Closing Date", "category": "closing"},
     # ── Declarations ──
     "418": {"key": "declaration_primary_residence", "field_name": "Declaration 5a — Will Occupy as Primary Residence", "category": "declarations"},
     "403": {"key": "declaration_ownership_3yr", "field_name": "Declaration 5a(A) — Ownership Interest Past 3 Years", "category": "declarations"},
@@ -864,14 +864,21 @@ def _build_encompass_bucket_map(
     loan_id: str,
     state: dict,
     doc_defs: dict,
-) -> dict[str, str]:
+) -> tuple[dict[str, str], dict[str, int]]:
     """Build canonical_name → actual Encompass eFolder bucket title mapping.
 
     Calls GET /v3/loans/{loanId}/documents once to get all bucket titles for this loan,
     then matches them against encompass_buckets aliases in required_docs_conditions.json.
 
-    Returns: {"1003 URLA": "1003", "Transmittal Summary": "1008 - Transmittal Summary", ...}
-    Falls back to empty dict on error (caller will use canonical names, which may return not_found).
+    Returns:
+        bucket_map:  {"1003 URLA": "1003", "Transmittal Summary": "1008/LT...", ...}
+        attach_count_by_canonical: {"1003 URLA": 1, "Driver's License": 0, ...}
+            Number of attached files in the matched eFolder bucket, taken DIRECTLY from the
+            Encompass document listing (NOT the DynamoDB extraction cache). This is the
+            ground-truth presence signal: > 0 means the document physically exists in the
+            eFolder even if field extraction later fails (status=not_found). Used by
+            _efolder_present to distinguish "present but unextracted" from "truly absent".
+    Falls back to ({}, {}) on error (caller will use canonical names / copy_count fallback).
     """
     import requests as _requests
 
@@ -888,12 +895,19 @@ def _build_encompass_bucket_map(
         resp.raise_for_status()
         raw_docs = resp.json()
         actual_buckets: set[str] = {d.get("title", "") for d in raw_docs if d.get("title")}
+        # Attachment count per bucket title from the live eFolder listing (sum across
+        # duplicate bucket titles, which Encompass allows).
+        attach_by_bucket: dict[str, int] = {}
+        for d in raw_docs:
+            title = d.get("title")
+            if title:
+                attach_by_bucket[title] = attach_by_bucket.get(title, 0) + len(d.get("attachments") or [])
     except Exception as e:
         logger.warning(
             f"[BUCKET_MAP] GET /v3/loans/{loan_id[:8]}.../documents failed: {e} "
             "— will POST with canonical names (may yield not_found for aliased buckets)"
         )
-        return {}
+        return {}, {}
 
     bucket_map: dict[str, str] = {}
     for canonical, defn in doc_defs.items():
@@ -908,6 +922,14 @@ def _build_encompass_bucket_map(
         if canonical not in bucket_map and canonical in actual_buckets:
             bucket_map[canonical] = canonical
 
+    # Map attachment counts back to canonical names via the resolved bucket title
+    attach_count_by_canonical: dict[str, int] = {}
+    for canonical in doc_defs:
+        if canonical.startswith("_"):
+            continue
+        resolved = bucket_map.get(canonical)
+        attach_count_by_canonical[canonical] = attach_by_bucket.get(resolved, 0) if resolved else 0
+
     matched = len(bucket_map)
     total = sum(1 for k in doc_defs if not k.startswith("_"))
     logger.info(
@@ -915,7 +937,7 @@ def _build_encompass_bucket_map(
         f"Unresolved (no eFolder bucket): "
         + ", ".join(sorted(k for k in doc_defs if not k.startswith("_") and k not in bucket_map))
     )
-    return bucket_map
+    return bucket_map, attach_count_by_canonical
 
 
 def _sequential_extract_and_collect(
@@ -1143,8 +1165,9 @@ def fetch_doc_fields(
         _conditions_cfg = _load_conditions_config()
         _doc_defs = _conditions_cfg.get("document_definitions", {})
         _encompass_bucket_map: dict[str, str] = {}
+        _efolder_attach_counts: dict[str, int] = {}
         if loan_id:
-            _encompass_bucket_map = _build_encompass_bucket_map(loan_id, state, _doc_defs)
+            _encompass_bucket_map, _efolder_attach_counts = _build_encompass_bucket_map(loan_id, state, _doc_defs)
         else:
             logger.warning("[FETCH_DOCS] No loan_id in state — cannot build eFolder bucket map; extraction may yield not_found for aliased buckets")
 
@@ -1336,6 +1359,10 @@ def fetch_doc_fields(
                 "copies": copies_info,
                 # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
                 "encompass_bucket": _encompass_bucket_map.get(dt, dt),
+                # Ground-truth presence: # of attachments in the actual eFolder bucket
+                # (from GET /documents). > 0 means the file physically exists even when a
+                # cached DynamoDB record reports status=not_found. Used by _efolder_present.
+                "efolder_listing_count": _efolder_attach_counts.get(dt, 0),
             }
 
         # Mark required docs that are missing from DynamoDB
@@ -1362,6 +1389,10 @@ def fetch_doc_fields(
                     "copies": [],
                     # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
                     "encompass_bucket": _encompass_bucket_map.get(dt, dt),
+                    # Ground-truth presence: # of attachments in the actual eFolder bucket
+                    # (from GET /documents). > 0 means the file physically exists even though
+                    # extraction failed / cache missed. Used by _efolder_present.
+                    "efolder_listing_count": _efolder_attach_counts.get(dt, 0),
                 }
                 logger.info(f"[FETCH_DOCS]   {dt}: NOT FOUND in DynamoDB")
 

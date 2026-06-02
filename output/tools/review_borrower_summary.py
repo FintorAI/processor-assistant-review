@@ -153,7 +153,7 @@ def review_borrower_summary(
     lock_expires             = _los(state, "lock_expires")         # field 762
     last_rate_set_date       = _los(state, "last_rate_set_date")   # field 3253
     rate_lock_disclosure_date_val = _los(state, "rate_lock_disclosure_date")  # field 3259
-    est_closing_date_val     = _los(state, "est_closing_date")     # field 763
+    est_closing_date_val     = _los(state, "closing_date")         # field 763
     borrower_est_closing_date_val = _los(state, "borrower_est_closing_date")  # field 4114
     secondary_registration   = _los(state, "secondary_registration") # field 3941
 
@@ -368,9 +368,16 @@ def review_borrower_summary(
     addr_val = state.get("address_validation", {})
     if addr_val and not addr_val.get("skipped"):
         if addr_val.get("valid") is False:
+            _dpv = addr_val.get("dpv_confirmation")
+            _err = addr_val.get("error")
+            if _err:
+                _reason = f"Error: {_err}"
+            elif _dpv is None:
+                _reason = "USPS returned no delivery confirmation (DPV null) — address may be undeliverable or outside USPS coverage"
+            else:
+                _reason = f"DPV confirmation: {_dpv}"
             _flag(flags, "2.1", "Property Address Invalid", "warning",
-                  f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. "
-                  f"Error: {addr_val.get('error', 'unknown')}.",
+                  f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. {_reason}.",
                   "Verify the property address is correct in Encompass.")
         if addr_val.get("mismatch_with_purchase_contract"):
             _flag(flags, "2.1", "Property Address Mismatch", "warning",

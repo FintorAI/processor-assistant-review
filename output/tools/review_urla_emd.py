@@ -16,7 +16,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _doc
 from shared.encompass_io import read_other_assets
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def review_urla_emd(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review Section 2b — Earnest Money Deposit (EMD).
+    """Review Section 3b — Earnest Money Deposit (EMD).
 
     Logic:
       1. Fetch otherAssets from Encompass v3 API; find the row where
@@ -113,7 +113,7 @@ def review_urla_emd(
                     f"but Purchase Agreement doc shows ${pa_emd:,.2f}. "
                     f"Difference: ${abs(los_emd - pa_emd):,.2f}."
                 ),
-                "Correct the EMD amount in Encompass (Section 2b / otherAssets) to match the Purchase Contract.",
+                "Correct the EMD amount in Encompass (Section 3b / otherAssets) to match the Purchase Contract.",
             ))
     elif los_emd is None and pa_emd is None:
         flags.append(_flag(
@@ -123,17 +123,17 @@ def review_urla_emd(
             "No EarnestMoney entry found in Encompass otherAssets and EMD could not be "
             "extracted from the Purchase Agreement doc (emd_amount_pa is null — "
             "extraction may have hit an addendum instead of the main contract).",
-            "Verify the EMD is entered in Encompass (Section 2b) and that the Purchase Agreement "
+            "Verify the EMD is entered in Encompass (Section 3b) and that the Purchase Agreement "
             "main contract is in the eFolder (not just addendums).",
         ))
     elif los_emd is None:
         flags.append(_flag(
             "5.2",
-            "EMD Not Entered in Encompass (Section 2b)",
+            "EMD Not Entered in Encompass (Section 3b)",
             "warning",
             f"Purchase Agreement doc shows EMD = ${pa_emd:,.2f}, "
             f"but no EarnestMoney row found in Encompass otherAssets.",
-            "Add the EMD amount to Section 2b in Encompass.",
+            "Add the EMD amount to Section 3b in Encompass.",
         ))
     elif pa_emd is None:
         # LOS has a value but doc extraction missed it — informational

@@ -17,7 +17,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile, _write_fields
+from ._helpers import _los, _doc, _write_fields
 from shared.encompass_io import read_employment
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,54 @@ def _parse_amount(v) -> Optional[float]:
 def _entry_populated(entry: dict) -> bool:
     """True if at least employer_name is set."""
     return bool(entry.get("employer_name"))
+
+
+def _get_voe_copy_for_employer(state: dict, los_employer_name: str) -> dict:
+    """Return extracted_fields from the VOE copy whose employer name best matches
+    the given LOS employer name. Falls back to copy 0 if no match found.
+
+    The VOE bucket may hold multiple attachments (one per employer). When comparing
+    the LOS current employer against the VOE, we must use the copy from the same
+    employer rather than blindly using the first copy (which may be a different /
+    terminated employer).
+
+    Returns a flat dict: {field_key: value} from the matching copy.
+    """
+    copies = (
+        state.get("efolder_documents", {})
+        .get("VOE - non service provider", {})
+        .get("copies", [])
+    )
+    if not copies:
+        return {}
+
+    los_norm = _normalize_name(los_employer_name)
+
+    best_copy: dict | None = None
+    best_score: int = -1
+
+    for copy in copies:
+        ef = copy.get("extracted_fields", {})
+        raw_name = ef.get("current_employer_name", {})
+        voe_name = raw_name.get("value") if isinstance(raw_name, dict) else raw_name
+        if not voe_name:
+            continue
+        voe_norm = _normalize_name(str(voe_name))
+        # Token-based similarity: count matching words
+        los_tokens = set(los_norm.split())
+        voe_tokens = set(voe_norm.split())
+        score = len(los_tokens & voe_tokens)
+        if score > best_score:
+            best_score = score
+            best_copy = ef
+
+    # If best match has at least 1 token in common, use it; otherwise fall back to copy 0
+    if best_score > 0 and best_copy is not None:
+        return {k: (v.get("value") if isinstance(v, dict) else v) for k, v in best_copy.items()}
+
+    # Fallback: copy 0
+    ef0 = copies[0].get("extracted_fields", {})
+    return {k: (v.get("value") if isinstance(v, dict) else v) for k, v in ef0.items()}
 
 
 # ── Main tool ─────────────────────────────────────────────────────────────────
@@ -177,22 +225,16 @@ def review_urla_employment(
     entries = {f"api_{i}": e for i, e in enumerate(api_entries)}
 
     # ── Read VOE doc fields ───────────────────────────────────────────────────
-    # We read both current_ and previous_ from the extracted VOE doc
-    voe_cur_name       = _doc(state, "current_employer_name")
-    voe_cur_phone      = _doc(state, "current_employer_phone")
-    voe_cur_street     = _doc(state, "current_employer_street")
-    voe_cur_city       = _doc(state, "current_employer_city")
-    voe_cur_state      = _doc(state, "current_employer_state")
-    voe_cur_zip        = _doc(state, "current_employer_zip")
-    voe_cur_hire       = _doc(state, "current_original_hire_date")
-    voe_cur_terminated = _doc(state, "current_date_terminated")
-    voe_cur_years      = _doc(state, "current_years_in_job")
-    voe_cur_months     = _doc(state, "current_months_in_job")
-    voe_cur_yrs_line   = _doc(state, "current_years_in_line_of_work")
-    voe_cur_mos_line   = _doc(state, "current_months_in_line_of_work")
-    voe_cur_base_pay   = _doc(state, "current_monthly_base_pay")
-    voe_cur_position   = _doc(state, "current_position_title")
-    voe_cur_auth       = _doc(state, "authorization_printed")
+    # VOE bucket may hold multiple attachments (one per employer). For current-employer
+    # cross-checks we find the copy whose employer name matches the LOS current employer.
+    # This prevents false mismatches when e.g. a terminated employer's PVOE is copy 0.
+    _los_cur_employer = current_entry.get("employer_name") if current_entry else None
+    _voe_cur = _get_voe_copy_for_employer(state, _los_cur_employer or "")
+
+    voe_cur_name       = _voe_cur.get("current_employer_name") or _doc(state, "current_employer_name")
+    voe_cur_hire       = _voe_cur.get("current_original_hire_date") or _doc(state, "current_original_hire_date")
+    voe_cur_base_pay   = _voe_cur.get("current_monthly_base_pay") or _doc(state, "current_monthly_base_pay")
+    voe_cur_position   = _voe_cur.get("current_position_title") or _doc(state, "current_position_title")
 
     # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
@@ -216,12 +258,7 @@ def review_urla_employment(
     borr_1d_dna             = _los(state, "borr_1d_dna")                   # URLA.X203
     coborr_1d_dna           = _los(state, "coborr_1d_dna")                 # URLA.X204
 
-    voe_prev_position  = _doc(state, "previous_position_title")
     voe_prev_name      = _doc(state, "previous_employer_name")
-    voe_prev_hire      = _doc(state, "previous_original_hire_date")
-    voe_prev_terminated= _doc(state, "previous_date_terminated")
-    voe_prev_years     = _doc(state, "previous_years_in_job")
-    voe_prev_months    = _doc(state, "previous_months_in_job")
     voe_prev_base_pay  = _doc(state, "previous_monthly_base_pay")
 
     # ── Current employer cross-checks ─────────────────────────────────────────
@@ -277,9 +314,19 @@ def review_urla_employment(
                 "Enter the current employer phone number in Encompass",
             ))
 
-        # Date hired vs VOE
+        # Date hired vs VOE — normalize both to YYYY-MM-DD before comparing
         if voe_cur_hire and e.get("date_hired"):
-            if e["date_hired"].strip() != voe_cur_hire.strip():
+            _date_fmts = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
+            def _parse_date(s):
+                for _f in _date_fmts:
+                    try:
+                        return datetime.strptime(s.strip(), _f).date()
+                    except ValueError:
+                        continue
+                return None
+            _los_d = _parse_date(e["date_hired"])
+            _voe_d = _parse_date(voe_cur_hire)
+            if _los_d and _voe_d and _los_d != _voe_d:
                 flags.append(_flag("4.1",
                     "Hire Date Mismatch — Current (VOE vs 1003)",
                     "warning",
@@ -379,58 +426,58 @@ def review_urla_employment(
     except (LookupError, Exception):
         has_coborr = bool(_los(state, "coborrower_first_name"))
 
-    # ── 1b: Employee / Employer income (FE0119 / FE0219) ─────────────────────
+    # ── 2b (URLA Part 2): Employee / Employer income (FE0119 / FE0219) ─────────
     if not _dna_checked(borr_1b_dna):
         if not (borr_base_income or "").strip():
             flags.append(_flag("4.1",
-                "Section 1b Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "Section 2b Empty — 'Does Not Apply' Not Checked (Borrower)",
                 "info",
-                "FE0119 (borrower base monthly income) is blank and URLA.X199 (1b Does Not Apply) is not checked.",
-                "Enter the base monthly income or check the 'Does Not Apply' box for Section 1b.",
+                "Borrower current employment income (Section 2b on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter the base monthly income or check the 'Does Not Apply' box for Section 2b.",
             ))
     if has_coborr and not _dna_checked(coborr_1b_dna):
         if not (coborr_base_income or "").strip():
             flags.append(_flag("4.1",
-                "Section 1b Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "Section 2b Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
                 "info",
-                "FE0219 (co-borrower base monthly income) is blank and URLA.X200 (1b Does Not Apply) is not checked.",
-                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box for Section 1b.",
+                "Co-borrower current employment income (Section 2b on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter the co-borrower's base monthly income or check the 'Does Not Apply' box for Section 2b.",
             ))
 
-    # ── 1c: Additional / Self-Employment income (FE0302 / FE0402) ────────────
+    # ── 2c (URLA Part 2): Additional / Self-Employment income (FE0302 / FE0402) ──
     if not _dna_checked(borr_1c_dna):
         if not (borr_1c_employer or "").strip():
             flags.append(_flag("4.1",
-                "Section 1c Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "Section 2c Empty — 'Does Not Apply' Not Checked (Borrower)",
                 "info",
-                "FE0302 (borrower 1c employer name) is blank and URLA.X201 (1c Does Not Apply) is not checked.",
-                "Enter self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+                "Borrower additional employment (Section 2c on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter self/additional employment details or check the 'Does Not Apply' box for Section 2c.",
             ))
     if has_coborr and not _dna_checked(coborr_1c_dna):
         if not (coborr_1c_employer or "").strip():
             flags.append(_flag("4.1",
-                "Section 1c Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "Section 2c Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
                 "info",
-                "FE0402 (co-borrower 1c employer name) is blank and URLA.X202 (1c Does Not Apply) is not checked.",
-                "Enter co-borrower self/additional employment details or check the 'Does Not Apply' box for Section 1c.",
+                "Co-borrower additional employment (Section 2c on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter co-borrower self/additional employment details or check the 'Does Not Apply' box for Section 2c.",
             ))
 
-    # ── 1d: Previous Employment income (FE0502 / FE0602) ─────────────────────
+    # ── 2d (URLA Part 2): Previous Employment income (FE0502 / FE0602) ─────────
     if not _dna_checked(borr_1d_dna):
         if not (borr_1d_employer or "").strip():
             flags.append(_flag("4.1",
-                "Section 1d Empty — 'Does Not Apply' Not Checked (Borrower)",
+                "Section 2d Empty — 'Does Not Apply' Not Checked (Borrower)",
                 "info",
-                "FE0502 (borrower 1d employer name) is blank and URLA.X203 (1d Does Not Apply) is not checked.",
-                "Enter previous employment details or check the 'Does Not Apply' box for Section 1d.",
+                "Borrower previous employment (Section 2d on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter previous employment details or check the 'Does Not Apply' box for Section 2d.",
             ))
     if has_coborr and not _dna_checked(coborr_1d_dna):
         if not (coborr_1d_employer or "").strip():
             flags.append(_flag("4.1",
-                "Section 1d Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
+                "Section 2d Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
                 "info",
-                "FE0602 (co-borrower 1d employer name) is blank and URLA.X204 (1d Does Not Apply) is not checked.",
-                "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 1d.",
+                "Co-borrower previous employment (Section 2d on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
+                "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 2d.",
             ))
 
     # ── Gross income surfacing: 1c and 1d when section is populated ───────────
@@ -444,68 +491,83 @@ def review_urla_employment(
 
     if (borr_1c_employer or "").strip():
         flags.append(_flag("4.1",
-            f"Section 1c Income — Borrower ({borr_1c_employer})",
+            f"Section 2c Income — Borrower ({borr_1c_employer})",
             "info",
-            f"1c populated. {_fmt_income(borr_1c_gross, borr_1c_monthly)}.",
+            f"2c (additional employment) populated. {_fmt_income(borr_1c_gross, borr_1c_monthly)}.",
             "Verify gross income and monthly amounts match the VOE / self-employment docs.",
         ))
     if (coborr_1c_employer or "").strip():
         flags.append(_flag("4.1",
-            f"Section 1c Income — Co-Borrower ({coborr_1c_employer})",
+            f"Section 2c Income — Co-Borrower ({coborr_1c_employer})",
             "info",
-            f"1c populated. {_fmt_income(coborr_1c_gross, coborr_1c_monthly)}.",
+            f"2c (additional employment) populated. {_fmt_income(coborr_1c_gross, coborr_1c_monthly)}.",
             "Verify co-borrower gross income and monthly amounts match supporting docs.",
         ))
     if (borr_1d_employer or "").strip():
         flags.append(_flag("4.1",
-            f"Section 1d Income — Borrower ({borr_1d_employer})",
+            f"Section 2d Income — Borrower ({borr_1d_employer})",
             "info",
-            f"1d (previous employment) populated. {_fmt_income(borr_1d_gross, borr_1d_monthly)}.",
+            f"2d (previous employment) populated. {_fmt_income(borr_1d_gross, borr_1d_monthly)}.",
             "Verify prior income amounts are consistent with employment history docs.",
         ))
     if (coborr_1d_employer or "").strip():
         flags.append(_flag("4.1",
-            f"Section 1d Income — Co-Borrower ({coborr_1d_employer})",
+            f"Section 2d Income — Co-Borrower ({coborr_1d_employer})",
             "info",
-            f"1d (previous employment) populated. {_fmt_income(coborr_1d_gross, coborr_1d_monthly)}.",
+            f"2d (previous employment) populated. {_fmt_income(coborr_1d_gross, coborr_1d_monthly)}.",
             "Verify co-borrower prior income amounts match employment history docs.",
         ))
 
-    # ── Employment gap checks ─────────────────────────────────────────────────
+    # ── Employment gap checks — use only the most recent prior job ───────────
+    # Only the gap between the immediately preceding job and the current hire
+    # is relevant. Older gaps are accounted for by requiring 2-year history docs.
     if current_entry and prior_entries:
         cur_hire = current_entry.get("date_hired")
-        for prior in prior_entries:
-            prior_term = prior.get("date_terminated")
-            if cur_hire and prior_term:
+        _date_fmts_gap = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
+
+        def _parse_date_gap(s):
+            if not s:
+                return None
+            for _f in _date_fmts_gap:
                 try:
-                    fmt_options = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
-                    d_hire = d_term = None
-                    for fmt in fmt_options:
-                        try:
-                            d_hire = datetime.strptime(cur_hire.strip(), fmt)
-                            d_term = datetime.strptime(prior_term.strip(), fmt)
-                            break
-                        except ValueError:
-                            continue
-                    if d_hire and d_term:
-                        gap_days = (d_hire - d_term).days
-                        if gap_days > 30:
-                            gap_months = gap_days // 30
-                            if gap_months < 6:
-                                if loan_type.upper() == "FHA":
-                                    flags.append(_flag("4.1",
-                                        "FHA Employment Gap — Explanation Required",
-                                        "warning",
-                                        f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). FHA requires explanation for gaps < 6 months.",
-                                        "Obtain a written explanation letter from the borrower for the employment gap",
-                                    ))
-                            else:
+                    return datetime.strptime(s.strip(), _f).date()
+                except ValueError:
+                    continue
+            return None
+
+        # Find the most recent prior job by termination date
+        _most_recent_prior = None
+        _most_recent_term_date = None
+        for prior in prior_entries:
+            _td = _parse_date_gap(prior.get("date_terminated"))
+            if _td and (_most_recent_term_date is None or _td > _most_recent_term_date):
+                _most_recent_term_date = _td
+                _most_recent_prior = prior
+
+        if _most_recent_prior and cur_hire:
+            prior_term = _most_recent_prior.get("date_terminated")
+            d_hire = _parse_date_gap(cur_hire)
+            d_term = _most_recent_term_date
+            if d_hire and d_term:
+                try:
+                    gap_days = (d_hire - d_term).days
+                    if gap_days > 30:
+                        gap_months = gap_days // 30
+                        if gap_months < 6:
+                            if loan_type.upper() == "FHA":
                                 flags.append(_flag("4.1",
-                                    "Employment Gap > 6 Months — Documentation Required",
+                                    "FHA Employment Gap — Explanation Required",
                                     "warning",
-                                    f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). Requires documented 2-year history.",
-                                    "Document the 2-year employment history before the gap and verify income continuity",
+                                    f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). FHA requires explanation for gaps < 6 months.",
+                                    "Obtain a written explanation letter from the borrower for the employment gap",
                                 ))
+                        else:
+                            flags.append(_flag("4.1",
+                                "Employment Gap > 6 Months — Documentation Required",
+                                "warning",
+                                f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). Requires documented 2-year history.",
+                                "Document the 2-year employment history before the gap and verify income continuity",
+                            ))
                 except Exception:
                     pass
 

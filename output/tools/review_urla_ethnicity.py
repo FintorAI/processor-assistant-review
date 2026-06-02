@@ -12,14 +12,14 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _los, _doc
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +56,10 @@ def review_urla_ethnicity(
 
     # ── Read LOS Fields ───────────────────────────────────────────────────────
     borrower_ethnicity  = _los(state, "borrower_ethnicity")   # field 1544
-    attachment_type     = _los(state, "attachment_type")      # CX.ATTACHMENT.TYPE
-    property_type       = _los(state, "property_type")        # field 1041
     estate_held         = _los(state, "estate_held")          # field 1066
 
     # ── Read Doc Fields (Driver's License) ───────────────────────────────────
     dl_ethnicity_doc    = _doc(state, "dl_ethnicity_indicator")
-    dl_borrower_name    = _doc(state, "dl_borrower_name")
 
     # ── Rule: Ethnicity cross-check vs Driver's License ───────────────────────
     # dl_ethnicity_indicator is in the live DL extraction schema but most US
@@ -111,30 +108,15 @@ def review_urla_ethnicity(
             ))
     # If dl_ethnicity_doc is null/empty: most DLs don't print ethnicity — no flag needed.
 
-    # ── Rule: Attachment Type Consistent with Listing ─────────────────────────
-    # Cross-reference Attached/Detached in Encompass against Google property listing.
-    # Cannot be automated without a live Google search — flagged for manual review
-    # when attachment_type is blank.
-    if not (attachment_type or "").strip():
-        flags.append(_flag(
-            "Attachment Type Not Set",
-            "info",
-            "CX.ATTACHMENT.TYPE (attachment type) is blank. "
-            "Should be 'Attached' or 'Detached' based on the property listing.",
-            "Check the Google property listing and set the attachment type in Encompass.",
-        ))
+    # Attachment Type (CX.ATTACHMENT.TYPE) — not flagged; requires manual lookup
+    # against property listing and is not actionable by the processor at this stage.
 
     # ── Rule: Estate Held = Fee Simple ────────────────────────────────────────
-    # (field 1066 — 1003 URLA Lender dropdown: FeeSimple / Leasehold)
+    # Field 1066 is auto-set by update_borrower_vesting (Step 8.1) when blank.
+    # Only flag here if it is already set to a non-fee-simple value (Leasehold etc.)
+    # so the processor is aware when they reach Step 6.
     _estate = (estate_held or "").strip().lower().replace(" ", "")
-    if not _estate:
-        flags.append(_flag(
-            "Estate Held Not Set",
-            "info",
-            "Field 1066 (Estate Will Be Held In) is blank.",
-            "Confirm 'Fee Simple' in the 1003 URLA Lender section.",
-        ))
-    elif _estate not in ("feesimple",):
+    if _estate and _estate not in ("feesimple",):
         flags.append(_flag(
             "Estate Not Held in Fee Simple",
             "warning",

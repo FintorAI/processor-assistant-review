@@ -24,14 +24,14 @@ Vesting strategy:
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _write_fields
+from ._helpers import _los, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -280,8 +280,9 @@ def update_borrower_vesting(
     nbs_flag = _los(state, "nbs_flag")
     nbs_info = _los(state, "nbs_info")
 
-    current_manner  = (_los(state, "estate_held") or "").strip()     # field 33
-    current_vesting = (_los(state, "final_vesting") or "").strip()   # field 1867
+    current_manner  = (_los(state, "manner_of_title") or "").strip()  # field 33
+    current_estate  = (_los(state, "estate_held") or "").strip()      # field 1066: FeeSimple / Leasehold
+    current_vesting = (_los(state, "final_vesting") or "").strip()    # field 1867
 
     prev_borr_occ   = (_los(state, "borrower_occupancy_intent") or "").strip()
     prev_cobr_occ   = (_los(state, "coborrower_occupancy_intent") or "").strip()
@@ -511,7 +512,30 @@ def update_borrower_vesting(
             resolved=True, docs=["Title Report"],
         ))
 
-    # ── E. Final Vesting (field 1867) — read-only ────────────────────────────
+    # ── E. Estate Will Be Held In (field 1066) ───────────────────────────────
+    # Always set to FeeSimple for standard residential loans (blank or Leasehold).
+    _estate_norm = current_estate.lower().replace(" ", "")
+    if _estate_norm != "feesimple":
+        field_updates["1066"] = "FeeSimple"
+        _was = f"'{current_estate}'" if current_estate else "blank"
+        actions.append(f"SET 1066 (Estate Will Be Held In) = 'FeeSimple' (was {_was})")
+        flags.append(_flag("8.1",
+            "Estate Auto-Set to Fee Simple",
+            "info-overwrite",
+            f"Estate Will Be Held In (field 1066) was {_was}. Set to 'FeeSimple' (standard for residential loans).",
+            "Verify in 1003 URLA Lender section — confirm Fee Simple is appropriate for this property.",
+            resolved=True, docs=["Title Report"],
+        ))
+    else:
+        flags.append(_flag("8.1",
+            "Estate Verified — Fee Simple",
+            "info",
+            "Estate Will Be Held In (field 1066) is 'FeeSimple'.",
+            "No action needed.",
+            resolved=True, docs=["Title Report"],
+        ))
+
+    # ── F. Final Vesting (field 1867) — read-only ────────────────────────────
     if not current_vesting:
         flags.append(_flag("8.1",
             "Final Vesting Empty",
@@ -589,12 +613,12 @@ def update_borrower_vesting(
             flags.append(_flag("8.1",
                 "Vesting As-Seen (Refinance)",
                 "info",
-                f"Refinance loan — vesting taken 'as seen' from title report. Marital suffix check skipped (only TX mandates this).",
+                "Refinance loan — vesting taken 'as seen' from title report. Marital suffix check skipped (only TX mandates this).",
                 "No action needed",
                 resolved=True, docs=["Title Report"],
             ))
 
-    # ── F. NBS reminder ───────────────────────────────────────────────────────
+    # ── G. NBS reminder ───────────────────────────────────────────────────────
     if has_nbs:
         nbs_name = (nbs_info or "").strip()
         if nbs_name:
@@ -614,9 +638,10 @@ def update_borrower_vesting(
                 docs=["Title Report"],
             ))
 
-    # ── G. Write fields ───────────────────────────────────────────────────────
+    # ── H. Write fields ───────────────────────────────────────────────────────
     _FIELD_LABELS = {
         "33": "Manner Held",
+        "1066": "Estate Will Be Held In",
         "65": "Borrower SSN",
         "97": "Co-Borrower SSN",
         "1402": "Borrower DOB",
@@ -632,7 +657,6 @@ def update_borrower_vesting(
         "CoBorr.OccupancyIntent": "Co-Borrower Occupancy Intent",
     }
     if field_updates:
-        pre_flag_count = len(flags)
         _write_fields(loan_id, field_updates, substep="8.1", flags=flags, state=state, labels=_FIELD_LABELS)
         wrote_count = len(field_updates)
         logger.info(f"[UPDATE_BORROWER_VESTING] Submitted {wrote_count} field updates")

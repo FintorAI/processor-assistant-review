@@ -3,12 +3,12 @@ step:
   name: 1003 URLA Page 2
   phase: DATA_REVIEW
   description: >
-    Review and populate 1003 URLA Page 2: employment (Section 1b VOE cross-check),
-    employment history with gap rules, and other income (Section 1e).
+    Review and populate 1003 URLA Part 2: employment (Section 2b VOE cross-check),
+    employment history with gap rules, and other income (Section 2e).
 
 substeps:
 - id: '4.1'
-  name: Employment Verification (1b VOE)
+  name: Employment Verification (2b VOE)
   tool: review_urla_employment
   description: >
     Cross-check employment fields against VOE: employer name, original hire date,
@@ -611,10 +611,10 @@ substeps:
       suggestion: Obtain borrower explanation letter for employment gap
 
 - id: '4.2'
-  name: Other Income (1e)
+  name: Other Income (2e)
   tool: review_urla_other_income
   description: >
-    Review Section 1e — Other Sources of Income (alimony, dividend stocks,
+    Review Section 2e — Other Sources of Income on 1003 URLA Part 2 (alimony, dividend stocks,
     Social Security, etc.). Verify amounts are populated and documented.
   los_fields_read:
   - key: other_income_type

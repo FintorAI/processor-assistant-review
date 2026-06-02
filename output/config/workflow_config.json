@@ -92,8 +92,7 @@
         "fetch_doc_fields",
         "fetch_los_fields",
         "find_loan",
-        "validate_property_address",
-        "wait_for_pending_docs"
+        "validate_property_address"
       ],
       "substeps": {
         "1": {
@@ -204,7 +203,7 @@
       ],
       "substeps": {
         "1": {
-          "name": "Employment Verification (1b VOE)",
+          "name": "Employment Verification (2b VOE)",
           "tools": [
             "review_urla_employment"
           ],
@@ -221,7 +220,7 @@
           ]
         },
         "2": {
-          "name": "Other Income (1e)",
+          "name": "Other Income (2e)",
           "tools": [
             "review_urla_other_income"
           ]
@@ -240,7 +239,7 @@
       ],
       "substeps": {
         "1": {
-          "name": "Assets and VOD (2a)",
+          "name": "Assets and VOD (3a)",
           "tools": [
             "review_urla_assets"
           ],
@@ -257,19 +256,19 @@
           ]
         },
         "2": {
-          "name": "EMD Check (2b)",
+          "name": "EMD Check (3b)",
           "tools": [
             "review_urla_emd"
           ]
         },
         "3": {
-          "name": "Liabilities and VOL (2c)",
+          "name": "Liabilities and VOL (3c)",
           "tools": [
             "review_urla_liabilities"
           ]
         },
         "4": {
-          "name": "Other Assets and REO (2d, Section 3)",
+          "name": "Other Assets and REO (3d)",
           "tools": [
             "review_urla_reo"
           ]
