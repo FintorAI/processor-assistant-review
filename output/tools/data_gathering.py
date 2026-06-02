@@ -875,7 +875,7 @@ def _build_encompass_bucket_map(
     """
     import requests as _requests
 
-    from shared.encompass_client import get_encompass_client
+    from encompass_client import get_encompass_client
 
     try:
         enc_client = get_encompass_client(state=state)
