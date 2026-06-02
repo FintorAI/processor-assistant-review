@@ -16,7 +16,6 @@
         "AUS Certificate",
         "VOE - non service provider",
         "Paystubs",
-        "Borrower Income and Employment Certification",
         "W-2",
         "Tax Summary",
         "Tax Returns - Business",
@@ -47,10 +46,9 @@
         "AUS Certificate": "all",
         "VOE - non service provider": "all",
         "Paystubs": "all",
-        "Borrower Income and Employment Certification": "all",
         "W-2": "all",
+        "Tax Returns - Business": "all",
         "Driver's License": "all",
-        "Loan Estimate": "all",
         "Borrower's Certification & Authorization": "all",
         "MD Notice of Right to Rescind": "all",
         "MD DUAL CAPACITY IN REAL ESTATE": "all",
@@ -58,13 +56,13 @@
         "MD Notice Regarding Right for Assumption": "all",
         "MD Right to Choose Insurance Provider": "all",
         "MD Settlement Services/Right to Choose": "all",
-        "Bank Statement": "All",
-        "Assets": "All"
+        "Bank Statement": "all",
+        "Assets": "all"
       }
     }
   ],
   "document_definitions": {
-    "_comment": "Maps document display names (as used in document_list above) to docrepo keys in required_docs.json. 'encompass_buckets' lists the actual eFolder bucket title(s) used in Encompass — verified across 7+ loans (test + prod). When absent the canonical name IS the bucket name.",
+    "_comment": "Maps document display names (as used in document_list above) to docrepo keys in required_docs.json. 'encompass_buckets' lists the actual eFolder bucket title(s) used in Encompass — verified across 18 prod loans (LG-docsOrch + LG-discOrch, test + prod, Conv/FHA/VA/USDA). Buckets listed in priority order: first match wins. When absent the canonical name IS the bucket name.",
     "1003 URLA": {
       "docrepo_key": "urla_1003",
       "encompass_buckets": ["1003"]
@@ -82,21 +80,18 @@
     },
     "DU Findings / AUS Certificate": {
       "docrepo_key": "du_findings",
-      "_note": "No dedicated eFolder bucket observed — typically embedded in Underwriting or SSRs FNMA/FHLMC/HUD; do not trigger extraction by bucket name"
+      "encompass_buckets": ["SSRs FNMA/FHLMC/HUD", "GUS Automated Findings"]
     },
     "AUS Certificate": {
       "docrepo_key": "du_findings",
-      "_note": "No dedicated eFolder bucket observed — same as DU Findings; skip bucket-based extraction"
+      "encompass_buckets": ["SSRs FNMA/FHLMC/HUD", "GUS Automated Findings"]
     },
     "VOE - non service provider": {
       "docrepo_key": "voe"
     },
     "Paystubs": {
-      "docrepo_key": "paystubs"
-    },
-    "Borrower Income and Employment Certification": {
       "docrepo_key": "paystubs",
-      "_note": "No dedicated eFolder bucket observed across test/prod loans; skip bucket-based extraction"
+      "encompass_buckets": ["Paystubs", "Borrower Income and Employment Certification"]
     },
     "W-2": {
       "docrepo_key": "w2",
@@ -115,7 +110,7 @@
     },
     "Assets": {
       "docrepo_key": "assets",
-      "_note": "No dedicated eFolder bucket observed across test/prod loans; skip bucket-based extraction"
+      "encompass_buckets": ["Assets(Miscellaneous)"]
     },
     "Purchase Agreement": {
       "docrepo_key": "purchase_agreement"
@@ -141,11 +136,12 @@
       "docrepo_key": "title_report"
     },
     "Loan Estimate": {
-      "docrepo_key": "loan_estimate"
+      "docrepo_key": "loan_estimate",
+      "encompass_buckets": ["Loan Estimate"]
     },
     "Lock Confirmation": {
       "docrepo_key": "lock_confirmation",
-      "encompass_buckets": ["Lock Confirmation Document"]
+      "encompass_buckets": ["Lock Confirmation Document", "Lock Confirmation"]
     },
     "Closing Protection Letter": {
       "docrepo_key": "closing_protection_letter",
@@ -165,7 +161,8 @@
       "docrepo_key": "md_important_notice_counseling"
     },
     "MD Notice Regarding Right for Assumption": {
-      "docrepo_key": "md_notice_right_assumption"
+      "docrepo_key": "md_notice_right_assumption",
+      "encompass_buckets": ["MD Notice Regarding Right for Assumption Under Certain Circumstances"]
     },
     "MD Right to Choose Insurance Provider": {
       "docrepo_key": "md_right_choose_insurance"
@@ -175,7 +172,8 @@
       "encompass_buckets": ["MD Settlement Services/Right to Choose Attorney/Title Insurance Company Disclosure"]
     },
     "Mortgage Statement": {
-      "docrepo_key": "mortgage_statement"
+      "docrepo_key": "mortgage_statement",
+      "encompass_buckets": ["Mortgage Statement", "Mortgage Loan Statement"]
     }
   }
 }

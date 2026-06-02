@@ -920,12 +920,15 @@ def _sequential_extract_and_collect(
     required_doc_types: list[str],
     normalize_fn,
     bucket_map: dict[str, str] | None = None,
+    extraction_modes: dict[str, str] | None = None,
     total_timeout: int = 120,
     poll_interval: int = 5,
 ) -> list[dict]:
     """Fire POST /efolder/direct for every required doc type, then poll GET until resolved.
 
     Phase 1 — POST each type individually using actual eFolder bucket names (via bucket_map).
+              selectionMode=All for docs with extraction_mode='all' (e.g. VOE, Paystubs, Underwriting)
+              so CatchingDoc returns every attachment in the bucket, not just the best one.
     Phase 2 — Poll GET /efolder until no types are pending (max total_timeout seconds).
     Phase 3 — Final GET with fields to collect extracted results.
 
@@ -936,6 +939,7 @@ def _sequential_extract_and_collect(
     ext_env = env.lower() if env else "prod"
     ext_client_id = "AWM-prod" if ext_env in ("prod", "production") else "AWM-test"
     _bucket_map = bucket_map or {}
+    _extraction_modes = extraction_modes or {}
 
     logger.info(
         f"[EXTRACT] Fire-and-poll for {len(required_doc_types)} doc types "
@@ -944,24 +948,27 @@ def _sequential_extract_and_collect(
 
     # ── Phase 1: POST each doc type individually ──
     # Use actual eFolder bucket name when known — CatchingDoc matches by exact bucket title.
-    # canonical_for_bucket maps bucket_name → canonical so pending tracking uses canonical names.
+    # selectionMode="All" for multi-copy doc types so every attachment in the bucket is extracted.
     immediately_done = 0
     pending_types: set[str] = set()
     post_failed = 0
 
     for idx, doc_type in enumerate(required_doc_types, 1):
         bucket_name = _bucket_map.get(doc_type, doc_type)
+        # selectionMode=All → CatchingDoc returns every PDF attachment in the bucket
+        # selectionMode=Best → CatchingDoc returns only the single best-match attachment
+        sel_mode = "All" if str(_extraction_modes.get(doc_type, "")).lower() == "all" else "Best"
         if bucket_name != doc_type:
-            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (bucket: {bucket_name!r})")
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (bucket: {bucket_name!r}, mode: {sel_mode})")
         else:
-            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type}")
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (mode: {sel_mode})")
         try:
             resp = client._call_api(
                 loan_number=loan_number,
                 client_id=ext_client_id,
                 document_types=[bucket_name],
                 environment=ext_env,
-                selection_mode="Best",
+                selection_mode=sel_mode,
                 use_cache=True,
                 override_not_found=True,
             )
@@ -1189,6 +1196,7 @@ def fetch_doc_fields(
             extracted = _sequential_extract_and_collect(
                 client, loan_number, env, types_to_extract, _norm_dt,
                 bucket_map=_encompass_bucket_map,
+                extraction_modes=extraction_modes,
             )
             all_documents = all_documents + extracted
             logger.info(
@@ -1321,6 +1329,8 @@ def fetch_doc_fields(
                 "extraction_mode": extraction_modes.get(dt, "best"),
                 "error": primary.get("error"),
                 "copies": copies_info,
+                # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
+                "encompass_bucket": _encompass_bucket_map.get(dt, dt),
             }
 
         # Mark required docs that are missing from DynamoDB
@@ -1345,6 +1355,8 @@ def fetch_doc_fields(
                     "extraction_mode": extraction_modes.get(dt, "best"),
                     "error": "Not found in DynamoDB cache",
                     "copies": [],
+                    # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
+                    "encompass_bucket": _encompass_bucket_map.get(dt, dt),
                 }
                 logger.info(f"[FETCH_DOCS]   {dt}: NOT FOUND in DynamoDB")
 

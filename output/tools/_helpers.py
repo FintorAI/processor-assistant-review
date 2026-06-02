@@ -44,6 +44,21 @@ def _efolder_present(state: dict, doc_type: str) -> bool:
     return bool(entry)
 
 
+def _efolder_bucket(state: dict, doc_type: str) -> str:
+    """Return the actual Encompass eFolder bucket name used for this document type.
+
+    Returns the canonical doc_type name as fallback if bucket info is not stored.
+
+    Usage:
+        bucket = _efolder_bucket(state, "1003 URLA")  # -> "1003"
+        f"eFolder bucket: '{bucket}'"
+    """
+    entry = state.get("efolder_documents", {}).get(doc_type)
+    if isinstance(entry, dict):
+        return entry.get("encompass_bucket") or doc_type
+    return doc_type
+
+
 def _doc_all(state: dict, key: str) -> list:
     """Get all values for a doc field across multiple document copies.
 
