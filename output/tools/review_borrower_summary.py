@@ -12,14 +12,14 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile, _write_fields
+from ._helpers import _los, _doc, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def review_borrower_summary(
 
     # ── Read Doc Fields ───────────────────────────────────────────────────
     dl_expiry_doc            = _doc(state, "dl_expiry")
-    dl_name_doc              = _doc(state, "dl_name")
+    _doc(state, "dl_name")  # reserved — not currently used in rules
     purchase_price_doc       = _doc(state, "purchase_price")
     purchase_property_address_doc = _doc(state, "purchase_property_address")
 
@@ -224,7 +224,7 @@ def review_borrower_summary(
     # ── Rule: Accept Text/SMS ─────────────────────────────────────────────
     _write_fields(
         loan_id,
-        {"4920": "Y" if not _is_checked(borrower_accept_sms) else None},
+        {"4920": "true" if not _is_checked(borrower_accept_sms) else None},
         substep="2.1",
         flags=flags,
         state=state,
@@ -234,7 +234,7 @@ def review_borrower_summary(
     if has_coborrower:
         _write_fields(
             loan_id,
-            {"4935": "Y" if not _is_checked(coborrower_accept_sms) else None},
+            {"4935": "true" if not _is_checked(coborrower_accept_sms) else None},
             substep="2.1",
             flags=flags,
             state=state,
@@ -549,7 +549,6 @@ def review_borrower_summary(
               "Down Payment % (1771) is blank.", "Enter the down payment percentage.")
 
     # ── Rule: Lock / Rate Dates ───────────────────────────────────────────
-    from datetime import date as _date
     _is_locked = str(rate_is_locked or "").strip().lower() in ("y", "yes", "true", "1", "locked")
     _today = datetime.now(timezone.utc).date()
     _today_str = _today.strftime("%m/%d/%Y")

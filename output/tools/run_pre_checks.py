@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _efolder_present, _profile
+from ._helpers import _los, _doc, _efolder_present, _efolder_bucket, _profile
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,8 @@ def run_pre_checks(
     # so a doc is only "missing" if it's truly absent from the eFolder — not if a field
     # inside it couldn't be extracted (e.g. urla_signed = None despite doc existing).
     urla_present         = _efolder_present(state, "1003 URLA")
-    urla_signed          = _doc(state, "urla_signed")   # True/False/None — separate from presence
+    # urla_signed reserved for future signature check
+    _doc(state, "urla_signed")
     bca_present          = _efolder_present(state, "Borrower's Certification & Authorization")
     aus_run_date         = _doc(state, "aus_run_date")
     aus_collateral_relief = _doc(state, "collateral_rw_relief")
@@ -114,10 +115,15 @@ def run_pre_checks(
     # At least one doc signed (True)
     _md_any_signed  = any(v is True for v in _md_disc_flags)
 
+    def _bucket_label(doc_name: str) -> str:
+        """Return '(eFolder bucket: X)' if the bucket name differs from the canonical doc name."""
+        bucket = _efolder_bucket(state, doc_name)
+        return f" (eFolder bucket: '{bucket}')" if bucket != doc_name else ""
+
     # ── Rule: AUS Required (critical — Step 10 orders depend on it) ──
     if not aus_run_date:
         _flag(flags, "1.1", "AUS Missing", "critical",
-              "No Underwriting (DU/LP) document found in eFolder.",
+              f"No Underwriting (DU/LP) document found in eFolder{_bucket_label('Underwriting')}.",
               "Run AUS or retrieve existing results before ordering.")
 
     # ── Rule: Required Docs Present ──
@@ -143,30 +149,33 @@ def run_pre_checks(
     for doc_name, present in critical_docs.items():
         if not present:
             _flag(flags, "1.1", "Missing Required Document", "critical",
-                  f"{doc_name} not found in eFolder.",
+                  f"{doc_name} not found in eFolder{_bucket_label(doc_name)}.",
                   "Locate or request the missing document before proceeding.")
 
     for doc_name, present in warning_docs.items():
         if not present:
             _flag(flags, "1.1", "Missing Required Document", "warning",
-                  f"{doc_name} not found in eFolder.",
+                  f"{doc_name} not found in eFolder{_bucket_label(doc_name)}.",
                   "Locate or request the missing document before proceeding.")
 
     # ── Rule: Govt ID (Driver's License) — info non-blocker ──
     if not dl_present:
+        _dl_label = _bucket_label("Driver's License")
         _flag(flags, "1.1", "Govt ID Not Yet Uploaded", "info",
-              "Driver's License not found in eFolder. Not required at this stage but needed before submission.",
+              f"Driver's License not found in eFolder{_dl_label}. "
+              "Not required at this stage but needed before submission.",
               "Upload borrower's government-issued ID to the eFolder when available.")
 
     # ── Rule: Income Docs (VOE and/or Paystubs) ──
     # At least one income verification doc must be present
+    _voe_label = _bucket_label("VOE - non service provider")
     if not voe_present and not paystubs_present:
         _flag(flags, "1.1", "Income Documents Missing", "warning",
-              "Neither VOE nor paystubs found in eFolder.",
+              f"Neither VOE{_voe_label} nor paystubs found in eFolder.",
               "Request VOE or most recent paystubs from borrower for income verification.")
     elif not voe_present:
         _flag(flags, "1.1", "VOE Missing", "info",
-              "No VOE found — paystubs are present but VOE is preferred for salaried borrowers.",
+              f"No VOE found{_voe_label} — paystubs are present but VOE is preferred for salaried borrowers.",
               "Request VOE from employer if borrower is W-2 employee.")
     elif not paystubs_present:
         _flag(flags, "1.1", "Paystubs Missing", "info",

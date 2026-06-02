@@ -298,7 +298,10 @@ FIELD_MAP = {
     "1069": {"key": "prior_title_held", "field_name": "Declaration 5a(A)(2) — How Title Was Held (Prior Property)", "category": "declarations"},
     "1108": {"key": "coborr_ownership_3yr", "field_name": "Declaration 5a(A) — Co-Borrower Ownership Interest Past 3 Years", "category": "declarations"},
     # Note: field 1491 is invalid in the Encompass batch API — removed 2026-05-19
-    "218": {"key": "rental_income", "field_name": "Rental Income", "category": "income"},
+    # Note: field 218 is invalid in the Encompass batch API — removed 2026-06-02
+    # ── URLA Part 4 Section 4c — Rental Income (Purchase only) ──
+    "1005": {"key": "rental_income", "field_name": "Expected Monthly Rental Income (4c)", "category": "income"},
+    "1487": {"key": "rental_occupancy_rate", "field_name": "Occupancy Rate % (4c)", "category": "income"},
     # ── Step 01 — File Contacts ──
     "638": {"key": "seller_1_name", "field_name": "Seller 1 Name", "category": "file_contacts"},
     # ── Step 02 — Co-Borrower Name ──
@@ -407,8 +410,9 @@ FIELD_MAP = {
     "FE0510": {"key": "borr_1d_position_title", "field_name": "Borrower 1d — Position or Title", "category": "income"},
     "FE0551": {"key": "borr_1d_start_date", "field_name": "Borrower 1d — Start Date", "category": "income"},
     "FE0514": {"key": "borr_1d_end_date", "field_name": "Borrower 1d — End Date", "category": "income"},
-    "FE0516": {"key": "borr_1d_years_in_line", "field_name": "Borrower 1d — Years in Line of Work", "category": "income"},
-    "FE0552": {"key": "borr_1d_months_in_line", "field_name": "Borrower 1d — Months in Line of Work", "category": "income"},
+    # FE0516/FE0552 crash (500) or are invalid (400) on fieldReader — correct IDs are BE03xx:
+    "BE0316": {"key": "borr_1d_years_in_line", "field_name": "Borrower 1d — Years in Line of Work", "category": "income"},
+    "BE0352": {"key": "borr_1d_months_in_line", "field_name": "Borrower 1d — Months in Line of Work", "category": "income"},
     # Co-Borrower FE06xx (same structure, FE06 prefix)
     "FE0602": {"key": "coborr_1d_employer_name", "field_name": "Co-Borrower 1d — Employer or Business Name", "category": "income"},
     "FE0680": {"key": "coborr_1d_foreign_address", "field_name": "Co-Borrower 1d — Foreign Address", "category": "income"},
@@ -422,8 +426,9 @@ FIELD_MAP = {
     "FE0610": {"key": "coborr_1d_position_title", "field_name": "Co-Borrower 1d — Position or Title", "category": "income"},
     "FE0651": {"key": "coborr_1d_start_date", "field_name": "Co-Borrower 1d — Start Date", "category": "income"},
     "FE0614": {"key": "coborr_1d_end_date", "field_name": "Co-Borrower 1d — End Date", "category": "income"},
-    "FE0616": {"key": "coborr_1d_years_in_line", "field_name": "Co-Borrower 1d — Years in Line of Work", "category": "income"},
-    "FE0652": {"key": "coborr_1d_months_in_line", "field_name": "Co-Borrower 1d — Months in Line of Work", "category": "income"},
+    # FE0616/FE0652 crash (500) or are invalid (400) on fieldReader — correct IDs are BE04xx:
+    "BE0416": {"key": "coborr_1d_years_in_line", "field_name": "Co-Borrower 1d — Years in Line of Work", "category": "income"},
+    "BE0452": {"key": "coborr_1d_months_in_line", "field_name": "Co-Borrower 1d — Months in Line of Work", "category": "income"},
     # DNA checkboxes for 1d
     "URLA.X203": {"key": "borr_1d_dna", "field_name": "Borrower — Section 1d Does Not Apply", "category": "income"},
     "URLA.X204": {"key": "coborr_1d_dna", "field_name": "Co-Borrower — Section 1d Does Not Apply", "category": "income"},
@@ -855,18 +860,80 @@ def fetch_los_fields(
         )]})
 
 
+def _build_encompass_bucket_map(
+    loan_id: str,
+    state: dict,
+    doc_defs: dict,
+) -> dict[str, str]:
+    """Build canonical_name → actual Encompass eFolder bucket title mapping.
+
+    Calls GET /v3/loans/{loanId}/documents once to get all bucket titles for this loan,
+    then matches them against encompass_buckets aliases in required_docs_conditions.json.
+
+    Returns: {"1003 URLA": "1003", "Transmittal Summary": "1008 - Transmittal Summary", ...}
+    Falls back to empty dict on error (caller will use canonical names, which may return not_found).
+    """
+    import requests as _requests
+
+    from encompass_client import get_encompass_client
+
+    try:
+        enc_client = get_encompass_client(state=state)
+        headers = {
+            "Authorization": f"Bearer {enc_client.access_token}",
+            "Accept": "application/json",
+        }
+        url = f"{enc_client.api_base_url}/encompass/v3/loans/{loan_id}/documents"
+        resp = _requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        raw_docs = resp.json()
+        actual_buckets: set[str] = {d.get("title", "") for d in raw_docs if d.get("title")}
+    except Exception as e:
+        logger.warning(
+            f"[BUCKET_MAP] GET /v3/loans/{loan_id[:8]}.../documents failed: {e} "
+            "— will POST with canonical names (may yield not_found for aliased buckets)"
+        )
+        return {}
+
+    bucket_map: dict[str, str] = {}
+    for canonical, defn in doc_defs.items():
+        if canonical.startswith("_"):
+            continue
+        # Try each known alias in order; use the first one present in this loan's eFolder
+        for alias in defn.get("encompass_buckets", []):
+            if alias in actual_buckets:
+                bucket_map[canonical] = alias
+                break
+        # If no alias matched, check if the canonical name itself is an exact bucket title
+        if canonical not in bucket_map and canonical in actual_buckets:
+            bucket_map[canonical] = canonical
+
+    matched = len(bucket_map)
+    total = sum(1 for k in doc_defs if not k.startswith("_"))
+    logger.info(
+        f"[BUCKET_MAP] Resolved {matched}/{total} canonical doc types to actual eFolder buckets. "
+        f"Unresolved (no eFolder bucket): "
+        + ", ".join(sorted(k for k in doc_defs if not k.startswith("_") and k not in bucket_map))
+    )
+    return bucket_map
+
+
 def _sequential_extract_and_collect(
     client,
     loan_number: str,
     env: str,
     required_doc_types: list[str],
     normalize_fn,
+    bucket_map: dict[str, str] | None = None,
+    extraction_modes: dict[str, str] | None = None,
     total_timeout: int = 120,
     poll_interval: int = 5,
 ) -> list[dict]:
     """Fire POST /efolder/direct for every required doc type, then poll GET until resolved.
 
-    Phase 1 — POST each type individually (~1-3 s each, server-side parallel).
+    Phase 1 — POST each type individually using actual eFolder bucket names (via bucket_map).
+              selectionMode=All for docs with extraction_mode='all' (e.g. VOE, Paystubs, Underwriting)
+              so CatchingDoc returns every attachment in the bucket, not just the best one.
     Phase 2 — Poll GET /efolder until no types are pending (max total_timeout seconds).
     Phase 3 — Final GET with fields to collect extracted results.
 
@@ -876,6 +943,8 @@ def _sequential_extract_and_collect(
 
     ext_env = env.lower() if env else "prod"
     ext_client_id = "AWM-prod" if ext_env in ("prod", "production") else "AWM-test"
+    _bucket_map = bucket_map or {}
+    _extraction_modes = extraction_modes or {}
 
     logger.info(
         f"[EXTRACT] Fire-and-poll for {len(required_doc_types)} doc types "
@@ -883,19 +952,28 @@ def _sequential_extract_and_collect(
     )
 
     # ── Phase 1: POST each doc type individually ──
+    # Use actual eFolder bucket name when known — CatchingDoc matches by exact bucket title.
+    # selectionMode="All" for multi-copy doc types so every attachment in the bucket is extracted.
     immediately_done = 0
     pending_types: set[str] = set()
     post_failed = 0
 
     for idx, doc_type in enumerate(required_doc_types, 1):
-        logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type}")
+        bucket_name = _bucket_map.get(doc_type, doc_type)
+        # selectionMode=All → CatchingDoc returns every PDF attachment in the bucket
+        # selectionMode=Best → CatchingDoc returns only the single best-match attachment
+        sel_mode = "All" if str(_extraction_modes.get(doc_type, "")).lower() == "all" else "Best"
+        if bucket_name != doc_type:
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (bucket: {bucket_name!r}, mode: {sel_mode})")
+        else:
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (mode: {sel_mode})")
         try:
             resp = client._call_api(
                 loan_number=loan_number,
                 client_id=ext_client_id,
-                document_types=[doc_type],
+                document_types=[bucket_name],
                 environment=ext_env,
-                selection_mode="Best",
+                selection_mode=sel_mode,
                 use_cache=True,
                 override_not_found=True,
             )
@@ -909,9 +987,11 @@ def _sequential_extract_and_collect(
             post_failed += 1
             continue
 
+        # Response doc_type may be bucket_name — check both
         immediate_status = ""
         for d in resp.get("body", {}).get("documents", []):
-            if d.get("doc_type") == doc_type:
+            d_type = d.get("doc_type", "")
+            if d_type in (doc_type, bucket_name):
                 immediate_status = (d.get("status") or "").lower()
                 break
 
@@ -947,8 +1027,10 @@ def _sequential_extract_and_collect(
             for doc_type in list(pending_types):
                 resolved = False
                 still_pending = False
+                doc_bucket = _bucket_map.get(doc_type, doc_type)
                 for d in cache_resp.get("documents", []):
-                    if d.get("DocType") != doc_type:
+                    d_dt = d.get("DocType", "")
+                    if d_dt not in (doc_type, doc_bucket):
                         continue
                     st = (d.get("Status") or "").lower()
                     if st == "pending":
@@ -1054,21 +1136,42 @@ def fetch_doc_fields(
         all_documents = get_resp.get("documents", [])
         logger.info(f"[FETCH_DOCS] GET /efolder returned {len(all_documents)} total documents from DynamoDB")
 
+        # ── Build eFolder bucket map for this loan ──
+        # CatchingDoc matches by exact eFolder bucket title — "1003 URLA" won't match the
+        # bucket named "1003". This map resolves canonical names to actual bucket titles.
+        loan_id = state.get("loan_id", "")
+        _conditions_cfg = _load_conditions_config()
+        _doc_defs = _conditions_cfg.get("document_definitions", {})
+        _encompass_bucket_map: dict[str, str] = {}
+        if loan_id:
+            _encompass_bucket_map = _build_encompass_bucket_map(loan_id, state, _doc_defs)
+        else:
+            logger.warning("[FETCH_DOCS] No loan_id in state — cannot build eFolder bucket map; extraction may yield not_found for aliased buckets")
+
+        # Build reverse map: bucket_name → canonical (for _norm_dt normalization)
+        _bucket_to_canonical: dict[str, str] = {
+            bucket: canonical for canonical, bucket in _encompass_bucket_map.items()
+        }
+        # Also add encompass_buckets aliases from config as fallback (handles DynamoDB reads)
+        for canonical, defn in _doc_defs.items():
+            if canonical.startswith("_"):
+                continue
+            for alias in defn.get("encompass_buckets", []):
+                if alias not in _bucket_to_canonical:
+                    _bucket_to_canonical[alias] = canonical
+
         # ── Doctype normalisation: map alias/bucket names → canonical required name ──
         required_set = set(required_doc_types)
-        _doctype_norm: dict[str, str] = {}
         _req_lower = {r.lower(): r for r in required_doc_types}
-        for doc in all_documents:
-            raw_dt = doc.get("DocType", "")
-            if raw_dt and raw_dt not in required_set:
-                canonical = _req_lower.get(raw_dt.lower())
-                if canonical:
-                    _doctype_norm[raw_dt] = canonical
 
         def _norm_dt(raw: str) -> str:
             if raw in required_set:
                 return raw
-            return _doctype_norm.get(raw, _req_lower.get(raw.lower(), raw))
+            # Exact bucket → canonical
+            if raw in _bucket_to_canonical:
+                return _bucket_to_canonical[raw]
+            # Case-insensitive fallback
+            return _req_lower.get(raw.lower(), raw)
 
         for doc in all_documents:
             raw_dt = doc.get("DocType", "")
@@ -1097,6 +1200,8 @@ def fetch_doc_fields(
             )
             extracted = _sequential_extract_and_collect(
                 client, loan_number, env, types_to_extract, _norm_dt,
+                bucket_map=_encompass_bucket_map,
+                extraction_modes=extraction_modes,
             )
             all_documents = all_documents + extracted
             logger.info(
@@ -1229,6 +1334,8 @@ def fetch_doc_fields(
                 "extraction_mode": extraction_modes.get(dt, "best"),
                 "error": primary.get("error"),
                 "copies": copies_info,
+                # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
+                "encompass_bucket": _encompass_bucket_map.get(dt, dt),
             }
 
         # Mark required docs that are missing from DynamoDB
@@ -1253,6 +1360,8 @@ def fetch_doc_fields(
                     "extraction_mode": extraction_modes.get(dt, "best"),
                     "error": "Not found in DynamoDB cache",
                     "copies": [],
+                    # Actual eFolder bucket name used for extraction (may differ from canonical doc_type)
+                    "encompass_bucket": _encompass_bucket_map.get(dt, dt),
                 }
                 logger.info(f"[FETCH_DOCS]   {dt}: NOT FOUND in DynamoDB")
 

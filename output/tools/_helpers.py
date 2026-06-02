@@ -15,6 +15,8 @@ def _los(state: dict, key: str, default=None):
     return entry.get("value", default) if isinstance(entry, dict) else default
 
 
+
+
 def _doc(state: dict, key: str, default=None):
     """Get a doc field value from state.
 
@@ -42,6 +44,21 @@ def _efolder_present(state: dict, doc_type: str) -> bool:
     if isinstance(entry, dict):
         return bool(entry.get("copy_count", 0) or entry.get("attachment_id") or entry.get("extracted_fields"))
     return bool(entry)
+
+
+def _efolder_bucket(state: dict, doc_type: str) -> str:
+    """Return the actual Encompass eFolder bucket name used for this document type.
+
+    Returns the canonical doc_type name as fallback if bucket info is not stored.
+
+    Usage:
+        bucket = _efolder_bucket(state, "1003 URLA")  # -> "1003"
+        f"eFolder bucket: '{bucket}'"
+    """
+    entry = state.get("efolder_documents", {}).get(doc_type)
+    if isinstance(entry, dict):
+        return entry.get("encompass_bucket") or doc_type
+    return doc_type
 
 
 def _doc_all(state: dict, key: str) -> list:
