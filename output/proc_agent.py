@@ -3,6 +3,7 @@
 Orchestrates the full loan submission workflow for a mortgage processor,
 from pre-checks through final UW submission and notifications.
 """
+# ruff: noqa: E402  — sys.path must be configured before registry/step_loader imports
 
 import json
 import logging
@@ -67,15 +68,10 @@ except ImportError:
 
 from registry import (
     STEP_ORDER,
-    get_step_config,
-    get_step_number,
     is_step_skipped,
-    is_substep_skipped,
     get_next_step,
-    get_tools_for_step,
     get_step_tools_excluding_skipped,
     generate_workflow_overview,
-    GENERAL_TOOLS,
     SKIP_STEP_TOOLS,
 )
 from step_loader import load_plan_content

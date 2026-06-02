@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class StepConfig:
 
 
 # ── General tools available to all steps ──
-GENERAL_TOOLS = {"write_todo", "get_workflow_status", "save_step_report"}
+GENERAL_TOOLS = {"write_todo", "get_workflow_status", "save_step_report", "wait_for_pending_docs"}
 SKIP_STEP_TOOLS = {"write_todo", "get_workflow_status"}
 
 # ── Load configuration ──

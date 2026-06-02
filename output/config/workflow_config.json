@@ -92,7 +92,8 @@
         "fetch_doc_fields",
         "fetch_los_fields",
         "find_loan",
-        "validate_property_address"
+        "validate_property_address",
+        "wait_for_pending_docs"
       ],
       "substeps": {
         "1": {

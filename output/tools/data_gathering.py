@@ -482,7 +482,6 @@ FIELD_MAP = {
     "479": {"key": "marital_status", "field_name": "Borrower Marital Status (Vesting)", "category": "vesting"},
     "471": {"key": "borrower_sex", "field_name": "Borrower Sex (Male/Female)", "category": "borrower_info"},
     "478": {"key": "coborrower_sex", "field_name": "Co-Borrower Sex (Male/Female)", "category": "borrower_info"},
-    "1069": {"key": "prior_title_held", "field_name": "Declaration — How Title Was Held (Prior Property)", "category": "declarations"},
     "1867": {"key": "final_vesting", "field_name": "Final Vesting", "category": "vesting"},
     "1868": {"key": "borrower_vesting_name", "field_name": "Borrower Vesting Name", "category": "vesting"},
     "1871": {"key": "borrower_vesting_type", "field_name": "Borrower Vesting Type", "category": "vesting"},
@@ -856,22 +855,168 @@ def fetch_los_fields(
         )]})
 
 
+def _sequential_extract_and_collect(
+    client,
+    loan_number: str,
+    env: str,
+    required_doc_types: list[str],
+    normalize_fn,
+    total_timeout: int = 120,
+    poll_interval: int = 5,
+) -> list[dict]:
+    """Fire POST /efolder/direct for every required doc type, then poll GET until resolved.
+
+    Phase 1 — POST each type individually (~1-3 s each, server-side parallel).
+    Phase 2 — Poll GET /efolder until no types are pending (max total_timeout seconds).
+    Phase 3 — Final GET with fields to collect extracted results.
+
+    Returns list of raw doc dicts in GET /efolder format (DocType, Status, ExtractedFields…).
+    """
+    import time as _time
+
+    ext_env = env.lower() if env else "prod"
+    ext_client_id = "AWM-prod" if ext_env in ("prod", "production") else "AWM-test"
+
+    logger.info(
+        f"[EXTRACT] Fire-and-poll for {len(required_doc_types)} doc types "
+        f"(loan={loan_number}, client={ext_client_id})"
+    )
+
+    # ── Phase 1: POST each doc type individually ──
+    immediately_done = 0
+    pending_types: set[str] = set()
+    post_failed = 0
+
+    for idx, doc_type in enumerate(required_doc_types, 1):
+        logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type}")
+        try:
+            resp = client._call_api(
+                loan_number=loan_number,
+                client_id=ext_client_id,
+                document_types=[doc_type],
+                environment=ext_env,
+                selection_mode="Best",
+                use_cache=True,
+                override_not_found=True,
+            )
+        except Exception as e:
+            logger.warning(f"[EXTRACT]   POST failed for {doc_type}: {e}")
+            post_failed += 1
+            continue
+
+        if not resp.get("success"):
+            logger.warning(f"[EXTRACT]   API error for {doc_type}: {resp.get('error', '?')}")
+            post_failed += 1
+            continue
+
+        immediate_status = ""
+        for d in resp.get("body", {}).get("documents", []):
+            if d.get("doc_type") == doc_type:
+                immediate_status = (d.get("status") or "").lower()
+                break
+
+        terminal = (
+            "success", "completed", "not_found", "failed",
+            "stored_no_extraction", "error-dl", "error-ext",
+            "error-sch", "error-timeout",
+        )
+        if immediate_status in terminal:
+            immediately_done += 1
+        else:
+            pending_types.add(doc_type)
+
+    logger.info(
+        f"[EXTRACT] Phase 1 done — {immediately_done} immediate, "
+        f"{len(pending_types)} pending, {post_failed} POST errors"
+    )
+
+    # ── Phase 2: Poll GET until all pending types resolve ──
+    if pending_types:
+        logger.info(f"[EXTRACT] Phase 2 — polling for {len(pending_types)} pending types...")
+        deadline = _time.time() + total_timeout
+        poll_n = 0
+        while pending_types and _time.time() < deadline:
+            _time.sleep(poll_interval)
+            poll_n += 1
+            try:
+                cache_resp = client.get_documents(loan_number, include_fields=False)
+            except Exception as e:
+                logger.warning(f"[EXTRACT]   poll {poll_n} error: {e}")
+                continue
+
+            for doc_type in list(pending_types):
+                resolved = False
+                still_pending = False
+                for d in cache_resp.get("documents", []):
+                    if d.get("DocType") != doc_type:
+                        continue
+                    st = (d.get("Status") or "").lower()
+                    if st == "pending":
+                        still_pending = True
+                    else:
+                        resolved = True
+                if resolved and not still_pending:
+                    pending_types.discard(doc_type)
+
+            elapsed = _time.time() - (deadline - total_timeout)
+            if poll_n % 4 == 0 or not pending_types:
+                logger.info(
+                    f"[EXTRACT]   poll {poll_n}: {len(pending_types)} still pending ({elapsed:.0f}s)"
+                )
+
+        if pending_types:
+            logger.warning(
+                f"[EXTRACT] Phase 2 timed out — {len(pending_types)} types still pending: "
+                + ", ".join(sorted(pending_types)[:10])
+            )
+    else:
+        logger.info("[EXTRACT] Phase 2 skipped — nothing pending after Phase 1")
+
+    # ── Phase 3: Final GET with fields ──
+    logger.info("[EXTRACT] Phase 3 — final GET with fields...")
+    get_resp = client.get_documents(loan_number, include_fields=True)
+    if get_resp.get("error"):
+        logger.warning(f"[EXTRACT] Final GET failed: {get_resp['error']}")
+        return []
+
+    results: list[dict] = []
+    completed_count = 0
+    skipped_count = 0
+    for doc in get_resp.get("documents", []):
+        status = (doc.get("Status") or "").lower()
+        if status in ("not_found", "failed", "error-dl", "error-ext", "error-sch", "error-timeout"):
+            skipped_count += 1
+            continue
+        raw_dt = doc.get("DocType", "")
+        if raw_dt:
+            doc["DocType"] = normalize_fn(raw_dt)
+        if doc.get("DocType"):
+            results.append(doc)
+            completed_count += 1
+
+    logger.info(
+        f"[EXTRACT] Phase 3 done — {completed_count} usable, {skipped_count} skipped (not_found/failed)"
+    )
+    return results
+
+
 @tool
 def fetch_doc_fields(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Fetch required document fields from eFolder DynamoDB cache via GET /efolder.
+    """Fetch required document fields from eFolder, triggering extraction when cache is empty.
 
     1. Derives which doc types are REQUIRED based on loan characteristics
        (loan_type, loan_purpose, borrower_count) from required_docs_conditions.json.
     2. Calls GET /efolder?loanNumber=X&includeFields=true — reads DynamoDB cache.
-    3. Filters response to ONLY required doc types (ignores irrelevant docs like
-       FHA/VA forms on a Conventional loan).
-    4. Stores required documents in state['efolder_documents'].
-    5. Normalizes expected doc fields into state['doc_fields'].
+    3. If DynamoDB cache is empty, triggers extraction via POST /efolder/direct for each
+       required doc type (fire-and-poll pattern), then collects results.
+    4. Filters response to ONLY required doc types (ignores irrelevant docs).
+    5. Stores required documents in state['efolder_documents'].
+    6. Normalizes expected doc fields into state['doc_fields'].
 
-    Flow: derive required docs -> GET /efolder -> filter to required -> normalize -> state
+    Flow: GET /efolder -> (if empty: POST each type → poll → final GET) -> filter -> normalize -> state
     """
     loan_number = state.get("loan_number")
     if not loan_number:
@@ -899,19 +1044,67 @@ def fetch_doc_fields(
 
         client = EfolderClient()
 
-        # Single GET call — reads DynamoDB, returns ExtractedFields + DocRepoLocation
+        # ── Step 1: GET /efolder — read DynamoDB cache ──
         get_resp = client.get_documents(loan_number, include_fields=True)
 
         if "error" in get_resp:
-            error_msg = get_resp["error"]
-            logger.error(f"[FETCH_DOCS] efolderGet error: {error_msg}")
-            return Command(update={"messages": [ToolMessage(
-                content=json.dumps({"error": error_msg}),
-                tool_call_id=tool_call_id,
-            )]})
+            logger.warning(f"[FETCH_DOCS] efolderGet error: {get_resp['error']} — treating as empty cache")
+            get_resp = {"documents": []}
 
         all_documents = get_resp.get("documents", [])
-        logger.info(f"[FETCH_DOCS] efolderGet returned {len(all_documents)} total documents from DynamoDB")
+        logger.info(f"[FETCH_DOCS] GET /efolder returned {len(all_documents)} total documents from DynamoDB")
+
+        # ── Doctype normalisation: map alias/bucket names → canonical required name ──
+        required_set = set(required_doc_types)
+        _doctype_norm: dict[str, str] = {}
+        _req_lower = {r.lower(): r for r in required_doc_types}
+        for doc in all_documents:
+            raw_dt = doc.get("DocType", "")
+            if raw_dt and raw_dt not in required_set:
+                canonical = _req_lower.get(raw_dt.lower())
+                if canonical:
+                    _doctype_norm[raw_dt] = canonical
+
+        def _norm_dt(raw: str) -> str:
+            if raw in required_set:
+                return raw
+            return _doctype_norm.get(raw, _req_lower.get(raw.lower(), raw))
+
+        for doc in all_documents:
+            raw_dt = doc.get("DocType", "")
+            if raw_dt:
+                doc["DocType"] = _norm_dt(raw_dt)
+
+        # ── Step 2: Trigger extraction for any required doc not already in cache ──
+        # force_extract=True in state bypasses cache entirely and re-extracts everything.
+        force_extract = state.get("force_extract", False)
+
+        cached_types = {doc.get("DocType", "") for doc in all_documents}
+        if force_extract:
+            types_to_extract = required_doc_types
+            logger.info(
+                f"[FETCH_DOCS] force_extract=True — ignoring {len(all_documents)} cached docs, "
+                f"re-extracting all {len(required_doc_types)} types..."
+            )
+            all_documents = []
+        else:
+            types_to_extract = [dt for dt in required_doc_types if dt not in cached_types]
+
+        if types_to_extract:
+            logger.info(
+                f"[FETCH_DOCS] Triggering extraction for {len(types_to_extract)} "
+                f"doc type(s) not in cache: {types_to_extract[:5]}{'...' if len(types_to_extract) > 5 else ''}"
+            )
+            extracted = _sequential_extract_and_collect(
+                client, loan_number, env, types_to_extract, _norm_dt,
+            )
+            all_documents = all_documents + extracted
+            logger.info(
+                f"[FETCH_DOCS] Extraction complete — {len(extracted)} new docs, "
+                f"{len(all_documents)} total"
+            )
+        else:
+            logger.info(f"[FETCH_DOCS] All {len(required_doc_types)} required types found in cache — skipping extraction")
 
         # Group ALL documents by DocType (keep every copy)
         all_docs_by_type: dict[str, list[dict]] = {}
@@ -922,7 +1115,6 @@ def fetch_doc_fields(
             all_docs_by_type.setdefault(dt, []).append(doc)
 
         # Filter to ONLY required doc types — ignore irrelevant docs
-        required_set = set(required_doc_types)
         docs_by_type: dict[str, list[dict]] = {
             dt: docs for dt, docs in all_docs_by_type.items() if dt in required_set
         }
@@ -1085,7 +1277,7 @@ def fetch_doc_fields(
             "pending_doc_types": pending_types,
             "failed_doc_types": failed_types,
             "required_doc_types": required_doc_types,
-            "source": "efolderGet (GET /efolder DynamoDB)",
+            "source": "efolderExtract (POST+poll)" if types_to_extract else "efolderGet (GET /efolder DynamoDB)",
             "retrieved_at": datetime.now().isoformat(),
         }
 
@@ -1121,7 +1313,10 @@ def fetch_doc_fields(
         if not_found_types:
             result["message"] += f" Missing: {', '.join(not_found_types)}."
         if pending_types:
-            result["message"] += f" Pending: {', '.join(pending_types)}."
+            result["message"] += (
+                f" EXTRACTION STILL IN PROGRESS for: {', '.join(pending_types)}. "
+                "Call wait_for_pending_docs([...]) before any step that needs these documents."
+            )
 
         logger.info(f"[FETCH_DOCS] {result['message']}")
 
@@ -1133,6 +1328,171 @@ def fetch_doc_fields(
 
     except Exception as e:
         logger.error(f"[FETCH_DOCS] Error: {e}")
+        return Command(update={"messages": [ToolMessage(
+            content=json.dumps({"error": str(e)}),
+            tool_call_id=tool_call_id,
+        )]})
+
+
+@tool
+def wait_for_pending_docs(
+    doc_types: list[str],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState],
+) -> Command:
+    """Poll GET /efolder until the specified doc types finish extraction, then merge into state.
+
+    Call this before any step that needs a document that was still pending after
+    fetch_doc_fields (i.e. efolder_documents[doc_type].status == 'pending').
+
+    Args:
+        doc_types: List of document type names to wait for (e.g. ["1003 URLA", "Underwriting"]).
+
+    Returns a summary of which docs resolved, which are still pending, and which failed.
+    The agent should proceed regardless — do not block the whole workflow on one slow doc.
+    """
+    import time as _time
+
+    loan_number = state.get("loan_number")
+    if not loan_number:
+        return Command(update={"messages": [ToolMessage(
+            content=json.dumps({"error": "No loan_number in state."}),
+            tool_call_id=tool_call_id,
+        )]})
+
+    if not doc_types:
+        return Command(update={"messages": [ToolMessage(
+            content=json.dumps({"success": True, "message": "No doc_types specified — nothing to wait for."}),
+            tool_call_id=tool_call_id,
+        )]})
+
+    # Derive required doc config for extraction modes
+    loan_type, loan_purpose, borrower_count = _derive_loan_characteristics(state)
+    _, extraction_modes = get_required_documents_for_loan(loan_type, loan_purpose, borrower_count)
+    multi_copy_types = {dt for dt, mode in extraction_modes.items() if str(mode).lower() == "all"}
+
+    POLL_TIMEOUT = 90
+    POLL_INTERVAL = 5
+
+    logger.info(
+        f"[WAIT_DOCS] Waiting for {len(doc_types)} pending doc(s): {doc_types} "
+        f"(loan={loan_number}, timeout={POLL_TIMEOUT}s)"
+    )
+
+    try:
+        from shared.efolder_client import EfolderClient
+        client = EfolderClient()
+
+        pending_set = set(doc_types)
+        resolved: list[str] = []
+        failed: list[str] = []
+        deadline = _time.time() + POLL_TIMEOUT
+        poll_n = 0
+
+        while pending_set and _time.time() < deadline:
+            _time.sleep(POLL_INTERVAL)
+            poll_n += 1
+            try:
+                resp = client.get_documents(loan_number, include_fields=False)
+            except Exception as e:
+                logger.warning(f"[WAIT_DOCS] poll {poll_n} GET error: {e}")
+                continue
+
+            for doc_type in list(pending_set):
+                for d in resp.get("documents", []):
+                    if d.get("DocType") != doc_type:
+                        continue
+                    st = (d.get("Status") or "").lower()
+                    if st == "pending":
+                        break
+                    pending_set.discard(doc_type)
+                    if st in ("completed", "stored_no_extraction", "success"):
+                        resolved.append(doc_type)
+                    else:
+                        failed.append(doc_type)
+                    break
+
+            if poll_n % 3 == 0:
+                logger.info(f"[WAIT_DOCS] poll {poll_n}: {len(pending_set)} still pending")
+
+        timed_out = list(pending_set)
+        if timed_out:
+            logger.warning(f"[WAIT_DOCS] Timeout — still pending: {timed_out}")
+
+        # ── Fetch full fields for newly resolved docs and merge into state ──
+        efolder_documents = dict(state.get("efolder_documents") or {})
+        doc_fields = dict(state.get("doc_fields") or {})
+
+        if resolved:
+            logger.info(f"[WAIT_DOCS] Fetching fields for {len(resolved)} resolved doc(s)...")
+            get_resp = client.get_documents(loan_number, include_fields=True)
+            all_docs = get_resp.get("documents", []) if not get_resp.get("error") else []
+
+            for doc in all_docs:
+                dt = doc.get("DocType", "")
+                if dt not in resolved:
+                    continue
+                status = (doc.get("Status") or "").lower()
+                extracted = doc.get("ExtractedFields", {})
+                is_multi = dt in multi_copy_types
+
+                # Build fields_summary
+                fields_summary: dict = {}
+                for field_name, field_val in extracted.items():
+                    if isinstance(field_val, dict):
+                        fields_summary[field_name] = {
+                            "value": field_val.get("value", field_val),
+                            "confidence": field_val.get("confidence", 1.0),
+                        }
+                    else:
+                        fields_summary[field_name] = {"value": field_val, "confidence": 1.0}
+
+                efolder_documents[dt] = {
+                    "doc_type": dt,
+                    "copy_count": 1,
+                    "is_multi_copy": is_multi,
+                    "status": status,
+                    "source": doc.get("Source", ""),
+                    "document_title": doc.get("DocumentTitle", ""),
+                    "attachment_id": doc.get("AttachmentID", ""),
+                    "attachment_name": doc.get("AttachmentName", ""),
+                    "file_size": doc.get("FileSizeBytes", 0),
+                    "extracted_fields_count": doc.get("ExtractedFieldsCount", len(extracted)),
+                    "extracted_fields": fields_summary,
+                    "docrepo_location": doc.get("DocRepoLocation", ""),
+                    "docrepo_bucket": doc.get("Bucket", ""),
+                    "docrepo_client_id": doc.get("Client", ""),
+                    "extraction_mode": extraction_modes.get(dt, "best"),
+                    "error": doc.get("FailureReason"),
+                    "copies": [],
+                }
+
+                # Merge extracted fields into doc_fields using same normalisation logic
+                new_fields = _normalize_efolder_output([doc], multi_copy_types=multi_copy_types)
+                doc_fields.update(new_fields)
+                logger.info(f"[WAIT_DOCS]   {dt}: {len(extracted)} fields merged into state")
+
+        result = {
+            "success": True,
+            "resolved": resolved,
+            "failed": failed,
+            "timed_out": timed_out,
+            "message": (
+                f"Resolved {len(resolved)}, failed {len(failed)}, "
+                f"still pending after timeout: {len(timed_out)}. "
+                + (f"Proceed without: {timed_out}." if timed_out else "All requested docs ready.")
+            ),
+        }
+        logger.info(f"[WAIT_DOCS] {result['message']}")
+
+        return Command(update={
+            "efolder_documents": efolder_documents,
+            "doc_fields": doc_fields,
+            "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+        })
+
+    except Exception as e:
+        logger.error(f"[WAIT_DOCS] Error: {e}")
         return Command(update={"messages": [ToolMessage(
             content=json.dumps({"error": str(e)}),
             tool_call_id=tool_call_id,
@@ -1279,7 +1639,6 @@ def build_loan_summary(
     # is_note_llc: check LO/processor email, lender name, or CD page 5 lender
     is_note_llc = False
     prop_state = (_get("property_state") or "").upper()
-    mortgage_type = (_get("preflight_mortgage_type") or "").lower()
     lo_email = (_get("lo_email") or "").lower()
     processor_email = (_get("processor_email") or "").lower()
     lender_name = (_get("lender_name_alt") or "").lower()
