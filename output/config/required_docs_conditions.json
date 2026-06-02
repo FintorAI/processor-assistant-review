@@ -64,21 +64,29 @@
     }
   ],
   "document_definitions": {
-    "_comment": "Maps document display names (as used in document_list above) to docrepo keys in required_docs.json",
+    "_comment": "Maps document display names (as used in document_list above) to docrepo keys in required_docs.json. 'encompass_buckets' lists the actual eFolder bucket title(s) used in Encompass — verified across 7+ loans (test + prod). When absent the canonical name IS the bucket name.",
     "1003 URLA": {
-      "docrepo_key": "urla_1003"
+      "docrepo_key": "urla_1003",
+      "encompass_buckets": ["1003"]
     },
     "Transmittal Summary": {
-      "docrepo_key": "transmittal_summary"
+      "docrepo_key": "transmittal_summary",
+      "encompass_buckets": [
+        "1008 - Transmittal Summary",
+        "1008/LT/VALA and 1003 Corrections",
+        "HUD-92900-LT FHA Loan Transmittal"
+      ]
     },
     "Underwriting": {
       "docrepo_key": "du_findings"
     },
     "DU Findings / AUS Certificate": {
-      "docrepo_key": "du_findings"
+      "docrepo_key": "du_findings",
+      "_note": "No dedicated eFolder bucket observed — typically embedded in Underwriting or SSRs FNMA/FHLMC/HUD; do not trigger extraction by bucket name"
     },
     "AUS Certificate": {
-      "docrepo_key": "du_findings"
+      "docrepo_key": "du_findings",
+      "_note": "No dedicated eFolder bucket observed — same as DU Findings; skip bucket-based extraction"
     },
     "VOE - non service provider": {
       "docrepo_key": "voe"
@@ -87,22 +95,27 @@
       "docrepo_key": "paystubs"
     },
     "Borrower Income and Employment Certification": {
-      "docrepo_key": "paystubs"
+      "docrepo_key": "paystubs",
+      "_note": "No dedicated eFolder bucket observed across test/prod loans; skip bucket-based extraction"
     },
     "W-2": {
-      "docrepo_key": "w2"
+      "docrepo_key": "w2",
+      "encompass_buckets": ["W-2 all years"]
     },
     "Tax Summary": {
       "docrepo_key": "tax_summary"
     },
     "Tax Returns - Business": {
-      "docrepo_key": "tax_returns_business"
+      "docrepo_key": "tax_returns_business",
+      "encompass_buckets": ["Tax Returns - Business all years"]
     },
     "Bank Statement": {
-      "docrepo_key": "bank_statements"
+      "docrepo_key": "bank_statements",
+      "encompass_buckets": ["Bank Statements"]
     },
     "Assets": {
-      "docrepo_key": "assets"
+      "docrepo_key": "assets",
+      "_note": "No dedicated eFolder bucket observed across test/prod loans; skip bucket-based extraction"
     },
     "Purchase Agreement": {
       "docrepo_key": "purchase_agreement"
@@ -111,7 +124,8 @@
       "docrepo_key": "credit_report"
     },
     "Driver's License": {
-      "docrepo_key": "drivers_license"
+      "docrepo_key": "drivers_license",
+      "encompass_buckets": ["ID Customer Identification Documentation"]
     },
     "Estimated Settlement Statement": {
       "docrepo_key": "estimated_settlement_statement"
@@ -120,7 +134,8 @@
       "docrepo_key": "flood_certificate"
     },
     "Evidence of Insurance": {
-      "docrepo_key": "evidence_of_insurance"
+      "docrepo_key": "evidence_of_insurance",
+      "encompass_buckets": ["Evidence of Hazard Insurance"]
     },
     "Title Report": {
       "docrepo_key": "title_report"
@@ -129,10 +144,12 @@
       "docrepo_key": "loan_estimate"
     },
     "Lock Confirmation": {
-      "docrepo_key": "lock_confirmation"
+      "docrepo_key": "lock_confirmation",
+      "encompass_buckets": ["Lock Confirmation Document"]
     },
     "Closing Protection Letter": {
-      "docrepo_key": "closing_protection_letter"
+      "docrepo_key": "closing_protection_letter",
+      "encompass_buckets": ["Closing Protection Letter (CPL)"]
     },
     "Borrower's Certification & Authorization": {
       "docrepo_key": "borrowers_certification"
@@ -141,7 +158,8 @@
       "docrepo_key": "md_notice_right_to_rescind"
     },
     "MD DUAL CAPACITY IN REAL ESTATE": {
-      "docrepo_key": "md_dual_capacity"
+      "docrepo_key": "md_dual_capacity",
+      "encompass_buckets": ["MD DUAL CAPACITY IN REAL ESTATE SALES"]
     },
     "MD Important Notice Regarding Counseling": {
       "docrepo_key": "md_important_notice_counseling"
@@ -153,7 +171,8 @@
       "docrepo_key": "md_right_choose_insurance"
     },
     "MD Settlement Services/Right to Choose": {
-      "docrepo_key": "md_settlement_services"
+      "docrepo_key": "md_settlement_services",
+      "encompass_buckets": ["MD Settlement Services/Right to Choose Attorney/Title Insurance Company Disclosure"]
     },
     "Mortgage Statement": {
       "docrepo_key": "mortgage_statement"

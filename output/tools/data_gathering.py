@@ -855,18 +855,77 @@ def fetch_los_fields(
         )]})
 
 
+def _build_encompass_bucket_map(
+    loan_id: str,
+    state: dict,
+    doc_defs: dict,
+) -> dict[str, str]:
+    """Build canonical_name → actual Encompass eFolder bucket title mapping.
+
+    Calls GET /v3/loans/{loanId}/documents once to get all bucket titles for this loan,
+    then matches them against encompass_buckets aliases in required_docs_conditions.json.
+
+    Returns: {"1003 URLA": "1003", "Transmittal Summary": "1008 - Transmittal Summary", ...}
+    Falls back to empty dict on error (caller will use canonical names, which may return not_found).
+    """
+    import requests as _requests
+
+    from shared.encompass_client import get_encompass_client
+
+    try:
+        enc_client = get_encompass_client(state=state)
+        headers = {
+            "Authorization": f"Bearer {enc_client.access_token}",
+            "Accept": "application/json",
+        }
+        url = f"{enc_client.api_base_url}/encompass/v3/loans/{loan_id}/documents"
+        resp = _requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        raw_docs = resp.json()
+        actual_buckets: set[str] = {d.get("title", "") for d in raw_docs if d.get("title")}
+    except Exception as e:
+        logger.warning(
+            f"[BUCKET_MAP] GET /v3/loans/{loan_id[:8]}.../documents failed: {e} "
+            "— will POST with canonical names (may yield not_found for aliased buckets)"
+        )
+        return {}
+
+    bucket_map: dict[str, str] = {}
+    for canonical, defn in doc_defs.items():
+        if canonical.startswith("_"):
+            continue
+        # Try each known alias in order; use the first one present in this loan's eFolder
+        for alias in defn.get("encompass_buckets", []):
+            if alias in actual_buckets:
+                bucket_map[canonical] = alias
+                break
+        # If no alias matched, check if the canonical name itself is an exact bucket title
+        if canonical not in bucket_map and canonical in actual_buckets:
+            bucket_map[canonical] = canonical
+
+    matched = len(bucket_map)
+    total = sum(1 for k in doc_defs if not k.startswith("_"))
+    logger.info(
+        f"[BUCKET_MAP] Resolved {matched}/{total} canonical doc types to actual eFolder buckets. "
+        f"Unresolved (no eFolder bucket): "
+        + ", ".join(sorted(k for k in doc_defs if not k.startswith("_") and k not in bucket_map))
+    )
+    return bucket_map
+
+
 def _sequential_extract_and_collect(
     client,
     loan_number: str,
     env: str,
     required_doc_types: list[str],
     normalize_fn,
+    bucket_map: dict[str, str] | None = None,
     total_timeout: int = 120,
     poll_interval: int = 5,
 ) -> list[dict]:
     """Fire POST /efolder/direct for every required doc type, then poll GET until resolved.
 
-    Phase 1 — POST each type individually (~1-3 s each, server-side parallel).
+    Phase 1 — POST each type individually using actual eFolder bucket names (via bucket_map).
     Phase 2 — Poll GET /efolder until no types are pending (max total_timeout seconds).
     Phase 3 — Final GET with fields to collect extracted results.
 
@@ -876,6 +935,7 @@ def _sequential_extract_and_collect(
 
     ext_env = env.lower() if env else "prod"
     ext_client_id = "AWM-prod" if ext_env in ("prod", "production") else "AWM-test"
+    _bucket_map = bucket_map or {}
 
     logger.info(
         f"[EXTRACT] Fire-and-poll for {len(required_doc_types)} doc types "
@@ -883,17 +943,23 @@ def _sequential_extract_and_collect(
     )
 
     # ── Phase 1: POST each doc type individually ──
+    # Use actual eFolder bucket name when known — CatchingDoc matches by exact bucket title.
+    # canonical_for_bucket maps bucket_name → canonical so pending tracking uses canonical names.
     immediately_done = 0
     pending_types: set[str] = set()
     post_failed = 0
 
     for idx, doc_type in enumerate(required_doc_types, 1):
-        logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type}")
+        bucket_name = _bucket_map.get(doc_type, doc_type)
+        if bucket_name != doc_type:
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type} (bucket: {bucket_name!r})")
+        else:
+            logger.info(f"[EXTRACT] POST [{idx}/{len(required_doc_types)}]: {doc_type}")
         try:
             resp = client._call_api(
                 loan_number=loan_number,
                 client_id=ext_client_id,
-                document_types=[doc_type],
+                document_types=[bucket_name],
                 environment=ext_env,
                 selection_mode="Best",
                 use_cache=True,
@@ -909,9 +975,11 @@ def _sequential_extract_and_collect(
             post_failed += 1
             continue
 
+        # Response doc_type may be bucket_name — check both
         immediate_status = ""
         for d in resp.get("body", {}).get("documents", []):
-            if d.get("doc_type") == doc_type:
+            d_type = d.get("doc_type", "")
+            if d_type in (doc_type, bucket_name):
                 immediate_status = (d.get("status") or "").lower()
                 break
 
@@ -947,8 +1015,10 @@ def _sequential_extract_and_collect(
             for doc_type in list(pending_types):
                 resolved = False
                 still_pending = False
+                doc_bucket = _bucket_map.get(doc_type, doc_type)
                 for d in cache_resp.get("documents", []):
-                    if d.get("DocType") != doc_type:
+                    d_dt = d.get("DocType", "")
+                    if d_dt not in (doc_type, doc_bucket):
                         continue
                     st = (d.get("Status") or "").lower()
                     if st == "pending":
@@ -1054,21 +1124,42 @@ def fetch_doc_fields(
         all_documents = get_resp.get("documents", [])
         logger.info(f"[FETCH_DOCS] GET /efolder returned {len(all_documents)} total documents from DynamoDB")
 
+        # ── Build eFolder bucket map for this loan ──
+        # CatchingDoc matches by exact eFolder bucket title — "1003 URLA" won't match the
+        # bucket named "1003". This map resolves canonical names to actual bucket titles.
+        loan_id = state.get("loan_id", "")
+        _conditions_cfg = _load_conditions_config()
+        _doc_defs = _conditions_cfg.get("document_definitions", {})
+        _encompass_bucket_map: dict[str, str] = {}
+        if loan_id:
+            _encompass_bucket_map = _build_encompass_bucket_map(loan_id, state, _doc_defs)
+        else:
+            logger.warning("[FETCH_DOCS] No loan_id in state — cannot build eFolder bucket map; extraction may yield not_found for aliased buckets")
+
+        # Build reverse map: bucket_name → canonical (for _norm_dt normalization)
+        _bucket_to_canonical: dict[str, str] = {
+            bucket: canonical for canonical, bucket in _encompass_bucket_map.items()
+        }
+        # Also add encompass_buckets aliases from config as fallback (handles DynamoDB reads)
+        for canonical, defn in _doc_defs.items():
+            if canonical.startswith("_"):
+                continue
+            for alias in defn.get("encompass_buckets", []):
+                if alias not in _bucket_to_canonical:
+                    _bucket_to_canonical[alias] = canonical
+
         # ── Doctype normalisation: map alias/bucket names → canonical required name ──
         required_set = set(required_doc_types)
-        _doctype_norm: dict[str, str] = {}
         _req_lower = {r.lower(): r for r in required_doc_types}
-        for doc in all_documents:
-            raw_dt = doc.get("DocType", "")
-            if raw_dt and raw_dt not in required_set:
-                canonical = _req_lower.get(raw_dt.lower())
-                if canonical:
-                    _doctype_norm[raw_dt] = canonical
 
         def _norm_dt(raw: str) -> str:
             if raw in required_set:
                 return raw
-            return _doctype_norm.get(raw, _req_lower.get(raw.lower(), raw))
+            # Exact bucket → canonical
+            if raw in _bucket_to_canonical:
+                return _bucket_to_canonical[raw]
+            # Case-insensitive fallback
+            return _req_lower.get(raw.lower(), raw)
 
         for doc in all_documents:
             raw_dt = doc.get("DocType", "")
@@ -1097,6 +1188,7 @@ def fetch_doc_fields(
             )
             extracted = _sequential_extract_and_collect(
                 client, loan_number, env, types_to_extract, _norm_dt,
+                bucket_map=_encompass_bucket_map,
             )
             all_documents = all_documents + extracted
             logger.info(
