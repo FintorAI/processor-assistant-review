@@ -43,7 +43,7 @@ def run_pre_checks(
 ) -> Command:
     """Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth,
     State disclosures (e.g. MD Right of Assumption), VOE, Assets, Bank Statement,
-    VOD, Driver's License (or other ID), ESS, Credit Report, Flood Certificate,
+    Driver's License (or other ID), ESS, Credit Report, Flood Certificate,
     Hazard Insurance, Title Report, LDP, and existing AUS (Underwriting bucket).
     Flag any missing docs as warnings/critical before proceeding.
 
@@ -51,7 +51,7 @@ def run_pre_checks(
     Reads LOS: property_state, loan_type, appraisal_waiver
     Reads Docs: 1003 URLA, Borrower's Certification and Authorization,
       Underwriting (DU / LP), VOE, Assets, Bank Statement (all copies),
-      VOD, Driver's License, Estimated Settlement Statement, Credit Report,
+      Driver's License, Estimated Settlement Statement, Credit Report,
       Flood Certificate, Evidence of Hazard Insurance, Title Report, LDP,
       State Disclosure, General Letter of Explanation
     Flags: Missing Required Document (critical/warning), AUS Missing (critical),
@@ -88,7 +88,6 @@ def run_pre_checks(
     paystubs_present     = _efolder_present(state, "Paystubs")
     assets_present       = _efolder_present(state, "Assets")
     bank_statement_months = _doc(state, "bank_statement_months")
-    vod_present          = _efolder_present(state, "VOD")
     dl_present           = _efolder_present(state, "Driver's License")
     dl_expiry            = _doc(state, "dl_expiry")
     ess_present          = _efolder_present(state, "Estimated Settlement Statement")
@@ -136,7 +135,6 @@ def run_pre_checks(
     # Warning = submission will be incomplete but earlier steps can proceed
     warning_docs = {
         "Assets": assets_present,
-        "VOD": vod_present,
         "Estimated Settlement Statement": ess_present,
         "Flood Certificate": flood_cert_present,
         "Evidence of Hazard Insurance": hazard_insurance_present,

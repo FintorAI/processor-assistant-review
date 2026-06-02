@@ -8,7 +8,7 @@ Each substep tool lives in its own file (named after the tool function).
 from .general import write_todo, get_workflow_status, save_step_report
 
 # Step 0: Data Gathering (auto-generated)
-from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, wait_for_pending_docs, build_loan_summary, validate_property_address
+from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address
 
 # STEP_01 / 1.1: Document Presence Check
 from .run_pre_checks import run_pre_checks
@@ -18,17 +18,17 @@ from .review_file_contacts import review_file_contacts
 from .review_borrower_summary import review_borrower_summary
 # STEP_03 / 3.1: Review 1003 URLA Page 1
 from .review_urla_page1 import review_urla_page1
-# STEP_04 / 4.1: Employment Verification (1b VOE)
+# STEP_04 / 4.1: Employment Verification (2b VOE)
 from .review_urla_employment import review_urla_employment
-# STEP_04 / 4.2: Other Income (1e)
+# STEP_04 / 4.2: Other Income (2e)
 from .review_urla_other_income import review_urla_other_income
-# STEP_05 / 5.1: Assets and VOD (2a)
+# STEP_05 / 5.1: Assets and VOD (3a)
 from .review_urla_assets import review_urla_assets
-# STEP_05 / 5.2: EMD Check (2b)
+# STEP_05 / 5.2: EMD Check (3b)
 from .review_urla_emd import review_urla_emd
-# STEP_05 / 5.3: Liabilities and VOL (2c)
+# STEP_05 / 5.3: Liabilities and VOL (3c)
 from .review_urla_liabilities import review_urla_liabilities
-# STEP_05 / 5.4: Other Assets and REO (2d, Section 3)
+# STEP_05 / 5.4: Other Assets and REO (3d)
 from .review_urla_reo import review_urla_reo
 # STEP_06 / 6.1: Downpayment Sources (4b, 4c, 4d)
 from .review_urla_downpayment import review_urla_downpayment
@@ -58,7 +58,6 @@ def get_all_tools() -> list:
         find_loan,
         fetch_los_fields,
         fetch_doc_fields,
-        wait_for_pending_docs,
         build_loan_summary,
         validate_property_address,
     ]
@@ -91,7 +90,6 @@ __all__ = [
     "find_loan",
     "fetch_los_fields",
     "fetch_doc_fields",
-    "wait_for_pending_docs",
     "build_loan_summary",
     "validate_property_address",
     "run_pre_checks",

@@ -4,7 +4,7 @@ Step 10 (STEP_10): Processor Workflow and Closing
 Phase: FORM_UPDATES
 
 For purchase loans, signing date = wire requested date = closing date.
-Reads closing date from field 748 and writes to:
+Reads closing date from field 763 (Est Closing Date) and writes to:
   - CUST50FV     — Signing Date
   - CX.WIREDATELO — Wire Requested Date
 """
@@ -13,14 +13,14 @@ Reads closing date from field 748 and writes to:
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile, _write_fields
+from ._helpers import _los, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def update_processor_closing(
     state: Annotated[dict, InjectedState],
 ) -> Command:
     """Fill the Processor Closing screen. For purchase loans, set Signing Date
-    and Wire Requested Date to the closing date value (field 748).
+    and Wire Requested Date to the estimated closing date value (field 763).
 
     Call this tool during STEP_10 (Processor Workflow and Closing) as substep 10.2.
     Reads LOS: closing_date, signing_date, wire_requested_date, loan_purpose
@@ -53,9 +53,9 @@ def update_processor_closing(
 
     flags = []
 
-    closing_date      = _los(state, "closing_date")       # field 748
+    closing_date      = _los(state, "closing_date")  # field 763 (estimated/scheduled closing date)
     signing_date      = _los(state, "signing_date")       # CUST50FV (current value)
-    wire_date         = _los(state, "wire_requested_date") # CX.WIREDATELO (current value)
+    # wire_requested_date (CX.WIREDATELO) is written, not read — overwritten with closing_date below
     loan_purpose      = _los(state, "loan_purpose")       # field 19
     is_purchase       = (loan_purpose or "").strip().lower() == "purchase"
 
@@ -67,7 +67,7 @@ def update_processor_closing(
                 "substep": "10.2",
                 "title": "Closing Date Not Set",
                 "severity": "warning",
-                "details": "Field 748 (Closing Date) is blank — cannot populate Signing Date or Wire Requested Date.",
+                "details": "Field 763 (Est Closing Date) is blank — cannot populate Signing Date or Wire Requested Date.",
                 "suggestion": "Set the closing date in Encompass before running this step.",
                 "resolved": False,
                 "timestamp": datetime.now(timezone.utc).isoformat(),

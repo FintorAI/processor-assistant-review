@@ -3,16 +3,16 @@ step:
   name: 1003 URLA Part 3
   phase: DATA_REVIEW
   description: >
-    Review and populate 1003 URLA Part 3: Assets/VOD (2a), EMD (2b),
-    Liabilities/VOL (2c), 2d, and REO Section 3. Cross-check against
+    Review and populate 1003 URLA Part 3: Assets/VOD (3a), EMD (3b),
+    Liabilities/VOL (3c), 3d, and REO Section 3. Cross-check against
     bank statements, VOD, and Purchase Contract.
 
 substeps:
 - id: '5.1'
-  name: Assets and VOD (2a)
+  name: Assets and VOD (3a)
   tool: review_urla_assets
   description: >
-    Review Section 2a (Assets/VOD). Check bank accounts, checking/savings.
+    Review Section 3a (Assets/VOD). Check bank accounts, checking/savings.
     Cross-reference against bank statements. Verify account numbers, dates, and
     balances. Flag if total assets insufficient for closing. Rename asset documents
     per naming convention (e.g. "Edward Jones x1234 - 04/14/2026").
@@ -115,10 +115,10 @@ substeps:
       logic: FHA loan — only 1 month of bank statements required.
 
 - id: '5.2'
-  name: EMD Check (2b)
+  name: EMD Check (3b)
   tool: review_urla_emd
   description: >
-    Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase
+    Review Section 3b — Earnest Money Deposit. Verify EMD amount matches Purchase
     Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).
   los_fields_read:
   - key: emd_amount
@@ -158,10 +158,10 @@ substeps:
   field_updates: []
 
 - id: '5.3'
-  name: Liabilities and VOL (2c)
+  name: Liabilities and VOL (3c)
   tool: review_urla_liabilities
   description: >
-    Review Section 2c — Liabilities (VOL). Check Excluded Monthly Payment and
+    Review Section 3c — Liabilities (VOL). Check Excluded Monthly Payment and
     To Be Paid Off columns. Flag excluded debts for explanation.
     Flag any debts to be paid off that require most recent statement.
   los_fields_read:
@@ -201,10 +201,10 @@ substeps:
   field_updates: []
 
 - id: '5.4'
-  name: Other Assets and REO (2d, Section 3)
+  name: Other Assets and REO (3d)
   tool: review_urla_reo
   description: >
-    Review 2d (Other Assets — usually marked No) and Section 3 (REO).
+    Review 3d (Other Assets — usually marked No) and Section 3 (REO).
     If borrower owns other real property, verify mortgage statement, insurance
     deck page, HOA statement, and tax bill are present.
   los_fields_read:

@@ -12,14 +12,14 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile, _efolder_present
+from ._helpers import _los, _efolder_present
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def review_urla_downpayment(
     # ── Read LOS Fields ──
     ami_percentage      = _los(state, "ami_percentage")       # CX.AMI.PERCENTAGE
     ami_eligibility     = _los(state, "ami_eligibility")      # CX.AMI.ELIGIBILITY
-    fnma_additional_data = _los(state, "fnma_additional_data") # CX.FNMA.ADDITIONAL.DATA
+    # fnma_additional_data (CX.FNMA.ADDITIONAL.DATA) reserved for future AMI program logic
     rental_income       = _los(state, "rental_income")        # Field 218
 
     # ── Fetch Gifts / Grants via API ──

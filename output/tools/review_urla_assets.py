@@ -203,7 +203,7 @@ def review_urla_assets(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review Section 2a (Assets / VOD).
+    """Review Section 3a (Assets / VOD).
 
     Checks:
       1. Bank statement presence and recency (60 days Conv / 30 days FHA).
@@ -238,8 +238,7 @@ def review_urla_assets(
 
     # ── 2. LOS field reads ───────────────────────────────────────────────────
     total_assets      = _parse_float(_los(state, "total_assets"))       # Field 732
-    checking_balance  = _parse_float(_los(state, "checking_balance"))   # Field 733
-    savings_balance   = _parse_float(_los(state, "savings_balance"))    # Field 734
+    # checking_balance / savings_balance (733/734) reserved for future drill-down checks
 
     # ── 3. VOD data (from fetch_vod_data) ────────────────────────────────────
     vod_rows: list = state.get("vod_data") or []
@@ -267,12 +266,10 @@ def review_urla_assets(
         ))
     else:
         # 4b. Recency check — check the most recent statement end date across copies
-        recency_checked = False
         for copy in bank_statement_dates:
             end_date_val = copy.get("value")
             days = _days_old(end_date_val)
             if days is not None:
-                recency_checked = True
                 if days > max_days_old:
                     flags.append(_flag(
                         "5.1",
