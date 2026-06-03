@@ -135,6 +135,10 @@ def review_urla_employment(
       employment duration for gap analysis.
 
     Call this tool during STEP_04 (1003 URLA Page 2) as substep 4.1.
+
+    Writes: URLA.X201/X202 (Section 2c Does Not Apply, borr/co-borr) and
+      URLA.X203/X204 (Section 2d Does Not Apply) — auto-checked (written as "true",
+      reads back as "Y") when the corresponding additional/previous-employment section is empty.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -440,7 +444,7 @@ def review_urla_employment(
 
     # ── Does Not Apply checkbox detection: sections 1b / 1c / 1d ────────────
     def _dna_checked(val) -> bool:
-        return str(val or "").strip().lower() in ("true", "yes", "1", "checked", "x")
+        return str(val or "").strip().lower() in ("true", "yes", "y", "1", "checked", "x")
 
     # Determine if loan has a co-borrower (re-use entries already fetched, or detect from state)
     try:
@@ -468,40 +472,53 @@ def review_urla_employment(
             ))
 
     # ── 2c (URLA Part 2): Additional / Self-Employment income (FE0302 / FE0402) ──
-    if not _dna_checked(borr_1c_dna):
-        if not (borr_1c_employer or "").strip():
-            flags.append(_flag("4.1",
-                "Section 2c Empty — 'Does Not Apply' Not Checked (Borrower)",
-                "info",
-                "Borrower additional employment (Section 2c on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
-                "Enter self/additional employment details or check the 'Does Not Apply' box for Section 2c.",
-            ))
-    if has_coborr and not _dna_checked(coborr_1c_dna):
-        if not (coborr_1c_employer or "").strip():
-            flags.append(_flag("4.1",
-                "Section 2c Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
-                "info",
-                "Co-borrower additional employment (Section 2c on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
-                "Enter co-borrower self/additional employment details or check the 'Does Not Apply' box for Section 2c.",
-            ))
+    # Section 2c (additional/self employment) is commonly genuinely N/A. When the section is
+    # empty and DNA isn't checked, auto-check the "Does Not Apply" box (URLA.X201/X202) rather
+    # than leaving a manual info flag (per notes: "if any section is empty, click does not apply").
+    if not _dna_checked(borr_1c_dna) and not (borr_1c_employer or "").strip():
+        _write_fields(loan_id, {"URLA.X201": "true"}, "4.1", flags, state=state,
+                      labels={"URLA.X201": "Section 2c 'Does Not Apply' (Borrower)"})
+        flags.append(_flag("4.1",
+            "Section 2c 'Does Not Apply' Auto-Checked (Borrower)",
+            "info-overwrite",
+            "Borrower additional employment (Section 2c on 1003 URLA Part 2) is blank — "
+            "checked the 'Does Not Apply' box (URLA.X201).",
+            "Verify the borrower has no additional/self employment; uncheck if 2c should be filled.",
+        ))
+    if has_coborr and not _dna_checked(coborr_1c_dna) and not (coborr_1c_employer or "").strip():
+        _write_fields(loan_id, {"URLA.X202": "true"}, "4.1", flags, state=state,
+                      labels={"URLA.X202": "Section 2c 'Does Not Apply' (Co-Borrower)"})
+        flags.append(_flag("4.1",
+            "Section 2c 'Does Not Apply' Auto-Checked (Co-Borrower)",
+            "info-overwrite",
+            "Co-borrower additional employment (Section 2c on 1003 URLA Part 2) is blank — "
+            "checked the 'Does Not Apply' box (URLA.X202).",
+            "Verify the co-borrower has no additional/self employment; uncheck if 2c should be filled.",
+        ))
 
     # ── 2d (URLA Part 2): Previous Employment income (FE0502 / FE0602) ─────────
-    if not _dna_checked(borr_1d_dna):
-        if not (borr_1d_employer or "").strip():
-            flags.append(_flag("4.1",
-                "Section 2d Empty — 'Does Not Apply' Not Checked (Borrower)",
-                "info",
-                "Borrower previous employment (Section 2d on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
-                "Enter previous employment details or check the 'Does Not Apply' box for Section 2d.",
-            ))
-    if has_coborr and not _dna_checked(coborr_1d_dna):
-        if not (coborr_1d_employer or "").strip():
-            flags.append(_flag("4.1",
-                "Section 2d Empty — 'Does Not Apply' Not Checked (Co-Borrower)",
-                "info",
-                "Co-borrower previous employment (Section 2d on 1003 URLA Part 2) is blank and 'Does Not Apply' is not checked.",
-                "Enter co-borrower previous employment details or check the 'Does Not Apply' box for Section 2d.",
-            ))
+    # Section 2d (previous employment) is also commonly genuinely N/A. Same treatment as 2c:
+    # auto-check the "Does Not Apply" box (URLA.X203/X204) when empty.
+    if not _dna_checked(borr_1d_dna) and not (borr_1d_employer or "").strip():
+        _write_fields(loan_id, {"URLA.X203": "true"}, "4.1", flags, state=state,
+                      labels={"URLA.X203": "Section 2d 'Does Not Apply' (Borrower)"})
+        flags.append(_flag("4.1",
+            "Section 2d 'Does Not Apply' Auto-Checked (Borrower)",
+            "info-overwrite",
+            "Borrower previous employment (Section 2d on 1003 URLA Part 2) is blank — "
+            "checked the 'Does Not Apply' box (URLA.X203).",
+            "Verify the borrower has no previous employment to report; uncheck if 2d should be filled.",
+        ))
+    if has_coborr and not _dna_checked(coborr_1d_dna) and not (coborr_1d_employer or "").strip():
+        _write_fields(loan_id, {"URLA.X204": "true"}, "4.1", flags, state=state,
+                      labels={"URLA.X204": "Section 2d 'Does Not Apply' (Co-Borrower)"})
+        flags.append(_flag("4.1",
+            "Section 2d 'Does Not Apply' Auto-Checked (Co-Borrower)",
+            "info-overwrite",
+            "Co-borrower previous employment (Section 2d on 1003 URLA Part 2) is blank — "
+            "checked the 'Does Not Apply' box (URLA.X204).",
+            "Verify the co-borrower has no previous employment to report; uncheck if 2d should be filled.",
+        ))
 
     # ── Gross income surfacing: 1c and 1d when section is populated ───────────
     def _fmt_income(gross, monthly) -> str:
