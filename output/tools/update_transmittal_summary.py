@@ -27,7 +27,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile, _write_fields
+from ._helpers import _los, _write_fields
 
 logger = logging.getLogger(__name__)
 

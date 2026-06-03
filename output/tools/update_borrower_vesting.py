@@ -695,10 +695,12 @@ def update_borrower_vesting(
                     resolved=True,
                 ))
             else:
+                from shared.encompass_io import humanize_write_error
                 flags.append(_flag("8.1",
                     f"Vesting Description Write Failed ({_fid})",
                     "warning",
-                    f"Could not write {_applicant} vesting description (field {_fid}) = '{_desc}': {_res.get('error')}",
+                    f"Could not write {_applicant} vesting description (field {_fid}) = '{_desc}': "
+                    f"{humanize_write_error(str(_res.get('error') or ''))}",
                     f"Set field {_fid} = '{_desc}' manually in the Borrower Vesting screen.",
                 ))
 

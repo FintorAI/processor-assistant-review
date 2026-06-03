@@ -557,7 +557,7 @@ def get_underwriting_conditions(loan_id: str, state: dict = None) -> list[dict[s
             return []
         
         if response.status_code == 403:
-            logger.warning(f"[ENCOMPASS] 403 Forbidden - check API permissions for underwriting conditions")
+            logger.warning("[ENCOMPASS] 403 Forbidden - check API permissions for underwriting conditions")
             raise PermissionError("403 Forbidden - Underwriting conditions API requires specific permissions")
         
         if response.status_code != 200:
@@ -745,7 +745,7 @@ def create_underwriting_condition(loan_id: str, condition_data: dict, state: dic
             response = requests.post(url, json=payload, headers=headers, timeout=30)
         
         if response.status_code == 403:
-            logger.warning(f"[ENCOMPASS] 403 Forbidden - check API permissions for creating conditions")
+            logger.warning("[ENCOMPASS] 403 Forbidden - check API permissions for creating conditions")
             raise PermissionError("403 Forbidden - Underwriting conditions API requires specific permissions")
         
         if response.status_code not in (200, 201):
@@ -987,7 +987,7 @@ def get_document_with_comments(loan_id: str, document_id: str, state: dict = Non
             return {}
         
         if response.status_code == 403:
-            logger.warning(f"[ENCOMPASS] 403 Forbidden - check API permissions for document details")
+            logger.warning("[ENCOMPASS] 403 Forbidden - check API permissions for document details")
             raise PermissionError("403 Forbidden - Document details API requires specific permissions")
         
         if response.status_code != 200:
