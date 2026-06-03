@@ -89,6 +89,7 @@
       "plan_file": "data_gathering.md",
       "tools": [
         "build_loan_summary",
+        "extract_almas_images",
         "fetch_doc_fields",
         "fetch_los_fields",
         "find_loan",
@@ -123,6 +124,12 @@
           "name": "Validate Property Address (USPS)",
           "tools": [
             "validate_property_address"
+          ]
+        },
+        "6": {
+          "name": "Extract Almas-Notes Images (Vision OCR)",
+          "tools": [
+            "extract_almas_images"
           ]
         }
       }

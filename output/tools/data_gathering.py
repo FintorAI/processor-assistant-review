@@ -2100,7 +2100,7 @@ def fetch_vod_data(
     if vod_not_created:
         from datetime import datetime, timezone
         update["flags"] = [{
-            "substep": "0.6",
+            "substep": "0.7",
             "title": "VOD Not Created in Encompass",
             "severity": "warning",
             "details": (
@@ -2111,6 +2111,140 @@ def fetch_vod_data(
             "suggestion": "Open the VOD form in Encompass and add entries for each depository account.",
             "resolved": False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+
+    return Command(update=update)
+
+
+@tool
+def extract_almas_images(
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState],
+) -> Command:
+    """Substep 0.6 — OCR images attached to Almas' notes via Claude vision.
+
+    The frontend uploads any images that came with Almas' notes to DocRepo and
+    passes them in ``additional_info.almas_notes_images`` (a list of dicts with a
+    ``url`` plus optional DocRepo coordinate fields: client_id, doc_id, bucket).
+    These images are NOT in the Encompass eFolder, so the CatchingDoc/LandingAI
+    pipeline cannot reach them — Claude vision transcribes them here instead.
+
+    Writes the enriched list (each item gains ``extracted_text`` + ``ocr_status``)
+    to ``state['almas_notes_images']`` for downstream use by:
+      - draft_cover_letter (7.1) — appends the text to CX.KM.SUBMISSION.NOTES and
+        attaches each image's DocRepo coordinate as a flag reference document.
+      - review_file_contacts (1.2) — cross-checks agent/broker details.
+
+    This is a no-op when no images are provided — safe to call on every run.
+    """
+    images_in = (
+        (state.get("additional_info") or {}).get("almas_notes_images")
+        or state.get("almas_notes_images")
+        or []
+    )
+
+    if not isinstance(images_in, list) or not images_in:
+        result = {
+            "success": True,
+            "substep": "0.6",
+            "tool": "extract_almas_images",
+            "images": 0,
+            "message": "No Almas-notes images provided — nothing to OCR.",
+        }
+        logger.info("[ALMAS_IMAGES] No images in additional_info.almas_notes_images — skipping.")
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+        })
+
+    from shared.llm_call import llm_vision_call
+
+    _prompt = (
+        "Transcribe the raw text content of this document faithfully as clean, "
+        "readable plain text, preserving field labels and their values (one per line). "
+        "Do not invent or infer values that are not visible. If the document contains "
+        "contacts (buyer, seller, brokerage, agents, phones, emails, license numbers), "
+        "list them under a 'KEY CONTACTS' heading at the end."
+    )
+
+    enriched: list[dict] = []
+    ocr_ok = 0
+    ocr_failed = 0
+
+    for idx, item in enumerate(images_in):
+        if isinstance(item, str):
+            item = {"url": item}
+        elif isinstance(item, dict):
+            item = dict(item)
+        else:
+            logger.warning(f"[ALMAS_IMAGES] Skipping image[{idx}] — unrecognized type {type(item)}")
+            continue
+
+        url = item.get("url") or item.get("signed_url") or item.get("s3_url")
+        if not url:
+            item["extracted_text"] = ""
+            item["ocr_status"] = "no_url"
+            enriched.append(item)
+            ocr_failed += 1
+            logger.warning(f"[ALMAS_IMAGES] image[{idx}] has no url — cannot OCR.")
+            continue
+
+        res = llm_vision_call(prompt=_prompt, images=[{"url": url}], max_tokens=2048)
+        if res.success:
+            item["extracted_text"] = res.text
+            item["ocr_status"] = "ok"
+            item["ocr_model"] = res.model
+            ocr_ok += 1
+            logger.info(
+                f"[ALMAS_IMAGES] image[{idx}] OCR ok — {len(res.text)} chars "
+                f"(in={res.input_tokens} out={res.output_tokens})"
+            )
+        else:
+            item["extracted_text"] = ""
+            item["ocr_status"] = "error"
+            item["ocr_error"] = res.error
+            ocr_failed += 1
+            logger.error(f"[ALMAS_IMAGES] image[{idx}] OCR failed: {res.error}")
+
+        enriched.append(item)
+
+    result = {
+        "success": True,
+        "substep": "0.6",
+        "tool": "extract_almas_images",
+        "images": len(enriched),
+        "ocr_ok": ocr_ok,
+        "ocr_failed": ocr_failed,
+        "message": (
+            f"OCR'd {ocr_ok}/{len(enriched)} Almas-notes image(s) via Claude vision"
+            + (f"; {ocr_failed} failed" if ocr_failed else "")
+            + "."
+        ),
+    }
+
+    logger.info(f"[ALMAS_IMAGES] {result['message']}")
+
+    update: dict = {
+        "almas_notes_images": enriched,
+        "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+    }
+
+    if ocr_ok or ocr_failed:
+        update["flags"] = [{
+            "substep": "0.6",
+            "title": "Almas-Notes Images Transcribed",
+            "severity": "info",
+            "details": (
+                f"Ran Claude vision OCR on {len(enriched)} image(s) attached to Almas' "
+                f"notes: {ocr_ok} succeeded, {ocr_failed} failed. Transcribed text is "
+                f"available to the Cover Letter (7.1) and File Contacts (1.2)."
+            ),
+            "suggestion": (
+                "Review the transcribed text appended to the cover letter / submission notes."
+                if ocr_ok else
+                "OCR failed for the provided image(s); verify the DocRepo URL is reachable."
+            ),
+            "resolved": ocr_failed == 0,
+            "timestamp": datetime.now().isoformat(),
         }]
 
     return Command(update=update)

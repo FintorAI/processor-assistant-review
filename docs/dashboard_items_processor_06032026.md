@@ -7,7 +7,25 @@ flags so the frontend can link each flag to the source document(s) it came from.
   graph state). Each flag may carry a `relevant_documents` array.
 - **Audience:** frontend / UI integration.
 - **Stability:** references are **coordinates**, not signed URLs. Coordinates are stable;
-  the frontend mints a fresh download URL on demand (see [Resolving a reference to a URL](#resolving-a-reference-to-a-url)).
+  the frontend mints a fresh download URL on demand (see [§5 Resolving a reference to a URL](#5-resolving-a-reference-to-a-url)).
+
+---
+
+## Table of contents
+
+**Flag document references (eFolder documents)**
+- [1. Flag object schema](#1-flag-object-schema)
+- [2. `relevant_documents` — coordinate reference object](#2-relevant_documents--coordinate-reference-object)
+- [3. The "Documents Present in eFolder" summary flag (substep 1.1)](#3-the-documents-present-in-efolder-summary-flag-substep-11)
+- [4. `matched_copy_index` — which copy triggered the flag](#4-matched_copy_index--which-copy-triggered-the-flag)
+- [5. Resolving a reference to a URL](#5-resolving-a-reference-to-a-url)
+- [6. Edge case — present but no coordinate](#6-edge-case--present-but-no-coordinate)
+
+**Almas-notes image references**
+- [7. Almas-notes image references (Cover Letter, substep 7.1)](#7-almas-notes-image-references-cover-letter-substep-71)
+
+**General**
+- [8. Quick frontend checklist](#8-quick-frontend-checklist)
 
 ---
 
@@ -80,6 +98,8 @@ Each entry in `relevant_documents` is a **document coordinate** object:
 | `encompass_bucket` | string | The **actual Encompass eFolder bucket title** (may differ from `doc_type`, e.g. `"1003 URLA"` → `"1003"`). |
 | `copies` | array | Every attachment in the bucket (see below). The top-level `doc_id`/`attachment_id` mirror `copies[0]`. |
 | `matched_copy_index` | int \| absent | **Only on some flags.** Index into `copies` of the specific copy that triggered the flag (see [Matched copy](#4-matched_copy_index--which-copy-triggered-the-flag)). |
+| `url` | string \| absent | **Only on Almas-notes image refs** (see §7). The DocRepo URL the frontend supplied; can be used directly to display/download. |
+| `source` | string \| absent | **Only on Almas-notes image refs** — value `"almas_notes_image"`. A discriminator so the UI can distinguish these from eFolder-sourced docs. |
 
 ### `copies[]` entries
 
@@ -165,12 +185,84 @@ Frontend handling:
 
 ---
 
-## 7. Quick frontend checklist
+## 7. Almas-notes image references (Cover Letter, substep 7.1)
+
+Images attached to Almas' notes are **not** eFolder documents — the frontend uploads
+them to DocRepo and passes them in at invocation (see `docs/schema.md` →
+`additional_info.almas_notes_images`). The agent OCRs each image (Claude vision) and:
+
+1. **Appends the transcribed text into the cover letter** (`CX.KM.SUBMISSION.NOTES`) —
+   the text is **not** in the ref, it's in the notes field itself.
+2. **Attaches each image as a reference** on the `"Cover Letter — Submission Notes
+   Written"` flag (`substep: "7.1"`), so the UI can show the source image.
+
+### Input contract (what the frontend sends)
+
+Pass the images at invocation under `additional_info.almas_notes_images` (an array).
+Each item:
+
+```json
+{
+  "filename": "purchase_agreement_p3.png",
+  "url": "https://.../docrepo-signed-url",
+  "client_id": "AWM-test",
+  "doc_id": "docsorchagent/almas_notes_<...>",
+  "bucket": "encompass"
+}
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `url` | ✅ | Fetchable image URL (the DocRepo/S3 link). Used for the vision OCR **and** echoed back on the ref. `signed_url` / `s3_url` are also accepted as fallbacks. |
+| `filename` | optional | Display name; becomes the ref's `doc_type` (defaults to `"Almas Notes Image N"`). |
+| `client_id` | optional | DocRepo client id — echoed onto the ref so the UI can re-mint a URL. |
+| `doc_id` | optional | DocRepo object id — echoed onto the ref. |
+| `bucket` | optional | DocRepo bucket — echoed onto the ref. |
+
+Notes:
+- Supported image types: PNG, JPEG, GIF, WebP.
+- If only `url` is sent (no DocRepo coordinates), the ref still carries that `url`, so
+  the image remains displayable/downloadable.
+- An item with no `url` (and no `signed_url`/`s3_url`) is skipped for OCR.
+- The full invocation contract lives in `docs/schema.md` → `additional_info` keys.
+
+### Output ref shape
+
+These refs use the same object as §2 but with two differences — a `source`
+discriminator and a passthrough `url`, an **empty `attachment_id`**, and an **empty
+`copies`** array (there's no eFolder attachment and no multi-copy concept):
+
+```json
+{
+  "doc_type": "purchase_agreement_p3.png",
+  "client_id": "AWM-test",
+  "doc_id": "docsorchagent/almas_notes_<...>",
+  "bucket": "encompass",
+  "attachment_id": "",
+  "url": "https://.../docrepo-signed-url",
+  "source": "almas_notes_image",
+  "copies": []
+}
+```
+
+Frontend handling:
+- Branch on `source === "almas_notes_image"`. For these, **prefer the `url` field** to
+  display/download directly (it's the URL you uploaded). You may still re-mint from
+  `client_id`+`doc_id` if your supplied `url` has expired.
+- `doc_type` is the image filename (or `"Almas Notes Image N"` if no filename was sent).
+- `copies` is always `[]` and `attachment_id` is always `""` — don't treat the empty
+  `attachment_id` as the §6 "not downloadable" case here, because `doc_id`/`url` are set.
+
+---
+
+## 8. Quick frontend checklist
 
 - [ ] Read flags from `flags.json`; render `relevant_documents` when present.
 - [ ] For each ref, render `copies[]` (all of them); highlight `matched_copy_index` if set.
 - [ ] Resolve downloads at click-time: DocRepo (`client_id`+`doc_id`) first, Encompass
       (`attachment_id`) as fallback.
-- [ ] Disable the action when both `doc_id` and `attachment_id` are empty.
+- [ ] For `source === "almas_notes_image"` refs (on the 7.1 flag), use the `url` field
+      directly; their `attachment_id`/`copies` are intentionally empty.
+- [ ] Disable the action when `doc_id`, `attachment_id`, **and** `url` are all empty.
 - [ ] Do not assume `relevant_documents` exists on every flag — absence = no associated
       present document.
