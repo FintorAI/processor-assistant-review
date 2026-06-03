@@ -9,8 +9,6 @@ directly produces the StepDef object and generates the tool code + plan.
 
 from __future__ import annotations
 
-import json
-import os
 
 from .field_registry import FieldRegistry
 from .schema import (
@@ -129,6 +127,22 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         ),
     )
 
+    # ── Substep 0.6: Extract Almas-Notes Images (Claude vision OCR) ──
+    substep_06 = SubstepDef(
+        id="0.6",
+        name="Extract Almas-Notes Images (Vision OCR)",
+        tool="extract_almas_images",
+        description=(
+            "OCR any images attached to Almas' notes (passed as "
+            "additional_info.almas_notes_images with frontend-provided DocRepo "
+            "URLs). These images are NOT in the eFolder, so the CatchingDoc "
+            "pipeline cannot reach them — Claude vision transcribes them instead. "
+            "Stores the transcribed text on state['almas_notes_images'] for use by "
+            "draft_cover_letter (7.1, appended to CX.KM.SUBMISSION.NOTES) and "
+            "review_file_contacts (1.2). No-op when no images are provided."
+        ),
+    )
+
     return StepDef(
         id="STEP_00",
         name="Data Gathering",
@@ -136,9 +150,10 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         description=(
             f"Auto-generated step that fetches all data needed by subsequent steps. "
             f"LOS: {len(all_los)} fields, Docs: {len(all_doc_types)} document types. "
-            f"Builds loan_summary (URLA) snapshot. Validates property address via USPS."
+            f"Builds loan_summary (URLA) snapshot. Validates property address via USPS. "
+            f"OCRs Almas-notes images via Claude vision."
         ),
-        substeps=[substep_01, substep_02, substep_03, substep_04, substep_05],
+        substeps=[substep_01, substep_02, substep_03, substep_04, substep_05, substep_06],
         dev=DevConfig(skip=False),
     )
 
@@ -1231,6 +1246,8 @@ Gather all data needed by the workflow in one upfront step:
 | `fetch_los_fields` | Fetch all needed LOS fields in one batch call |
 | `fetch_doc_fields` | Extract fields from specific document types |
 | `build_loan_summary` | Build categorized URLA-style loan summary from los_fields |
+| `validate_property_address` | Validate subject property address via USPS |
+| `extract_almas_images` | OCR images attached to Almas' notes via Claude vision |
 
 ## Tool Calls
 
@@ -1269,6 +1286,14 @@ Results are stored in `state["los_fields"]` organized by key.
 
 Call `fetch_doc_fields` to extract fields from documents in the eFolder.
 Results are stored in `state["doc_fields"]` organized by key.
+
+### Substep 0.6 - Extract Almas-Notes Images (Vision OCR)
+**Tools**: `extract_almas_images`
+
+Call `extract_almas_images()` to OCR any images attached to Almas' notes
+(`additional_info.almas_notes_images`). Transcribed text is stored on
+`state["almas_notes_images"]` for the Cover Letter (7.1) and File Contacts (1.2).
+This is a no-op when no images were provided — safe to call always.
 
 ### Substep 0.4 - Build Loan Summary (URLA) + Loan Profile Detection
 **Tools**: `build_loan_summary`
@@ -1314,7 +1339,7 @@ The loan profile drives `rule_modifiers` on all subsequent substeps.
 
 ## Step Completion
 
-When ALL 4 substeps above are completed (0.1 through 0.4):
+When ALL substeps above are completed (0.1 through 0.6):
 1. Call `save_step_report(step_name="STEP_00", status="completed", ...)`
 2. Call `write_todo(step_id="STEP_00", status="completed")` to advance to the next step
 3. Call `write_todo(step_id="{next_step_id}", status="in_progress")` to start {next_step_id} ({next_step_name})

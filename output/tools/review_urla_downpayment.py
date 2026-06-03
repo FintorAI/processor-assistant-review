@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _efolder_present
+from ._helpers import _los, _efolder_present, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def review_urla_downpayment(
                 "timestamp": now,
             })
         else:
-            flags.append({
+            _gift_flag = {
                 "substep": "6.1",
                 "title": "Gift Letter Present",
                 "severity": "info",
@@ -97,7 +97,11 @@ def review_urla_downpayment(
                 "suggestion": "Confirm donor details and amount match the gift letter.",
                 "resolved": True,
                 "timestamp": now,
-            })
+            }
+            _gift_refs = _relevant_docs(state, doc_types=["Gift Letter"])
+            if _gift_refs:
+                _gift_flag["relevant_documents"] = _gift_refs
+            flags.append(_gift_flag)
 
     # ── Rule: Grant — Confirm Deposited ──
     for grant in grants:

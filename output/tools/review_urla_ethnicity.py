@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc
+from ._helpers import _los, _doc, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,8 @@ def review_urla_ethnicity(
 
     flags = []
 
-    def _flag(title, severity, details, suggestion):
-        return {
+    def _flag(title, severity, details, suggestion, docs=None):
+        f = {
             "substep": "6.3",
             "title": title,
             "severity": severity,
@@ -53,6 +53,9 @@ def review_urla_ethnicity(
             "resolved": severity in ("info", "info-overwrite"),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        if docs:
+            f["relevant_documents"] = docs
+        return f
 
     # ── Read LOS Fields ───────────────────────────────────────────────────────
     borrower_ethnicity  = _los(state, "borrower_ethnicity")   # field 1544
@@ -78,6 +81,7 @@ def review_urla_ethnicity(
         return "unknown"
 
     if dl_ethnicity_doc:
+        _dl_refs = _relevant_docs(state, "dl_ethnicity_indicator", doc_types=["Driver's License"])
         dl_bucket   = _ethnicity_bucket(dl_ethnicity_doc)
         los_bucket  = _ethnicity_bucket(borrower_ethnicity)
         if dl_bucket != "unknown" and los_bucket != "unknown":
@@ -90,6 +94,7 @@ def review_urla_ethnicity(
                     "Self-identified ethnicity on the URLA differs from what the DL indicates.",
                     "Confirm with borrower — self-identification takes precedence; "
                     "update field 1544 if the borrower wishes to correct it.",
+                    docs=_dl_refs,
                 ))
             else:
                 flags.append(_flag(
@@ -97,6 +102,7 @@ def review_urla_ethnicity(
                     "info",
                     f"1003: '{borrower_ethnicity}' consistent with DL: '{dl_ethnicity_doc}'.",
                     "No action needed.",
+                    docs=_dl_refs,
                 ))
         elif dl_bucket != "unknown" and los_bucket == "unknown":
             flags.append(_flag(
@@ -105,6 +111,7 @@ def review_urla_ethnicity(
                 f"Driver's License indicates '{dl_ethnicity_doc}' but field 1544 is blank "
                 "or set to 'I do not wish to provide'.",
                 "Confirm with borrower whether they wish to self-identify ethnicity on the URLA.",
+                docs=_dl_refs,
             ))
     # If dl_ethnicity_doc is null/empty: most DLs don't print ethnicity — no flag needed.
 

@@ -6,10 +6,11 @@ automatic token refresh.
 
 """
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,67 @@ def _parse_invalid_field_ids(error_body: str) -> set:
     return set(re.findall(r"Invalid field id: '([^']+)'", error_body))
 
 
+# Patterns that name the offending field/value inside an Encompass 400 error body,
+# mapped to a short human-readable reason. Covers the failure modes seen in prod:
+#   - Invalid field id: '1182'                         (unknown field id)
+#   - Invalid custom field 'CX.NONDEL.INV.APPROVAL'.   (custom field not in instance)
+#   - Invalid value for custom field 'CUST50FV'. ...   (bad value/format)
+#   - Cannot update readonly field with id: 1872       (read-only field)
+#   - changes[0]...customFields[(fieldName == 'CUST50FV')].value  (serialization path)
+_FIELD_ERROR_PATTERNS = [
+    (re.compile(r"Invalid field id:\s*'([^']+)'", re.I), "invalid field id"),
+    (re.compile(r"readonly field with id:\s*([^\s\"',}\]]+)", re.I), "read-only field (not writable via field API)"),
+    (re.compile(r"Invalid value for custom field\s*'([^']+)'", re.I), "invalid value/format"),
+    (re.compile(r"Invalid custom field\s*'([^']+)'", re.I), "custom field not defined in this Encompass instance"),
+    (re.compile(r"fieldName\s*==\s*'([^']+)'", re.I), "invalid value/format"),
+]
+
+
+def _parse_field_errors(error_body: str) -> Dict[str, str]:
+    """Return ``{field_id_or_name: reason}`` for every offending field named in
+    a 400 error body. Empty dict if the body does not identify a specific field."""
+    found: Dict[str, str] = {}
+    body = error_body or ""
+    for pattern, reason in _FIELD_ERROR_PATTERNS:
+        for match in pattern.findall(body):
+            fid = (match or "").strip()
+            if fid and fid not in found:
+                found[fid] = reason
+    return found
+
+
+def humanize_write_error(error_str: str) -> str:
+    """Turn a raw Encompass APIError string into a concise, readable message.
+
+    Encompass wraps failures as ``Field write failed (status 400): {json}``.
+    This extracts the human ``details``/``summary`` so flags surface what went
+    wrong instead of a raw JSON blob.
+    """
+    if not error_str:
+        return ""
+    match = re.search(r"\{.*\}", error_str, re.S)
+    if match:
+        try:
+            body = json.loads(match.group(0))
+            errors = body.get("errors")
+            if isinstance(errors, list) and errors:
+                parts = []
+                for e in errors:
+                    if isinstance(e, dict):
+                        detail = e.get("details") or e.get("summary")
+                        if detail:
+                            parts.append(str(detail))
+                if parts:
+                    return "; ".join(parts)
+            summary = body.get("summary")
+            details = body.get("details")
+            if summary or details:
+                return " — ".join(p for p in (summary, details) if p)
+        except (ValueError, TypeError):
+            pass
+    return error_str
+
+
 def read_fields(loan_id: str, field_ids: List[str], context: str = "", state: dict = None) -> Dict[str, Any]:
     """Read multiple fields from a loan using EncompassConnect.
 
@@ -299,9 +361,12 @@ def write_fields(loan_id: str, updates: Dict[str, Any], state: dict = None) -> b
     Returns:
         True if successful
     """
-    written, bad_ids = write_fields_resilient(loan_id, updates, state=state)
-    if bad_ids:
-        logger.warning(f"write_fields: skipped {len(bad_ids)} invalid field ID(s): {sorted(bad_ids)}")
+    written, bad_fields = write_fields_resilient(loan_id, updates, state=state)
+    if bad_fields:
+        logger.warning(
+            f"write_fields: skipped {len(bad_fields)} rejected field(s): "
+            + ", ".join(f"{fid} ({reason})" for fid, reason in sorted(bad_fields.items()))
+        )
     return True
 
 
@@ -309,12 +374,22 @@ def write_fields_resilient(
     loan_id: str,
     updates: Dict[str, Any],
     state: dict = None,
-) -> "tuple[Dict[str, Any], set]":
-    """Write fields to Encompass, retrying without invalid field IDs on 400 errors.
+) -> "tuple[Dict[str, Any], Dict[str, str]]":
+    """Write fields to Encompass, resiliently skipping any field that the API rejects.
 
-    On a 400 "Invalid field id" response, automatically removes the offending
-    IDs and retries once so that a single bad field ID does not block valid
-    writes. Invalid IDs are surfaced to the caller so they can be flagged.
+    A single bad field (unknown id, undefined custom field, read-only field, or
+    bad value/format) makes Encompass reject the **entire** batch with a 400. To
+    keep one bad field from dropping all the good ones, this:
+
+      1. Attempts the batch. On a 400 that *names* the offending field(s) (see
+         ``_parse_field_errors``), removes them and retries — looping until the
+         write succeeds or no further offenders can be identified.
+      2. If a 400 cannot be attributed to a named field, falls back to writing
+         each remaining field **individually** to isolate the culprit, so the
+         good fields still save and the bad one is identified precisely.
+
+    Non-field errors (e.g. 409 loan locked, auth failures) are re-raised so the
+    caller can surface them as-is.
 
     Args:
         loan_id: Encompass loan GUID
@@ -322,12 +397,12 @@ def write_fields_resilient(
         state: Optional state dict to determine environment
 
     Returns:
-        Tuple of (actually_written: dict, bad_ids: set).
-        ``actually_written`` contains only the fields that were successfully sent.
-        ``bad_ids`` is the set of field ID strings rejected by the API (empty on success).
+        Tuple of ``(actually_written: dict, bad_fields: dict)`` where
+        ``bad_fields`` maps each rejected field ID/name to a short reason string
+        (empty dict on full success).
     """
     if not updates:
-        return {}, set()
+        return {}, {}
 
     # Check dry_run from registry singleton
     dry_run = False
@@ -341,43 +416,70 @@ def write_fields_resilient(
         substep = (state or {}).get("current_substep", "?")
         logger.info(f"[DRY-RUN:{substep}] Would write {len(updates)} fields to {loan_id[:8]}: {updates}")
         _record_writes(updates, state, dry_run=True)
-        return dict(updates), set()
+        return dict(updates), {}
 
     client = get_encompass_client(state=state)
 
-    try:
-        client.write_fields(loan_id, updates)
-        logger.info(f"Wrote {len(updates)} fields to loan {loan_id[:8]}")
-        _record_writes(updates, state, dry_run=False)
-        return dict(updates), set()
+    remaining: Dict[str, Any] = dict(updates)
+    bad_fields: Dict[str, str] = {}
 
-    except Exception as e:
-        error_str = str(e)
+    # ── Phase 1: batch write, iteratively stripping named offenders ──────────
+    while remaining:
+        try:
+            client.write_fields(loan_id, remaining)
+            logger.info(f"Wrote {len(remaining)} fields to loan {loan_id[:8]}")
+            _record_writes(remaining, state, dry_run=False)
+            return dict(remaining), bad_fields
+        except Exception as e:
+            error_str = str(e)
+            if "400" not in error_str:
+                # Not a field-level rejection (lock/auth/etc.) — surface as-is.
+                logger.error(f"Error writing fields: {e}")
+                raise
 
-        # Detect 400 with invalid field IDs — retry without the bad ones
-        if "400" in error_str and "Invalid field id" in error_str:
-            bad_ids = _parse_invalid_field_ids(error_str)
-            valid_updates = {fid: val for fid, val in updates.items() if fid not in bad_ids}
+            offenders = _parse_field_errors(error_str)
+            to_remove = {k for k in list(remaining) if k in offenders}
+            if to_remove:
+                for k in to_remove:
+                    bad_fields[k] = offenders[k]
+                    remaining.pop(k, None)
+                logger.warning(
+                    f"400 on write — removing {len(to_remove)} rejected field(s): "
+                    + ", ".join(f"{k} ({bad_fields[k]})" for k in sorted(to_remove))
+                    + f". Retrying with {len(remaining)} field(s)."
+                )
+                continue
+            # Could not attribute the 400 to a named field — isolate per-field.
             logger.warning(
-                f"400 Bad Request on write — removing {len(bad_ids)} invalid field ID(s): "
-                f"{sorted(bad_ids)}. Retrying with {len(valid_updates)} valid fields."
+                "400 on write could not be attributed to a named field — "
+                f"isolating {len(remaining)} field(s) individually."
             )
+            break
 
-            if not valid_updates:
-                logger.error("All write field IDs were invalid — nothing written.")
-                return {}, bad_ids
-
+    # ── Phase 2: per-field isolation (only when culprit was not named) ───────
+    if remaining:
+        written: Dict[str, Any] = {}
+        for fid, val in remaining.items():
             try:
-                client.write_fields(loan_id, valid_updates)
-                logger.info(f"Retry: wrote {len(valid_updates)} fields to loan {loan_id[:8]}")
-                _record_writes(valid_updates, state, dry_run=False)
-                return valid_updates, bad_ids
+                client.write_fields(loan_id, {fid: val})
+                written[fid] = val
             except Exception as e2:
-                logger.error(f"Retry write also failed: {e2}")
-                raise e2
+                err2 = str(e2)
+                if "400" not in err2 and "Invalid" not in err2 and "readonly" not in err2.lower():
+                    # A non-field error mid-isolation (e.g. lock) — record what we wrote and raise.
+                    if written:
+                        _record_writes(written, state, dry_run=False)
+                    logger.error(f"Error writing field {fid}: {e2}")
+                    raise
+                bad_fields[fid] = humanize_write_error(err2)
+                logger.warning(f"Field {fid} rejected and skipped: {bad_fields[fid]}")
+        if written:
+            logger.info(f"Isolation: wrote {len(written)} field(s) to loan {loan_id[:8]}")
+            _record_writes(written, state, dry_run=False)
+        return written, bad_fields
 
-        logger.error(f"Error writing fields: {e}")
-        raise
+    # Everything was stripped as a named offender — nothing written.
+    return {}, bad_fields
 
 
 def get_loan_summary(loan_id: str) -> Dict[str, Any]:

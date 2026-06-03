@@ -69,6 +69,117 @@ def _efolder_bucket(state: dict, doc_type: str) -> str:
     return doc_type
 
 
+def _doc_coords(state: dict, doc_type: str, matched_copy_index=None):
+    """Return DocRepo/S3 coordinates for a doc_type, or None if it is absent.
+
+    Coordinates (not signed URLs) are returned so the frontend can mint a fresh
+    presigned URL on demand from the DocRepo GET endpoint (clientId=client_id,
+    docId=doc_id). Includes per-attachment ``copies`` so multi-copy buckets
+    (VOE, Bank Statement, ...) can be displayed in full.
+
+    Returns None when the document is not present in the eFolder, so callers
+    only attach a reference when there is actually a file to link.
+    """
+    if not _efolder_present(state, doc_type):
+        return None
+    entry = state.get("efolder_documents", {}).get(doc_type)
+    if not isinstance(entry, dict):
+        return None
+    copies = []
+    for c in entry.get("copies", []) or []:
+        if not isinstance(c, dict):
+            continue
+        copies.append({
+            "copy_index": c.get("copy_index"),
+            "doc_id": c.get("docrepo_location"),
+            "bucket": c.get("docrepo_bucket"),
+            "client_id": c.get("docrepo_client_id"),
+            "attachment_id": c.get("attachment_id"),
+            "status": c.get("status"),
+        })
+    ref = {
+        "doc_type": doc_type,
+        "client_id": entry.get("docrepo_client_id"),
+        "doc_id": entry.get("docrepo_location"),
+        "bucket": entry.get("docrepo_bucket"),
+        "attachment_id": entry.get("attachment_id"),
+        "encompass_bucket": entry.get("encompass_bucket") or doc_type,
+        "copies": copies,
+    }
+    if matched_copy_index is not None:
+        ref["matched_copy_index"] = matched_copy_index
+    return ref
+
+
+def _relevant_docs(state: dict, *field_keys: str, doc_types=None, matched=None) -> list:
+    """Build a flag's ``relevant_documents`` as DocRepo coordinate refs.
+
+    - ``field_keys``: doc_field keys whose ``source_document`` (extraction
+      provenance) identifies the document that supplied the value.
+    - ``doc_types``: explicit canonical doc-type names to include directly.
+    - ``matched``: optional {doc_type: copy_index} marking the copy that
+      triggered the flag.
+
+    Only documents actually present in the eFolder are returned (absent docs
+    have no coordinates). Order-stable and de-duplicated.
+    """
+    matched = matched or {}
+    names: list = []
+    seen: set = set()
+
+    def _add(name):
+        name = (name or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+
+    df = state.get("doc_fields", {})
+    for key in field_keys:
+        entry = df.get(key)
+        if isinstance(entry, dict):
+            _add(entry.get("source_document"))
+    for dt in (doc_types or []):
+        _add(dt)
+
+    refs = []
+    for name in names:
+        ref = _doc_coords(state, name, matched_copy_index=matched.get(name))
+        if ref:
+            refs.append(ref)
+    return refs
+
+
+def _enrich_flag_docs(state: dict, flags: list) -> None:
+    """Resolve string-name ``relevant_documents`` on flags into coordinate refs.
+
+    A flag may set ``relevant_documents`` to a list of doc-type names (str) or
+    {"name": ..., "matched_copy_index": ...} dicts. This converts them in place
+    to DocRepo coordinate refs (via ``_doc_coords``), dropping any doc not
+    present in the eFolder. Refs already enriched (dicts carrying ``doc_id``)
+    are left untouched.
+    """
+    for f in flags:
+        rd = f.get("relevant_documents")
+        if not rd:
+            continue
+        if all(isinstance(x, dict) and "doc_id" in x for x in rd):
+            continue  # already enriched
+        refs = []
+        for item in rd:
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("doc_type")
+                mci = item.get("matched_copy_index")
+            else:
+                name, mci = item, None
+            ref = _doc_coords(state, name, matched_copy_index=mci)
+            if ref:
+                refs.append(ref)
+        if refs:
+            f["relevant_documents"] = refs
+        else:
+            f.pop("relevant_documents", None)
+
+
 def _doc_all(state: dict, key: str) -> list:
     """Get all values for a doc field across multiple document copies.
 
@@ -123,12 +234,15 @@ def _write_fields(
 
     - Skips None values — safe to pass a conditional dict without pre-filtering.
     - Appends one ``info-overwrite`` flag per field successfully written.
-    - On 400 invalid field IDs: retries without the bad IDs, then appends one
-      compiled ``warning`` flag listing all skipped bad IDs (not per-field, since
-      that is a config issue not a per-field business issue).
-    - Appends one ``warning`` flag for any other write error.
+    - If Encompass rejects one or more fields (unknown id, undefined custom
+      field, read-only field, or bad value/format), the resilient writer strips
+      the offender(s) and writes the rest. A single readable ``warning`` flag
+      then lists each rejected field — with its label and the specific reason —
+      so the failure and the remaining successful writes are both surfaced.
+    - Appends one ``warning`` flag (with a humanized error message) for any
+      non-field error such as a locked loan (409).
     """
-    from shared.encompass_io import write_fields_resilient
+    from shared.encompass_io import write_fields_resilient, humanize_write_error
 
     filtered = {fid: val for fid, val in updates.items() if val is not None}
     if not filtered:
@@ -136,14 +250,16 @@ def _write_fields(
 
     from datetime import datetime, timezone
 
+    def _label(field_id):
+        return (labels or {}).get(field_id, f"Field {field_id}")
+
     try:
-        written, bad_ids = write_fields_resilient(loan_id, filtered, state=state)
+        written, bad_fields = write_fields_resilient(loan_id, filtered, state=state)
 
         for field_id, value in written.items():
-            label = (labels or {}).get(field_id, f"Field {field_id}")
             flags.append({
                 "substep": substep,
-                "title": f"Auto-corrected: {label}",
+                "title": f"Auto-corrected: {_label(field_id)}",
                 "severity": "info-overwrite",
                 "details": f"Field {field_id} set to {value!r}",
                 "suggestion": "",
@@ -151,17 +267,24 @@ def _write_fields(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
-        if bad_ids:
-            bad_labels = [f"{fid} ({(labels or {}).get(fid, 'unknown')})" for fid in sorted(bad_ids)]
+        if bad_fields:
+            detail_lines = [
+                f"- {_label(fid)} (id {fid}): {reason}"
+                for fid, reason in sorted(bad_fields.items())
+            ]
             flags.append({
                 "substep": substep,
-                "title": "Field Write Skipped — Invalid Field IDs",
+                "title": f"Field Write Partially Failed — {len(bad_fields)} field(s) skipped",
                 "severity": "warning",
                 "details": (
-                    f"{len(bad_ids)} field ID(s) were rejected by Encompass as invalid and skipped: "
-                    f"{', '.join(bad_labels)}. The remaining {len(written)} field(s) were written successfully."
+                    f"{len(written)} field(s) written successfully. "
+                    f"{len(bad_fields)} field(s) were rejected by Encompass and skipped so the "
+                    f"rest could save:\n" + "\n".join(detail_lines)
                 ),
-                "suggestion": "Remove or correct the invalid field IDs from the tool's FIELD_MAP or YAML definition.",
+                "suggestion": (
+                    "Correct the rejected field(s) above — fix the field ID/value in the tool's "
+                    "FIELD_MAP/YAML, or set the value manually in Encompass if the field is read-only."
+                ),
                 "resolved": False,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
@@ -171,8 +294,11 @@ def _write_fields(
             "substep": substep,
             "title": "Field Write Error",
             "severity": "warning",
-            "details": f"Could not write field(s) {list(filtered.keys())}: {exc}",
-            "suggestion": "Check if the loan is locked or the field ID is correct.",
+            "details": (
+                f"Could not write field(s) {sorted(filtered.keys())}: "
+                f"{humanize_write_error(str(exc))}"
+            ),
+            "suggestion": "Check if the loan is locked (409) or the credentials/field IDs are valid, then re-run.",
             "resolved": False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })

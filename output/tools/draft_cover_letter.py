@@ -11,7 +11,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
@@ -103,6 +103,44 @@ def draft_cover_letter(
     )
     almas_notes = _strip_boilerplate(str(almas_notes).strip())
 
+    # ── Append OCR'd text from Almas-notes images (transcribed in step 0.6) ──
+    # These images are uploaded to DocRepo by the frontend (not the eFolder), so
+    # extract_almas_images OCRs them via Claude vision and stores the text on
+    # state['almas_notes_images']. We append that text here and surface each image
+    # as a DocRepo coordinate reference on the 7.1 flag (built directly from the
+    # frontend-provided coordinates — these are not eFolder docs, so _doc_coords
+    # does not apply).
+    almas_images = (
+        state.get("almas_notes_images")
+        or (state.get("additional_info") or {}).get("almas_notes_images")
+        or []
+    )
+    image_refs: list[dict] = []
+    image_text_blocks: list[str] = []
+    for idx, img in enumerate(almas_images):
+        if not isinstance(img, dict):
+            continue
+        text = (img.get("extracted_text") or "").strip()
+        label = img.get("filename") or f"Almas Notes Image {idx + 1}"
+        if text:
+            image_text_blocks.append(f"[{label}]\n{text}")
+        doc_id = img.get("doc_id") or img.get("docrepo_location") or ""
+        url = img.get("url") or img.get("signed_url") or img.get("s3_url") or ""
+        if doc_id or url:
+            image_refs.append({
+                "doc_type": label,
+                "client_id": img.get("client_id", ""),
+                "doc_id": doc_id,
+                "bucket": img.get("bucket", ""),
+                "attachment_id": "",
+                "url": url,
+                "source": "almas_notes_image",
+                "copies": [],
+            })
+    if image_text_blocks:
+        joined = "\n\n".join(image_text_blocks)
+        almas_notes = (almas_notes + "\n\n" + joined) if almas_notes else joined
+
     # ── Build "Documents still needed:" appendix ──
     missing_docs: list[str] = []
 
@@ -151,13 +189,17 @@ def draft_cover_letter(
             + ", ".join(missing_docs) + "."
             if missing_docs else " No missing docs appended (all present in eFolder)."
         )
-        flags.append({
+        image_summary = (
+            f" Appended OCR'd text from {len(image_text_blocks)} Almas-notes image(s)."
+            if image_text_blocks else ""
+        )
+        notes_flag = {
             "substep": "7.1",
             "title": "Cover Letter — Submission Notes Written",
             "severity": "info-overwrite",
             "details": (
                 f"Almas' notes copied to CX.KM.SUBMISSION.NOTES "
-                f"({len(almas_notes)} characters).{missing_summary}"
+                f"({len(almas_notes)} characters).{missing_summary}{image_summary}"
             ),
             "suggestion": (
                 "Review the submission notes and remove any sections not applicable "
@@ -166,7 +208,10 @@ def draft_cover_letter(
             ),
             "resolved": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        if image_refs:
+            notes_flag["relevant_documents"] = image_refs
+        flags.append(notes_flag)
         logger.info(f"[DRAFT_COVER_LETTER] Wrote {len(almas_notes)} chars to CX.KM.SUBMISSION.NOTES")
     else:
         flags.append({
@@ -188,7 +233,7 @@ def draft_cover_letter(
         "almas_notes_length": len(almas_notes),
         "flags_count": len(flags),
         "message": (
-            f"Cover Letter step completed — "
+            "Cover Letter step completed — "
             + (f"notes written ({len(almas_notes)} chars)" if almas_notes else "no notes provided")
             + (f"; {len(flags)} flag(s)" if flags else "")
         ),

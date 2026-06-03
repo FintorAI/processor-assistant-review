@@ -30,6 +30,26 @@ FIELD_LABELS = {
 }
 
 
+def _to_iso_date(value: str) -> str | None:
+    """Normalize a date string to ISO ``yyyy-MM-dd``.
+
+    CUST50FV / CX.WIREDATELO are UTC date fields that require ISO format with no
+    timezone offset. Encompass field 763 returns MM/DD/YYYY (e.g. ``06/18/2026``).
+    Returns None if the value can't be parsed as a date.
+    """
+    if not value:
+        return None
+    raw = str(value).strip()
+    # Drop a trailing time component if present (e.g. "06/18/2026 00:00:00").
+    raw = raw.split("T")[0].split(" ")[0]
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
 @tool
 def update_processor_closing(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -73,9 +93,25 @@ def update_processor_closing(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
         else:
-            # For purchase: all three dates are the same
-            writes["CUST50FV"]      = closing_date
-            writes["CX.WIREDATELO"] = closing_date
+            # CUST50FV / CX.WIREDATELO require ISO yyyy-MM-dd; field 763 is MM/DD/YYYY.
+            iso_closing = _to_iso_date(closing_date)
+            if not iso_closing:
+                flags.append({
+                    "substep": "10.2",
+                    "title": "Closing Date Unparseable",
+                    "severity": "warning",
+                    "details": (
+                        f"Field 763 (Est Closing Date) = {closing_date!r} could not be parsed "
+                        "to ISO yyyy-MM-dd — Signing Date / Wire Requested Date not written."
+                    ),
+                    "suggestion": "Verify the closing date format in Encompass (expected MM/DD/YYYY).",
+                    "resolved": False,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+            else:
+                # For purchase: all three dates are the same
+                writes["CUST50FV"]      = iso_closing
+                writes["CX.WIREDATELO"] = iso_closing
     else:
         # Non-purchase: flag if signing date is blank, don't auto-fill
         if not signing_date:
@@ -101,7 +137,7 @@ def update_processor_closing(
         "fields_written": list(writes.keys()),
         "flags_count": len(flags),
         "message": (
-            (f"Processor Closing: set Signing Date and Wire Date to {closing_date} (purchase loan)"
+            (f"Processor Closing: set Signing Date and Wire Date to {writes['CUST50FV']} (purchase loan)"
              if writes else
              f"Processor Closing: no writes — {'closing date blank' if is_purchase else 'non-purchase loan'}")
             + (f" with {len(flags)} flag(s)" if flags else "")

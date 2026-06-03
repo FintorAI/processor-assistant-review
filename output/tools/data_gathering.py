@@ -165,7 +165,6 @@ FIELD_MAP = {
     "1073": {"key": "years_in_profession", "field_name": "Years in Profession", "category": "employment"},
     "11": {"key": "property_address", "field_name": "Property Street Address", "category": "property"},
     "1109": {"key": "loan_amount", "field_name": "Loan Amount", "category": "loan_info"},
-    "1168": {"key": "credit_score", "field_name": "Credit Score (Middle)", "category": "credit"},
     "1169": {"key": "employer_name", "field_name": "Employer Name", "category": "employment"},
     "1172": {"key": "loan_type", "field_name": "Mortgage Type", "category": "loan_info"},
     # "1182": invalid field ID in Encompass batch API — removed 2026-05-14
@@ -1206,6 +1205,28 @@ def fetch_doc_fields(
         force_extract = state.get("force_extract", False)
 
         cached_types = {doc.get("DocType", "") for doc in all_documents}
+
+        # A cached type still needs (re-)extraction when ALL of its cached records
+        # are not_found/failed BUT the live eFolder listing shows the bucket has
+        # attachments (efolder_listing_count > 0). This self-heals stale not_found
+        # records left by earlier extraction attempts that POSTed the canonical name
+        # (e.g. "1003 URLA") instead of the actual bucket title ("1003"). Phase 1
+        # below already POSTs the resolved bucket title, so re-running it succeeds —
+        # no separate retrigger pass needed. Once it succeeds the success record is
+        # cached, so this only fires until the doc extracts cleanly.
+        _GOOD_STATUSES = {"completed", "success", "stored_no_extraction"}
+        _cached_statuses: dict[str, set[str]] = {}
+        for _doc in all_documents:
+            _cached_statuses.setdefault(_doc.get("DocType", ""), set()).add(
+                (_doc.get("Status", "") or "").lower()
+            )
+
+        def _present_but_unextracted(dt: str) -> bool:
+            statuses = _cached_statuses.get(dt, set())
+            if statuses & _GOOD_STATUSES:
+                return False  # already have a usable extraction
+            return _efolder_attach_counts.get(dt, 0) > 0
+
         if force_extract:
             types_to_extract = required_doc_types
             logger.info(
@@ -1214,7 +1235,16 @@ def fetch_doc_fields(
             )
             all_documents = []
         else:
-            types_to_extract = [dt for dt in required_doc_types if dt not in cached_types]
+            types_to_extract = [
+                dt for dt in required_doc_types
+                if dt not in cached_types or _present_but_unextracted(dt)
+            ]
+            _reextract = [dt for dt in types_to_extract if dt in cached_types]
+            if _reextract:
+                logger.info(
+                    f"[FETCH_DOCS] Re-extracting {len(_reextract)} cached-but-not_found type(s) "
+                    f"present in the live eFolder: {_reextract[:5]}{'...' if len(_reextract) > 5 else ''}"
+                )
 
         if types_to_extract:
             logger.info(
@@ -1226,7 +1256,14 @@ def fetch_doc_fields(
                 bucket_map=_encompass_bucket_map,
                 extraction_modes=extraction_modes,
             )
-            all_documents = all_documents + extracted
+            # `extracted` is a fresh full GET (usable records only, DocType normalized).
+            # Drop any prior cached records for the same types so the fresh/usable record
+            # wins — this prevents a stale not_found stub from shadowing a now-successful
+            # extraction and avoids duplicating already-good multi-copy types.
+            _extracted_types = {d.get("DocType", "") for d in extracted}
+            all_documents = [
+                d for d in all_documents if d.get("DocType", "") not in _extracted_types
+            ] + extracted
             logger.info(
                 f"[FETCH_DOCS] Extraction complete — {len(extracted)} new docs, "
                 f"{len(all_documents)} total"
@@ -1248,21 +1285,27 @@ def fetch_doc_fields(
         }
         ignored_count = len(all_docs_by_type) - len(docs_by_type)
 
-        # For "all" extraction mode keep every copy; otherwise keep best single doc
+        # For "all" extraction mode keep every copy; otherwise keep best single doc.
+        # A doc type's cache can hold both a stale not_found stub (keyed by the canonical
+        # name) and a fresh usable record (keyed by the bucket title) that both normalize
+        # to the same DocType. Drop the not_found/failed stubs when at least one usable
+        # copy exists so empty-coordinate stubs never shadow the real document.
+        _BAD_STATUSES = {"not_found", "failed", "error-dl", "error-ext", "error-sch", "error-timeout"}
+
+        def _is_usable(d: dict) -> bool:
+            return (d.get("Status", "") or "").lower() not in _BAD_STATUSES
+
         multi_copy_types = {dt for dt, mode in extraction_modes.items() if str(mode).lower() == "all"}
         flat_docs_for_normalize: list[dict] = []
         for dt, doc_list in docs_by_type.items():
+            usable = [d for d in doc_list if _is_usable(d)]
+            effective = usable if usable else doc_list
             if dt in multi_copy_types:
-                for idx, d in enumerate(doc_list):
+                for idx, d in enumerate(effective):
                     d["_copy_index"] = idx
                     flat_docs_for_normalize.append(d)
             else:
-                best = doc_list[0]
-                for d in doc_list[1:]:
-                    s = (d.get("Status", "") or "").lower()
-                    if s == "completed" and (best.get("Status", "") or "").lower() != "completed":
-                        best = d
-                flat_docs_for_normalize.append(best)
+                flat_docs_for_normalize.append(effective[0])
 
         total_docs_kept = len(flat_docs_for_normalize)
         logger.info(
@@ -2057,7 +2100,7 @@ def fetch_vod_data(
     if vod_not_created:
         from datetime import datetime, timezone
         update["flags"] = [{
-            "substep": "0.6",
+            "substep": "0.7",
             "title": "VOD Not Created in Encompass",
             "severity": "warning",
             "details": (
@@ -2068,6 +2111,140 @@ def fetch_vod_data(
             "suggestion": "Open the VOD form in Encompass and add entries for each depository account.",
             "resolved": False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+
+    return Command(update=update)
+
+
+@tool
+def extract_almas_images(
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict, InjectedState],
+) -> Command:
+    """Substep 0.6 — OCR images attached to Almas' notes via Claude vision.
+
+    The frontend uploads any images that came with Almas' notes to DocRepo and
+    passes them in ``additional_info.almas_notes_images`` (a list of dicts with a
+    ``url`` plus optional DocRepo coordinate fields: client_id, doc_id, bucket).
+    These images are NOT in the Encompass eFolder, so the CatchingDoc/LandingAI
+    pipeline cannot reach them — Claude vision transcribes them here instead.
+
+    Writes the enriched list (each item gains ``extracted_text`` + ``ocr_status``)
+    to ``state['almas_notes_images']`` for downstream use by:
+      - draft_cover_letter (7.1) — appends the text to CX.KM.SUBMISSION.NOTES and
+        attaches each image's DocRepo coordinate as a flag reference document.
+      - review_file_contacts (1.2) — cross-checks agent/broker details.
+
+    This is a no-op when no images are provided — safe to call on every run.
+    """
+    images_in = (
+        (state.get("additional_info") or {}).get("almas_notes_images")
+        or state.get("almas_notes_images")
+        or []
+    )
+
+    if not isinstance(images_in, list) or not images_in:
+        result = {
+            "success": True,
+            "substep": "0.6",
+            "tool": "extract_almas_images",
+            "images": 0,
+            "message": "No Almas-notes images provided — nothing to OCR.",
+        }
+        logger.info("[ALMAS_IMAGES] No images in additional_info.almas_notes_images — skipping.")
+        return Command(update={
+            "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+        })
+
+    from shared.llm_call import llm_vision_call
+
+    _prompt = (
+        "Transcribe the raw text content of this document faithfully as clean, "
+        "readable plain text, preserving field labels and their values (one per line). "
+        "Do not invent or infer values that are not visible. If the document contains "
+        "contacts (buyer, seller, brokerage, agents, phones, emails, license numbers), "
+        "list them under a 'KEY CONTACTS' heading at the end."
+    )
+
+    enriched: list[dict] = []
+    ocr_ok = 0
+    ocr_failed = 0
+
+    for idx, item in enumerate(images_in):
+        if isinstance(item, str):
+            item = {"url": item}
+        elif isinstance(item, dict):
+            item = dict(item)
+        else:
+            logger.warning(f"[ALMAS_IMAGES] Skipping image[{idx}] — unrecognized type {type(item)}")
+            continue
+
+        url = item.get("url") or item.get("signed_url") or item.get("s3_url")
+        if not url:
+            item["extracted_text"] = ""
+            item["ocr_status"] = "no_url"
+            enriched.append(item)
+            ocr_failed += 1
+            logger.warning(f"[ALMAS_IMAGES] image[{idx}] has no url — cannot OCR.")
+            continue
+
+        res = llm_vision_call(prompt=_prompt, images=[{"url": url}], max_tokens=2048)
+        if res.success:
+            item["extracted_text"] = res.text
+            item["ocr_status"] = "ok"
+            item["ocr_model"] = res.model
+            ocr_ok += 1
+            logger.info(
+                f"[ALMAS_IMAGES] image[{idx}] OCR ok — {len(res.text)} chars "
+                f"(in={res.input_tokens} out={res.output_tokens})"
+            )
+        else:
+            item["extracted_text"] = ""
+            item["ocr_status"] = "error"
+            item["ocr_error"] = res.error
+            ocr_failed += 1
+            logger.error(f"[ALMAS_IMAGES] image[{idx}] OCR failed: {res.error}")
+
+        enriched.append(item)
+
+    result = {
+        "success": True,
+        "substep": "0.6",
+        "tool": "extract_almas_images",
+        "images": len(enriched),
+        "ocr_ok": ocr_ok,
+        "ocr_failed": ocr_failed,
+        "message": (
+            f"OCR'd {ocr_ok}/{len(enriched)} Almas-notes image(s) via Claude vision"
+            + (f"; {ocr_failed} failed" if ocr_failed else "")
+            + "."
+        ),
+    }
+
+    logger.info(f"[ALMAS_IMAGES] {result['message']}")
+
+    update: dict = {
+        "almas_notes_images": enriched,
+        "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
+    }
+
+    if ocr_ok or ocr_failed:
+        update["flags"] = [{
+            "substep": "0.6",
+            "title": "Almas-Notes Images Transcribed",
+            "severity": "info",
+            "details": (
+                f"Ran Claude vision OCR on {len(enriched)} image(s) attached to Almas' "
+                f"notes: {ocr_ok} succeeded, {ocr_failed} failed. Transcribed text is "
+                f"available to the Cover Letter (7.1) and File Contacts (1.2)."
+            ),
+            "suggestion": (
+                "Review the transcribed text appended to the cover letter / submission notes."
+                if ocr_ok else
+                "OCR failed for the provided image(s); verify the DocRepo URL is reachable."
+            ),
+            "resolved": ocr_failed == 0,
+            "timestamp": datetime.now().isoformat(),
         }]
 
     return Command(update=update)

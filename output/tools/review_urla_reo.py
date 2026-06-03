@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _doc, _efolder_present
+from ._helpers import _doc, _efolder_present, _relevant_docs
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 SUBSTEP = "5.4"
 
 
-def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str, Any]:
-    return {
+def _flag(title: str, severity: str, details: str, suggestion: str, docs=None) -> Dict[str, Any]:
+    f = {
         "substep": SUBSTEP,
         "title": title,
         "severity": severity,
@@ -39,6 +39,9 @@ def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str,
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 @tool
@@ -124,6 +127,7 @@ def review_urla_reo(
 
         # ── Stale Mortgage Statement check (>90 days old) ──
         raw_stmt_date = _doc(state, "statement_date")
+        _mortgage_refs = _relevant_docs(state, "statement_date", doc_types=["Mortgage Statement"])
         if raw_stmt_date:
             try:
                 for fmt in ("%m/%d/%Y", "%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
@@ -151,6 +155,7 @@ def review_urla_reo(
                                 "mortgage payment history. Upload to eFolder under "
                                 "'Other Owned Property Documents'."
                             ),
+                            docs=_mortgage_refs,
                         ))
                     else:
                         flags.append(_flag(
@@ -161,6 +166,7 @@ def review_urla_reo(
                                 f"({age_days} days ago) — within the 90-day window."
                             ),
                             suggestion="No action needed.",
+                            docs=_mortgage_refs,
                         ))
             except Exception as exc:
                 logger.warning(f"[REVIEW_URLA_REO] Could not parse statement_date '{raw_stmt_date}': {exc}")

@@ -19,13 +19,13 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _write_fields
+from ._helpers import _los, _doc, _write_fields, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
 
-def _flag(flags, substep, title, severity, details, suggestion):
-    flags.append({
+def _flag(flags, substep, title, severity, details, suggestion, docs=None):
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -33,7 +33,10 @@ def _flag(flags, substep, title, severity, details, suggestion):
         "suggestion": suggestion,
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    if docs:
+        f["relevant_documents"] = docs
+    flags.append(f)
 
 
 def _is_checked(val) -> bool:
@@ -54,7 +57,7 @@ def review_borrower_summary(
     borrower_accept_sms, borrower_dob, borrower_email, borrower_marital_status,
     coborrower_first_name, coborrower_last_name, coborrower_cell_phone, coborrower_accept_sms,
     coborrower_email, coborrower_marital_status, property_address, property_city, property_state,
-    property_zip, credit_score, loan_amount, appraised_value, estimated_value, los_purchase_price,
+    property_zip, credit_score_decision, loan_amount, appraised_value, estimated_value, los_purchase_price,
     loan_purpose, ami_eligibility
     Reads Docs: Driver's License, Purchase Agreement
     Flags: Required Field Empty, Borrower ID Expired, Property Address Mismatch, Loan Amount Missing,
@@ -92,7 +95,6 @@ def review_borrower_summary(
     coborrower_marital_status = _los(state, "coborrower_marital_status")
     coborrower_accept_sms    = _los(state, "coborrower_accept_sms")  # field 4935
 
-    credit_score             = _los(state, "credit_score")
     experian_score           = _los(state, "experian_score")
     transunion_score         = _los(state, "transunion_score")
     equifax_score            = _los(state, "equifax_score")
@@ -264,15 +266,25 @@ def review_borrower_summary(
                   f"{label} is blank.",
                   "Ensure credit has been pulled and all bureau scores are populated.")
 
-    if not credit_score:
-        _flag(flags, "2.1", "Credit Score Missing", "critical",
-              "Middle credit score (field 1168) is blank.",
-              "Ensure credit has been pulled and scores are populated in Encompass.")
-
+    # Representative / median credit score = VASUMM.X23 (Credit Score for Decision Making).
+    # Field 1168 ("Credit Score Middle") is unreliable / often blank in Encompass and is no
+    # longer used. The three bureau scores (67/1414/1450) are used only to decide severity.
     if not credit_score_decision:
-        _flag(flags, "2.1", "Credit Score Missing", "warning",
-              "Credit Score for Decision Making (VASUMM.X23) is blank.",
-              "Populate the decision credit score field.")
+        _bureau_scores = [
+            int(s) for s in (experian_score, transunion_score, equifax_score)
+            if str(s).strip().isdigit()
+        ]
+        if not _bureau_scores:
+            _flag(flags, "2.1", "Credit Score Missing", "critical",
+                  "No representative credit score available — Credit Score for Decision Making "
+                  "(VASUMM.X23) and all three bureau scores (67/1414/1450) are blank.",
+                  "Ensure credit has been pulled and scores are populated in Encompass.")
+        else:
+            _median = sorted(_bureau_scores)[len(_bureau_scores) // 2]
+            _flag(flags, "2.1", "Credit Score Missing", "warning",
+                  f"Credit Score for Decision Making (VASUMM.X23) is blank, but bureau scores are "
+                  f"present (median {_median}). Verify the representative/decision score is populated.",
+                  "Populate the decision credit score field (VASUMM.X23).")
 
     if not credit_reference_number:
         _flag(flags, "2.1", "Credit Reference Number Missing", "warning",
@@ -326,12 +338,14 @@ def review_borrower_summary(
                   f"LOS purchase price (field 136): ${los_purchase_price_amount:,.0f} "
                   f"vs Purchase Contract: ${purchase_price_doc_amount:,.0f} "
                   f"(diff: ${diff:,.0f}).",
-                  "Correct the purchase price in Encompass to match the Purchase Contract.")
+                  "Correct the purchase price in Encompass to match the Purchase Contract.",
+                  docs=_relevant_docs(state, "purchase_price"))
     elif not los_purchase_price_amount and purchase_price_doc_amount:
         _flag(flags, "2.1", "Purchase Price Missing in LOS", "warning",
               f"Purchase Contract shows ${purchase_price_doc_amount:,.0f} but "
               f"LOS purchase price (field 136) is blank.",
-              "Enter the purchase price in Encompass.")
+              "Enter the purchase price in Encompass.",
+              docs=_relevant_docs(state, "purchase_price"))
 
     # ── Rule: Estimated Value vs Purchase Price ───────────────────────────
     if purchase_price_doc_amount and estimated_value_amount:
@@ -341,7 +355,8 @@ def review_borrower_summary(
                   f"Estimated value (field 1821): ${estimated_value_amount:,.0f} "
                   f"vs Purchase Contract price: ${purchase_price_doc_amount:,.0f} "
                   f"(diff: ${diff:,.0f}).",
-                  "Verify the estimated value is correct, or update to match the purchase price.")
+                  "Verify the estimated value is correct, or update to match the purchase price.",
+                  docs=_relevant_docs(state, "purchase_price"))
     elif not estimated_value_amount:
         _flag(flags, "2.1", "Estimated Value Empty", "warning",
               "Estimated value (field 1821) is blank.",
@@ -383,7 +398,8 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{addr_val.get('los_address')}' vs Purchase Contract: "
                   f"'{addr_val.get('purchase_contract_address')}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.")
+                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
+                  docs=_relevant_docs(state, "purchase_property_address"))
     elif purchase_property_address_doc and property_address:
         # Fallback if validate_property_address wasn't run yet
         los_num = str(property_address).strip().split()[0] if property_address else ""
@@ -391,7 +407,8 @@ def review_borrower_summary(
         if los_num and doc_num and los_num != doc_num:
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{property_address}' vs Purchase Contract: '{purchase_property_address_doc}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.")
+                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
+                  docs=_relevant_docs(state, "purchase_property_address"))
 
     # ── Rule: Cash-Out Refi — Borrower Current Address vs Subject Property ──
     _is_cashout = "cashout" in (loan_purpose or "").lower().replace("-", "").replace(" ", "")
@@ -431,7 +448,8 @@ def review_borrower_summary(
             if expiry_date and expiry_date < datetime.now(timezone.utc).date():
                 _flag(flags, "2.1", "Borrower ID Expired", "warning",
                       f"Driver's License expired on {dl_expiry_doc}.",
-                      "Request a valid, non-expired government ID from the borrower.")
+                      "Request a valid, non-expired government ID from the borrower.",
+                      docs=_relevant_docs(state, "dl_expiry", doc_types=["Driver's License"]))
         except Exception:
             pass
 
@@ -640,7 +658,6 @@ def review_borrower_summary(
         "tool": "review_borrower_summary",
         "has_coborrower": has_coborrower,
         "flags_count": len(flags),
-        "credit_score": credit_score,
         "credit_score_decision": credit_score_decision,
         "credit_reference_number": credit_reference_number,
         "loan_amount": loan_amount,

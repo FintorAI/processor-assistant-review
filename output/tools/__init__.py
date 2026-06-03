@@ -8,7 +8,7 @@ Each substep tool lives in its own file (named after the tool function).
 from .general import write_todo, get_workflow_status, save_step_report
 
 # Step 0: Data Gathering (auto-generated)
-from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address
+from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address, extract_almas_images
 
 # STEP_01 / 1.1: Document Presence Check
 from .run_pre_checks import run_pre_checks
@@ -60,6 +60,7 @@ def get_all_tools() -> list:
         fetch_doc_fields,
         build_loan_summary,
         validate_property_address,
+        extract_almas_images,
     ]
     tools.append(run_pre_checks)
     tools.append(review_file_contacts)
@@ -92,6 +93,7 @@ __all__ = [
     "fetch_doc_fields",
     "build_loan_summary",
     "validate_property_address",
+    "extract_almas_images",
     "run_pre_checks",
     "review_file_contacts",
     "review_borrower_summary",

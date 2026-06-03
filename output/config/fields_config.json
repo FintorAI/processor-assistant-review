@@ -86,15 +86,6 @@
       ]
     },
     {
-      "key": "credit_score",
-      "field_id": "1168",
-      "field_name": "Credit Score (Middle)",
-      "category": "credit",
-      "used_by_steps": [
-        "STEP_02"
-      ]
-    },
-    {
       "key": "loan_type",
       "field_id": "1172",
       "field_name": "Mortgage Type",
@@ -3156,7 +3147,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 253,
+    "total_los_fields": 252,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 10,

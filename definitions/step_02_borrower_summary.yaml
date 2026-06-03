@@ -140,11 +140,8 @@ substeps:
     category: borrower_info
     purpose: Completeness check if coborrower present
   # ── Credit scores — Borrower ────────────────────────────────────────
-  - key: credit_score
-    field_id: '1168'
-    field_name: Credit Score (Middle)
-    category: credit
-    purpose: Confirm middle credit score is populated
+  # Field 1168 ("Credit Score Middle") removed — unreliable / often blank in Encompass.
+  # Representative/median score comes from VASUMM.X23 (credit_score_decision) below.
   - key: experian_score
     field_id: '67'
     field_name: Borrower Experian/FICO Score

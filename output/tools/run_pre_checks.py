@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _efolder_present, _efolder_bucket, _profile
+from ._helpers import _los, _doc, _efolder_present, _efolder_bucket, _profile, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,7 @@ def run_pre_checks(
     voe_present          = _efolder_present(state, "VOE - non service provider")
     paystubs_present     = _efolder_present(state, "Paystubs")
     assets_present       = _efolder_present(state, "Assets")
+    bank_statement_present = _efolder_present(state, "Bank Statement")
     bank_statement_months = _doc(state, "bank_statement_months")
     dl_present           = _efolder_present(state, "Driver's License")
     dl_expiry            = _doc(state, "dl_expiry")
@@ -187,16 +188,35 @@ def run_pre_checks(
               "Confirm FACT ACT form is included in the credit report.")
 
     # ── Rule: Bank Statement Recency ──
+    # Guardrail: distinguish "couldn't determine coverage" (months not extracted) from a
+    # genuine "0 months". A None month count means extraction didn't yield a statement period
+    # (e.g. doc-type/schema mismatch upstream) — do NOT coerce that to 0 and cry "Insufficient".
     required_months = 1 if str(loan_type).upper() == "FHA" else 2
-    try:
-        bank_months = int(bank_statement_months) if bank_statement_months is not None else 0
-    except (TypeError, ValueError):
-        bank_months = 0
+    _bank_label = _bucket_label("Bank Statement")
 
-    if bank_months < required_months:
-        _flag(flags, "1.1", "Insufficient Bank Statements", "warning",
-              f"Found {bank_months} month(s); {required_months} required for {loan_type or 'this loan type'}.",
-              "Request additional bank statements from borrower.")
+    if bank_statement_months is None:
+        if bank_statement_present:
+            _flag(flags, "1.1", "Bank Statement Coverage Unverifiable", "warning",
+                  f"Bank Statement document is present in eFolder{_bank_label} but the number of "
+                  f"months / statement period could not be extracted ({required_months} month(s) "
+                  f"required for {loan_type or 'this loan type'}).",
+                  "Manually verify the statement covers the required period, or re-run extraction "
+                  "(possible doc-type/schema name mismatch — see docs/EFOLDER_EXTRACTION.md).")
+        else:
+            _flag(flags, "1.1", "Bank Statements Missing", "warning",
+                  f"No Bank Statement document found in eFolder{_bank_label} "
+                  f"({required_months} month(s) required for {loan_type or 'this loan type'}).",
+                  "Request bank statements from borrower.")
+    else:
+        try:
+            bank_months = int(bank_statement_months)
+        except (TypeError, ValueError):
+            bank_months = 0
+
+        if bank_months < required_months:
+            _flag(flags, "1.1", "Insufficient Bank Statements", "warning",
+                  f"Found {bank_months} month(s); {required_months} required for {loan_type or 'this loan type'}.",
+                  "Request additional bank statements from borrower.")
 
     # ── Rule: DL Not Expired ──
     dl_expiry_date = None
@@ -228,6 +248,62 @@ def run_pre_checks(
                   "No Maryland eDisclosure documents found in eFolder.",
                   "Add required MD disclosures (e.g. MD Notice Regarding Right for Assumption) "
                   "before submission.")
+
+    # ── Info: Documents Present in eFolder ──
+    # Positive complement of the "Missing Required Document" flags above. Built
+    # from the exact presence booleans 1.1 already computes (not required_docs.json),
+    # so it stays symmetric with the per-doc missing flags.
+    checked_present = {
+        "1003 URLA": urla_present,
+        "Borrower's Certification & Authorization": bca_present,
+        "Credit Report": credit_report_present,
+        "Underwriting (AUS)": bool(aus_run_date),
+        "VOE - non service provider": voe_present,
+        "Paystubs": paystubs_present,
+        "Assets": assets_present,
+        "Driver's License": dl_present,
+        "Estimated Settlement Statement": ess_present,
+        "Flood Certificate": flood_cert_present,
+        "Evidence of Hazard Insurance": hazard_insurance_present,
+        "Title Report": title_report_present,
+        "LDP": ldp_present,
+        "Fraud": fraudguard_present,
+        "Tax Summary": tax_summary_present,
+    }
+    if property_state.upper() == "MD":
+        checked_present["MD State Disclosures"] = _md_any_present
+
+    present_docs = [name for name, ok in checked_present.items() if ok]
+    if present_docs:
+        # Canonical eFolder bucket names for coordinate refs (a few checklist
+        # labels differ from the bucket the file actually lives in).
+        _ref_names = []
+        for name in present_docs:
+            if name == "Underwriting (AUS)":
+                _ref_names.append("Underwriting")
+            elif name == "Evidence of Hazard Insurance":
+                _ref_names.extend(["Evidence of Hazard Insurance", "Evidence of Insurance"])
+            elif name == "MD State Disclosures":
+                continue  # spans multiple buckets — no single coordinate
+            else:
+                _ref_names.append(name)
+
+        _present_flag = {
+            "substep": "1.1",
+            "title": "Documents Present in eFolder",
+            "severity": "info",
+            "details": (
+                f"{len(present_docs)} of {len(checked_present)} checked document(s) "
+                f"found in eFolder: {', '.join(present_docs)}."
+            ),
+            "suggestion": "No action needed.",
+            "resolved": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        _refs = _relevant_docs(state, doc_types=_ref_names)
+        if _refs:
+            _present_flag["relevant_documents"] = _refs
+        flags.append(_present_flag)
 
     # ── Build result ──
     critical_flags = [f for f in flags if f["severity"] == "critical"]

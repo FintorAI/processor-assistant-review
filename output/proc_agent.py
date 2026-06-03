@@ -192,6 +192,7 @@ class ProcessorAgentState(AgentState):
     loan_number: str
     env: str
     almas_notes: NotRequired[str]
+    almas_notes_images: NotRequired[list]
     processor_name: NotRequired[str]
     additional_info: NotRequired[dict]
     force_extract: NotRequired[bool]

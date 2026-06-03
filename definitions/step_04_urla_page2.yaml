@@ -588,7 +588,31 @@ substeps:
       FE0219 (co-borrower base monthly income) is empty and URLA.X202
       (does not apply) is not checked and a co-borrower is present on the loan
     suggestion: Enter the co-borrower's base monthly income in Section 1b or check the Does Not Apply box
-  field_updates: []
+  field_updates:
+  - field_id: URLA.X201
+    field_name: Borrower — Section 2c Does Not Apply
+    value: 'true'
+    condition: >
+      Section 2c (borrower additional/self employment, FE0302) is empty and
+      URLA.X201 is not already checked
+  - field_id: URLA.X202
+    field_name: Co-Borrower — Section 2c Does Not Apply
+    value: 'true'
+    condition: >
+      Section 2c (co-borrower additional/self employment, FE0402) is empty and
+      URLA.X202 is not already checked and a co-borrower is present
+  - field_id: URLA.X203
+    field_name: Borrower — Section 2d Does Not Apply
+    value: 'true'
+    condition: >
+      Section 2d (borrower previous employment, FE0502) is empty and
+      URLA.X203 is not already checked
+  - field_id: URLA.X204
+    field_name: Co-Borrower — Section 2d Does Not Apply
+    value: 'true'
+    condition: >
+      Section 2d (co-borrower previous employment, FE0602) is empty and
+      URLA.X204 is not already checked and a co-borrower is present
   rule_modifiers:
   - condition:
       field: loan_type
