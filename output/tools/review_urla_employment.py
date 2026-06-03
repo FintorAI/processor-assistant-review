@@ -59,6 +59,22 @@ def _parse_amount(v) -> Optional[float]:
         return None
 
 
+def _periods_per_year(freq) -> Optional[int]:
+    """Map a pay-period frequency string to the number of periods per year."""
+    f = str(freq or "").strip().lower().replace("-", "").replace(" ", "")
+    return {
+        "weekly": 52,
+        "biweekly": 26,
+        "semimonthly": 24,
+        "twicemonthly": 24,
+        "monthly": 12,
+        "quarterly": 4,
+        "semiannually": 2,
+        "annually": 1,
+        "annual": 1,
+        "yearly": 1,
+    }.get(f)
+
 
 def _entry_populated(entry: dict) -> bool:
     """True if at least employer_name is set."""
@@ -256,6 +272,11 @@ def review_urla_employment(
     voe_cur_hire       = _voe_cur.get("current_original_hire_date") or _doc(state, "current_original_hire_date")
     voe_cur_base_pay   = _voe_cur.get("current_monthly_base_pay") or _doc(state, "current_monthly_base_pay")
     voe_cur_position   = _voe_cur.get("current_position_title") or _doc(state, "current_position_title")
+    # Pay-rate inputs the VOE used to derive current_monthly_base_pay — surfaced in the
+    # base-pay mismatch flag so the processor can see exactly how the figure was computed.
+    voe_cur_rate       = _voe_cur.get("current_rate_of_pay") or _doc(state, "current_rate_of_pay")
+    voe_cur_hours_pp   = _voe_cur.get("current_avg_hours_per_pay_period") or _doc(state, "current_avg_hours_per_pay_period")
+    voe_cur_pp_freq    = _voe_cur.get("current_pay_period_frequency") or _doc(state, "current_pay_period_frequency")
 
     # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
@@ -373,11 +394,43 @@ def review_urla_employment(
             doc_pay = _parse_amount(voe_cur_base_pay)
             if los_pay is not None and doc_pay is not None:
                 if abs(los_pay - doc_pay) > 1.00:  # allow $1 rounding tolerance
+                    # Show the full derivation so the processor can see WHY they differ.
+                    _detail = (
+                        f"LOS (1003): ${los_pay:,.2f}/mo  |  VOE: ${doc_pay:,.2f}/mo  |  "
+                        f"Δ ${abs(los_pay - doc_pay):,.2f}/mo"
+                    )
+                    _rate  = _parse_amount(voe_cur_rate)
+                    _hours = _parse_amount(voe_cur_hours_pp)
+                    _ppy   = _periods_per_year(voe_cur_pp_freq)
+                    if _rate and _hours and _ppy:
+                        _voe_annual = _rate * _hours * _ppy
+                        _detail += (
+                            f"\nVOE base = rate × avg hours/pay-period × periods/yr ÷ 12: "
+                            f"${_rate:,.2f}/hr × {_hours:g} hrs × {_ppy} ({voe_cur_pp_freq}) "
+                            f"= ${_voe_annual:,.2f}/yr ÷ 12 = ${_voe_annual / 12:,.2f}/mo "
+                            f"({_hours * _ppy:,.0f} hrs/yr ≈ {(_hours * _ppy) / 52:.1f} hrs/wk)"
+                        )
+                    if _rate:
+                        _los_annual_hrs = los_pay * 12 / _rate
+                        _detail += (
+                            f"\nLOS base ${los_pay:,.2f}/mo at ${_rate:,.2f}/hr implies "
+                            f"{_los_annual_hrs:,.0f} hrs/yr ≈ {_los_annual_hrs / 52:.1f} hrs/wk "
+                            f"(${_rate:,.2f} × 40 × 52 ÷ 12 = ${_rate * 40 * 52 / 12:,.2f}/mo)"
+                        )
+                        if _hours and _ppy:
+                            _voe_hpw = (_hours * _ppy) / 52
+                            _los_hpw = _los_annual_hrs / 52
+                            _detail += (
+                                f"\n→ Difference driven by hours/week: VOE {_voe_hpw:.1f} vs LOS "
+                                f"{_los_hpw:.1f} ({_voe_hpw - _los_hpw:+.1f} hrs/wk)."
+                            )
                     flags.append(_flag("4.1",
                         "Monthly Base Pay Mismatch — Current (VOE vs 1003)",
                         "warning",
-                        f"LOS: ${los_pay:,.2f} | VOE: ${doc_pay:,.2f}",
-                        "Reconcile the monthly base pay figure with the VOE",
+                        _detail,
+                        "Reconcile the monthly base pay with the VOE — the gap is driven by the "
+                        "assumed hours/week. Confirm whether to qualify on 40 hrs base or the VOE's "
+                        "averaged hours (which include regular overtime).",
                         docs=_voe_refs_cur,
                     ))
 
