@@ -1180,6 +1180,84 @@ def update_trustee_entity(
         return {"success": False, "error": error_msg}
 
 
+def write_borrower_vesting_description(
+    loan_id: str,
+    description: str,
+    applicant_type: str = "borrower",
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Write the Borrower/Co-Borrower Vesting Description (field 1872 / 1877).
+
+    Fields 1872 (borrower) and 1877 (co-borrower) are READ-ONLY via the v3
+    fieldWriter API — it rejects any write with
+    ``400 "Cannot update readonly field with id: 1872"`` regardless of value
+    (confirmed it is NOT a payload/enum error). They ARE writable through the
+    loan-entity PATCH on::
+
+        applications[].{borrower|coBorrower}.powerOfAttorneyTitleDescription
+
+    Confirmed working (HTTP 204) on TEST loan 2605926537 and PROD loan
+    2605968608. ``description`` must be one of the Borrower Vesting dropdown
+    enum values (e.g. "AN UNMARRIED MAN", "A MARRIED WOMAN", "HUSBAND AND WIFE").
+
+    Args:
+        loan_id: Encompass loan GUID
+        description: Vesting description enum value to write
+        applicant_type: "borrower" (default) or "coborrower"
+        application_id: Auto-resolved via get_loan_applications if omitted
+        state: Optional state dict to determine environment
+
+    Returns:
+        ``{"success": True}`` or ``{"success": False, "error": "..."}``
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id") if apps else None
+        except Exception as e:
+            return {"success": False, "error": f"could not resolve application id: {e}"}
+    if not application_id:
+        return {"success": False, "error": "no application id found for loan"}
+
+    entity_key = "coBorrower" if applicant_type == "coborrower" else "borrower"
+    payload = {
+        "applications": [
+            {"id": application_id, entity_key: {"powerOfAttorneyTitleDescription": description}}
+        ]
+    }
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+
+    try:
+        resp = requests.patch(url, json=payload, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, json=payload, headers=headers, timeout=30)
+        if resp.status_code in (200, 204):
+            logger.info(
+                f"[ENCOMPASS] Wrote {entity_key} vesting description "
+                f"({'1877' if applicant_type == 'coborrower' else '1872'}) = "
+                f"{description!r} for loan {loan_id[:8]}"
+            )
+            return {"success": True}
+        error_msg = f"PATCH failed (status {resp.status_code}): {resp.text[:300]}"
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {"success": False, "error": error_msg}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error writing vesting description: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def get_employment(
     loan_id: str,
     application_id: str = None,

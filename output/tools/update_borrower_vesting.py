@@ -240,6 +240,11 @@ def update_borrower_vesting(
     and manner held (field 33) when empty. Reads final vesting (field 1867)
     and flags if missing or malformed for single/unmarried borrowers.
 
+    Vesting descriptions (field 1872 borrower / 1877 co-borrower) are read-only
+    in the fieldWriter API, so they are written via a separate loan-entity PATCH
+    on applications[].{borrower|coBorrower}.powerOfAttorneyTitleDescription
+    rather than the field_updates batch (which would 400 and poison the batch).
+
     Ported from LG-docsOrch verify_vesting + write_borrower_vesting_info.
 
     Call this tool during STEP_08 (Borrower Info - Vesting) as substep 8.1.
@@ -255,6 +260,10 @@ def update_borrower_vesting(
 
     flags = []
     field_updates = {}
+    # Vesting descriptions (1872 borrower / 1877 co-borrower) are READ-ONLY via the
+    # fieldWriter API and must NOT go in field_updates (they'd 400 and poison the
+    # whole batch). They are written separately via a loan-entity PATCH below.
+    vesting_desc_patches: dict[str, str] = {}
     actions = []
 
     # ── Read fields ───────────────────────────────────────────────────────────
@@ -378,15 +387,10 @@ def update_borrower_vesting(
     # field 1872 — Borrower Vesting Description (the dropdown Build Final Vesting uses)
     computed_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
     if not prev_borr_vdesc:
-        field_updates["1872"] = computed_vdesc
+        # Deferred to the loan-entity PATCH in section H2 (read-only in fieldWriter).
+        # The authoritative success/failure flag is emitted there.
+        vesting_desc_patches["borrower"] = computed_vdesc
         actions.append(f"SET 1872 (Borrower Vesting Desc) = '{computed_vdesc}' (was empty)")
-        flags.append(_flag("8.1",
-            "Borrower Vesting Description Set (1872)",
-            "info-overwrite",
-            f"Field 1872 was empty. Set to '{computed_vdesc}' (marital={marital_status}, co-borrower={has_coborrower}).",
-            f"Set field 1872 = '{computed_vdesc}' before clicking Build Final Vesting",
-            resolved=True,
-        ))
     elif prev_borr_vdesc.upper() != computed_vdesc.upper():
         flags.append(_flag("8.1",
             "Borrower Vesting Description Mismatch (1872)",
@@ -427,7 +431,7 @@ def update_borrower_vesting(
         # field 1877 — Co-Borrower Vesting Description
         cobr_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
         if not prev_cobr_vdesc:
-            field_updates["1877"] = cobr_vdesc
+            vesting_desc_patches["coborrower"] = cobr_vdesc  # written via PATCH (read-only in fieldWriter)
             actions.append(f"SET 1877 (Co-Borrower Vesting Desc) = '{cobr_vdesc}' (was empty)")
         elif prev_cobr_vdesc.upper() != cobr_vdesc.upper():
             flags.append(_flag("8.1",
@@ -649,10 +653,8 @@ def update_borrower_vesting(
         "1867": "Final Vesting",
         "1868": "Borrower Vesting Name",
         "1871": "Borrower Vesting Type",
-        "1872": "Borrower Vesting Description",
         "1873": "Co-Borrower Vesting Name",
         "1876": "Co-Borrower Vesting Type",
-        "1877": "Co-Borrower Vesting Description",
         "Borr.OccupancyIntent": "Borrower Occupancy Intent",
         "CoBorr.OccupancyIntent": "Co-Borrower Occupancy Intent",
     }
@@ -660,6 +662,45 @@ def update_borrower_vesting(
         _write_fields(loan_id, field_updates, substep="8.1", flags=flags, state=state, labels=_FIELD_LABELS)
         wrote_count = len(field_updates)
         logger.info(f"[UPDATE_BORROWER_VESTING] Submitted {wrote_count} field updates")
+
+    # ── H2. Vesting descriptions (1872 / 1877) via loan-entity PATCH ─────────────
+    # Fields 1872/1877 are read-only in the fieldWriter API ("Cannot update
+    # readonly field"), so they are written here via
+    # applications[].{borrower|coBorrower}.powerOfAttorneyTitleDescription.
+    patched_vdesc: list[str] = []
+    if vesting_desc_patches:
+        _dry_run = False
+        try:
+            from output.registry import DEV_MODE
+            _dry_run = getattr(DEV_MODE, "dry_run", False)
+        except Exception:
+            _dry_run = False
+
+        from encompass_client import write_borrower_vesting_description
+        for _applicant, _desc in vesting_desc_patches.items():
+            _fid = "1877" if _applicant == "coborrower" else "1872"
+            if _dry_run:
+                actions.append(f"[DRY-RUN] would PATCH {_fid} ({_applicant} vesting desc) = '{_desc}'")
+                continue
+            _res = write_borrower_vesting_description(loan_id, _desc, applicant_type=_applicant, state=state)
+            if _res.get("success"):
+                patched_vdesc.append(_fid)
+                actions.append(f"PATCHed {_fid} ({_applicant} vesting desc) = '{_desc}' via loan-entity API")
+                flags.append(_flag("8.1",
+                    f"{'Co-Borrower ' if _applicant == 'coborrower' else 'Borrower '}Vesting Description Set ({_fid})",
+                    "info-overwrite",
+                    f"Field {_fid} was empty. Set to '{_desc}' via loan-entity PATCH "
+                    f"(read-only in fieldWriter API).",
+                    f"Verify field {_fid} = '{_desc}' in the Borrower Vesting screen.",
+                    resolved=True,
+                ))
+            else:
+                flags.append(_flag("8.1",
+                    f"Vesting Description Write Failed ({_fid})",
+                    "warning",
+                    f"Could not write {_applicant} vesting description (field {_fid}) = '{_desc}': {_res.get('error')}",
+                    f"Set field {_fid} = '{_desc}' manually in the Borrower Vesting screen.",
+                ))
 
     # ── Result ────────────────────────────────────────────────────────────────
     result = {
@@ -673,6 +714,7 @@ def update_borrower_vesting(
         "has_coborrower": has_coborrower,
         "has_nbs": has_nbs,
         "fields_updated": list(field_updates.keys()),
+        "vesting_desc_patched": patched_vdesc,
         "flags_count": len(flags),
         "actions": actions,
         "message": (
@@ -680,6 +722,7 @@ def update_borrower_vesting(
             f"intent='{occ_intent}', "
             f"vesting={'SET' if current_vesting else 'EMPTY (needs Build Final Vesting)'}, "
             f"{len(field_updates)} field(s) submitted"
+            + (f", {len(patched_vdesc)} vesting desc PATCHed" if patched_vdesc else "")
         ),
     }
 
