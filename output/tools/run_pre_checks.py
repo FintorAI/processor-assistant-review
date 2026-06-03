@@ -87,6 +87,7 @@ def run_pre_checks(
     voe_present          = _efolder_present(state, "VOE - non service provider")
     paystubs_present     = _efolder_present(state, "Paystubs")
     assets_present       = _efolder_present(state, "Assets")
+    bank_statement_present = _efolder_present(state, "Bank Statement")
     bank_statement_months = _doc(state, "bank_statement_months")
     dl_present           = _efolder_present(state, "Driver's License")
     dl_expiry            = _doc(state, "dl_expiry")
@@ -187,16 +188,35 @@ def run_pre_checks(
               "Confirm FACT ACT form is included in the credit report.")
 
     # ── Rule: Bank Statement Recency ──
+    # Guardrail: distinguish "couldn't determine coverage" (months not extracted) from a
+    # genuine "0 months". A None month count means extraction didn't yield a statement period
+    # (e.g. doc-type/schema mismatch upstream) — do NOT coerce that to 0 and cry "Insufficient".
     required_months = 1 if str(loan_type).upper() == "FHA" else 2
-    try:
-        bank_months = int(bank_statement_months) if bank_statement_months is not None else 0
-    except (TypeError, ValueError):
-        bank_months = 0
+    _bank_label = _bucket_label("Bank Statement")
 
-    if bank_months < required_months:
-        _flag(flags, "1.1", "Insufficient Bank Statements", "warning",
-              f"Found {bank_months} month(s); {required_months} required for {loan_type or 'this loan type'}.",
-              "Request additional bank statements from borrower.")
+    if bank_statement_months is None:
+        if bank_statement_present:
+            _flag(flags, "1.1", "Bank Statement Coverage Unverifiable", "warning",
+                  f"Bank Statement document is present in eFolder{_bank_label} but the number of "
+                  f"months / statement period could not be extracted ({required_months} month(s) "
+                  f"required for {loan_type or 'this loan type'}).",
+                  "Manually verify the statement covers the required period, or re-run extraction "
+                  "(possible doc-type/schema name mismatch — see docs/EFOLDER_EXTRACTION.md).")
+        else:
+            _flag(flags, "1.1", "Bank Statements Missing", "warning",
+                  f"No Bank Statement document found in eFolder{_bank_label} "
+                  f"({required_months} month(s) required for {loan_type or 'this loan type'}).",
+                  "Request bank statements from borrower.")
+    else:
+        try:
+            bank_months = int(bank_statement_months)
+        except (TypeError, ValueError):
+            bank_months = 0
+
+        if bank_months < required_months:
+            _flag(flags, "1.1", "Insufficient Bank Statements", "warning",
+                  f"Found {bank_months} month(s); {required_months} required for {loan_type or 'this loan type'}.",
+                  "Request additional bank statements from borrower.")
 
     # ── Rule: DL Not Expired ──
     dl_expiry_date = None

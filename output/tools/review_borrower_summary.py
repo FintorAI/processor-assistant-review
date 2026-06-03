@@ -57,7 +57,7 @@ def review_borrower_summary(
     borrower_accept_sms, borrower_dob, borrower_email, borrower_marital_status,
     coborrower_first_name, coborrower_last_name, coborrower_cell_phone, coborrower_accept_sms,
     coborrower_email, coborrower_marital_status, property_address, property_city, property_state,
-    property_zip, credit_score, loan_amount, appraised_value, estimated_value, los_purchase_price,
+    property_zip, credit_score_decision, loan_amount, appraised_value, estimated_value, los_purchase_price,
     loan_purpose, ami_eligibility
     Reads Docs: Driver's License, Purchase Agreement
     Flags: Required Field Empty, Borrower ID Expired, Property Address Mismatch, Loan Amount Missing,
@@ -95,7 +95,6 @@ def review_borrower_summary(
     coborrower_marital_status = _los(state, "coborrower_marital_status")
     coborrower_accept_sms    = _los(state, "coborrower_accept_sms")  # field 4935
 
-    credit_score             = _los(state, "credit_score")
     experian_score           = _los(state, "experian_score")
     transunion_score         = _los(state, "transunion_score")
     equifax_score            = _los(state, "equifax_score")
@@ -267,15 +266,25 @@ def review_borrower_summary(
                   f"{label} is blank.",
                   "Ensure credit has been pulled and all bureau scores are populated.")
 
-    if not credit_score:
-        _flag(flags, "2.1", "Credit Score Missing", "critical",
-              "Middle credit score (field 1168) is blank.",
-              "Ensure credit has been pulled and scores are populated in Encompass.")
-
+    # Representative / median credit score = VASUMM.X23 (Credit Score for Decision Making).
+    # Field 1168 ("Credit Score Middle") is unreliable / often blank in Encompass and is no
+    # longer used. The three bureau scores (67/1414/1450) are used only to decide severity.
     if not credit_score_decision:
-        _flag(flags, "2.1", "Credit Score Missing", "warning",
-              "Credit Score for Decision Making (VASUMM.X23) is blank.",
-              "Populate the decision credit score field.")
+        _bureau_scores = [
+            int(s) for s in (experian_score, transunion_score, equifax_score)
+            if str(s).strip().isdigit()
+        ]
+        if not _bureau_scores:
+            _flag(flags, "2.1", "Credit Score Missing", "critical",
+                  "No representative credit score available — Credit Score for Decision Making "
+                  "(VASUMM.X23) and all three bureau scores (67/1414/1450) are blank.",
+                  "Ensure credit has been pulled and scores are populated in Encompass.")
+        else:
+            _median = sorted(_bureau_scores)[len(_bureau_scores) // 2]
+            _flag(flags, "2.1", "Credit Score Missing", "warning",
+                  f"Credit Score for Decision Making (VASUMM.X23) is blank, but bureau scores are "
+                  f"present (median {_median}). Verify the representative/decision score is populated.",
+                  "Populate the decision credit score field (VASUMM.X23).")
 
     if not credit_reference_number:
         _flag(flags, "2.1", "Credit Reference Number Missing", "warning",
@@ -649,7 +658,6 @@ def review_borrower_summary(
         "tool": "review_borrower_summary",
         "has_coborrower": has_coborrower,
         "flags_count": len(flags),
-        "credit_score": credit_score,
         "credit_score_decision": credit_score_decision,
         "credit_reference_number": credit_reference_number,
         "loan_amount": loan_amount,

@@ -268,11 +268,16 @@ def review_urla_assets(
             f"Request {max_days_old}-day bank statement history from borrower.",
         ))
     else:
-        # 4b. Recency check — check the most recent statement end date across copies
+        # 4b. Recency check — check the most recent statement end date across copies.
+        # Guardrail: only treat the check as "performed" when at least one copy yields a
+        # readable end date. If a statement is present but every statement_period_end is
+        # empty/unparseable, do NOT silently pass — flag recency as unverifiable.
+        _recency_evaluated = False
         for copy in bank_statement_dates:
             end_date_val = copy.get("value")
             days = _days_old(end_date_val)
             if days is not None:
+                _recency_evaluated = True
                 if days > max_days_old:
                     flags.append(_flag(
                         "5.1",
@@ -291,6 +296,21 @@ def review_urla_assets(
                         ),
                     ))
                 break  # only flag once for the primary copy
+
+        if not _recency_evaluated:
+            flags.append(_flag(
+                "5.1",
+                "Bank Statement Recency Unverifiable",
+                "warning",
+                (
+                    "Bank statement(s) present in eFolder but no readable statement period "
+                    "end date was extracted, so recency could not be verified "
+                    f"({loan_type} requires statements ≤{max_days_old} days old)."
+                ),
+                "Manually verify the statement is recent enough, or re-run extraction "
+                "(possible doc-type/schema name mismatch — see docs/EFOLDER_EXTRACTION.md).",
+                docs=_relevant_docs(state, doc_types=["Bank Statement"]),
+            ))
 
     # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
     zelle_deposits = _doc(state, "bank_zel_deposits")

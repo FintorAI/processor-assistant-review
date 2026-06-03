@@ -165,7 +165,6 @@ FIELD_MAP = {
     "1073": {"key": "years_in_profession", "field_name": "Years in Profession", "category": "employment"},
     "11": {"key": "property_address", "field_name": "Property Street Address", "category": "property"},
     "1109": {"key": "loan_amount", "field_name": "Loan Amount", "category": "loan_info"},
-    "1168": {"key": "credit_score", "field_name": "Credit Score (Middle)", "category": "credit"},
     "1169": {"key": "employer_name", "field_name": "Employer Name", "category": "employment"},
     "1172": {"key": "loan_type", "field_name": "Mortgage Type", "category": "loan_info"},
     # "1182": invalid field ID in Encompass batch API — removed 2026-05-14

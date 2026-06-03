@@ -50,7 +50,7 @@ Walk through the Borrower Summary – Origination screen. Check every field for 
 | Property City | `12` | `property_city` | Address verification |
 | Property State | `14` | `property_state` | Address verification |
 | Property ZIP | `15` | `property_zip` | Address verification |
-| Credit Score (Middle) | `1168` | `credit_score` | Confirm credit score is populated |
+| Credit Score for Decision Making | `VASUMM.X23` | `credit_score_decision` | Representative/median credit score (replaces field 1168) |
 | Loan Amount | `1109` | `loan_amount` | Confirm loan amount matches Purchase Contract |
 | Appraised / Estimated Value | `356` | `appraised_value` | Est -> Appraised value field check |
 | Loan Purpose | `19` | `loan_purpose` | Purchase confirmation |

@@ -102,7 +102,6 @@ The loan profile drives `rule_modifiers` on all subsequent substeps.
 | `1073` | years_in_profession | Years in Profession | employment |
 | `11` | property_address | Property Street Address | property |
 | `1109` | loan_amount | Loan Amount | loan_info |
-| `1168` | credit_score | Credit Score (Middle) | credit |
 | `1169` | employer_name | Employer Name | employment |
 | `1172` | loan_type | Mortgage Type | loan_info |
 | `1182` | employer_address | Employer Address | employment |
