@@ -129,19 +129,8 @@ def update_transmittal_summary(
     if not _is_condo(property_type):
         current_1012 = (project_type_1012 or "").strip()
         if not current_1012:
+            # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
             _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "9.1", flags, state=state)
-            flags.append({
-                "substep": "9.1",
-                "title": "Project Type (1012) Set — Not in PUD",
-                "severity": "info-overwrite",
-                "details": (
-                    f"Field 1012 was blank. Property type ({property_type!r}) is not a Condo/PUD. "
-                    f"Set to '{_NOT_IN_PUD_VALUE}'."
-                ),
-                "suggestion": "Confirm property is not in a planned unit development or condo project.",
-                "resolved": True,
-                "timestamp": ts,
-            })
             logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
         elif _NOT_IN_PUD_VALUE.lower() not in current_1012.lower():
             flags.append({
@@ -184,21 +173,8 @@ def update_transmittal_summary(
         _form_writes["TSUM.PropertyFormType"] = _expected_form_type
 
     if _form_writes:
+        # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
         _write_fields(loan_id, _form_writes, "9.1", flags, state=state)
-        written_desc = ", ".join(f"{k}='{v}'" for k, v in _form_writes.items())
-        flags.append({
-            "substep": "9.1",
-            "title": f"Appraisal Form Number Set — {_expected_form}",
-            "severity": "info-overwrite",
-            "details": (
-                f"Wrote: {written_desc}. "
-                f"Derived from property type ({property_type!r}). "
-                "⚠️ Field ID 1542 unverified — confirm with field_rw.py before relying on this write."
-            ),
-            "suggestion": "Verify field 1542 is correct in Encompass after this run.",
-            "resolved": True,
-            "timestamp": ts,
-        })
     elif _current_form and _current_form != _expected_form:
         flags.append({
             "substep": "9.1",
