@@ -1206,6 +1206,28 @@ def fetch_doc_fields(
         force_extract = state.get("force_extract", False)
 
         cached_types = {doc.get("DocType", "") for doc in all_documents}
+
+        # A cached type still needs (re-)extraction when ALL of its cached records
+        # are not_found/failed BUT the live eFolder listing shows the bucket has
+        # attachments (efolder_listing_count > 0). This self-heals stale not_found
+        # records left by earlier extraction attempts that POSTed the canonical name
+        # (e.g. "1003 URLA") instead of the actual bucket title ("1003"). Phase 1
+        # below already POSTs the resolved bucket title, so re-running it succeeds —
+        # no separate retrigger pass needed. Once it succeeds the success record is
+        # cached, so this only fires until the doc extracts cleanly.
+        _GOOD_STATUSES = {"completed", "success", "stored_no_extraction"}
+        _cached_statuses: dict[str, set[str]] = {}
+        for _doc in all_documents:
+            _cached_statuses.setdefault(_doc.get("DocType", ""), set()).add(
+                (_doc.get("Status", "") or "").lower()
+            )
+
+        def _present_but_unextracted(dt: str) -> bool:
+            statuses = _cached_statuses.get(dt, set())
+            if statuses & _GOOD_STATUSES:
+                return False  # already have a usable extraction
+            return _efolder_attach_counts.get(dt, 0) > 0
+
         if force_extract:
             types_to_extract = required_doc_types
             logger.info(
@@ -1214,7 +1236,16 @@ def fetch_doc_fields(
             )
             all_documents = []
         else:
-            types_to_extract = [dt for dt in required_doc_types if dt not in cached_types]
+            types_to_extract = [
+                dt for dt in required_doc_types
+                if dt not in cached_types or _present_but_unextracted(dt)
+            ]
+            _reextract = [dt for dt in types_to_extract if dt in cached_types]
+            if _reextract:
+                logger.info(
+                    f"[FETCH_DOCS] Re-extracting {len(_reextract)} cached-but-not_found type(s) "
+                    f"present in the live eFolder: {_reextract[:5]}{'...' if len(_reextract) > 5 else ''}"
+                )
 
         if types_to_extract:
             logger.info(
@@ -1226,7 +1257,14 @@ def fetch_doc_fields(
                 bucket_map=_encompass_bucket_map,
                 extraction_modes=extraction_modes,
             )
-            all_documents = all_documents + extracted
+            # `extracted` is a fresh full GET (usable records only, DocType normalized).
+            # Drop any prior cached records for the same types so the fresh/usable record
+            # wins — this prevents a stale not_found stub from shadowing a now-successful
+            # extraction and avoids duplicating already-good multi-copy types.
+            _extracted_types = {d.get("DocType", "") for d in extracted}
+            all_documents = [
+                d for d in all_documents if d.get("DocType", "") not in _extracted_types
+            ] + extracted
             logger.info(
                 f"[FETCH_DOCS] Extraction complete — {len(extracted)} new docs, "
                 f"{len(all_documents)} total"
@@ -1248,21 +1286,27 @@ def fetch_doc_fields(
         }
         ignored_count = len(all_docs_by_type) - len(docs_by_type)
 
-        # For "all" extraction mode keep every copy; otherwise keep best single doc
+        # For "all" extraction mode keep every copy; otherwise keep best single doc.
+        # A doc type's cache can hold both a stale not_found stub (keyed by the canonical
+        # name) and a fresh usable record (keyed by the bucket title) that both normalize
+        # to the same DocType. Drop the not_found/failed stubs when at least one usable
+        # copy exists so empty-coordinate stubs never shadow the real document.
+        _BAD_STATUSES = {"not_found", "failed", "error-dl", "error-ext", "error-sch", "error-timeout"}
+
+        def _is_usable(d: dict) -> bool:
+            return (d.get("Status", "") or "").lower() not in _BAD_STATUSES
+
         multi_copy_types = {dt for dt, mode in extraction_modes.items() if str(mode).lower() == "all"}
         flat_docs_for_normalize: list[dict] = []
         for dt, doc_list in docs_by_type.items():
+            usable = [d for d in doc_list if _is_usable(d)]
+            effective = usable if usable else doc_list
             if dt in multi_copy_types:
-                for idx, d in enumerate(doc_list):
+                for idx, d in enumerate(effective):
                     d["_copy_index"] = idx
                     flat_docs_for_normalize.append(d)
             else:
-                best = doc_list[0]
-                for d in doc_list[1:]:
-                    s = (d.get("Status", "") or "").lower()
-                    if s == "completed" and (best.get("Status", "") or "").lower() != "completed":
-                        best = d
-                flat_docs_for_normalize.append(best)
+                flat_docs_for_normalize.append(effective[0])
 
         total_docs_kept = len(flat_docs_for_normalize)
         logger.info(

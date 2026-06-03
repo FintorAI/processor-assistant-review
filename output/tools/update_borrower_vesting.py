@@ -31,7 +31,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _write_fields
+from ._helpers import _los, _write_fields, _enrich_flag_docs
 
 logger = logging.getLogger(__name__)
 
@@ -686,6 +686,11 @@ def update_borrower_vesting(
     logger.info(f"[UPDATE_BORROWER_VESTING] {result['message']}")
     for a in actions:
         logger.info(f"[UPDATE_BORROWER_VESTING]   {a}")
+
+    # Resolve doc-type names on flags (e.g. ["Title Report"]) into DocRepo
+    # coordinate refs, dropping any that are not present in the eFolder. Title
+    # Report is usually still on order, so most runs end up with no ref attached.
+    _enrich_flag_docs(state, flags)
 
     update = {"messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)]}
     if flags:

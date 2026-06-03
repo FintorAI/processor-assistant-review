@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _efolder_present, _efolder_bucket, _profile
+from ._helpers import _los, _doc, _efolder_present, _efolder_bucket, _profile, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +228,62 @@ def run_pre_checks(
                   "No Maryland eDisclosure documents found in eFolder.",
                   "Add required MD disclosures (e.g. MD Notice Regarding Right for Assumption) "
                   "before submission.")
+
+    # ── Info: Documents Present in eFolder ──
+    # Positive complement of the "Missing Required Document" flags above. Built
+    # from the exact presence booleans 1.1 already computes (not required_docs.json),
+    # so it stays symmetric with the per-doc missing flags.
+    checked_present = {
+        "1003 URLA": urla_present,
+        "Borrower's Certification & Authorization": bca_present,
+        "Credit Report": credit_report_present,
+        "Underwriting (AUS)": bool(aus_run_date),
+        "VOE - non service provider": voe_present,
+        "Paystubs": paystubs_present,
+        "Assets": assets_present,
+        "Driver's License": dl_present,
+        "Estimated Settlement Statement": ess_present,
+        "Flood Certificate": flood_cert_present,
+        "Evidence of Hazard Insurance": hazard_insurance_present,
+        "Title Report": title_report_present,
+        "LDP": ldp_present,
+        "Fraud": fraudguard_present,
+        "Tax Summary": tax_summary_present,
+    }
+    if property_state.upper() == "MD":
+        checked_present["MD State Disclosures"] = _md_any_present
+
+    present_docs = [name for name, ok in checked_present.items() if ok]
+    if present_docs:
+        # Canonical eFolder bucket names for coordinate refs (a few checklist
+        # labels differ from the bucket the file actually lives in).
+        _ref_names = []
+        for name in present_docs:
+            if name == "Underwriting (AUS)":
+                _ref_names.append("Underwriting")
+            elif name == "Evidence of Hazard Insurance":
+                _ref_names.extend(["Evidence of Hazard Insurance", "Evidence of Insurance"])
+            elif name == "MD State Disclosures":
+                continue  # spans multiple buckets — no single coordinate
+            else:
+                _ref_names.append(name)
+
+        _present_flag = {
+            "substep": "1.1",
+            "title": "Documents Present in eFolder",
+            "severity": "info",
+            "details": (
+                f"{len(present_docs)} of {len(checked_present)} checked document(s) "
+                f"found in eFolder: {', '.join(present_docs)}."
+            ),
+            "suggestion": "No action needed.",
+            "resolved": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        _refs = _relevant_docs(state, doc_types=_ref_names)
+        if _refs:
+            _present_flag["relevant_documents"] = _refs
+        flags.append(_present_flag)
 
     # ── Build result ──
     critical_flags = [f for f in flags if f["severity"] == "critical"]

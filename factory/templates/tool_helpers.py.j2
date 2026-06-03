@@ -65,6 +65,117 @@ def _efolder_bucket(state: dict, doc_type: str) -> str:
     return doc_type
 
 
+def _doc_coords(state: dict, doc_type: str, matched_copy_index=None):
+    """Return DocRepo/S3 coordinates for a doc_type, or None if it is absent.
+
+    Coordinates (not signed URLs) are returned so the frontend can mint a fresh
+    presigned URL on demand from the DocRepo GET endpoint (clientId=client_id,
+    docId=doc_id). Includes per-attachment ``copies`` so multi-copy buckets
+    (VOE, Bank Statement, ...) can be displayed in full.
+
+    Returns None when the document is not present in the eFolder, so callers
+    only attach a reference when there is actually a file to link.
+    """
+    if not _efolder_present(state, doc_type):
+        return None
+    entry = state.get("efolder_documents", {}).get(doc_type)
+    if not isinstance(entry, dict):
+        return None
+    copies = []
+    for c in entry.get("copies", []) or []:
+        if not isinstance(c, dict):
+            continue
+        copies.append({
+            "copy_index": c.get("copy_index"),
+            "doc_id": c.get("docrepo_location"),
+            "bucket": c.get("docrepo_bucket"),
+            "client_id": c.get("docrepo_client_id"),
+            "attachment_id": c.get("attachment_id"),
+            "status": c.get("status"),
+        })
+    ref = {
+        "doc_type": doc_type,
+        "client_id": entry.get("docrepo_client_id"),
+        "doc_id": entry.get("docrepo_location"),
+        "bucket": entry.get("docrepo_bucket"),
+        "attachment_id": entry.get("attachment_id"),
+        "encompass_bucket": entry.get("encompass_bucket") or doc_type,
+        "copies": copies,
+    }
+    if matched_copy_index is not None:
+        ref["matched_copy_index"] = matched_copy_index
+    return ref
+
+
+def _relevant_docs(state: dict, *field_keys: str, doc_types=None, matched=None) -> list:
+    """Build a flag's ``relevant_documents`` as DocRepo coordinate refs.
+
+    - ``field_keys``: doc_field keys whose ``source_document`` (extraction
+      provenance) identifies the document that supplied the value.
+    - ``doc_types``: explicit canonical doc-type names to include directly.
+    - ``matched``: optional {doc_type: copy_index} marking the copy that
+      triggered the flag.
+
+    Only documents actually present in the eFolder are returned (absent docs
+    have no coordinates). Order-stable and de-duplicated.
+    """
+    matched = matched or {}
+    names: list = []
+    seen: set = set()
+
+    def _add(name):
+        name = (name or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+
+    df = state.get("doc_fields", {})
+    for key in field_keys:
+        entry = df.get(key)
+        if isinstance(entry, dict):
+            _add(entry.get("source_document"))
+    for dt in (doc_types or []):
+        _add(dt)
+
+    refs = []
+    for name in names:
+        ref = _doc_coords(state, name, matched_copy_index=matched.get(name))
+        if ref:
+            refs.append(ref)
+    return refs
+
+
+def _enrich_flag_docs(state: dict, flags: list) -> None:
+    """Resolve string-name ``relevant_documents`` on flags into coordinate refs.
+
+    A flag may set ``relevant_documents`` to a list of doc-type names (str) or
+    {"name": ..., "matched_copy_index": ...} dicts. This converts them in place
+    to DocRepo coordinate refs (via ``_doc_coords``), dropping any doc not
+    present in the eFolder. Refs already enriched (dicts carrying ``doc_id``)
+    are left untouched.
+    """
+    for f in flags:
+        rd = f.get("relevant_documents")
+        if not rd:
+            continue
+        if all(isinstance(x, dict) and "doc_id" in x for x in rd):
+            continue  # already enriched
+        refs = []
+        for item in rd:
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("doc_type")
+                mci = item.get("matched_copy_index")
+            else:
+                name, mci = item, None
+            ref = _doc_coords(state, name, matched_copy_index=mci)
+            if ref:
+                refs.append(ref)
+        if refs:
+            f["relevant_documents"] = refs
+        else:
+            f.pop("relevant_documents", None)
+
+
 def _doc_all(state: dict, key: str) -> list:
     """Get all values for a doc field across multiple document copies.
 

@@ -16,7 +16,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _doc_all, _profile
+from ._helpers import _los, _doc, _doc_all, _profile, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,8 @@ def _days_old(date_val) -> Optional[int]:
     return (datetime.now() - dt).days
 
 
-def _flag(substep: str, title: str, severity: str, details: str, suggestion: str) -> dict:
-    return {
+def _flag(substep: str, title: str, severity: str, details: str, suggestion: str, docs=None) -> dict:
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -76,6 +76,9 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -281,6 +284,11 @@ def review_urla_assets(
                             f"Source: {copy.get('source_document', 'unknown')}."
                         ),
                         f"Request updated bank statements covering the last {max_days_old} days.",
+                        docs=_relevant_docs(
+                            state,
+                            doc_types=["Bank Statement"],
+                            matched={"Bank Statement": copy.get("copy_index")},
+                        ),
                     ))
                 break  # only flag once for the primary copy
 
@@ -296,6 +304,7 @@ def review_urla_assets(
                     "warning",
                     f"Unusual deposit keyword '{kw}' detected in bank statement: {zelle_deposits!r}.",
                     "Request borrower Letter of Explanation (LOE) for ZEL/Zelle/Klarna transactions.",
+                    docs=_relevant_docs(state, "bank_zel_deposits", doc_types=["Bank Statement"]),
                 ))
                 break
 
@@ -309,28 +318,41 @@ def review_urla_assets(
             "warning",
             f"Large or unusual deposit(s) flagged in bank statement: {large_deposits!r}.",
             "Request documentation sourcing the deposit (LOE + receipts if applicable).",
+            docs=_relevant_docs(state, "bank_large_deposits", doc_types=["Bank Statement"]),
         ))
 
     # 4e. VOD cross-reference for bank statements
     if vod_rows:
+        _bank_refs = _relevant_docs(state, doc_types=["Bank Statement"])
+        _bs_vod_flags = []
         if bank_stmt_full_copies:
-            flags += _compare_with_vod(
+            _bs_vod_flags = _compare_with_vod(
                 bank_stmt_full_copies, vod_rows, "Bank Statement", "5.1"
             )
         elif bank_statement_copies:
-            flags += _compare_with_vod(
+            _bs_vod_flags = _compare_with_vod(
                 bank_statement_copies, vod_rows, "Bank Statement", "5.1"
             )
+        if _bank_refs:
+            for _f in _bs_vod_flags:
+                _f["relevant_documents"] = _bank_refs
+        flags += _bs_vod_flags
 
     # ── 5. Asset copies ──────────────────────────────────────────────────────
     asset_full_copies = efolder_docs.get("Assets", {}).get("copies", [])
     asset_acct_copies = _doc_all(state, "asset_account_number")
 
     if vod_rows:
+        _asset_refs = _relevant_docs(state, doc_types=["Assets"])
+        _asset_vod_flags = []
         if asset_full_copies:
-            flags += _compare_with_vod(asset_full_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "5.1")
         elif asset_acct_copies:
-            flags += _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "5.1")
+        if _asset_refs:
+            for _f in _asset_vod_flags:
+                _f["relevant_documents"] = _asset_refs
+        flags += _asset_vod_flags
 
     # ── 6. VOD coverage — accounts in VOD with no matching doc ───────────────
     if vod_rows:

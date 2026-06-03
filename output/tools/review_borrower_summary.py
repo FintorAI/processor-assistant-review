@@ -19,13 +19,13 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _write_fields
+from ._helpers import _los, _doc, _write_fields, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
 
-def _flag(flags, substep, title, severity, details, suggestion):
-    flags.append({
+def _flag(flags, substep, title, severity, details, suggestion, docs=None):
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -33,7 +33,10 @@ def _flag(flags, substep, title, severity, details, suggestion):
         "suggestion": suggestion,
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    if docs:
+        f["relevant_documents"] = docs
+    flags.append(f)
 
 
 def _is_checked(val) -> bool:
@@ -326,12 +329,14 @@ def review_borrower_summary(
                   f"LOS purchase price (field 136): ${los_purchase_price_amount:,.0f} "
                   f"vs Purchase Contract: ${purchase_price_doc_amount:,.0f} "
                   f"(diff: ${diff:,.0f}).",
-                  "Correct the purchase price in Encompass to match the Purchase Contract.")
+                  "Correct the purchase price in Encompass to match the Purchase Contract.",
+                  docs=_relevant_docs(state, "purchase_price"))
     elif not los_purchase_price_amount and purchase_price_doc_amount:
         _flag(flags, "2.1", "Purchase Price Missing in LOS", "warning",
               f"Purchase Contract shows ${purchase_price_doc_amount:,.0f} but "
               f"LOS purchase price (field 136) is blank.",
-              "Enter the purchase price in Encompass.")
+              "Enter the purchase price in Encompass.",
+              docs=_relevant_docs(state, "purchase_price"))
 
     # ── Rule: Estimated Value vs Purchase Price ───────────────────────────
     if purchase_price_doc_amount and estimated_value_amount:
@@ -341,7 +346,8 @@ def review_borrower_summary(
                   f"Estimated value (field 1821): ${estimated_value_amount:,.0f} "
                   f"vs Purchase Contract price: ${purchase_price_doc_amount:,.0f} "
                   f"(diff: ${diff:,.0f}).",
-                  "Verify the estimated value is correct, or update to match the purchase price.")
+                  "Verify the estimated value is correct, or update to match the purchase price.",
+                  docs=_relevant_docs(state, "purchase_price"))
     elif not estimated_value_amount:
         _flag(flags, "2.1", "Estimated Value Empty", "warning",
               "Estimated value (field 1821) is blank.",
@@ -383,7 +389,8 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{addr_val.get('los_address')}' vs Purchase Contract: "
                   f"'{addr_val.get('purchase_contract_address')}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.")
+                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
+                  docs=_relevant_docs(state, "purchase_property_address"))
     elif purchase_property_address_doc and property_address:
         # Fallback if validate_property_address wasn't run yet
         los_num = str(property_address).strip().split()[0] if property_address else ""
@@ -391,7 +398,8 @@ def review_borrower_summary(
         if los_num and doc_num and los_num != doc_num:
             _flag(flags, "2.1", "Property Address Mismatch", "warning",
                   f"Encompass: '{property_address}' vs Purchase Contract: '{purchase_property_address_doc}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.")
+                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
+                  docs=_relevant_docs(state, "purchase_property_address"))
 
     # ── Rule: Cash-Out Refi — Borrower Current Address vs Subject Property ──
     _is_cashout = "cashout" in (loan_purpose or "").lower().replace("-", "").replace(" ", "")
@@ -431,7 +439,8 @@ def review_borrower_summary(
             if expiry_date and expiry_date < datetime.now(timezone.utc).date():
                 _flag(flags, "2.1", "Borrower ID Expired", "warning",
                       f"Driver's License expired on {dl_expiry_doc}.",
-                      "Request a valid, non-expired government ID from the borrower.")
+                      "Request a valid, non-expired government ID from the borrower.",
+                      docs=_relevant_docs(state, "dl_expiry", doc_types=["Driver's License"]))
         except Exception:
             pass
 

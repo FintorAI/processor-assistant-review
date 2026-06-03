@@ -16,14 +16,14 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _doc
+from ._helpers import _doc, _relevant_docs
 from shared.encompass_io import read_other_assets
 
 logger = logging.getLogger(__name__)
 
 
-def _flag(substep: str, title: str, severity: str, details: str, suggestion: str) -> dict:
-    return {
+def _flag(substep: str, title: str, severity: str, details: str, suggestion: str, docs=None) -> dict:
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -32,6 +32,9 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 def _parse_float(val) -> Optional[float]:
@@ -96,6 +99,10 @@ def review_urla_emd(
 
     pa_emd = _parse_float(pa_emd_raw)
 
+    # DocRepo coordinate refs for the Purchase Agreement (source of the EMD figure),
+    # only when it is actually present in the eFolder.
+    _pa_refs = _relevant_docs(state, "emd_amount_pa", doc_types=["Purchase Agreement"])
+
     logger.info(
         f"[REVIEW_URLA_EMD] LOS EMD=${los_emd}, PA EMD={pa_emd_raw!r} (${pa_emd}), "
         f"payable_to={emd_payable_to!r}, terms={payment_terms!r}"
@@ -114,6 +121,7 @@ def review_urla_emd(
                     f"Difference: ${abs(los_emd - pa_emd):,.2f}."
                 ),
                 "Correct the EMD amount in Encompass (Section 3b / otherAssets) to match the Purchase Contract.",
+                docs=_pa_refs,
             ))
     elif los_emd is None and pa_emd is None:
         flags.append(_flag(
@@ -125,6 +133,7 @@ def review_urla_emd(
             "extraction may have hit an addendum instead of the main contract).",
             "Verify the EMD is entered in Encompass (Section 3b) and that the Purchase Agreement "
             "main contract is in the eFolder (not just addendums).",
+            docs=_pa_refs,
         ))
     elif los_emd is None:
         flags.append(_flag(
@@ -134,6 +143,7 @@ def review_urla_emd(
             f"Purchase Agreement doc shows EMD = ${pa_emd:,.2f}, "
             f"but no EarnestMoney row found in Encompass otherAssets.",
             "Add the EMD amount to Section 3b in Encompass.",
+            docs=_pa_refs,
         ))
     elif pa_emd is None:
         # LOS has a value but doc extraction missed it — informational
@@ -156,6 +166,7 @@ def review_urla_emd(
                 + "Verify a copy of the EMD check is present in the eFolder."
             ),
             "If check copy is missing, email the Realtor/agent to request it.",
+            docs=_pa_refs,
         ))
 
     # ── Build result ──────────────────────────────────────────────────────────

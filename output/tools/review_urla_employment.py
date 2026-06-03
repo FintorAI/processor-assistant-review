@@ -17,15 +17,15 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _write_fields
+from ._helpers import _los, _doc, _write_fields, _relevant_docs
 from shared.encompass_io import read_employment
 
 logger = logging.getLogger(__name__)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _flag(substep: str, title: str, severity: str, details: str, suggestion: str) -> dict:
-    return {
+def _flag(substep: str, title: str, severity: str, details: str, suggestion: str, docs=None) -> dict:
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -34,6 +34,9 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 def _normalize_name(v: Optional[str]) -> str:
@@ -62,16 +65,17 @@ def _entry_populated(entry: dict) -> bool:
     return bool(entry.get("employer_name"))
 
 
-def _get_voe_copy_for_employer(state: dict, los_employer_name: str) -> dict:
-    """Return extracted_fields from the VOE copy whose employer name best matches
-    the given LOS employer name. Falls back to copy 0 if no match found.
+def _get_voe_copy_for_employer(state: dict, los_employer_name: str):
+    """Return (extracted_fields, copy_index) from the VOE copy whose employer name
+    best matches the given LOS employer name. Falls back to copy 0 if no match.
 
     The VOE bucket may hold multiple attachments (one per employer). When comparing
     the LOS current employer against the VOE, we must use the copy from the same
     employer rather than blindly using the first copy (which may be a different /
     terminated employer).
 
-    Returns a flat dict: {field_key: value} from the matching copy.
+    Returns (flat dict {field_key: value}, copy_index) — copy_index is None when
+    there are no copies.
     """
     copies = (
         state.get("efolder_documents", {})
@@ -79,14 +83,15 @@ def _get_voe_copy_for_employer(state: dict, los_employer_name: str) -> dict:
         .get("copies", [])
     )
     if not copies:
-        return {}
+        return {}, None
 
     los_norm = _normalize_name(los_employer_name)
 
     best_copy: dict | None = None
+    best_idx: int = -1
     best_score: int = -1
 
-    for copy in copies:
+    for idx, copy in enumerate(copies):
         ef = copy.get("extracted_fields", {})
         raw_name = ef.get("current_employer_name", {})
         voe_name = raw_name.get("value") if isinstance(raw_name, dict) else raw_name
@@ -100,14 +105,17 @@ def _get_voe_copy_for_employer(state: dict, los_employer_name: str) -> dict:
         if score > best_score:
             best_score = score
             best_copy = ef
+            best_idx = idx
 
     # If best match has at least 1 token in common, use it; otherwise fall back to copy 0
     if best_score > 0 and best_copy is not None:
-        return {k: (v.get("value") if isinstance(v, dict) else v) for k, v in best_copy.items()}
+        flat = {k: (v.get("value") if isinstance(v, dict) else v) for k, v in best_copy.items()}
+        return flat, best_idx
 
     # Fallback: copy 0
     ef0 = copies[0].get("extracted_fields", {})
-    return {k: (v.get("value") if isinstance(v, dict) else v) for k, v in ef0.items()}
+    flat = {k: (v.get("value") if isinstance(v, dict) else v) for k, v in ef0.items()}
+    return flat, 0
 
 
 # ── Main tool ─────────────────────────────────────────────────────────────────
@@ -229,7 +237,16 @@ def review_urla_employment(
     # cross-checks we find the copy whose employer name matches the LOS current employer.
     # This prevents false mismatches when e.g. a terminated employer's PVOE is copy 0.
     _los_cur_employer = current_entry.get("employer_name") if current_entry else None
-    _voe_cur = _get_voe_copy_for_employer(state, _los_cur_employer or "")
+    _voe_cur, _voe_cur_idx = _get_voe_copy_for_employer(state, _los_cur_employer or "")
+
+    # DocRepo coordinate refs for the VOE bucket (all copies). For current-employer
+    # cross-checks we mark the copy that was matched to the LOS current employer.
+    _voe_refs_all = _relevant_docs(state, doc_types=["VOE - non service provider"])
+    _voe_refs_cur = _relevant_docs(
+        state,
+        doc_types=["VOE - non service provider"],
+        matched=({"VOE - non service provider": _voe_cur_idx} if _voe_cur_idx is not None else None),
+    )
 
     voe_cur_name       = _voe_cur.get("current_employer_name") or _doc(state, "current_employer_name")
     voe_cur_hire       = _voe_cur.get("current_original_hire_date") or _doc(state, "current_original_hire_date")
@@ -286,6 +303,7 @@ def review_urla_employment(
                     "warning",
                     f"LOS: '{e.get('employer_name')}' | VOE: '{voe_cur_name}'",
                     "Correct the employer name in Encompass to match the VOE",
+                    docs=_voe_refs_cur,
                 ))
         elif not e.get("employer_name"):
             flags.append(_flag("4.1",
@@ -303,6 +321,7 @@ def review_urla_employment(
                     "warning",
                     f"LOS: '{e['position_title']}' | VOE: '{voe_cur_position}'",
                     "Correct the position/title in Encompass to match the VOE",
+                    docs=_voe_refs_cur,
                 ))
 
         # Employer phone — presence only
@@ -332,6 +351,7 @@ def review_urla_employment(
                     "warning",
                     f"LOS hire date: '{e['date_hired']}' | VOE original hire date: '{voe_cur_hire}'",
                     "Correct the hire date in Encompass to match the VOE",
+                    docs=_voe_refs_cur,
                 ))
 
         # Date terminated — must be null/empty for current employer
@@ -354,6 +374,7 @@ def review_urla_employment(
                         "warning",
                         f"LOS: ${los_pay:,.2f} | VOE: ${doc_pay:,.2f}",
                         "Reconcile the monthly base pay figure with the VOE",
+                        docs=_voe_refs_cur,
                     ))
 
         # Employment duration — trigger gap check if < 2 years total
@@ -391,6 +412,7 @@ def review_urla_employment(
                     "warning",
                     f"LOS prior employer: '{e['employer_name']}' | VOE previous: '{voe_prev_name}'",
                     "Correct the prior employer name in Encompass to match the VOE",
+                    docs=_voe_refs_all,
                 ))
 
         # Date terminated must be populated for prior employer
@@ -413,6 +435,7 @@ def review_urla_employment(
                         "warning",
                         f"LOS: ${los_pay:,.2f} | VOE previous: ${doc_pay:,.2f}",
                         "Reconcile prior employer base pay with the VOE",
+                        docs=_voe_refs_all,
                     ))
 
     # ── Does Not Apply checkbox detection: sections 1b / 1c / 1d ────────────
@@ -495,6 +518,7 @@ def review_urla_employment(
             "info",
             f"2c (additional employment) populated. {_fmt_income(borr_1c_gross, borr_1c_monthly)}.",
             "Verify gross income and monthly amounts match the VOE / self-employment docs.",
+            docs=_voe_refs_all,
         ))
     if (coborr_1c_employer or "").strip():
         flags.append(_flag("4.1",
@@ -502,6 +526,7 @@ def review_urla_employment(
             "info",
             f"2c (additional employment) populated. {_fmt_income(coborr_1c_gross, coborr_1c_monthly)}.",
             "Verify co-borrower gross income and monthly amounts match supporting docs.",
+            docs=_voe_refs_all,
         ))
     if (borr_1d_employer or "").strip():
         flags.append(_flag("4.1",
@@ -509,6 +534,7 @@ def review_urla_employment(
             "info",
             f"2d (previous employment) populated. {_fmt_income(borr_1d_gross, borr_1d_monthly)}.",
             "Verify prior income amounts are consistent with employment history docs.",
+            docs=_voe_refs_all,
         ))
     if (coborr_1d_employer or "").strip():
         flags.append(_flag("4.1",
@@ -516,6 +542,7 @@ def review_urla_employment(
             "info",
             f"2d (previous employment) populated. {_fmt_income(coborr_1d_gross, coborr_1d_monthly)}.",
             "Verify co-borrower prior income amounts match employment history docs.",
+            docs=_voe_refs_all,
         ))
 
     # ── Employment gap checks — use only the most recent prior job ───────────
