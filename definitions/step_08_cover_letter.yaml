@@ -1,22 +1,22 @@
 step:
-  id: STEP_07
+  id: STEP_08
   name: Cover Letter
   phase: FORM_UPDATES
   description: >
     Populate CX.KM.SUBMISSION.NOTES (Cover Letter / Submission Notes field).
     LLM pre-drafts the notes based on Almas' email/notes and the loan profile.
     Also clears pre-populated Title Company, Appraisal, and Additional Notes fields.
-    No interrupt here — raise a flag for processor review at Step 16 (Flag Review HITL).
+    No interrupt here — raise a flag with the draft text for processor review in the UI.
 
 substeps:
-- id: '7.1'
+- id: '8.1'
   name: Draft Cover Letter / Submission Notes
   tool: draft_cover_letter
   description: >
     Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"]
     and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated
     Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with
-    the draft text so the processor can review and edit at Step 16 Flag Review.
+    the draft text so the processor can review and edit it in the UI.
     Do NOT interrupt here.
   los_fields_read:
   - key: submission_notes
@@ -66,7 +66,7 @@ substeps:
   - title: Cover Letter Draft for Processor Review
     severity: info
     condition: Always raised — processor must review and approve the draft
-    suggestion: Review the cover letter draft at Step 16 Flag Review and edit as needed
+    suggestion: Review the cover letter draft in the UI and edit as needed
   - title: Almas Notes Missing
     severity: warning
     condition: state["almas_notes"] is empty or None

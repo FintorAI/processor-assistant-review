@@ -1,6 +1,6 @@
-"""review_urla_liabilities — Tool for substep 5.3: Liabilities and VOL (2c)
+"""review_urla_liabilities — Tool for substep 6.3: Liabilities and VOL (2c)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "5.3"
+SUBSTEP = "6.3"
 
 
 def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str, Any]:
@@ -54,7 +54,7 @@ def review_urla_liabilities(
       - Column 2 (To Be Paid Off = Y): flag each such debt and request the most
         recent statement for that creditor (e.g. JPMCB card).
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.3.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.3.
     """
     loan_id = state.get("loan_id")
     if not loan_id:

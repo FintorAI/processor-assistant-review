@@ -14,6 +14,15 @@ Pipeline
   "env": "Test"
 }
 
+{
+  "loan_number": "LOAN_NUMBER_REDACTED",
+  "env": "ENV_REDACTED"
+}
+
+LOAN_NUMBER_REDACTED
+ENV_REDACTED
+BORROWER_REDACTED
+
 2604964148 
 
 2605926537

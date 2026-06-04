@@ -1,5 +1,5 @@
 step:
-  id: STEP_05
+  id: STEP_06
   name: 1003 URLA Part 3
   phase: DATA_REVIEW
   description: >
@@ -8,7 +8,7 @@ step:
     bank statements, VOD, and Purchase Contract.
 
 substeps:
-- id: '5.1'
+- id: '6.1'
   name: Assets and VOD (3a)
   tool: review_urla_assets
   description: >
@@ -114,7 +114,7 @@ substeps:
       type: value_check
       logic: FHA loan — only 1 month of bank statements required.
 
-- id: '5.2'
+- id: '6.2'
   name: EMD Check (3b)
   tool: review_urla_emd
   description: >
@@ -157,7 +157,7 @@ substeps:
     suggestion: Email Realtor to request copy of EMD check (auto-sends at Step 18)
   field_updates: []
 
-- id: '5.3'
+- id: '6.3'
   name: Liabilities and VOL (3c)
   tool: review_urla_liabilities
   description: >
@@ -200,7 +200,7 @@ substeps:
     suggestion: Request most recent statement for debt to be paid off
   field_updates: []
 
-- id: '5.4'
+- id: '6.4'
   name: Other Assets and REO (3d)
   tool: review_urla_reo
   description: >

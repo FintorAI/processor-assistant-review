@@ -14,16 +14,17 @@ Review Agent — verifies a mortgage loan file and writes confirmed field update
 
 ### Phase: DATA_REVIEW
 - **Step 2** — Borrower Summary - Origination (1 substeps)
-- **Step 3** — 1003 URLA Page 1 (1 substeps)
-- **Step 4** — 1003 URLA Page 2 (2 substeps)
-- **Step 5** — 1003 URLA Part 3 (4 substeps)
-- **Step 6** — 1003 URLA Part 4 (3 substeps)
+- **Step 3** — 1003 URLA Lender (1 substeps)
+- **Step 4** — 1003 URLA Page 1 (1 substeps)
+- **Step 5** — 1003 URLA Page 2 (2 substeps)
+- **Step 6** — 1003 URLA Part 3 (4 substeps)
+- **Step 7** — 1003 URLA Part 4 (3 substeps)
 
 ### Phase: FORM_UPDATES
-- **Step 7** — Cover Letter (1 substeps)
-- **Step 8** — Borrower Info - Vesting (1 substeps)
-- **Step 9** — Transmittal Summary (1 substeps)
-- **Step 10** — Processor Workflow and Closing (2 substeps)
+- **Step 8** — Cover Letter (1 substeps)
+- **Step 9** — Borrower Info - Vesting (1 substeps)
+- **Step 10** — Transmittal Summary (1 substeps)
+- **Step 11** — Processor Workflow and Closing (2 substeps)
 
 ## Input Fields (already in state — do NOT ask the user for these)
 

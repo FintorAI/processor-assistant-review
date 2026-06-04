@@ -1,6 +1,6 @@
-"""review_urla_assets — Tool for substep 5.1: Assets and VOD (2a)
+"""review_urla_assets — Tool for substep 6.1: Assets and VOD (2a)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -221,7 +221,7 @@ def review_urla_assets(
     Reads Docs: Bank Statement (all copies), Assets (all copies)
     Reads State: vod_data (populated by fetch_vod_data)
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.1.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -261,7 +261,7 @@ def review_urla_assets(
     # 4a. Bank statement presence
     if not bank_stmt_full_copies and not bank_statement_copies:
         flags.append(_flag(
-            "5.1",
+            "6.1",
             "Bank Statement Missing",
             "stop",
             "No bank statement documents found in eFolder.",
@@ -280,7 +280,7 @@ def review_urla_assets(
                 _recency_evaluated = True
                 if days > max_days_old:
                     flags.append(_flag(
-                        "5.1",
+                        "6.1",
                         "Bank Statement Stale",
                         "warning",
                         (
@@ -299,7 +299,7 @@ def review_urla_assets(
 
         if not _recency_evaluated:
             flags.append(_flag(
-                "5.1",
+                "6.1",
                 "Bank Statement Recency Unverifiable",
                 "warning",
                 (
@@ -319,7 +319,7 @@ def review_urla_assets(
         for kw in _ZELLE_KEYWORDS:
             if kw in desc:
                 flags.append(_flag(
-                    "5.1",
+                    "6.1",
                     "ZEL / Zelle Deposit Requires Explanation",
                     "warning",
                     f"Unusual deposit keyword '{kw}' detected in bank statement: {zelle_deposits!r}.",
@@ -333,7 +333,7 @@ def review_urla_assets(
     large_deposits = _doc(state, "bank_large_deposits")
     if large_deposits:
         flags.append(_flag(
-            "5.1",
+            "6.1",
             "Large / Green Deposit Requires Sourcing",
             "warning",
             f"Large or unusual deposit(s) flagged in bank statement: {large_deposits!r}.",
@@ -347,11 +347,11 @@ def review_urla_assets(
         _bs_vod_flags = []
         if bank_stmt_full_copies:
             _bs_vod_flags = _compare_with_vod(
-                bank_stmt_full_copies, vod_rows, "Bank Statement", "5.1"
+                bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1"
             )
         elif bank_statement_copies:
             _bs_vod_flags = _compare_with_vod(
-                bank_statement_copies, vod_rows, "Bank Statement", "5.1"
+                bank_statement_copies, vod_rows, "Bank Statement", "6.1"
             )
         if _bank_refs:
             for _f in _bs_vod_flags:
@@ -366,9 +366,9 @@ def review_urla_assets(
         _asset_refs = _relevant_docs(state, doc_types=["Assets"])
         _asset_vod_flags = []
         if asset_full_copies:
-            _asset_vod_flags = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
         elif asset_acct_copies:
-            _asset_vod_flags = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
         if _asset_refs:
             for _f in _asset_vod_flags:
                 _f["relevant_documents"] = _asset_refs
@@ -399,7 +399,7 @@ def review_urla_assets(
             key = row["vod_id"] + "_" + (row.get("account_number") or "")
             if key not in matched_vod_ids:
                 flags.append(_flag(
-                    "5.1",
+                    "6.1",
                     "VOD Account Has No Supporting Document",
                     "warning",
                     (
@@ -416,7 +416,7 @@ def review_urla_assets(
         diff = abs(total_assets - vod_total)
         if diff > 5.00:
             flags.append(_flag(
-                "5.1",
+                "6.1",
                 "Total Assets Mismatch: LOS vs VOD",
                 "info",
                 (
@@ -434,7 +434,7 @@ def review_urla_assets(
     # ── Build result ──────────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "5.1",
+        "substep": "6.1",
         "tool": "review_urla_assets",
         "flags_count": len(flags),
         "vod_rows_checked": len(vod_rows),

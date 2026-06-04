@@ -1,6 +1,6 @@
-"""review_urla_page1 — Tool for substep 3.1: Review 1003 URLA Page 1
+"""review_urla_page1 — Tool for substep 4.1: Review 1003 URLA Page 1
 
-Step 3 (STEP_03): 1003 URLA Page 1
+Step 4 (STEP_04): 1003 URLA Page 1
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -57,7 +57,7 @@ def review_urla_page1(
     military service (VA-required), language preference, housing type/rent, dependents, and
     subject property # units.
 
-    Call this tool during STEP_03 (1003 URLA Page 1) as substep 3.1.
+    Call this tool during STEP_04 (1003 URLA Page 1) as substep 4.1.
     Does NOT re-check borrower name / SSN / DOB / marital status — those are owned by STEP_02.
     Writes: 1819 (borr mailing same), 1820 (coborr mailing same),
             URLA.X265 (borr former addr N/A), URLA.X266 (coborr former addr N/A)
@@ -84,10 +84,10 @@ def review_urla_page1(
     # Never auto-populated — only flag for processor to fix.
     borr_citizenship = _los(state, "borrower_citizenship")
     if borr_citizenship in _VALID_CITIZENSHIP:
-        _flag(flags, "3.1", "Borrower Citizenship", "info",
+        _flag(flags, "4.1", "Borrower Citizenship", "info",
               f"URLA.X1 = '{borr_citizenship}'.", "Verify citizenship is correct.")
     else:
-        _flag(flags, "3.1", "Borrower Citizenship Empty or Invalid", "warning",
+        _flag(flags, "4.1", "Borrower Citizenship Empty or Invalid", "warning",
               f"URLA.X1 = '{borr_citizenship or '(blank)'}'. Must be one of: "
               "US Citizen, Permanent Resident Alien, Non-Permanent Resident Alien. "
               "Agent does not auto-populate citizenship — processor must set it.",
@@ -96,10 +96,10 @@ def review_urla_page1(
     if has_coborrower:
         coborr_citizenship = _los(state, "coborrower_citizenship")
         if coborr_citizenship in _VALID_CITIZENSHIP:
-            _flag(flags, "3.1", "Co-Borrower Citizenship", "info",
+            _flag(flags, "4.1", "Co-Borrower Citizenship", "info",
                   f"URLA.X2 = '{coborr_citizenship}'.", "Verify citizenship is correct.")
         else:
-            _flag(flags, "3.1", "Co-Borrower Citizenship Empty or Invalid", "warning",
+            _flag(flags, "4.1", "Co-Borrower Citizenship Empty or Invalid", "warning",
                   f"URLA.X2 = '{coborr_citizenship or '(blank)'}'. Must be one of: "
                   "US Citizen, Permanent Resident Alien, Non-Permanent Resident Alien.",
                   "Update co-borrower citizenship on 1003 URLA Part 1.")
@@ -107,14 +107,14 @@ def review_urla_page1(
     # ── Rule: Mailing Address Same as Present ─────────────────────────────
     borr_mailing = _los(state, "borr_mailing_same_as_present")
     if str(borr_mailing or "").strip().upper() not in _VALID_BOOL:
-        _write_fields(loan_id=loan_id, updates={"1819": "True"}, substep="3.1",
+        _write_fields(loan_id=loan_id, updates={"1819": "True"}, substep="4.1",
                       flags=flags, state=state,
                       labels={"1819": "Borrower Mailing Address Same as Present"})
 
     if has_coborrower:
         coborr_mailing = _los(state, "coborr_mailing_same_as_present")
         if str(coborr_mailing or "").strip().upper() not in _VALID_BOOL:
-            _write_fields(loan_id=loan_id, updates={"1820": "True"}, substep="3.1",
+            _write_fields(loan_id=loan_id, updates={"1820": "True"}, substep="4.1",
                           flags=flags, state=state,
                           labels={"1820": "Co-Borrower Mailing Address Same as Present"})
 
@@ -129,10 +129,10 @@ def review_urla_page1(
     ] if not v]
 
     if not addr_fields_empty:
-        _flag(flags, "3.1", "Borrower Current Address Present", "info",
+        _flag(flags, "4.1", "Borrower Current Address Present", "info",
               f"{borr_addr}, {borr_city}, {borr_state_} {borr_zip}.")
     else:
-        _flag(flags, "3.1", "Borrower Current Address Incomplete", "warning",
+        _flag(flags, "4.1", "Borrower Current Address Incomplete", "warning",
               f"Present address fields empty: {', '.join(addr_fields_empty)}.",
               "Processor must populate current address on 1003 URLA Part 1.")
 
@@ -144,22 +144,22 @@ def review_urla_page1(
     if borr_total_months >= 24:
         x265 = str(_los(state, "borr_former_addr_does_not_apply") or "").strip().upper()
         if x265 in _VALID_BOOL:
-            _flag(flags, "3.1", f"Borrower at Current Address ≥ 2 Years ({borr_yrs}Y {borr_mos}M) — Former Address N/A Already Checked", "info",
+            _flag(flags, "4.1", f"Borrower at Current Address ≥ 2 Years ({borr_yrs}Y {borr_mos}M) — Former Address N/A Already Checked", "info",
                   "URLA.X265 is already checked.")
         else:
-            _write_fields(loan_id=loan_id, updates={"URLA.X265": "True"}, substep="3.1",
+            _write_fields(loan_id=loan_id, updates={"URLA.X265": "True"}, substep="4.1",
                           flags=flags, state=state,
                           labels={"URLA.X265": "Borrower Former Address Does Not Apply"})
     elif borr_total_months > 0:
         former_street = _los(state, "borr_former_addr")
         former_city   = _los(state, "borr_former_city")
         if former_street and former_city:
-            _flag(flags, "3.1",
+            _flag(flags, "4.1",
                   f"Borrower at Current Address < 2 Years ({borr_yrs}Y {borr_mos}M) — Former Address Present", "info",
                   f"Former: {former_street}, {former_city} {_los(state, 'borr_former_state') or ''} "
                   f"{_los(state, 'borr_former_zip') or ''}.")
         else:
-            _flag(flags, "3.1",
+            _flag(flags, "4.1",
                   f"Borrower at Current Address < 2 Years ({borr_yrs}Y {borr_mos}M) — Former Address Required", "warning",
                   "Borrower former address (FR0326/FR0306) is blank.",
                   "Processor must populate former address on 1003 URLA Part 1.")
@@ -172,21 +172,21 @@ def review_urla_page1(
         if coborr_total_months >= 24:
             x266 = str(_los(state, "coborr_former_addr_does_not_apply") or "").strip().upper()
             if x266 in _VALID_BOOL:
-                _flag(flags, "3.1", f"Co-Borrower at Current Address ≥ 2 Years ({coborr_yrs}Y {coborr_mos}M) — Former Address N/A Already Checked", "info",
+                _flag(flags, "4.1", f"Co-Borrower at Current Address ≥ 2 Years ({coborr_yrs}Y {coborr_mos}M) — Former Address N/A Already Checked", "info",
                       "URLA.X266 is already checked.")
             else:
-                _write_fields(loan_id=loan_id, updates={"URLA.X266": "True"}, substep="3.1",
+                _write_fields(loan_id=loan_id, updates={"URLA.X266": "True"}, substep="4.1",
                               flags=flags, state=state,
                               labels={"URLA.X266": "Co-Borrower Former Address Does Not Apply"})
         elif coborr_total_months > 0:
             coborr_former_street = _los(state, "coborr_former_addr")
             coborr_former_city   = _los(state, "coborr_former_city")
             if coborr_former_street and coborr_former_city:
-                _flag(flags, "3.1",
+                _flag(flags, "4.1",
                       f"Co-Borrower at Current Address < 2 Years ({coborr_yrs}Y {coborr_mos}M) — Former Address Present", "info",
                       f"Co-Borr former: {coborr_former_street}, {coborr_former_city}.")
             else:
-                _flag(flags, "3.1",
+                _flag(flags, "4.1",
                       f"Co-Borrower at Current Address < 2 Years ({coborr_yrs}Y {coborr_mos}M) — Former Address Required", "warning",
                       "Co-Borrower former address (FR0426/FR0406) is blank.",
                       "Processor must populate co-borrower former address on 1003 URLA Part 1.")
@@ -204,10 +204,10 @@ def review_urla_page1(
         _hamount = str(_los(state, _hamount_key) or "").strip()
         if _htype and "rent" in _htype.lower():
             if _hamount:
-                _flag(flags, "3.1", f"{_hlabel} Housing = Rent, Amount Present", "info",
+                _flag(flags, "4.1", f"{_hlabel} Housing = Rent, Amount Present", "info",
                       f"Housing type = '{_htype}', amount = {_hamount}.")
             else:
-                _flag(flags, "3.1", f"{_hlabel} Housing = Rent but Amount Empty", "warning",
+                _flag(flags, "4.1", f"{_hlabel} Housing = Rent but Amount Empty", "warning",
                       f"Housing type = '{_htype}' but expense amount is blank.",
                       "Enter the monthly rent amount.")
 
@@ -225,15 +225,15 @@ def review_urla_page1(
 
     if is_va:
         if not borr_military_yes:
-            _flag(flags, "3.1", "VA Loan — Borrower Military Service Must Be Yes", "warning",
+            _flag(flags, "4.1", "VA Loan — Borrower Military Service Must Be Yes", "warning",
                   f"URLA.X13 = '{_los(state, 'borr_military_service') or 'blank'}'. Must be Yes for VA loans.",
                   "Set Borrower Military Service to Yes on 1003 URLA Part 1.")
         if not borr_military_sub:
-            _flag(flags, "3.1", "VA Loan — Borrower Military Service Type Not Selected", "warning",
+            _flag(flags, "4.1", "VA Loan — Borrower Military Service Type Not Selected", "warning",
                   "At least one sub-option must be checked (Active Duty / Retired / Reserve / Surviving Spouse).",
                   "Select the applicable military service type on 1003 URLA Part 1.")
         elif borr_military_yes:
-            _flag(flags, "3.1", "Borrower Military Service", "info",
+            _flag(flags, "4.1", "Borrower Military Service", "info",
                   f"URLA.X13 = Yes. Sub-options: {', '.join(borr_military_sub)}.")
 
     if has_coborrower:
@@ -249,11 +249,11 @@ def review_urla_page1(
         ]
         if is_va:
             if not coborr_military_yes:
-                _flag(flags, "3.1", "VA Loan — Co-Borrower Military Service Must Be Yes", "warning",
+                _flag(flags, "4.1", "VA Loan — Co-Borrower Military Service Must Be Yes", "warning",
                       f"URLA.X14 = '{_los(state, 'coborr_military_service') or 'blank'}'. Must be Yes for VA loans.",
                       "Set Co-Borrower Military Service to Yes on 1003 URLA Part 1.")
             if not coborr_military_sub:
-                _flag(flags, "3.1", "VA Loan — Co-Borrower Military Service Type Not Selected", "warning",
+                _flag(flags, "4.1", "VA Loan — Co-Borrower Military Service Type Not Selected", "warning",
                       "At least one co-borrower sub-option must be checked.",
                       "Select applicable co-borrower military service type on 1003 URLA Part 1.")
 
@@ -266,13 +266,13 @@ def review_urla_page1(
             continue
         val = str(_los(state, key) or "").strip()
         if val in _VALID_LANG:
-            _flag(flags, "3.1", f"{who} Language Preference", "info",
+            _flag(flags, "4.1", f"{who} Language Preference", "info",
                   f"{fid} = '{val}'.", "Verify with borrower if not English.")
         else:
-            _flag(flags, "3.1", f"{who} Language Preference Empty — Manual Verification Required", "warning",
+            _flag(flags, "4.1", f"{who} Language Preference Empty — Manual Verification Required", "warning",
                   f"{fid} = '{val or '(blank)'}'. Defaulting to English — processor must verify with {who.lower()}.",
                   f"Set {who.lower()} language preference on 1003 URLA Part 1; update if not English.")
-            _write_fields(loan_id=loan_id, updates={fid: "EnglishIndicator"}, substep="3.1",
+            _write_fields(loan_id=loan_id, updates={fid: "EnglishIndicator"}, substep="4.1",
                           flags=flags, state=state,
                           labels={fid: f"{who} Language Preference"})
 
@@ -281,10 +281,10 @@ def review_urla_page1(
     borr_dep_ages  = _los(state, "borrower_dependent_ages")
     if borr_dep_count and str(borr_dep_count).strip() not in ("0", ""):
         if borr_dep_ages:
-            _flag(flags, "3.1", "Borrower Dependents", "info",
+            _flag(flags, "4.1", "Borrower Dependents", "info",
                   f"Count (53) = {borr_dep_count}, Ages (54) = '{borr_dep_ages}'.")
         else:
-            _flag(flags, "3.1", "Borrower Dependents Ages Missing", "warning",
+            _flag(flags, "4.1", "Borrower Dependents Ages Missing", "warning",
                   f"Dependent count (53) = {borr_dep_count} but ages (54) is blank.",
                   "Enter dependent ages on 1003 URLA Part 1.")
 
@@ -293,27 +293,27 @@ def review_urla_page1(
         coborr_dep_ages  = _los(state, "coborr_dependents_ages")
         if coborr_dep_count and str(coborr_dep_count).strip() not in ("0", ""):
             if coborr_dep_ages:
-                _flag(flags, "3.1", "Co-Borrower Dependents", "info",
+                _flag(flags, "4.1", "Co-Borrower Dependents", "info",
                       f"Count (85) = {coborr_dep_count}, Ages (86) = '{coborr_dep_ages}'.")
             else:
-                _flag(flags, "3.1", "Co-Borrower Dependents Ages Missing", "warning",
+                _flag(flags, "4.1", "Co-Borrower Dependents Ages Missing", "warning",
                       f"Co-Borrower dependent count (85) = {coborr_dep_count} but ages (86) is blank.",
                       "Enter co-borrower dependent ages on 1003 URLA Part 1.")
 
     # ── Rule: Subject Property # Units ────────────────────────────────────
     prop_units = _los(state, "property_units")
     if prop_units and str(prop_units).strip():
-        _flag(flags, "3.1", "Subject Property # Units", "info",
+        _flag(flags, "4.1", "Subject Property # Units", "info",
               f"Field 16 = '{prop_units}'.", "Verify # units is correct.")
     else:
-        _flag(flags, "3.1", "Subject Property # Units Empty", "warning",
+        _flag(flags, "4.1", "Subject Property # Units Empty", "warning",
               "Subject Property # Units (16) is blank.",
               "Processor must populate # Units on 1003 URLA Part 1.")
 
     # ── Build result ──────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "3.1",
+        "substep": "4.1",
         "tool": "review_urla_page1",
         "has_coborrower": has_coborrower,
         "is_va": is_va,

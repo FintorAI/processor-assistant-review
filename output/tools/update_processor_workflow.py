@@ -1,6 +1,6 @@
-"""update_processor_workflow — Tool for substep 10.1: Processor Workflow Update
+"""update_processor_workflow — Tool for substep 11.1: Processor Workflow Update
 
-Step 10 (STEP_10): Processor Workflow and Closing
+Step 11 (STEP_11): Processor Workflow and Closing
 Phase: FORM_UPDATES
 
 Fills the Processor Workflow screen in Encompass:
@@ -66,7 +66,7 @@ def update_processor_workflow(
     """Fill the Processor Workflow screen: set Product Type (from loan type),
     Non-Del Inv. Approval (No), and Documentation Type (Full Doc).
 
-    Call this tool during STEP_10 (Processor Workflow and Closing) as substep 10.1.
+    Call this tool during STEP_11 (Processor Workflow and Closing) as substep 11.1.
     Reads LOS: loan_type, product_type, doc_type_submission, non_del_inv_approval
     Flags: Product Type Not Set (warning), Documentation Type Not Set (warning),
            Unknown Loan Type (warning)
@@ -93,7 +93,7 @@ def update_processor_workflow(
 
     if not derived_product:
         flags.append({
-            "substep": "10.1",
+            "substep": "11.1",
             "title": "Unknown Loan Type — Product Type Not Mapped",
             "severity": "warning",
             "details": f"Loan type {loan_type!r} does not match any known product type mapping. "
@@ -117,12 +117,12 @@ def update_processor_workflow(
     # TODO: confirm CX.NONDEL.INV.APPROVAL is the correct field ID
     writes["CX.NONDEL.INV.APPROVAL"] = "No"
 
-    _write_fields(loan_id, writes, substep="10.1", flags=flags, state=state, labels=FIELD_LABELS)
+    _write_fields(loan_id, writes, substep="11.1", flags=flags, state=state, labels=FIELD_LABELS)
 
     # ── Post-write check: flag if product type still blank ──
     if not derived_product and not current_product:
         flags.append({
-            "substep": "10.1",
+            "substep": "11.1",
             "title": "Product Type Not Set",
             "severity": "warning",
             "details": "CX.PRODUCTTYPE is blank and could not be derived from loan type.",
@@ -133,7 +133,7 @@ def update_processor_workflow(
 
     result = {
         "success": True,
-        "substep": "10.1",
+        "substep": "11.1",
         "tool": "update_processor_workflow",
         "loan_type": loan_type,
         "derived_product_type": derived_product,

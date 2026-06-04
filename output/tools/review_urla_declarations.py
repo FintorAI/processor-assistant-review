@@ -1,6 +1,6 @@
-"""review_urla_declarations — Tool for substep 6.2: Declarations (Section 5)
+"""review_urla_declarations — Tool for substep 7.2: Declarations (Section 5)
 
-Step 6 (STEP_06): 1003 URLA Part 4
+Step 7 (STEP_07): 1003 URLA Part 4
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -61,7 +61,7 @@ def review_urla_declarations(
     Flag warnings when sub-fields are unpopulated after a gate field is Yes, and when
     answers are inconsistent with known loan file facts (occupancy, co-borrower status).
 
-    Call this tool during STEP_06 (1003 URLA Part 4) as substep 6.2.
+    Call this tool during STEP_07 (1003 URLA Part 4) as substep 7.2.
     Reads LOS: declaration_primary_residence (418), declaration_ownership_3yr (403),
                prior_property_type (981), prior_title_held (1069), coborr_ownership_3yr (1108),
                occupancy (1811), coborrower_first_name, loan_purpose.
@@ -97,7 +97,7 @@ def review_urla_declarations(
 
     def _flag(title, severity, details, suggestion, resolved=False):
         flags.append({
-            "substep": "6.2",
+            "substep": "7.2",
             "title": title,
             "severity": severity,
             "details": details,
@@ -258,13 +258,13 @@ def review_urla_declarations(
             )
 
     # Estate Held check (field 1066) is in the 1003 URLA Lender form — not Part 4 Declarations.
-    # It lives in substep 6.3 (review_urla_ethnicity) because that substep already reads
+    # It lives in substep 7.3 (review_urla_ethnicity) because that substep already reads
     # URLA Lender form fields (field 1544 borrower_ethnicity, field 1066 estate_held).
 
     # ── Build result ──
     result = {
         "success": True,
-        "substep": "6.2",
+        "substep": "7.2",
         "tool": "review_urla_declarations",
         "flags_count": len(flags),
         "ownership_403": decl_ownership,

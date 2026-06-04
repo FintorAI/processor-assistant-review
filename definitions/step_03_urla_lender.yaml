@@ -1,0 +1,137 @@
+step:
+  id: STEP_03
+  name: 1003 URLA Lender
+  phase: DATA_REVIEW
+  description: >
+    Review and populate the 1003 URLA Lender section. Sets how title will be
+    held: Estate Will Be Held In (field 1066, normally FeeSimple) and Manner in
+    Which Title Will Be Held (field 33 + URLA.X138, computed from property state,
+    marital status, co-borrower/NBS presence, and borrower sex). This is the
+    single owner of the manner-held value — Borrower Vesting (later step) reads
+    field 33 and never recomputes it. Also surfaces Attachment Type and Property
+    Type for verification against the listing.
+
+substeps:
+- id: '3.1'
+  name: Update 1003 URLA Lender
+  tool: update_urla_lender
+  description: >
+    Compute and write Manner in Which Title Will Be Held (field 33) + URLA.X138
+    from property state, marital status, co-borrower presence, NBS flag, and
+    borrower sex (written when empty; NV forces As Joint Tenants for married
+    couples). Auto-set Estate Will Be Held In (field 1066) to FeeSimple for
+    standard residential loans. Surface Attachment Type (CX.ATTACHMENT.TYPE) and
+    Property Type (field 1041) for verification against the listing.
+  los_fields_read:
+  # ── Property / context for manner-held computation ────────────────────
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: State-specific manner-held rules (community property, joint tenants, tenancy by entirety)
+  - key: marital_status
+    field_id: '479'
+    field_name: Borrower Marital Status
+    category: borrower_info
+    purpose: Married / Unmarried / Separated — drives manner held
+  - key: borrower_sex
+    field_id: '471'
+    field_name: Borrower Sex
+    category: borrower_info
+    purpose: His/Her sole-and-separate and unmarried/married man/woman wording
+  - key: coborrower_sex
+    field_id: '478'
+    field_name: Co-Borrower Sex
+    category: borrower_info
+    purpose: Used with borrower_sex for spouse vesting wording
+  - key: coborrower_first_name
+    field_id: '4004'
+    field_name: Co-Borrower First Name
+    category: borrower_info
+    purpose: Presence determines joint vs sole manner held
+  - key: coborrower_last_name
+    field_id: '4006'
+    field_name: Co-Borrower Last Name
+    category: borrower_info
+    purpose: Presence determines joint vs sole manner held
+  - key: nbs_flag
+    field_id: CX.NBSFLAG
+    field_name: Non-Borrowing Spouse Flag
+    category: borrower_info
+    purpose: YES if NBS exists on title without being a co-borrower
+  - key: nbs_info
+    field_id: CX.NBSINFO
+    field_name: Non-Borrowing Spouse Name
+    category: borrower_info
+    purpose: NBS presence affects manner held (both on title)
+  # ── Lender-form fields written / surfaced ─────────────────────────────
+  - key: manner_of_title
+    field_id: '33'
+    field_name: Manner in Which Title Will Be Held
+    category: title
+    purpose: >
+      Computed and written here when empty (NV forces As Joint Tenants for
+      married couples). URLA.X138 = the same data shown on the 1003 URLA Lender
+      form — always written together with field 33. Borrower Vesting reads this.
+  - key: estate_held
+    field_id: '1066'
+    field_name: Estate Will Be Held In
+    category: title
+    purpose: Auto-set to FeeSimple for standard residential loans (blank or Leasehold)
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: Surface for verification against the listing (Attachment/Property Type)
+  - key: attachment_type
+    field_id: CX.ATTACHMENT.TYPE
+    field_name: Attachment Type (Attached/Detached)
+    category: property
+    purpose: Surface for verification against the listing
+  doc_types: []
+  rules:
+  - name: Manner Held Computed from State and Marital Status
+    type: custom
+    logic: >
+      Field 33 (Manner Held) is computed from property state, marital status,
+      co-borrower presence, NBS flag, and borrower sex. Write only if empty.
+      Community property states: AZ, CA, ID, LA, NV, NM, TX, WA, WI.
+      NV married couples → As Joint Tenants (force overwrite). Flag mismatch for
+      others. Always write URLA.X138 (Lender-form enum) together with field 33.
+  - name: Estate Will Be Held In = Fee Simple
+    type: value_set
+    logic: >
+      Field 1066 (Estate Will Be Held In) is set to FeeSimple for standard
+      residential loans whenever it is blank or Leasehold.
+  - name: Attachment Type / Property Type vs Listing
+    type: custom
+    logic: >
+      Surface Attachment Type (CX.ATTACHMENT.TYPE) and Property Type (field 1041)
+      for the processor to verify against the property listing. Automated
+      validation is a TODO (not implemented).
+  flags:
+  - title: Manner Held Auto-Set
+    severity: info
+    condition: Field 33 was empty and a computed manner held was written
+    suggestion: Verify manner held matches title/vesting intent
+  - title: Manner Held Mismatch
+    severity: warning
+    condition: Field 33 does not match computed manner held for state/marital status
+    suggestion: Update Manner Held (field 33) or confirm with team lead
+  - title: Estate Auto-Set to Fee Simple
+    severity: info
+    condition: Field 1066 was blank or Leasehold and was set to FeeSimple
+    suggestion: Confirm Fee Simple is appropriate for this property
+  field_updates:
+  - field_id: '33'
+    value: '{computed_manner_held}'
+    condition: empty
+  - field_id: URLA.X138
+    value: '{computed_manner_urla_x138}'
+    condition: empty
+  - field_id: '1066'
+    value: FeeSimple
+    condition: empty or Leasehold
+
+dev:
+  skip: false

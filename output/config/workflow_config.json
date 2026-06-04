@@ -60,13 +60,14 @@
       "STEP_03",
       "STEP_04",
       "STEP_05",
-      "STEP_06"
+      "STEP_06",
+      "STEP_07"
     ],
     "FORM_UPDATES": [
-      "STEP_07",
       "STEP_08",
       "STEP_09",
-      "STEP_10"
+      "STEP_10",
+      "STEP_11"
     ]
   },
   "step_order": [
@@ -80,7 +81,8 @@
     "STEP_07",
     "STEP_08",
     "STEP_09",
-    "STEP_10"
+    "STEP_10",
+    "STEP_11"
   ],
   "steps": {
     "STEP_00": {
@@ -185,6 +187,22 @@
       }
     },
     "STEP_03": {
+      "name": "1003 URLA Lender",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_lender.md",
+      "tools": [
+        "update_urla_lender"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Update 1003 URLA Lender",
+          "tools": [
+            "update_urla_lender"
+          ]
+        }
+      }
+    },
+    "STEP_04": {
       "name": "1003 URLA Page 1",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_page_1.md",
@@ -200,7 +218,7 @@
         }
       }
     },
-    "STEP_04": {
+    "STEP_05": {
       "name": "1003 URLA Page 2",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_page_2.md",
@@ -234,7 +252,7 @@
         }
       }
     },
-    "STEP_05": {
+    "STEP_06": {
       "name": "1003 URLA Part 3",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_part_3.md",
@@ -282,7 +300,7 @@
         }
       }
     },
-    "STEP_06": {
+    "STEP_07": {
       "name": "1003 URLA Part 4",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_part_4.md",
@@ -312,7 +330,7 @@
         }
       }
     },
-    "STEP_07": {
+    "STEP_08": {
       "name": "Cover Letter",
       "phase": "FORM_UPDATES",
       "plan_file": "cover_letter.md",
@@ -328,7 +346,7 @@
         }
       }
     },
-    "STEP_08": {
+    "STEP_09": {
       "name": "Borrower Info - Vesting",
       "phase": "FORM_UPDATES",
       "plan_file": "borrower_info___vesting.md",
@@ -344,7 +362,7 @@
         }
       }
     },
-    "STEP_09": {
+    "STEP_10": {
       "name": "Transmittal Summary",
       "phase": "FORM_UPDATES",
       "plan_file": "transmittal_summary.md",
@@ -360,7 +378,7 @@
         }
       }
     },
-    "STEP_10": {
+    "STEP_11": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",
