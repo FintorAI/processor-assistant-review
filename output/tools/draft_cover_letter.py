@@ -1,6 +1,6 @@
-"""draft_cover_letter — Tool for substep 7.1: Draft Cover Letter / Submission Notes
+"""draft_cover_letter — Tool for substep 8.1: Draft Cover Letter / Submission Notes
 
-Step 7 (STEP_07): Cover Letter
+Step 8 (STEP_08): Cover Letter
 Phase: FORM_UPDATES
 
 # FACTORY-LOCK: true
@@ -82,7 +82,7 @@ def draft_cover_letter(
     Writes directly to CX.KM.SUBMISSION.NOTES.
     Flags warning if no notes were provided.
 
-    Call this tool during STEP_07 (Cover Letter) as substep 7.1.
+    Call this tool during STEP_08 (Cover Letter) as substep 8.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -183,7 +183,7 @@ def draft_cover_letter(
     # ── Rule: Copy Almas notes → CX.KM.SUBMISSION.NOTES ──
     if almas_notes:
         field_updates = {"CX.KM.SUBMISSION.NOTES": almas_notes}
-        _write_fields(loan_id, field_updates, "7.1", flags, state=state)
+        _write_fields(loan_id, field_updates, "8.1", flags, state=state)
         missing_summary = (
             f" Appended 'Documents still needed:' with {len(missing_docs)} item(s): "
             + ", ".join(missing_docs) + "."
@@ -194,7 +194,7 @@ def draft_cover_letter(
             if image_text_blocks else ""
         )
         notes_flag = {
-            "substep": "7.1",
+            "substep": "8.1",
             "title": "Cover Letter — Submission Notes Written",
             "severity": "info-overwrite",
             "details": (
@@ -215,7 +215,7 @@ def draft_cover_letter(
         logger.info(f"[DRAFT_COVER_LETTER] Wrote {len(almas_notes)} chars to CX.KM.SUBMISSION.NOTES")
     else:
         flags.append({
-            "substep": "7.1",
+            "substep": "8.1",
             "title": "Cover Letter — Almas Notes Missing",
             "severity": "warning",
             "details": "No Almas notes found in state. CX.KM.SUBMISSION.NOTES was not populated.",
@@ -228,7 +228,7 @@ def draft_cover_letter(
     # ── Build result ──
     result = {
         "success": True,
-        "substep": "7.1",
+        "substep": "8.1",
         "tool": "draft_cover_letter",
         "almas_notes_length": len(almas_notes),
         "flags_count": len(flags),

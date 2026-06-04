@@ -1,6 +1,6 @@
-"""review_urla_emd — Tool for substep 5.2: EMD Check (2b)
+"""review_urla_emd — Tool for substep 6.2: EMD Check (2b)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -67,7 +67,7 @@ def review_urla_emd(
     Reads API:  Encompass v3 otherAssets (assetType=EarnestMoney)
     Reads Docs: Purchase Agreement → emd_amount_pa, payment_terms, emd_payable_to
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.2.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.2.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -112,7 +112,7 @@ def review_urla_emd(
     if los_emd is not None and pa_emd is not None:
         if abs(los_emd - pa_emd) > 1.00:
             flags.append(_flag(
-                "5.2",
+                "6.2",
                 "EMD Amount Mismatch",
                 "warning",
                 (
@@ -125,7 +125,7 @@ def review_urla_emd(
             ))
     elif los_emd is None and pa_emd is None:
         flags.append(_flag(
-            "5.2",
+            "6.2",
             "EMD Not Found",
             "warning",
             "No EarnestMoney entry found in Encompass otherAssets and EMD could not be "
@@ -137,7 +137,7 @@ def review_urla_emd(
         ))
     elif los_emd is None:
         flags.append(_flag(
-            "5.2",
+            "6.2",
             "EMD Not Entered in Encompass (Section 3b)",
             "warning",
             f"Purchase Agreement doc shows EMD = ${pa_emd:,.2f}, "
@@ -157,7 +157,7 @@ def review_urla_emd(
     # We don't have a separate "check present" field, so flag for manual follow-up.
     if los_emd and los_emd > 0:
         flags.append(_flag(
-            "5.2",
+            "6.2",
             "EMD Check Copy — Confirm in eFolder",
             "info",
             (
@@ -172,7 +172,7 @@ def review_urla_emd(
     # ── Build result ──────────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "5.2",
+        "substep": "6.2",
         "tool": "review_urla_emd",
         "los_emd":        los_emd,
         "pa_emd":         pa_emd,

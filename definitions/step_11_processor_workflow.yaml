@@ -1,5 +1,5 @@
 step:
-  id: STEP_10
+  id: STEP_11
   name: Processor Workflow and Closing
   phase: FORM_UPDATES
   description: >
@@ -8,7 +8,7 @@ step:
     and wire requested date.
 
 substeps:
-- id: '10.1'
+- id: '11.1'
   name: Processor Workflow Update
   tool: update_processor_workflow
   description: >
@@ -75,7 +75,7 @@ substeps:
     value: 'No'
     condition: always
 
-- id: '10.2'
+- id: '11.2'
   name: Processor Closing Update
   tool: update_processor_closing
   description: >

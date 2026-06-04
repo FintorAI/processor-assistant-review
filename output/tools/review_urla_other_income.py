@@ -1,6 +1,6 @@
-"""review_urla_other_income — Tool for substep 4.2: Other Income (1e)
+"""review_urla_other_income — Tool for substep 5.2: Other Income (1e)
 
-Step 4 (STEP_04): 1003 URLA Page 2
+Step 5 (STEP_05): 1003 URLA Page 2
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -62,7 +62,7 @@ def review_urla_other_income(
     or the section flagged for review. When income is present, verifies that
     appropriate documentation requirements are noted.
 
-    Call this tool during STEP_04 (1003 URLA Page 2) as substep 4.2.
+    Call this tool during STEP_05 (1003 URLA Page 2) as substep 5.2.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -92,7 +92,7 @@ def review_urla_other_income(
     # ── Rule: Does Not Apply vs income fields ────────────────────────────────
     if not has_other_income:
         if not borr_dna_checked and not coborr_dna_checked:
-            flags.append(_flag("4.2",
+            flags.append(_flag("5.2",
                 "Other Income Section Incomplete (2e)",
                 "info",
                 "Section 2e (other income, 1003 URLA Part 2) has no entries and neither URLA.X40 (borrower) nor URLA.X41 (co-borrower) Does Not Apply is checked.",
@@ -101,14 +101,14 @@ def review_urla_other_income(
     else:
         # Income is present — check for type/amount completeness
         if income_type_val and not income_amount_val:
-            flags.append(_flag("4.2",
+            flags.append(_flag("5.2",
                 "Other Income Amount Missing",
                 "warning",
                 f"Income type '{income_type_val}' is entered but monthly amount (Field 173) is empty.",
                 "Enter the monthly other income amount in Section 2e",
             ))
         elif income_amount_val and not income_type_val:
-            flags.append(_flag("4.2",
+            flags.append(_flag("5.2",
                 "Other Income Type Missing",
                 "warning",
                 f"Other income amount ${income_amount_val} is entered but income type (Field 172) is empty.",
@@ -124,7 +124,7 @@ def review_urla_other_income(
                     doc_req = req
                     break
             if doc_req:
-                flags.append(_flag("4.2",
+                flags.append(_flag("5.2",
                     f"Documentation Required — {income_type_val}",
                     "info",
                     f"Income type '{income_type_val}' requires supporting documentation.",
@@ -140,7 +140,7 @@ def review_urla_other_income(
 
     result = {
         "success": True,
-        "substep": "4.2",
+        "substep": "5.2",
         "tool": "review_urla_other_income",
         "has_other_income": has_other_income,
         "does_not_apply": dna_summary if dna_summary else None,

@@ -10,18 +10,22 @@ Verify presence (and signing where applicable) of all docs that downstream steps
 | Tool | Purpose |
 |------|---------|
 | `run_pre_checks` | Document Presence Check |
+| `review_file_contacts` | File Contacts Check |
 
 ## Overview
 
 | Substep | Description | Tool |
 |---------|-------------|------|
 | 1.1 | Document Presence Check | `run_pre_checks` |
+| 1.2 | File Contacts Check | `review_file_contacts` |
 
 ## Tool Calls
 
 ```python
 # Substep 1.1 - Document Presence Check
 run_pre_checks(loan_guid=loan_id)
+# Substep 1.2 - File Contacts Check
+review_file_contacts(loan_guid=loan_id)
 ```
 
 ---
@@ -45,14 +49,16 @@ Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth, State d
 **Document Types:**
 - **1003 URLA**:
   - `urla_signed`
-- **Borrower's Certification and Authorization**:
+- **Borrower's Certification & Authorization**:
   - `bca_present`
 - **Underwriting (DU / LP)**:
   - `aus_collateral_relief`
   - `aus_income_raw_relief`
   - `aus_run_date`
-- **VOE**:
+- **VOE - non service provider**:
   - `voe_present`
+- **Paystubs**:
+  - `paystubs_present`
 - **Assets**:
   - `assets_present`
 - **Bank Statement** (ALL COPIES):
@@ -65,6 +71,36 @@ Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth, State d
   - `dl_expiry`
 - **Estimated Settlement Statement**:
   - `ess_present`
+- **Credit Report**:
+  - `credit_report_present`
+  - `credit_report_date`
+  - `fact_act_present`
+- **MD Notice of Right to Rescind**:
+  - `md_rescind_signed`
+- **MD DUAL CAPACITY IN REAL ESTATE**:
+  - `md_dual_cap_signed`
+- **MD Important Notice Regarding Counseling**:
+  - `md_counseling_signed`
+- **MD Notice Regarding Right for Assumption**:
+  - `md_assumption_signed`
+- **MD Right to Choose Insurance Provider**:
+  - `md_ins_provider_signed`
+- **MD Settlement Services/Right to Choose**:
+  - `md_settlement_signed`
+- **Flood Certificate**:
+  - `flood_cert_present`
+  - `flood_zone`
+- **Evidence of Hazard Insurance**:
+  - `hazard_insurance_present`
+  - `hazard_insurance_expiry`
+- **Title Report**:
+  - `title_report_present`
+  - `title_legal_description`
+- **LDP**:
+  - `ldp_present`
+- **General Letter of Explanation**:
+  - `loe_present`
+  - `loe_topics`
 
 **Business Rules:**
 - **Required Docs Present** (existence_check): All listed docs must exist in eFolder. Flag each missing one as warning or critical based on downstream dependency severity.
@@ -91,6 +127,24 @@ Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth, State d
 - WARNING: "State Disclosure Missing"
   - Condition: State-specific disclosure document not found in eFolder
   - Remedy: Locate and add the required state disclosure
+- CRITICAL: "Credit Report Missing"
+  - Condition: Credit report not found in eFolder
+  - Remedy: Obtain and upload credit report before proceeding
+- WARNING: "FACT ACT Disclosure Missing"
+  - Condition: FACT ACT disclosure form not found within credit report
+  - Remedy: Confirm FACT ACT form is included in the credit report package
+- WARNING: "Flood Certificate Missing"
+  - Condition: Flood certificate not found in eFolder
+  - Remedy: Order or obtain flood certificate for the subject property
+- WARNING: "Hazard Insurance Missing"
+  - Condition: Evidence of hazard insurance not found in eFolder
+  - Remedy: Request homeowners insurance deck page from borrower or agent
+- WARNING: "Title Report Missing"
+  - Condition: Title report not found in eFolder
+  - Remedy: Request title report from title company
+- WARNING: "LDP Missing"
+  - Condition: Loan Defect Prevention document not found in eFolder
+  - Remedy: Obtain LDP before submission
 
 **Rule Modifiers (conditional behavior based on loan profile):**
 - **When `state` = `MD`** → ADD: Maryland requires the "Notice Regarding Right for Assumption Under Certain Circumstances" disclosure. Flag if missing.
@@ -101,6 +155,34 @@ Check eFolder for presence (and signing) of: 1003, Borrower's Cert/Auth, State d
 After completing this substep, call:
 ```
 write_todo(step_id="STEP_01", substep_id="1.1", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+```
+
+---
+
+### Substep 1.2 - File Contacts Check
+**Tool**: `review_file_contacts`
+
+Verify that the four key file contacts are assigned in Encompass: Buyer's Agent, Seller's Agent, Seller 1, and Escrow Company. Flag missing contacts as warnings so they can be linked before orders are placed.
+
+
+**LOS Fields (read from state):**
+
+| Encompass Field | Field ID | Key | Purpose |
+|-----------------|----------|-----|---------|
+| Seller 1 Name | `638` | `seller_1_name` | Seller 1 full name — cross-check against SELLER contact type |
+
+**Business Rules:**
+- **Required Contacts Present** (existence_check): Buyer's Agent, Seller's Agent, Seller 1 (SELLER contact type), and Escrow Company must all be assigned to the loan in Encompass. Flag each missing contact as a warning.
+
+
+**Flags — raise when conditions are met:**
+- WARNING: "Missing File Contact"
+  - Condition: One or more required contacts not linked to the loan
+  - Remedy: Go to File Contacts in Encompass and add the missing contact
+
+After completing this substep, call:
+```
+write_todo(step_id="STEP_01", substep_id="1.2", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---

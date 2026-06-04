@@ -1,6 +1,6 @@
-"""review_urla_reo — Tool for substep 5.4: Section 3 — REO Properties
+"""review_urla_reo — Tool for substep 6.4: Section 3 — REO Properties
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "5.4"
+SUBSTEP = "6.4"
 
 
 def _flag(title: str, severity: str, details: str, suggestion: str, docs=None) -> Dict[str, Any]:
@@ -58,7 +58,7 @@ def review_urla_reo(
 
     If no REO properties exist, no flags are raised.
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.4.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.4.
     """
     loan_id = state.get("loan_id")
     if not loan_id:

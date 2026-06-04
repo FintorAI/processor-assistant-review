@@ -1,6 +1,6 @@
 ## Purpose
 
-Populate CX.KM.SUBMISSION.NOTES (Cover Letter / Submission Notes field). LLM pre-drafts the notes based on Almas' email/notes and the loan profile. Also clears pre-populated Title Company, Appraisal, and Additional Notes fields. No interrupt here — raise a flag for processor review at Step 16 (Flag Review HITL).
+Populate CX.KM.SUBMISSION.NOTES (Cover Letter / Submission Notes field). LLM pre-drafts the notes based on Almas' email/notes and the loan profile. Also clears pre-populated Title Company, Appraisal, and Additional Notes fields. No interrupt here — raise a flag with the draft text for processor review in the UI.
 
 
 **⚠️ This step may WRITE to Encompass.** Substeps that write are marked below.
@@ -17,12 +17,12 @@ Populate CX.KM.SUBMISSION.NOTES (Cover Letter / Submission Notes field). LLM pre
 
 | Substep | Description | Tool |
 |---------|-------------|------|
-| 7.1 | Draft Cover Letter / Submission Notes | `draft_cover_letter` |
+| 8.1 | Draft Cover Letter / Submission Notes | `draft_cover_letter` |
 
 ## Tool Calls
 
 ```python
-# Substep 7.1 - Draft Cover Letter / Submission Notes
+# Substep 8.1 - Draft Cover Letter / Submission Notes
 # ⚠️ This substep WRITES to Encompass
 draft_cover_letter(loan_guid=loan_id)
 ```
@@ -31,10 +31,10 @@ draft_cover_letter(loan_guid=loan_id)
 
 ## Substeps
 
-### Substep 7.1 - Draft Cover Letter / Submission Notes
+### Substep 8.1 - Draft Cover Letter / Submission Notes
 **Tool**: `draft_cover_letter`
 
-Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"] and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with the draft text so the processor can review and edit at Step 16 Flag Review. Do NOT interrupt here.
+Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"] and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with the draft text so the processor can review and edit it in the UI. Do NOT interrupt here.
 
 
 **LOS Fields (read from state):**
@@ -57,7 +57,7 @@ Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"] and
 **Flags — raise when conditions are met:**
 - INFO: "Cover Letter Draft for Processor Review"
   - Condition: Always raised — processor must review and approve the draft
-  - Remedy: Review the cover letter draft at Step 16 Flag Review and edit as needed
+  - Remedy: Review the cover letter draft in the UI and edit as needed
 - WARNING: "Almas Notes Missing"
   - Condition: state["almas_notes"] is empty or None
   - Remedy: Provide Almas' notes/email as agent input before running
@@ -70,7 +70,7 @@ Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state["almas_notes"] and
 
 After completing this substep, call:
 ```
-write_todo(step_id="STEP_07", substep_id="7.1", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+write_todo(step_id="STEP_08", substep_id="8.1", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---
@@ -78,8 +78,8 @@ write_todo(step_id="STEP_07", substep_id="7.1", status="completed", notes="<deta
 ## Step Completion
 
 When ALL substeps above are completed:
-1. Call `save_step_report(step_name="STEP_07", status="completed", ...)`
-2. Call `write_todo(step_id="STEP_07", status="completed")` to advance to the next step
-3. Call `write_todo(step_id="STEP_08", status="in_progress")` to start STEP_08 (Borrower Info - Vesting)
+1. Call `save_step_report(step_name="STEP_08", status="completed", ...)`
+2. Call `write_todo(step_id="STEP_08", status="completed")` to advance to the next step
+3. Call `write_todo(step_id="STEP_09", status="in_progress")` to start STEP_09 (Borrower Info - Vesting)
 
 ⚠️ You MUST call write_todo to advance — do NOT produce a text-only response.
