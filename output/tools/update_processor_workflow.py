@@ -1,4 +1,4 @@
-"""update_processor_workflow — Tool for substep 10.1: Processor Workflow Update
+"""update_processor_workflow — Tool for substep 11.1: Processor Workflow Update
 
 Step 11 (STEP_11): Processor Workflow and Closing
 Phase: FORM_UPDATES

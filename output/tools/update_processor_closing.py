@@ -1,4 +1,4 @@
-"""update_processor_closing — Tool for substep 10.2: Processor Closing Update
+"""update_processor_closing — Tool for substep 11.2: Processor Closing Update
 
 Step 11 (STEP_11): Processor Workflow and Closing
 Phase: FORM_UPDATES

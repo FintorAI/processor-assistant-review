@@ -24,7 +24,7 @@ Review and populate the 1003 URLA Lender section. Sets how title will be held: E
 ```python
 # Substep 3.1 - Update 1003 URLA Lender
 # ⚠️ This substep WRITES to Encompass
-update_urla_lender(loan_guid=loan_id)
+update_urla_lender()
 ```
 
 ---
@@ -49,8 +49,7 @@ Compute and write Manner in Which Title Will Be Held (field 33) + URLA.X138 from
 | Co-Borrower Last Name | `4006` | `coborrower_last_name` | Presence determines joint vs sole manner held |
 | Non-Borrowing Spouse Flag | `CX.NBSFLAG` | `nbs_flag` | YES if NBS exists on title without being a co-borrower |
 | Non-Borrowing Spouse Name | `CX.NBSINFO` | `nbs_info` | NBS presence affects manner held (both on title) |
-| Manner in Which Title Will Be Held | `33` | `manner_of_title` | Computed and written here when empty (NV forces As Joint Tenants for married couples). URLA.X138 = the same data shown on the 1003 URLA Lender form — always written together with field 33. Borrower Vesting reads this.
- |
+| Manner in Which Title Will Be Held | `33` | `manner_of_title` | Computed and written here when empty (NV forces As Joint Tenants for married couples). URLA.X138 = the same data shown on the 1003 URLA Lender form — always written together with field 33. Borrower Vesting reads this. |
 | Estate Will Be Held In | `1066` | `estate_held` | Auto-set to FeeSimple for standard residential loans (blank or Leasehold) |
 | Property Type | `1041` | `property_type` | Surface for verification against the listing (Attachment/Property Type) |
 | Attachment Type (Attached/Detached) | `CX.ATTACHMENT.TYPE` | `attachment_type` | Surface for verification against the listing |
@@ -77,7 +76,7 @@ Compute and write Manner in Which Title Will Be Held (field 33) + URLA.X138 from
 **⚠️ Field Updates (writes to Encompass):**
 - Field `33` = `{computed_manner_held}` (when: empty)
 - Field `URLA.X138` = `{computed_manner_urla_x138}` (when: empty)
-- Field `1066` = `FeeSimple` (when: empty)
+- Field `1066` = `FeeSimple` (when: empty or Leasehold)
 
 After completing this substep, call:
 ```

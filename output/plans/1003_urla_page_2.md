@@ -111,8 +111,8 @@ Cross-check employment fields against VOE: employer name, original hire date, ba
 | Co-Borrower 1c — Start Date | `FE0451` | `coborr_1c_start_date` | Start date of additional/self employment |
 | Co-Borrower 1c — Years in Line of Work | `FE0416` | `coborr_1c_years_in_line` | Duration check |
 | Co-Borrower 1c — Months in Line of Work | `FE0452` | `coborr_1c_months_in_line` | Duration check |
-| Borrower — Section 1c Does Not Apply | `URLA.X201` | `borr_1c_dna` | If checked, borrower has no additional/self-employment income — 1c section blank is acceptable. |
-| Co-Borrower — Section 1c Does Not Apply | `URLA.X202` | `coborr_1c_dna` | If checked, co-borrower has no additional/self-employment income. |
+| Borrower — Section 1c Does Not Apply | `URLA.X199` | `borr_1c_dna` | If checked, borrower has no additional/self-employment income — 1c section blank is acceptable. |
+| Co-Borrower — Section 1c Does Not Apply | `URLA.X200` | `coborr_1c_dna` | If checked, co-borrower has no additional/self-employment income. |
 | Borrower 1d — Total Gross Income | `FE0312` | `borr_1d_total_gross_income` | Surfaced as info flag when 1d is populated. |
 | Borrower 1d — Monthly Income (or Loss) | `FE0356` | `borr_1d_monthly_income` | Surfaced as info flag alongside total gross income. |
 | Co-Borrower 1d — Total Gross Income | `FE0412` | `coborr_1d_total_gross_income` | Surfaced as info flag when co-borrower 1d is populated. |
@@ -176,7 +176,7 @@ Cross-check employment fields against VOE: employer name, original hire date, ba
 
 - **Date Terminated — Current vs Prior** (custom): For entries with BE0109 = "Current": date terminated (BE0114) must be null/empty. For entries with BE0109 = "Prior": date terminated must be populated. If Prior and date terminated is empty, flag as warning.
 
-- **Base Monthly Income Populated (Section 1b)** (existence_check): FE0119 (borrower base monthly income) must be populated unless URLA.X201 is checked. FE0219 (co-borrower) must be populated unless URLA.X202 is checked or no co-borrower exists.
+- **Base Monthly Income Populated (Section 1b)** (existence_check): FE0119 (borrower base monthly income) must be populated unless URLA.X199 is checked. FE0219 (co-borrower) must be populated unless URLA.X200 is checked or no co-borrower exists.
 
 - **Employment History Gap Check** (custom): Calculate total time at current employer using be0x_years_in_job + be0x_months_in_job. If current employment < 2 years total: review prior employment entries for continuity and gaps. FHA: gap < 6 months requires explanation; gap > 6 months requires 2-year documented history before the gap.
 
@@ -208,18 +208,18 @@ Cross-check employment fields against VOE: employer name, original hire date, ba
 
   - Remedy: Obtain written explanation letter from borrower for employment gap
 - WARNING: "Borrower Base Monthly Income Missing (FE0119)"
-  - Condition: FE0119 (borrower base monthly income) is empty and URLA.X201 (does not apply) is not checked
+  - Condition: FE0119 (borrower base monthly income) is empty and URLA.X199 (does not apply) is not checked
 
   - Remedy: Enter the borrower's base monthly income in Section 1b or check the Does Not Apply box
 - WARNING: "Co-Borrower Base Monthly Income Missing (FE0219)"
-  - Condition: FE0219 (co-borrower base monthly income) is empty and URLA.X202 (does not apply) is not checked and a co-borrower is present on the loan
+  - Condition: FE0219 (co-borrower base monthly income) is empty and URLA.X200 (does not apply) is not checked and a co-borrower is present on the loan
 
   - Remedy: Enter the co-borrower's base monthly income in Section 1b or check the Does Not Apply box
 
 **⚠️ Field Updates (writes to Encompass):**
-- Field `URLA.X201` = `true` (when: Section 2c (borrower additional/self employment, FE0302) is empty and URLA.X201 is not already checked
+- Field `URLA.X199` = `true` (when: Section 2c (borrower additional/self employment, FE0302) is empty and URLA.X199 is not already checked
 )
-- Field `URLA.X202` = `true` (when: Section 2c (co-borrower additional/self employment, FE0402) is empty and URLA.X202 is not already checked and a co-borrower is present
+- Field `URLA.X200` = `true` (when: Section 2c (co-borrower additional/self employment, FE0402) is empty and URLA.X200 is not already checked and a co-borrower is present
 )
 - Field `URLA.X203` = `true` (when: Section 2d (borrower previous employment, FE0502) is empty and URLA.X203 is not already checked
 )

@@ -70,9 +70,9 @@ Fill out the Processor Workflow screen: set Product Type (derived from loan type
   - Remedy: Manually set Product Type on the Processor Workflow screen
 
 **⚠️ Field Updates (writes to Encompass):**
-- Field `CX.PRODUCTTYPE` = `{derived_product_type}` (when: always)
-- Field `CX.DOCUMENTATIONTYPE` = `Full Doc` (when: always)
-- Field `CX.NONDEL.INV.APPROVAL` = `No` (when: always)
+- Field `CX.PRODUCTTYPE` = `{derived_product_type}` (when: product type can be derived from loan type)
+- Field `CX.DOCUMENTATIONTYPE` = `Full Doc` (when: loan type is conventional/conforming)
+- Field `CX.NONDEL.INV.APPROVAL` = `No` (when: loan type is conforming)
 
 After completing this substep, call:
 ```

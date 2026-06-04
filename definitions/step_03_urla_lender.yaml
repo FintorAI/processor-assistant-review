@@ -131,7 +131,7 @@ substeps:
     condition: empty
   - field_id: '1066'
     value: FeeSimple
-    condition: empty
+    condition: empty or Leasehold
 
 dev:
   skip: false

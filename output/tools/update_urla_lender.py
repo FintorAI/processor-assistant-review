@@ -160,18 +160,19 @@ def _manner_held_compatible(los_value: str, computed: str) -> bool:
     """True if the LOS manner held is compatible with the computed value.
 
     LOS may be more specific (e.g. "Husband And Wife as Joint Tenants...").
-    We accept if LOS starts with our computed base, or if both are spouse
-    vesting variants ("Husband And Wife" ↔ "Wife And Husband").
+    We accept if LOS contains our computed base anywhere, or if both contain
+    spouse vesting variants ("Husband And Wife" ↔ "Wife And Husband").
     """
     if not los_value or not computed:
         return False
     los_up = los_value.strip().upper()
     comp_up = computed.strip().upper()
-    if los_up.startswith(comp_up):
+    if comp_up in los_up:
         return True
-    for variant in _SPOUSE_VESTING_VARIANTS:
-        if los_up.startswith(variant) and comp_up in _SPOUSE_VESTING_VARIANTS:
-            return True
+    # Check if either string contains a spouse vesting variant
+    if any(variant in los_up for variant in _SPOUSE_VESTING_VARIANTS) and \
+       any(variant in comp_up for variant in _SPOUSE_VESTING_VARIANTS):
+        return True
     return False
 
 
@@ -216,6 +217,7 @@ def update_urla_lender(
     nbs_info = _los(state, "nbs_info")
 
     current_manner = (_los(state, "manner_of_title") or "").strip()   # field 33
+    current_urla_x138 = (_los(state, "manner_urla_x138") or "").strip()  # URLA.X138
     current_estate = (_los(state, "estate_held") or "").strip()       # field 1066
     property_type = (_los(state, "property_type") or "").strip()      # field 1041
     attachment_type = (_los(state, "attachment_type") or "").strip()  # CX.ATTACHMENT.TYPE
@@ -237,6 +239,15 @@ def update_urla_lender(
     )
     manner_compatible = _manner_held_compatible(current_manner, computed_manner)
     manner_exact = current_manner.upper() == computed_manner.upper() if current_manner else False
+
+    # Backfill URLA.X138 if empty (even when field 33 is not being updated)
+    if not current_urla_x138:
+        # Use current_manner if present, otherwise use computed_manner
+        manner_for_x138 = current_manner if current_manner else computed_manner
+        field_updates["URLA.X138"] = _manner_to_urla_x138(manner_for_x138)
+        actions.append(
+            f"SET URLA.X138 = '{field_updates['URLA.X138']}' (backfill from manner='{manner_for_x138}')"
+        )
 
     if not current_manner:
         field_updates["33"] = computed_manner
@@ -301,9 +312,9 @@ def update_urla_lender(
         ))
 
     # ── B. Estate Will Be Held In (field 1066) ─────────────────────────────────
-    # Always set to FeeSimple for standard residential loans (blank or Leasehold).
+    # Set to FeeSimple only when blank or Leasehold (don't clobber other valid values).
     _estate_norm = current_estate.lower().replace(" ", "")
-    if _estate_norm != "feesimple":
+    if _estate_norm == "" or _estate_norm == "leasehold":
         field_updates["1066"] = "FeeSimple"
         _was = f"'{current_estate}'" if current_estate else "blank"
         actions.append(f"SET 1066 (Estate Will Be Held In) = 'FeeSimple' (was {_was})")
@@ -314,13 +325,21 @@ def update_urla_lender(
             "Confirm Fee Simple is appropriate for this property.",
             resolved=True, docs=["Title Report"],
         ))
-    else:
+    elif _estate_norm == "feesimple":
         flags.append(_flag("3.1",
             "Estate Verified — Fee Simple",
             "info",
             "Estate Will Be Held In (field 1066) is 'FeeSimple'.",
             "No action needed.",
             resolved=True, docs=["Title Report"],
+        ))
+    else:
+        flags.append(_flag("3.1",
+            "Estate Not Modified",
+            "info",
+            f"Estate Will Be Held In (field 1066) is '{current_estate}' (not blank or Leasehold) — not modified.",
+            "Verify estate type is appropriate for this property.",
+            docs=["Title Report"],
         ))
 
     # ── C. Attachment Type / Property Type vs Listing ──────────────────────────
