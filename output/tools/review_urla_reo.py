@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _doc, _efolder_present, _relevant_docs
+from ._helpers import _doc, _efolder_present, _relevant_docs, _los
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -170,6 +170,38 @@ def review_urla_reo(
                         ))
             except Exception as exc:
                 logger.warning(f"[REVIEW_URLA_REO] Could not parse statement_date '{raw_stmt_date}': {exc}")
+
+    # ── Gift Letter check (if gift_amount > 0) ──
+    gift_amount_str = _los(state, "gift_amount") or ""
+    try:
+        gift_amount = float(gift_amount_str) if gift_amount_str else 0.0
+    except (ValueError, TypeError):
+        gift_amount = 0.0
+
+    if gift_amount > 0:
+        gift_letter_present = _efolder_present(state, "Gift Letter")
+        if not gift_letter_present:
+            flags.append(_flag(
+                title="Gift Letter Missing",
+                severity="warning",
+                details=(
+                    f"Gift funds of ${gift_amount:,.2f} are present in the loan, "
+                    "but no gift letter was found in the eFolder."
+                ),
+                suggestion=(
+                    "Obtain a signed gift letter from both the donor and borrower. "
+                    "The gift letter must include donor information (name, relationship, "
+                    "address), gift amount, and signatures from both parties. "
+                    "Upload to the eFolder under 'Gift Letter' bucket."
+                ),
+            ))
+        else:
+            flags.append(_flag(
+                title="Gift Letter Present",
+                severity="info",
+                details=f"Gift Letter is present in the eFolder for gift amount ${gift_amount:,.2f}.",
+                suggestion="Verify gift letter includes donor info and signatures from donor and borrower.",
+            ))
 
     # ── Build result ──
     result = {

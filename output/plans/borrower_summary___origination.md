@@ -52,7 +52,7 @@ Walk through the Borrower Summary – Origination screen. Check every field for 
 | Borrower Cell Phone | `1490` | `borrower_cell_phone` | If empty, copy from home phone (field 66) |
 | Borrower Accept Text/SMS | `4920` | `borrower_accept_sms` | Auto-check if unchecked — required for text communications |
 | Borrower Email | `1240` | `borrower_email` | Completeness check |
-| Borrower Marital Status | `52` | `borrower_marital_status` | Completeness check; also drives vesting at Step 8 |
+| Borrower Marital Status | `52` | `borrower_marital_status` | Completeness check; also drives vesting at STEP_09 |
 | Borrower Dependents Count | `53` | `borrower_dependents_count` | Completeness check |
 | Borrower Dependent Ages | `54` | `borrower_dependent_ages` | Completeness check |
 | Co-Borrower First Name | `4004` | `coborrower_first_name` | Completeness check if coborrower present |

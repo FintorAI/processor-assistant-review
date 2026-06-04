@@ -55,8 +55,7 @@ Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent) and borrower ves
 | Borrower Occupancy Intent | `Borr.OccupancyIntent` | `borrower_occupancy_intent` | Will Occupy / Currently Occupy / Will Not Occupy |
 | Borrower Vesting Name | `1868` | `borrower_vesting_name` | Vesting name written from borrower full name |
 | Borrower Vesting Type | `1871` | `borrower_vesting_type` | Individual (standard borrower) |
-| Borrower Vesting Description | `1872` | `borrower_vesting_desc` | The vesting dropdown for the borrower entity (e.g. "A SINGLE WOMAN", "AN UNMARRIED MAN", "HUSBAND AND WIFE"). Written from marital status + co-borrower presence. Build Final Vesting combines 1868 + 1872 + field 33 → 1867.
- |
+| Borrower Vesting Description | `1872` | `borrower_vesting_desc` | The vesting dropdown for the borrower entity (e.g. "A SINGLE WOMAN", "AN UNMARRIED MAN", "HUSBAND AND WIFE"). Written from marital status + co-borrower presence. Build Final Vesting combines 1868 + 1872 + field 33 → 1867. |
 | Co-Borrower First Name | `4004` | `coborrower_first_name` | Presence determines joint vesting; name written to 1873 |
 | Co-Borrower Middle Name | `4005` | `coborrower_middle_name` | Co-borrower vesting name (middle) |
 | Co-Borrower Last Name | `4006` | `coborrower_last_name` | Co-borrower vesting name |
@@ -65,14 +64,11 @@ Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent) and borrower ves
 | Co-Borrower Occupancy Intent | `CoBorr.OccupancyIntent` | `coborrower_occupancy_intent` | Will Occupy / Currently Occupy / Will Not Occupy (same as borrower) |
 | Co-Borrower Vesting Name | `1873` | `coborrower_vesting_name` | Vesting name written from co-borrower full name |
 | Co-Borrower Vesting Type | `1876` | `coborrower_vesting_type` | Individual (standard co-borrower) |
-| Co-Borrower Vesting Description | `1877` | `coborrower_vesting_desc` | The vesting dropdown for the co-borrower entity (e.g. "HUSBAND AND WIFE", "AN UNMARRIED MAN"). Written from marital status + presence of co-borrower.
- |
+| Co-Borrower Vesting Description | `1877` | `coborrower_vesting_desc` | The vesting dropdown for the co-borrower entity (e.g. "HUSBAND AND WIFE", "AN UNMARRIED MAN"). Written from marital status + presence of co-borrower. |
 | Non-Borrowing Spouse Flag | `CX.NBSFLAG` | `nbs_flag` | YES if NBS exists on title without being a co-borrower |
 | Non-Borrowing Spouse Name | `CX.NBSINFO` | `nbs_info` | NBS name → written to TR0101 (vesting entity) |
-| Manner in Which Title Will Be Held | `33` | `manner_of_title` | READ-ONLY here. Manner Held (field 33) + URLA.X138 + Estate Will Be Held In (field 1066) are computed and written by the 1003 URLA Lender step (STEP_03, substep 3.1). This step reads field 33 only to confirm Build Final Vesting has its required input.
- |
-| Final Vesting | `1867` | `final_vesting` | Read-only; populated by clicking Build Final Vesting in Encompass. Auto-corrected ONLY for single/unmarried borrowers missing required suffix.
- |
+| Manner in Which Title Will Be Held | `33` | `manner_of_title` | READ-ONLY here. Manner Held (field 33) + URLA.X138 + Estate Will Be Held In (field 1066) are computed and written by the 1003 URLA Lender step (STEP_03, substep 3.1). This step reads field 33 only to confirm Build Final Vesting has its required input. |
+| Final Vesting | `1867` | `final_vesting` | Read-only; populated by clicking Build Final Vesting in Encompass. Auto-corrected ONLY for single/unmarried borrowers missing required suffix. |
 
 **Business Rules:**
 - **Occupancy Intent — Borrower** (custom): Borr.OccupancyIntent must be set. Investment/Second Home → Will Not Occupy. Refinance + Primary → Currently Occupy. Purchase + Primary → Will Occupy. Write if empty or incorrect.

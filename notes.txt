@@ -15,13 +15,13 @@ Pipeline
 }
 
 {
-  "loan_number": "2605968608",
-  "env": "Prod"
+  "loan_number": "LOAN_NUMBER_REDACTED",
+  "env": "ENV_REDACTED"
 }
 
-2605968608
-Prod
-Stumpf
+LOAN_NUMBER_REDACTED
+ENV_REDACTED
+BORROWER_REDACTED
 
 2604964148 
 
