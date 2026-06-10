@@ -64,6 +64,7 @@ try:
     HAS_COPILOTKIT = True
 except ImportError:
     HAS_COPILOTKIT = False
+    CopilotKitMiddleware = None  # type: ignore[assignment,misc]
     logger.info("[INIT] copilotkit not found — running without CopilotKit middleware")
 
 from registry import (
