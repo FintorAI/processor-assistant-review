@@ -64,6 +64,7 @@ try:
     HAS_COPILOTKIT = True
 except ImportError:
     HAS_COPILOTKIT = False
+    CopilotKitMiddleware = None  # type: ignore[assignment,misc]
     logger.info("[INIT] copilotkit not found — running without CopilotKit middleware")
 
 from registry import (
@@ -161,6 +162,47 @@ def append_list(existing: list | None, new: list | None) -> list:
     return (existing or []) + (new or [])
 
 
+# Runtime/progress fields on a comms action item that must survive a re-run
+# (i.e. NOT be clobbered by a freshly-derived item with the same id). Static
+# fields (component, action_type, title, description, trigger, severity, …)
+# always take the latest derived value.
+_COMMS_ACTION_RUNTIME_KEYS = ("status", "result", "thread_id", "triggered_at")
+
+
+def merge_comms_actions(existing: list | None, new: list | None) -> list:
+    """Merge component-agnostic comms action items by ``id``.
+
+    - De-dupes by ``id`` (no duplicate cards across partial re-runs).
+    - Preserves runtime/progress fields (status, result, thread_id, …) set on a
+      prior pass so re-deriving the same action doesn't reset a triggered one.
+    - Static fields are refreshed from the newest derivation.
+    """
+    by_id: dict[str, dict] = {}
+    order: list[str] = []
+
+    def _ingest(items: list | None, is_new: bool) -> None:
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            aid = item.get("id")
+            if not aid:
+                continue
+            if aid not in by_id:
+                by_id[aid] = dict(item)
+                order.append(aid)
+            elif is_new:
+                preserved = {
+                    k: by_id[aid][k]
+                    for k in _COMMS_ACTION_RUNTIME_KEYS
+                    if by_id[aid].get(k) is not None
+                }
+                by_id[aid] = {**by_id[aid], **item, **preserved}
+
+    _ingest(existing, is_new=False)
+    _ingest(new, is_new=True)
+    return [by_id[a] for a in order]
+
+
 def truncate_messages(existing: list | None, new: list | None) -> list:
     merged = add_messages(existing, new)
     truncated = []
@@ -210,6 +252,9 @@ class ProcessorAgentState(AgentState):
     # ── Issues and tracking ──
     flags: Annotated[NotRequired[list[dict]], OmitFromInput, dedupe_flags]
     pending_field_updates: Annotated[NotRequired[list[dict]], OmitFromInput]
+
+    # ── Communications action items (component-agnostic; see build_action_items) ──
+    comms_actions: Annotated[NotRequired[list[dict]], OmitFromInput, merge_comms_actions]
 
     # ── Workflow progress ──
     current_step: Annotated[NotRequired[str | None], OmitFromInput, last_value_reducer]

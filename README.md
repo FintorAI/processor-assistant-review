@@ -151,6 +151,43 @@ run = await client.runs.create(
 
 ---
 
+## Communications action items (`comms_actions`)
+
+The final substep of the Processor Workflow & Closing step (`STEP_11 / 11.3` in
+`output/config/workflow_config.json`) runs **`build_action_items`** — a
+component-agnostic rule registry that turns review findings into actionable
+communications. Results are written to **`state['comms_actions']`** and merged by
+`id` via the `merge_comms_actions` reducer in `proc_agent.py` (de-duped across
+re-runs; runtime status like `status`/`result`/`thread_id` is preserved).
+
+Each item is component-agnostic — it carries a `component` and a `trigger` block —
+so future components (e.g. `integrations`) can add rules additively without changing
+the schema. The `trigger.payload` matches the
+[`processor-assistant-communications` AGENT_INPUT_CONTRACT](../processor-assistant-communications/docs/AGENT_INPUT_CONTRACT.md),
+and the Dashboard-Officer review UI renders these as an **Action Items** panel where
+the processor previews/approves each one (HITL) before anything is sent.
+
+### Rules (in `output/tools/build_action_items.py`)
+
+| `action_type` | Fires when | Graph (`trigger.graph_id`) |
+|---|---|---|
+| `order_title_report` | No **Title Report** in the eFolder | `processor_title_order` |
+| `lock_desk_address_change` | Loan is **locked** AND the USPS-normalized address differs from the LOS address (Apt→Unit, etc.) | `processor_lock_desk` |
+| `emd_request` | **Purchase** loan with an unresolved EMD flag (missing / mismatch) from `review_urla_emd` | `processor_emd_request` |
+| `hoa_loe_signature` | Property is **not a condo** AND no **HOA Statement** on file → borrower signs a "no-HOA" LOE via Blend | `processor_blend_loe` |
+
+Rules are pure functions (`state → item | None`) registered in the `RULES` list;
+add new rules (or other components) there. The tool is registered in
+`output/tools/__init__.py` and `output/config/workflow_config.json` (STEP_11
+`tools` + substep `3`).
+
+> **Note:** `build_action_items.py` is a hand-written tool (`# FACTORY-LOCK: false`,
+> but it has no YAML definition). If the factory is reset, re-confirm the STEP_11
+> registration and `comms_actions` state field survive (or promote it to a YAML
+> definition + FACTORY-LOCK).
+
+---
+
 ## The factory (YAML → code)
 
 ```bash

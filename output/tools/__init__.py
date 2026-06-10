@@ -48,6 +48,8 @@ from .update_transmittal_summary import update_transmittal_summary
 from .update_processor_workflow import update_processor_workflow
 # STEP_11 / 11.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
+# STEP_11 / 11.3: Build Communications Action Items
+from .build_action_items import build_action_items
 
 def get_all_tools() -> list:
     """Return all tool functions."""
@@ -83,6 +85,7 @@ def get_all_tools() -> list:
     tools.append(update_transmittal_summary)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
+    tools.append(build_action_items)
     return tools
 
 
@@ -116,4 +119,5 @@ __all__ = [
     "update_transmittal_summary",
     "update_processor_workflow",
     "update_processor_closing",
+    "build_action_items",
 ]
