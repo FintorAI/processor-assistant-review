@@ -24,3 +24,4 @@ FORM_UPDATES,Form Updates,STEP_09,9,Borrower Info - Vesting,9.1,Update Borrower 
 FORM_UPDATES,Form Updates,STEP_10,10,Transmittal Summary,10.1,Update Transmittal Summary,transmittal_summary.md,update_transmittal_summary
 FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
 FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
+FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.3,Build Communications Action Items,processor_workflow_and_closing.md,build_action_items

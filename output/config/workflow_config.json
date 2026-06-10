@@ -384,7 +384,8 @@
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
         "update_processor_closing",
-        "update_processor_workflow"
+        "update_processor_workflow",
+        "build_action_items"
       ],
       "substeps": {
         "1": {
@@ -397,6 +398,12 @@
           "name": "Processor Closing Update",
           "tools": [
             "update_processor_closing"
+          ]
+        },
+        "3": {
+          "name": "Build Communications Action Items",
+          "tools": [
+            "build_action_items"
           ]
         }
       }
