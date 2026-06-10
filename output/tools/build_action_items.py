@@ -39,6 +39,7 @@ Action item shape::
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated, Any, Callable, Dict, List, Optional
 
@@ -73,6 +74,34 @@ def _coborrower_name(state: dict) -> Optional[str]:
 
 def _loan_number(state: dict) -> Optional[str]:
     return _los(state, "loan_number") or state.get("loan_number")
+
+
+def _money(value: Any) -> Optional[float]:
+    """Coerce an LOS money value to a float for the comms templates.
+
+    LOS fields arrive as formatted strings ('289,500.00', '$300,000'); the comms
+    email templates expect numbers (they apply ``{:,.2f}|float`` formatting). This
+    strips currency punctuation and returns a float, or ``None`` when the value is
+    not actually numeric (e.g. EMD field holding a contract number like
+    'MD92315-PU') so the recipient never sees a misleading '$0.00'.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = re.sub(r"[^0-9.\-]", "", str(value))
+    if cleaned in ("", "-", ".", "-.", "."):
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _test_mode(state: dict) -> bool:
+    """Email graphs must redirect to test inboxes on Test runs (never email real
+    escrow/agent contacts from a Test review). Mirrors COMMS_TEST_MODE."""
+    return str(state.get("env") or "").strip().lower() == "test"
 
 
 def _property_address(state: dict) -> str:
@@ -177,10 +206,11 @@ def _rule_title_order(state: dict) -> Optional[dict]:
         "borrower_name": _borrower_name(state),
         "coborrower_name": _coborrower_name(state),
         "property_address": _property_address(state),
-        "loan_amount": _los(state, "loan_amount"),
-        "purchase_price": _los(state, "los_purchase_price"),
+        "loan_amount": _money(_los(state, "loan_amount")),
+        "purchase_price": _money(_los(state, "los_purchase_price")),
         "is_condo": _is_condo(state),
         "loan_number": _loan_number(state),
+        "test_mode": _test_mode(state),
     }}
     return _item(
         "order_title_report",
@@ -214,6 +244,7 @@ def _rule_lock_desk(state: dict) -> Optional[dict]:
         "new_address": new_addr or None,
         "loan_number": _loan_number(state),
         "lock_status_snapshot": _lock_snapshot(state),
+        "test_mode": _test_mode(state),
     }}
     return _item(
         "lock_desk_address_change",
@@ -235,9 +266,12 @@ def _rule_emd_request(state: dict) -> Optional[dict]:
     payload = {**_base_payload(state), "inputs": {
         "borrower_name": _borrower_name(state),
         "property_address": _property_address(state),
-        "expected_emd_amount": _los(state, "emd_amount"),
+        # Omit when the LOS field is not a real dollar amount (some loans hold a
+        # contract/file number here) so the email never shows "Expected EMD: $0.00".
+        "expected_emd_amount": _money(_los(state, "emd_amount")),
         "emd_reason": "mismatch" if "mismatch" in text else "missing",
         "loan_number": _loan_number(state),
+        "test_mode": _test_mode(state),
     }}
     return _item(
         "emd_request",
