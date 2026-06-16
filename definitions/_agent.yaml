@@ -9,7 +9,7 @@ agent:
     processor-assistant multi-agent system. Uses rule_modifiers for
     loan-type/state-specific logic distributed across substeps.
 
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   phases:
     - INTAKE
     - DATA_REVIEW

@@ -542,7 +542,7 @@ def create_agent():
     middleware_stack.append(WorkflowGuardMiddleware())
 
     agent = create_deep_agent(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         tools=all_tools,
         system_prompt=system_prompt,
         middleware=tuple(middleware_stack),

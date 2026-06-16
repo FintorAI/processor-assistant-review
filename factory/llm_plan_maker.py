@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 8192
 
 SYSTEM_PROMPT = """You are writing a PLAN — a Markdown prompt that will be injected into an AI agent's context at runtime.

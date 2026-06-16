@@ -2,7 +2,7 @@
   "agent": {
     "name": "ProcessorAgent",
     "version": "1.0.0",
-    "model": "claude-sonnet-4-20250514"
+    "model": "claude-sonnet-4-6"
   },
   "loan_profile_fields": {
     "loan_type": {
