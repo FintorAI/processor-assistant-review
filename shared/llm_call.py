@@ -61,6 +61,10 @@ DEFAULT_MODEL = "claude-sonnet-4-6"
 # Smaller model for simple classification / yes-no decisions
 FAST_MODEL = "claude-haiku-3-20250303"
 
+# Vision-capable model for image OCR/transcription. Sonnet 4 (the repo default)
+# is deprecated (EOL 2026-06-15), so vision pins a current model. Override via env.
+VISION_MODEL = os.environ.get("VISION_MODEL", "claude-sonnet-4-5-20250929")
+
 # Token budget defaults
 DEFAULT_MAX_TOKENS = 1024
 FAST_MAX_TOKENS = 256
@@ -146,6 +150,100 @@ def llm_call(
 
     except Exception as e:
         logger.error(f"[LLM_CALL] Error: {e}")
+        return LLMResult(success=False, error=str(e))
+
+
+def llm_vision_call(
+    prompt: str,
+    images: list,
+    system: str = "You are an OCR/document-extraction assistant for mortgage loan processing.",
+    model: str = "",
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
+) -> LLMResult:
+    """Make a vision LLM call with one or more images plus a text prompt.
+
+    Used to OCR / transcribe images that are not in the eFolder (e.g. images
+    attached to Almas' notes), which the eFolder/CatchingDoc pipeline cannot
+    reach. Returns the model's text response (raw transcription + any summary).
+
+    Args:
+        prompt: The text instruction (what to extract).
+        images: List of image specs. Each item may be either:
+            - a str  → treated as an image URL
+            - {"url": "https://..."}                       → URL source
+            - {"data": "<base64>", "media_type": "image/png"} → base64 source
+        system: System prompt.
+        model: Claude model; defaults to VISION_MODEL (a non-deprecated,
+            vision-capable model). Override via the VISION_MODEL env var.
+        max_tokens: Max output tokens.
+        temperature: Sampling temperature (0.0 = deterministic).
+
+    Returns:
+        LLMResult with text, usage, and error info.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        logger.error("[LLM_VISION] ANTHROPIC_API_KEY not set")
+        return LLMResult(success=False, error="ANTHROPIC_API_KEY not set")
+
+    if not images:
+        return LLMResult(success=False, error="No images provided")
+
+    use_model = model or VISION_MODEL
+
+    content: list = []
+    for img in images:
+        if isinstance(img, str):
+            content.append({"type": "image", "source": {"type": "url", "url": img}})
+        elif isinstance(img, dict) and img.get("data"):
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": img.get("media_type", "image/png"),
+                    "data": img["data"],
+                },
+            })
+        elif isinstance(img, dict) and img.get("url"):
+            content.append({"type": "image", "source": {"type": "url", "url": img["url"]}})
+        else:
+            logger.warning(f"[LLM_VISION] Skipping unrecognized image spec: {type(img)}")
+
+    if not content:
+        return LLMResult(success=False, error="No valid image sources resolved")
+
+    content.append({"type": "text", "text": prompt})
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        response = client.messages.create(
+            model=use_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system,
+            messages=[{"role": "user", "content": content}],
+        )
+
+        text = "".join(
+            block.text for block in response.content if getattr(block, "type", "") == "text"
+        )
+        usage = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+
+        logger.info(
+            f"[LLM_VISION] model={use_model} images={len(content) - 1} "
+            f"in={usage['input_tokens']} out={usage['output_tokens']} len={len(text)}"
+        )
+
+        return LLMResult(text=text, success=True, model=use_model, usage=usage)
+
+    except Exception as e:
+        logger.error(f"[LLM_VISION] Error: {e}")
         return LLMResult(success=False, error=str(e))
 
 
@@ -347,7 +445,7 @@ def llm_structured_call(
                 try:
                     data = json.loads(block.text)
                     if isinstance(data, dict):
-                        logger.info(f"[LLM_STRUCTURED] Fallback JSON parse succeeded")
+                        logger.info("[LLM_STRUCTURED] Fallback JSON parse succeeded")
                         return data
                 except json.JSONDecodeError:
                     pass

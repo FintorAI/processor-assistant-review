@@ -1,5 +1,5 @@
 step:
-  id: STEP_06
+  id: STEP_07
   name: 1003 URLA Part 4
   phase: DATA_REVIEW
   description: >
@@ -8,7 +8,7 @@ step:
     attachment/property type vs listing, estate held, and manner of title.
 
 substeps:
-- id: '6.1'
+- id: '7.1'
   name: Downpayment Sources (4b, 4c, 4d)
   tool: review_urla_downpayment
   description: >
@@ -60,7 +60,7 @@ substeps:
     suggestion: Confirm AMI = AM 100% in Fannie Mae Additional Data screen
   field_updates: []
 
-- id: '6.2'
+- id: '7.2'
   name: Declarations (Section 5)
   tool: review_urla_declarations
   description: >
@@ -107,7 +107,7 @@ substeps:
     suggestion: Review with processor and correct if needed
   field_updates: []
 
-- id: '6.3'
+- id: '7.3'
   name: Ethnicity and ID Cross-Check
   tool: review_urla_ethnicity
   description: >

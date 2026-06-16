@@ -213,8 +213,13 @@ class USPSAddressValidator:
             response.raise_for_status()
             data = response.json()
             
-            # Parse response
+            # Parse response. USPS Addresses v3 splits the payload into two objects:
+            #   data["address"]        — standardized street/city/state/ZIP
+            #   data["additionalInfo"] — DPVConfirmation, deliveryPoint, carrierRoute,
+            #                            vacant, DPVCMRA, business, centralDeliveryPoint
+            # DPV (and the other delivery flags) MUST be read from additionalInfo, not address.
             address_data = data.get("address", {})
+            additional_info = data.get("additionalInfo", {})
             
             standardized = {
                 "street": address_data.get("streetAddress"),
@@ -230,19 +235,19 @@ class USPSAddressValidator:
             
             warnings = []
             
-            # Check DPV confirmation
-            dpv = address_data.get("DPVConfirmation")
+            # Check DPV confirmation (from additionalInfo)
+            dpv = additional_info.get("DPVConfirmation")
             if dpv == "N":
                 warnings.append("Address not confirmed by USPS")
             elif dpv == "D":
                 warnings.append("Address missing secondary information (apt/suite)")
             
             # Check if vacant
-            if address_data.get("vacant") == "Y":
+            if additional_info.get("vacant") == "Y":
                 warnings.append("Property is marked as vacant")
             
             # Check if CMRA (mail drop)
-            if address_data.get("DPVCMRA") == "Y":
+            if additional_info.get("DPVCMRA") == "Y":
                 warnings.append("Address is a Commercial Mail Receiving Agency (CMRA)")
             
             logger.info(f"[USPS] Address validated - DPV: {dpv}")
@@ -250,13 +255,13 @@ class USPSAddressValidator:
             return USPSAddressResult(
                 success=True,
                 standardized_address=standardized,
-                delivery_point=address_data.get("deliveryPoint"),
-                carrier_route=address_data.get("carrierRoute"),
+                delivery_point=additional_info.get("deliveryPoint"),
+                carrier_route=additional_info.get("carrierRoute"),
                 dpv_confirmation=dpv,
-                dpv_cmra=address_data.get("DPVCMRA"),
-                business=address_data.get("business"),
-                central_delivery_point=address_data.get("centralDeliveryPoint"),
-                vacant=address_data.get("vacant"),
+                dpv_cmra=additional_info.get("DPVCMRA"),
+                business=additional_info.get("business"),
+                central_delivery_point=additional_info.get("centralDeliveryPoint"),
+                vacant=additional_info.get("vacant"),
                 warnings=warnings if warnings else None,
             )
             

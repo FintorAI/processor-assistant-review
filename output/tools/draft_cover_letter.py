@@ -1,6 +1,6 @@
-"""draft_cover_letter — Tool for substep 7.1: Draft Cover Letter / Submission Notes
+"""draft_cover_letter — Tool for substep 8.1: Draft Cover Letter / Submission Notes
 
-Step 7 (STEP_07): Cover Letter
+Step 8 (STEP_08): Cover Letter
 Phase: FORM_UPDATES
 
 # FACTORY-LOCK: true
@@ -11,7 +11,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
@@ -82,7 +82,7 @@ def draft_cover_letter(
     Writes directly to CX.KM.SUBMISSION.NOTES.
     Flags warning if no notes were provided.
 
-    Call this tool during STEP_07 (Cover Letter) as substep 7.1.
+    Call this tool during STEP_08 (Cover Letter) as substep 8.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -102,6 +102,44 @@ def draft_cover_letter(
         or ""
     )
     almas_notes = _strip_boilerplate(str(almas_notes).strip())
+
+    # ── Append OCR'd text from Almas-notes images (transcribed in step 0.6) ──
+    # These images are uploaded to DocRepo by the frontend (not the eFolder), so
+    # extract_almas_images OCRs them via Claude vision and stores the text on
+    # state['almas_notes_images']. We append that text here and surface each image
+    # as a DocRepo coordinate reference on the 7.1 flag (built directly from the
+    # frontend-provided coordinates — these are not eFolder docs, so _doc_coords
+    # does not apply).
+    almas_images = (
+        state.get("almas_notes_images")
+        or (state.get("additional_info") or {}).get("almas_notes_images")
+        or []
+    )
+    image_refs: list[dict] = []
+    image_text_blocks: list[str] = []
+    for idx, img in enumerate(almas_images):
+        if not isinstance(img, dict):
+            continue
+        text = (img.get("extracted_text") or "").strip()
+        label = img.get("filename") or f"Almas Notes Image {idx + 1}"
+        if text:
+            image_text_blocks.append(f"[{label}]\n{text}")
+        doc_id = img.get("doc_id") or img.get("docrepo_location") or ""
+        url = img.get("url") or img.get("signed_url") or img.get("s3_url") or ""
+        if doc_id or url:
+            image_refs.append({
+                "doc_type": label,
+                "client_id": img.get("client_id", ""),
+                "doc_id": doc_id,
+                "bucket": img.get("bucket", ""),
+                "attachment_id": "",
+                "url": url,
+                "source": "almas_notes_image",
+                "copies": [],
+            })
+    if image_text_blocks:
+        joined = "\n\n".join(image_text_blocks)
+        almas_notes = (almas_notes + "\n\n" + joined) if almas_notes else joined
 
     # ── Build "Documents still needed:" appendix ──
     missing_docs: list[str] = []
@@ -145,19 +183,23 @@ def draft_cover_letter(
     # ── Rule: Copy Almas notes → CX.KM.SUBMISSION.NOTES ──
     if almas_notes:
         field_updates = {"CX.KM.SUBMISSION.NOTES": almas_notes}
-        _write_fields(loan_id, field_updates, "7.1", flags, state=state)
+        _write_fields(loan_id, field_updates, "8.1", flags, state=state)
         missing_summary = (
             f" Appended 'Documents still needed:' with {len(missing_docs)} item(s): "
             + ", ".join(missing_docs) + "."
             if missing_docs else " No missing docs appended (all present in eFolder)."
         )
-        flags.append({
-            "substep": "7.1",
+        image_summary = (
+            f" Appended OCR'd text from {len(image_text_blocks)} Almas-notes image(s)."
+            if image_text_blocks else ""
+        )
+        notes_flag = {
+            "substep": "8.1",
             "title": "Cover Letter — Submission Notes Written",
             "severity": "info-overwrite",
             "details": (
                 f"Almas' notes copied to CX.KM.SUBMISSION.NOTES "
-                f"({len(almas_notes)} characters).{missing_summary}"
+                f"({len(almas_notes)} characters).{missing_summary}{image_summary}"
             ),
             "suggestion": (
                 "Review the submission notes and remove any sections not applicable "
@@ -166,11 +208,14 @@ def draft_cover_letter(
             ),
             "resolved": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        if image_refs:
+            notes_flag["relevant_documents"] = image_refs
+        flags.append(notes_flag)
         logger.info(f"[DRAFT_COVER_LETTER] Wrote {len(almas_notes)} chars to CX.KM.SUBMISSION.NOTES")
     else:
         flags.append({
-            "substep": "7.1",
+            "substep": "8.1",
             "title": "Cover Letter — Almas Notes Missing",
             "severity": "warning",
             "details": "No Almas notes found in state. CX.KM.SUBMISSION.NOTES was not populated.",
@@ -183,12 +228,12 @@ def draft_cover_letter(
     # ── Build result ──
     result = {
         "success": True,
-        "substep": "7.1",
+        "substep": "8.1",
         "tool": "draft_cover_letter",
         "almas_notes_length": len(almas_notes),
         "flags_count": len(flags),
         "message": (
-            f"Cover Letter step completed — "
+            "Cover Letter step completed — "
             + (f"notes written ({len(almas_notes)} chars)" if almas_notes else "no notes provided")
             + (f"; {len(flags)} flag(s)" if flags else "")
         ),

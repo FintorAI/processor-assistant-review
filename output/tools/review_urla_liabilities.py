@@ -1,6 +1,6 @@
-"""review_urla_liabilities — Tool for substep 5.3: Liabilities and VOL (2c)
+"""review_urla_liabilities — Tool for substep 6.3: Liabilities and VOL (2c)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "5.3"
+SUBSTEP = "6.3"
 
 
 def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str, Any]:
@@ -46,7 +46,7 @@ def review_urla_liabilities(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review Section 2c — Liabilities (VOL).
+    """Review Section 3c — Liabilities (VOL).
 
     Fetches all VOL rows from the Encompass v3 API and checks:
       - Column 1 (Exclude Monthly Payment = Y): flag each excluded debt and ask
@@ -54,7 +54,7 @@ def review_urla_liabilities(
       - Column 2 (To Be Paid Off = Y): flag each such debt and request the most
         recent statement for that creditor (e.g. JPMCB card).
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.3.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.3.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -78,7 +78,7 @@ def review_urla_liabilities(
             severity="blocking",
             details="The Verification of Liabilities (VOL) collection does not exist yet in "
                     "Encompass for this loan. No liability rows have been entered.",
-            suggestion="Open the 1003 Section 2c in Encompass, run credit or manually enter "
+            suggestion="Open the 1003 Section 3c in Encompass, run credit or manually enter "
                        "liabilities before reviewing.",
         ))
         vols = []
@@ -88,7 +88,7 @@ def review_urla_liabilities(
             title="VOL API Error",
             severity="warning",
             details=f"Could not retrieve VOL data from Encompass: {exc}",
-            suggestion="Manually review Section 2c in Encompass.",
+            suggestion="Manually review Section 3c in Encompass.",
         ))
         vols = []
 
@@ -138,7 +138,7 @@ def review_urla_liabilities(
             ),
         ))
 
-    # ── Section 2d: Other Liabilities ──
+    # ── Section 3d: Other Liabilities ──
     # Flag as info if any other-liability rows exist (alimony, job-related expenses, etc.)
     try:
         from shared.encompass_io import read_other_liabilities
@@ -156,11 +156,11 @@ def review_urla_liabilities(
             pmt   = item["monthly_payment"]
             lines.append(f"  • {label} ({owner}): ${pmt:,.2f}/mo")
         flags.append(_flag(
-            title="Section 2d — Other Liabilities Present",
+            title="Section 3d — Other Liabilities Present",
             severity="info",
             details=(
                 f"{len(other_liabs)} other liabilit{'y' if len(other_liabs)==1 else 'ies'} "
-                f"found in Encompass (Section 2d):\n" + "\n".join(lines)
+                f"found in Encompass (Section 3d):\n" + "\n".join(lines)
             ),
             suggestion="Verify these are correctly entered and accounted for in DTI.",
         ))

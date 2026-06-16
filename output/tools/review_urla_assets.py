@@ -1,6 +1,6 @@
-"""review_urla_assets — Tool for substep 5.1: Assets and VOD (2a)
+"""review_urla_assets — Tool for substep 6.1: Assets and VOD (2a)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -16,7 +16,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _doc_all, _profile
+from ._helpers import _los, _doc, _doc_all, _profile, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,8 @@ def _days_old(date_val) -> Optional[int]:
     return (datetime.now() - dt).days
 
 
-def _flag(substep: str, title: str, severity: str, details: str, suggestion: str) -> dict:
-    return {
+def _flag(substep: str, title: str, severity: str, details: str, suggestion: str, docs=None) -> dict:
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -76,6 +76,9 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -203,7 +206,7 @@ def review_urla_assets(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review Section 2a (Assets / VOD).
+    """Review Section 3a (Assets / VOD).
 
     Checks:
       1. Bank statement presence and recency (60 days Conv / 30 days FHA).
@@ -218,7 +221,7 @@ def review_urla_assets(
     Reads Docs: Bank Statement (all copies), Assets (all copies)
     Reads State: vod_data (populated by fetch_vod_data)
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.1.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -238,8 +241,7 @@ def review_urla_assets(
 
     # ── 2. LOS field reads ───────────────────────────────────────────────────
     total_assets      = _parse_float(_los(state, "total_assets"))       # Field 732
-    checking_balance  = _parse_float(_los(state, "checking_balance"))   # Field 733
-    savings_balance   = _parse_float(_los(state, "savings_balance"))    # Field 734
+    # checking_balance / savings_balance (733/734) reserved for future drill-down checks
 
     # ── 3. VOD data (from fetch_vod_data) ────────────────────────────────────
     vod_rows: list = state.get("vod_data") or []
@@ -259,23 +261,26 @@ def review_urla_assets(
     # 4a. Bank statement presence
     if not bank_stmt_full_copies and not bank_statement_copies:
         flags.append(_flag(
-            "5.1",
+            "6.1",
             "Bank Statement Missing",
             "stop",
             "No bank statement documents found in eFolder.",
             f"Request {max_days_old}-day bank statement history from borrower.",
         ))
     else:
-        # 4b. Recency check — check the most recent statement end date across copies
-        recency_checked = False
+        # 4b. Recency check — check the most recent statement end date across copies.
+        # Guardrail: only treat the check as "performed" when at least one copy yields a
+        # readable end date. If a statement is present but every statement_period_end is
+        # empty/unparseable, do NOT silently pass — flag recency as unverifiable.
+        _recency_evaluated = False
         for copy in bank_statement_dates:
             end_date_val = copy.get("value")
             days = _days_old(end_date_val)
             if days is not None:
-                recency_checked = True
+                _recency_evaluated = True
                 if days > max_days_old:
                     flags.append(_flag(
-                        "5.1",
+                        "6.1",
                         "Bank Statement Stale",
                         "warning",
                         (
@@ -284,8 +289,28 @@ def review_urla_assets(
                             f"Source: {copy.get('source_document', 'unknown')}."
                         ),
                         f"Request updated bank statements covering the last {max_days_old} days.",
+                        docs=_relevant_docs(
+                            state,
+                            doc_types=["Bank Statement"],
+                            matched={"Bank Statement": copy.get("copy_index")},
+                        ),
                     ))
                 break  # only flag once for the primary copy
+
+        if not _recency_evaluated:
+            flags.append(_flag(
+                "6.1",
+                "Bank Statement Recency Unverifiable",
+                "warning",
+                (
+                    "Bank statement(s) present in eFolder but no readable statement period "
+                    "end date was extracted, so recency could not be verified "
+                    f"({loan_type} requires statements ≤{max_days_old} days old)."
+                ),
+                "Manually verify the statement is recent enough, or re-run extraction "
+                "(possible doc-type/schema name mismatch — see docs/EFOLDER_EXTRACTION.md).",
+                docs=_relevant_docs(state, doc_types=["Bank Statement"]),
+            ))
 
     # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
     zelle_deposits = _doc(state, "bank_zel_deposits")
@@ -294,11 +319,12 @@ def review_urla_assets(
         for kw in _ZELLE_KEYWORDS:
             if kw in desc:
                 flags.append(_flag(
-                    "5.1",
+                    "6.1",
                     "ZEL / Zelle Deposit Requires Explanation",
                     "warning",
                     f"Unusual deposit keyword '{kw}' detected in bank statement: {zelle_deposits!r}.",
                     "Request borrower Letter of Explanation (LOE) for ZEL/Zelle/Klarna transactions.",
+                    docs=_relevant_docs(state, "bank_zel_deposits", doc_types=["Bank Statement"]),
                 ))
                 break
 
@@ -307,33 +333,46 @@ def review_urla_assets(
     large_deposits = _doc(state, "bank_large_deposits")
     if large_deposits:
         flags.append(_flag(
-            "5.1",
+            "6.1",
             "Large / Green Deposit Requires Sourcing",
             "warning",
             f"Large or unusual deposit(s) flagged in bank statement: {large_deposits!r}.",
             "Request documentation sourcing the deposit (LOE + receipts if applicable).",
+            docs=_relevant_docs(state, "bank_large_deposits", doc_types=["Bank Statement"]),
         ))
 
     # 4e. VOD cross-reference for bank statements
     if vod_rows:
+        _bank_refs = _relevant_docs(state, doc_types=["Bank Statement"])
+        _bs_vod_flags = []
         if bank_stmt_full_copies:
-            flags += _compare_with_vod(
-                bank_stmt_full_copies, vod_rows, "Bank Statement", "5.1"
+            _bs_vod_flags = _compare_with_vod(
+                bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1"
             )
         elif bank_statement_copies:
-            flags += _compare_with_vod(
-                bank_statement_copies, vod_rows, "Bank Statement", "5.1"
+            _bs_vod_flags = _compare_with_vod(
+                bank_statement_copies, vod_rows, "Bank Statement", "6.1"
             )
+        if _bank_refs:
+            for _f in _bs_vod_flags:
+                _f["relevant_documents"] = _bank_refs
+        flags += _bs_vod_flags
 
     # ── 5. Asset copies ──────────────────────────────────────────────────────
     asset_full_copies = efolder_docs.get("Assets", {}).get("copies", [])
     asset_acct_copies = _doc_all(state, "asset_account_number")
 
     if vod_rows:
+        _asset_refs = _relevant_docs(state, doc_types=["Assets"])
+        _asset_vod_flags = []
         if asset_full_copies:
-            flags += _compare_with_vod(asset_full_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
         elif asset_acct_copies:
-            flags += _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "5.1")
+            _asset_vod_flags = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
+        if _asset_refs:
+            for _f in _asset_vod_flags:
+                _f["relevant_documents"] = _asset_refs
+        flags += _asset_vod_flags
 
     # ── 6. VOD coverage — accounts in VOD with no matching doc ───────────────
     if vod_rows:
@@ -360,7 +399,7 @@ def review_urla_assets(
             key = row["vod_id"] + "_" + (row.get("account_number") or "")
             if key not in matched_vod_ids:
                 flags.append(_flag(
-                    "5.1",
+                    "6.1",
                     "VOD Account Has No Supporting Document",
                     "warning",
                     (
@@ -377,7 +416,7 @@ def review_urla_assets(
         diff = abs(total_assets - vod_total)
         if diff > 5.00:
             flags.append(_flag(
-                "5.1",
+                "6.1",
                 "Total Assets Mismatch: LOS vs VOD",
                 "info",
                 (
@@ -395,7 +434,7 @@ def review_urla_assets(
     # ── Build result ──────────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "5.1",
+        "substep": "6.1",
         "tool": "review_urla_assets",
         "flags_count": len(flags),
         "vod_rows_checked": len(vod_rows),

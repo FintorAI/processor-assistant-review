@@ -60,13 +60,14 @@
       "STEP_03",
       "STEP_04",
       "STEP_05",
-      "STEP_06"
+      "STEP_06",
+      "STEP_07"
     ],
     "FORM_UPDATES": [
-      "STEP_07",
       "STEP_08",
       "STEP_09",
-      "STEP_10"
+      "STEP_10",
+      "STEP_11"
     ]
   },
   "step_order": [
@@ -80,7 +81,8 @@
     "STEP_07",
     "STEP_08",
     "STEP_09",
-    "STEP_10"
+    "STEP_10",
+    "STEP_11"
   ],
   "steps": {
     "STEP_00": {
@@ -89,11 +91,11 @@
       "plan_file": "data_gathering.md",
       "tools": [
         "build_loan_summary",
+        "extract_almas_images",
         "fetch_doc_fields",
         "fetch_los_fields",
         "find_loan",
-        "validate_property_address",
-        "wait_for_pending_docs"
+        "validate_property_address"
       ],
       "substeps": {
         "1": {
@@ -103,7 +105,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (253 fields)",
+          "name": "Fetch LOS Fields (252 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -124,6 +126,12 @@
           "name": "Validate Property Address (USPS)",
           "tools": [
             "validate_property_address"
+          ]
+        },
+        "6": {
+          "name": "Extract Almas-Notes Images (Vision OCR)",
+          "tools": [
+            "extract_almas_images"
           ]
         }
       }
@@ -179,6 +187,22 @@
       }
     },
     "STEP_03": {
+      "name": "1003 URLA Lender",
+      "phase": "DATA_REVIEW",
+      "plan_file": "1003_urla_lender.md",
+      "tools": [
+        "update_urla_lender"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Update 1003 URLA Lender",
+          "tools": [
+            "update_urla_lender"
+          ]
+        }
+      }
+    },
+    "STEP_04": {
       "name": "1003 URLA Page 1",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_page_1.md",
@@ -194,7 +218,7 @@
         }
       }
     },
-    "STEP_04": {
+    "STEP_05": {
       "name": "1003 URLA Page 2",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_page_2.md",
@@ -204,7 +228,7 @@
       ],
       "substeps": {
         "1": {
-          "name": "Employment Verification (1b VOE)",
+          "name": "Employment Verification (2b VOE)",
           "tools": [
             "review_urla_employment"
           ],
@@ -221,14 +245,14 @@
           ]
         },
         "2": {
-          "name": "Other Income (1e)",
+          "name": "Other Income (2e)",
           "tools": [
             "review_urla_other_income"
           ]
         }
       }
     },
-    "STEP_05": {
+    "STEP_06": {
       "name": "1003 URLA Part 3",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_part_3.md",
@@ -240,7 +264,7 @@
       ],
       "substeps": {
         "1": {
-          "name": "Assets and VOD (2a)",
+          "name": "Assets and VOD (3a)",
           "tools": [
             "review_urla_assets"
           ],
@@ -257,26 +281,26 @@
           ]
         },
         "2": {
-          "name": "EMD Check (2b)",
+          "name": "EMD Check (3b)",
           "tools": [
             "review_urla_emd"
           ]
         },
         "3": {
-          "name": "Liabilities and VOL (2c)",
+          "name": "Liabilities and VOL (3c)",
           "tools": [
             "review_urla_liabilities"
           ]
         },
         "4": {
-          "name": "Other Assets and REO (2d, Section 3)",
+          "name": "Other Assets and REO (3d)",
           "tools": [
             "review_urla_reo"
           ]
         }
       }
     },
-    "STEP_06": {
+    "STEP_07": {
       "name": "1003 URLA Part 4",
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_part_4.md",
@@ -306,7 +330,7 @@
         }
       }
     },
-    "STEP_07": {
+    "STEP_08": {
       "name": "Cover Letter",
       "phase": "FORM_UPDATES",
       "plan_file": "cover_letter.md",
@@ -322,7 +346,7 @@
         }
       }
     },
-    "STEP_08": {
+    "STEP_09": {
       "name": "Borrower Info - Vesting",
       "phase": "FORM_UPDATES",
       "plan_file": "borrower_info___vesting.md",
@@ -338,7 +362,7 @@
         }
       }
     },
-    "STEP_09": {
+    "STEP_10": {
       "name": "Transmittal Summary",
       "phase": "FORM_UPDATES",
       "plan_file": "transmittal_summary.md",
@@ -354,13 +378,14 @@
         }
       }
     },
-    "STEP_10": {
+    "STEP_11": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
         "update_processor_closing",
-        "update_processor_workflow"
+        "update_processor_workflow",
+        "build_action_items"
       ],
       "substeps": {
         "1": {
@@ -373,6 +398,12 @@
           "name": "Processor Closing Update",
           "tools": [
             "update_processor_closing"
+          ]
+        },
+        "3": {
+          "name": "Build Communications Action Items",
+          "tools": [
+            "build_action_items"
           ]
         }
       }

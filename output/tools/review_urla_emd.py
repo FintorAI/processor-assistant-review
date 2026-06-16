@@ -1,6 +1,6 @@
-"""review_urla_emd — Tool for substep 5.2: EMD Check (2b)
+"""review_urla_emd — Tool for substep 6.2: EMD Check (2b)
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -16,14 +16,14 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile
+from ._helpers import _doc, _relevant_docs
 from shared.encompass_io import read_other_assets
 
 logger = logging.getLogger(__name__)
 
 
-def _flag(substep: str, title: str, severity: str, details: str, suggestion: str) -> dict:
-    return {
+def _flag(substep: str, title: str, severity: str, details: str, suggestion: str, docs=None) -> dict:
+    f = {
         "substep": substep,
         "title": title,
         "severity": severity,
@@ -32,6 +32,9 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 def _parse_float(val) -> Optional[float]:
@@ -48,7 +51,7 @@ def review_urla_emd(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review Section 2b — Earnest Money Deposit (EMD).
+    """Review Section 3b — Earnest Money Deposit (EMD).
 
     Logic:
       1. Fetch otherAssets from Encompass v3 API; find the row where
@@ -64,7 +67,7 @@ def review_urla_emd(
     Reads API:  Encompass v3 otherAssets (assetType=EarnestMoney)
     Reads Docs: Purchase Agreement → emd_amount_pa, payment_terms, emd_payable_to
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.2.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.2.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -89,12 +92,22 @@ def review_urla_emd(
 
     logger.info(f"[REVIEW_URLA_EMD] otherAssets EMD row: {emd_asset}")
 
+    # Write the authoritative API value back into los_fields so that downstream
+    # tools (e.g. build_action_items) read the real dollar amount rather than
+    # the flat field 186, which may hold a contract number or be blank.
+    if los_emd is not None:
+        logger.info(f"[REVIEW_URLA_EMD] Syncing emd_amount=${los_emd:,.2f} → los_fields")
+
     # ── 2. Read Purchase Agreement doc fields ─────────────────────────────────
     pa_emd_raw     = _doc(state, "emd_amount_pa")
     payment_terms  = _doc(state, "payment_terms")
     emd_payable_to = _doc(state, "emd_payable_to")
 
     pa_emd = _parse_float(pa_emd_raw)
+
+    # DocRepo coordinate refs for the Purchase Agreement (source of the EMD figure),
+    # only when it is actually present in the eFolder.
+    _pa_refs = _relevant_docs(state, "emd_amount_pa", doc_types=["Purchase Agreement"])
 
     logger.info(
         f"[REVIEW_URLA_EMD] LOS EMD=${los_emd}, PA EMD={pa_emd_raw!r} (${pa_emd}), "
@@ -105,7 +118,7 @@ def review_urla_emd(
     if los_emd is not None and pa_emd is not None:
         if abs(los_emd - pa_emd) > 1.00:
             flags.append(_flag(
-                "5.2",
+                "6.2",
                 "EMD Amount Mismatch",
                 "warning",
                 (
@@ -113,27 +126,30 @@ def review_urla_emd(
                     f"but Purchase Agreement doc shows ${pa_emd:,.2f}. "
                     f"Difference: ${abs(los_emd - pa_emd):,.2f}."
                 ),
-                "Correct the EMD amount in Encompass (Section 2b / otherAssets) to match the Purchase Contract.",
+                "Correct the EMD amount in Encompass (Section 3b / otherAssets) to match the Purchase Contract.",
+                docs=_pa_refs,
             ))
     elif los_emd is None and pa_emd is None:
         flags.append(_flag(
-            "5.2",
+            "6.2",
             "EMD Not Found",
             "warning",
             "No EarnestMoney entry found in Encompass otherAssets and EMD could not be "
             "extracted from the Purchase Agreement doc (emd_amount_pa is null — "
             "extraction may have hit an addendum instead of the main contract).",
-            "Verify the EMD is entered in Encompass (Section 2b) and that the Purchase Agreement "
+            "Verify the EMD is entered in Encompass (Section 3b) and that the Purchase Agreement "
             "main contract is in the eFolder (not just addendums).",
+            docs=_pa_refs,
         ))
     elif los_emd is None:
         flags.append(_flag(
-            "5.2",
-            "EMD Not Entered in Encompass (Section 2b)",
+            "6.2",
+            "EMD Not Entered in Encompass (Section 3b)",
             "warning",
             f"Purchase Agreement doc shows EMD = ${pa_emd:,.2f}, "
             f"but no EarnestMoney row found in Encompass otherAssets.",
-            "Add the EMD amount to Section 2b in Encompass.",
+            "Add the EMD amount to Section 3b in Encompass.",
+            docs=_pa_refs,
         ))
     elif pa_emd is None:
         # LOS has a value but doc extraction missed it — informational
@@ -147,7 +163,7 @@ def review_urla_emd(
     # We don't have a separate "check present" field, so flag for manual follow-up.
     if los_emd and los_emd > 0:
         flags.append(_flag(
-            "5.2",
+            "6.2",
             "EMD Check Copy — Confirm in eFolder",
             "info",
             (
@@ -156,12 +172,13 @@ def review_urla_emd(
                 + "Verify a copy of the EMD check is present in the eFolder."
             ),
             "If check copy is missing, email the Realtor/agent to request it.",
+            docs=_pa_refs,
         ))
 
     # ── Build result ──────────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "5.2",
+        "substep": "6.2",
         "tool": "review_urla_emd",
         "los_emd":        los_emd,
         "pa_emd":         pa_emd,
@@ -183,5 +200,10 @@ def review_urla_emd(
     }
     if flags:
         update["flags"] = flags
+    # Sync the API-sourced EMD back to los_fields so build_action_items (STEP_11.3)
+    # reads the real dollar amount instead of flat field 186.
+    # los_fields uses merge_dicts in the state reducer — safe to write a single key.
+    if los_emd is not None:
+        update["los_fields"] = {"emd_amount": {"value": str(los_emd)}}
 
     return Command(update=update)

@@ -370,9 +370,12 @@ def generate_all(
         results["files_generated"].append(sp_path)
 
         # ── Generate agent entry point ──
-        logger.info("[GENERATE] Generating agent entry point")
-        agent_path = generate_agent_entry(agent_config, output_dir)
-        results["files_generated"].append(agent_path)
+        # DISABLED: the live LangGraph entry point is the hand-maintained
+        # output/proc_agent.py (see langgraph.json). The generated
+        # "<name>_agent.py" scaffold was unused, so we no longer emit it.
+        # logger.info("[GENERATE] Generating agent entry point")
+        # agent_path = generate_agent_entry(agent_config, output_dir)
+        # results["files_generated"].append(agent_path)
 
         # ── Generate registry.py ──
         logger.info("[GENERATE] Generating registry.py")

@@ -1,6 +1,6 @@
-"""review_urla_reo — Tool for substep 5.4: Section 3 — REO Properties
+"""review_urla_reo — Tool for substep 6.4: Section 3 — REO Properties
 
-Step 5 (STEP_05): 1003 URLA Part 3
+Step 6 (STEP_06): 1003 URLA Part 3
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -18,7 +18,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile, _efolder_present
+from ._helpers import _doc, _efolder_present, _relevant_docs, _los
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -26,11 +26,11 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "5.4"
+SUBSTEP = "6.4"
 
 
-def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str, Any]:
-    return {
+def _flag(title: str, severity: str, details: str, suggestion: str, docs=None) -> Dict[str, Any]:
+    f = {
         "substep": SUBSTEP,
         "title": title,
         "severity": severity,
@@ -39,6 +39,9 @@ def _flag(title: str, severity: str, details: str, suggestion: str) -> Dict[str,
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if docs:
+        f["relevant_documents"] = docs
+    return f
 
 
 @tool
@@ -55,7 +58,7 @@ def review_urla_reo(
 
     If no REO properties exist, no flags are raised.
 
-    Call this tool during STEP_05 (1003 URLA Part 3) as substep 5.4.
+    Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.4.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -124,6 +127,7 @@ def review_urla_reo(
 
         # ── Stale Mortgage Statement check (>90 days old) ──
         raw_stmt_date = _doc(state, "statement_date")
+        _mortgage_refs = _relevant_docs(state, "statement_date", doc_types=["Mortgage Statement"])
         if raw_stmt_date:
             try:
                 for fmt in ("%m/%d/%Y", "%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
@@ -151,6 +155,7 @@ def review_urla_reo(
                                 "mortgage payment history. Upload to eFolder under "
                                 "'Other Owned Property Documents'."
                             ),
+                            docs=_mortgage_refs,
                         ))
                     else:
                         flags.append(_flag(
@@ -161,9 +166,42 @@ def review_urla_reo(
                                 f"({age_days} days ago) — within the 90-day window."
                             ),
                             suggestion="No action needed.",
+                            docs=_mortgage_refs,
                         ))
             except Exception as exc:
                 logger.warning(f"[REVIEW_URLA_REO] Could not parse statement_date '{raw_stmt_date}': {exc}")
+
+    # ── Gift Letter check (if gift_amount > 0) ──
+    gift_amount_str = _los(state, "gift_amount") or ""
+    try:
+        gift_amount = float(gift_amount_str) if gift_amount_str else 0.0
+    except (ValueError, TypeError):
+        gift_amount = 0.0
+
+    if gift_amount > 0:
+        gift_letter_present = _efolder_present(state, "Gift Letter")
+        if not gift_letter_present:
+            flags.append(_flag(
+                title="Gift Letter Missing",
+                severity="warning",
+                details=(
+                    f"Gift funds of ${gift_amount:,.2f} are present in the loan, "
+                    "but no gift letter was found in the eFolder."
+                ),
+                suggestion=(
+                    "Obtain a signed gift letter from both the donor and borrower. "
+                    "The gift letter must include donor information (name, relationship, "
+                    "address), gift amount, and signatures from both parties. "
+                    "Upload to the eFolder under 'Gift Letter' bucket."
+                ),
+            ))
+        else:
+            flags.append(_flag(
+                title="Gift Letter Present",
+                severity="info",
+                details=f"Gift Letter is present in the eFolder for gift amount ${gift_amount:,.2f}.",
+                suggestion="Verify gift letter includes donor info and signatures from donor and borrower.",
+            ))
 
     # ── Build result ──
     result = {

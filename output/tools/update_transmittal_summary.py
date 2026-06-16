@@ -1,6 +1,6 @@
-"""update_transmittal_summary — Tool for substep 9.1: Update Transmittal Summary
+"""update_transmittal_summary — Tool for substep 10.1: Update Transmittal Summary
 
-Step 9 (STEP_09): Transmittal Summary
+Step 10 (STEP_10): Transmittal Summary
 Phase: FORM_UPDATES
 
 What this agent does:
@@ -27,7 +27,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile, _write_fields
+from ._helpers import _los, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def update_transmittal_summary(
     """Review the 1008 Transmittal Summary: compare note rate vs qualifying rate,
     surface project type for info, and flag condo project fields as pending CUA.
 
-    Call this tool during STEP_09 (Transmittal Summary) as substep 9.1.
+    Call this tool during STEP_10 (Transmittal Summary) as substep 10.1.
     Reads LOS: note_rate, qualifying_rate, transmittal_project_type, property_type,
                condo_project_name, condo_project_id
     Flags: Note Rate vs Qualifying Rate Mismatch (warning), Project Type (info),
@@ -94,7 +94,7 @@ def update_transmittal_summary(
     if note_rate_f is not None and qual_rate_f is not None:
         if abs(note_rate_f - qual_rate_f) > 0.001:
             flags.append({
-                "substep": "9.1",
+                "substep": "10.1",
                 "title": "Note Rate vs Qualifying Rate Mismatch",
                 "severity": "warning",
                 "details": (
@@ -115,7 +115,7 @@ def update_transmittal_summary(
         if qual_rate_f is None:
             missing.append("Qualifying Rate (field 1014)")
         flags.append({
-            "substep": "9.1",
+            "substep": "10.1",
             "title": "Rate Fields Not Populated",
             "severity": "warning",
             "details": f"Cannot compare rates — {', '.join(missing)} is blank.",
@@ -129,23 +129,12 @@ def update_transmittal_summary(
     if not _is_condo(property_type):
         current_1012 = (project_type_1012 or "").strip()
         if not current_1012:
-            _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "9.1", flags, state=state)
-            flags.append({
-                "substep": "9.1",
-                "title": "Project Type (1012) Set — Not in PUD",
-                "severity": "info-overwrite",
-                "details": (
-                    f"Field 1012 was blank. Property type ({property_type!r}) is not a Condo/PUD. "
-                    f"Set to '{_NOT_IN_PUD_VALUE}'."
-                ),
-                "suggestion": "Confirm property is not in a planned unit development or condo project.",
-                "resolved": True,
-                "timestamp": ts,
-            })
+            # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
+            _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "10.1", flags, state=state)
             logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
         elif _NOT_IN_PUD_VALUE.lower() not in current_1012.lower():
             flags.append({
-                "substep": "9.1",
+                "substep": "10.1",
                 "title": "Project Type (1012) — Unexpected Value",
                 "severity": "warning",
                 "details": (
@@ -184,24 +173,11 @@ def update_transmittal_summary(
         _form_writes["TSUM.PropertyFormType"] = _expected_form_type
 
     if _form_writes:
-        _write_fields(loan_id, _form_writes, "9.1", flags, state=state)
-        written_desc = ", ".join(f"{k}='{v}'" for k, v in _form_writes.items())
-        flags.append({
-            "substep": "9.1",
-            "title": f"Appraisal Form Number Set — {_expected_form}",
-            "severity": "info-overwrite",
-            "details": (
-                f"Wrote: {written_desc}. "
-                f"Derived from property type ({property_type!r}). "
-                "⚠️ Field ID 1542 unverified — confirm with field_rw.py before relying on this write."
-            ),
-            "suggestion": "Verify field 1542 is correct in Encompass after this run.",
-            "resolved": True,
-            "timestamp": ts,
-        })
+        # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
+        _write_fields(loan_id, _form_writes, "10.1", flags, state=state)
     elif _current_form and _current_form != _expected_form:
         flags.append({
-            "substep": "9.1",
+            "substep": "10.1",
             "title": "Appraisal Form Number — Unexpected Value",
             "severity": "warning",
             "details": (
@@ -216,7 +192,7 @@ def update_transmittal_summary(
     # Surface property review type (field 1541) as info
     if property_review_type:
         flags.append({
-            "substep": "9.1",
+            "substep": "10.1",
             "title": "Level of Property Review",
             "severity": "info",
             "details": f"Field 1541 (Level of Property Review) = {property_review_type!r}.",
@@ -227,7 +203,7 @@ def update_transmittal_summary(
 
     # ── Rule: Project Type info ─────────────────────────────────────────────
     flags.append({
-        "substep": "9.1",
+        "substep": "10.1",
         "title": "Project Type",
         "severity": "info",
         "details": (
@@ -249,7 +225,7 @@ def update_transmittal_summary(
             if not condo_project_id:
                 missing_fields.append("CPM Project ID# (CX.CONDO.PROJECT.ID)")
             flags.append({
-                "substep": "9.1",
+                "substep": "10.1",
                 "title": "Condo Project Fields Pending — CUA Required",
                 "severity": "info",
                 "details": (
@@ -270,7 +246,7 @@ def update_transmittal_summary(
 
     result = {
         "success": True,
-        "substep": "9.1",
+        "substep": "10.1",
         "tool": "update_transmittal_summary",
         "note_rate": note_rate,
         "qualifying_rate": qualifying_rate,

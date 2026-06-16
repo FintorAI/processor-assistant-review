@@ -8,7 +8,7 @@ Each substep tool lives in its own file (named after the tool function).
 from .general import write_todo, get_workflow_status, save_step_report
 
 # Step 0: Data Gathering (auto-generated)
-from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, wait_for_pending_docs, build_loan_summary, validate_property_address
+from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address, extract_almas_images
 
 # STEP_01 / 1.1: Document Presence Check
 from .run_pre_checks import run_pre_checks
@@ -16,36 +16,40 @@ from .run_pre_checks import run_pre_checks
 from .review_file_contacts import review_file_contacts
 # STEP_02 / 2.1: Review Borrower Summary - Origination
 from .review_borrower_summary import review_borrower_summary
-# STEP_03 / 3.1: Review 1003 URLA Page 1
+# STEP_03 / 3.1: Update 1003 URLA Lender
+from .update_urla_lender import update_urla_lender
+# STEP_04 / 4.1: Review 1003 URLA Page 1
 from .review_urla_page1 import review_urla_page1
-# STEP_04 / 4.1: Employment Verification (1b VOE)
+# STEP_05 / 5.1: Employment Verification (2b VOE)
 from .review_urla_employment import review_urla_employment
-# STEP_04 / 4.2: Other Income (1e)
+# STEP_05 / 5.2: Other Income (2e)
 from .review_urla_other_income import review_urla_other_income
-# STEP_05 / 5.1: Assets and VOD (2a)
+# STEP_06 / 6.1: Assets and VOD (3a)
 from .review_urla_assets import review_urla_assets
-# STEP_05 / 5.2: EMD Check (2b)
+# STEP_06 / 6.2: EMD Check (3b)
 from .review_urla_emd import review_urla_emd
-# STEP_05 / 5.3: Liabilities and VOL (2c)
+# STEP_06 / 6.3: Liabilities and VOL (3c)
 from .review_urla_liabilities import review_urla_liabilities
-# STEP_05 / 5.4: Other Assets and REO (2d, Section 3)
+# STEP_06 / 6.4: Other Assets and REO (3d)
 from .review_urla_reo import review_urla_reo
-# STEP_06 / 6.1: Downpayment Sources (4b, 4c, 4d)
+# STEP_07 / 7.1: Downpayment Sources (4b, 4c, 4d)
 from .review_urla_downpayment import review_urla_downpayment
-# STEP_06 / 6.2: Declarations (Section 5)
+# STEP_07 / 7.2: Declarations (Section 5)
 from .review_urla_declarations import review_urla_declarations
-# STEP_06 / 6.3: Ethnicity and ID Cross-Check
+# STEP_07 / 7.3: Ethnicity and ID Cross-Check
 from .review_urla_ethnicity import review_urla_ethnicity
-# STEP_07 / 7.1: Draft Cover Letter / Submission Notes
+# STEP_08 / 8.1: Draft Cover Letter / Submission Notes
 from .draft_cover_letter import draft_cover_letter
-# STEP_08 / 8.1: Update Borrower Vesting
+# STEP_09 / 9.1: Update Borrower Vesting
 from .update_borrower_vesting import update_borrower_vesting
-# STEP_09 / 9.1: Update Transmittal Summary
+# STEP_10 / 10.1: Update Transmittal Summary
 from .update_transmittal_summary import update_transmittal_summary
-# STEP_10 / 10.1: Processor Workflow Update
+# STEP_11 / 11.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
-# STEP_10 / 10.2: Processor Closing Update
+# STEP_11 / 11.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
+# STEP_11 / 11.3: Build Communications Action Items
+from .build_action_items import build_action_items
 
 def get_all_tools() -> list:
     """Return all tool functions."""
@@ -58,13 +62,14 @@ def get_all_tools() -> list:
         find_loan,
         fetch_los_fields,
         fetch_doc_fields,
-        wait_for_pending_docs,
         build_loan_summary,
         validate_property_address,
+        extract_almas_images,
     ]
     tools.append(run_pre_checks)
     tools.append(review_file_contacts)
     tools.append(review_borrower_summary)
+    tools.append(update_urla_lender)
     tools.append(review_urla_page1)
     tools.append(review_urla_employment)
     tools.append(review_urla_other_income)
@@ -80,6 +85,7 @@ def get_all_tools() -> list:
     tools.append(update_transmittal_summary)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
+    tools.append(build_action_items)
     return tools
 
 
@@ -91,12 +97,13 @@ __all__ = [
     "find_loan",
     "fetch_los_fields",
     "fetch_doc_fields",
-    "wait_for_pending_docs",
     "build_loan_summary",
     "validate_property_address",
+    "extract_almas_images",
     "run_pre_checks",
     "review_file_contacts",
     "review_borrower_summary",
+    "update_urla_lender",
     "review_urla_page1",
     "review_urla_employment",
     "review_urla_other_income",
@@ -112,4 +119,5 @@ __all__ = [
     "update_transmittal_summary",
     "update_processor_workflow",
     "update_processor_closing",
+    "build_action_items",
 ]

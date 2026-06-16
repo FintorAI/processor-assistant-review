@@ -16,7 +16,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .schema import AgentConfig, StepDef, SubstepDef
 from .field_registry import FieldRegistry
-from .step0_generator import generate_step0_definition, generate_step0_tool_code, generate_step0_plan
+from .step0_generator import generate_step0_tool_code, generate_step0_plan
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,8 @@ def generate_substep_tool_file(step: StepDef, substep: SubstepDef, output_dir: s
 def generate_tool_helpers(output_dir: str) -> str:
     """Generate the shared _helpers.py file for tool state access utilities.
 
-    Always regenerated — this is a derived file that must stay in sync
-    with the template.
+    Respects FACTORY-LOCK: if the existing file contains '# FACTORY-LOCK: true'
+    in its first 15 lines, the file is skipped and left unchanged.
 
     Args:
         output_dir: Directory to write to (output/tools/)
@@ -85,12 +85,20 @@ def generate_tool_helpers(output_dir: str) -> str:
     Returns:
         Path to generated file
     """
+    filepath = os.path.join(output_dir, "_helpers.py")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Honour FACTORY-LOCK so hand-written additions survive factory-reset
+    if os.path.exists(filepath):
+        with open(filepath) as _fh:
+            _head = "".join(_fh.readline() for _ in range(15))
+        if "FACTORY-LOCK: true" in _head:
+            logger.info(f"[CODEGEN] Skipping {filepath} (FACTORY-LOCK: true)")
+            return filepath
+
     env = _get_jinja_env()
     template = env.get_template("tool_helpers.py.j2")
     content = template.render()
-
-    filepath = os.path.join(output_dir, "_helpers.py")
-    os.makedirs(output_dir, exist_ok=True)
 
     with open(filepath, "w") as f:
         f.write(content)
@@ -192,7 +200,7 @@ def generate_step0_files(
     os.makedirs(os.path.dirname(tool_path), exist_ok=True)
 
     if os.path.exists(tool_path):
-        logger.info(f"[CODEGEN] Skipping data_gathering.py (already exists — delete to regenerate)")
+        logger.info("[CODEGEN] Skipping data_gathering.py (already exists — delete to regenerate)")
     else:
         with open(tool_path, "w") as f:
             f.write(tool_code)
@@ -206,7 +214,7 @@ def generate_step0_files(
     os.makedirs(os.path.dirname(plan_path), exist_ok=True)
 
     if os.path.exists(plan_path):
-        logger.info(f"[CODEGEN] Skipping data_gathering.md (already exists — delete to regenerate)")
+        logger.info("[CODEGEN] Skipping data_gathering.md (already exists — delete to regenerate)")
     else:
         with open(plan_path, "w") as f:
             f.write(plan_content)
@@ -228,7 +236,7 @@ def generate_general_tools(output_dir: str) -> str:
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     if os.path.exists(filepath):
-        logger.info(f"[CODEGEN] Skipping general.py (already exists — delete to regenerate)")
+        logger.info("[CODEGEN] Skipping general.py (already exists — delete to regenerate)")
         return filepath
 
     with open(filepath, "w") as f:

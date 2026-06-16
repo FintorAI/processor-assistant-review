@@ -35,6 +35,24 @@ Required fields are enforced by `ProcessorAgentState`.
 |---|---|---|
 | `loan_id` | `str` | Encompass loan GUID — if provided, `find_loan` is skipped |
 | `almas_notes` | `str` | LOA notes from ALMAS system — used by `draft_cover_letter` to populate `CX.KM.SUBMISSION.NOTES` |
+| `almas_notes_images` | `list[dict]` | Images attached to Almas' notes, uploaded to DocRepo by the frontend. Each item: `{ "filename", "url", "client_id", "doc_id", "bucket" }`. Step 0.6 (`extract_almas_images`) OCRs each via Claude vision; the text is appended to the cover letter and the image is surfaced as a 7.1 flag reference document. |
+
+#### `almas_notes_images` item shape
+
+```json
+{
+  "filename": "purchase_agreement_p3.png",
+  "url": "https://.../docrepo-signed-url",
+  "client_id": "AWM-test",
+  "doc_id": "docsorchagent/almas_notes_<...>",
+  "bucket": "encompass"
+}
+```
+
+Only `url` is strictly required (used for OCR). `client_id`/`doc_id`/`bucket` are the
+DocRepo coordinates used to build the flag reference document (see
+`docs/flag_document_references.md`). After Step 0.6 the list is re-written to
+`state["almas_notes_images"]` with each item enriched by `extracted_text` + `ocr_status`.
 
 ---
 
@@ -49,6 +67,7 @@ They are **not** in the input — they carry data between tools.
 | `los_fields` | `dict` | `fetch_los_fields` | All 236 LOS fields keyed by snake_case key (see below) |
 | `doc_fields` | `dict` | `fetch_doc_fields` | Document extraction fields (e.g. `purchase_price_doc`) keyed by doc type |
 | `efolder_documents` | `list[dict]` | `fetch_doc_fields` | Raw eFolder document list from Encompass |
+| `almas_notes_images` | `list[dict]` | `extract_almas_images` (0.6) | Input images (from `additional_info`) enriched with `extracted_text` + `ocr_status` via Claude vision |
 | `loan_summary` | `dict` | `build_loan_summary` | Structured URLA summary built from `los_fields` + `almas_notes` |
 | `address_validation` | `dict` | `validate_property_address` | USPS address validation result (see below) |
 | `vod_data` | `list[dict]` | `fetch_los_fields` → tools | Cached VOD records fetched by tools |

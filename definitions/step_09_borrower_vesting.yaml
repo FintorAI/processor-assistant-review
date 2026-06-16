@@ -1,25 +1,26 @@
 step:
-  id: STEP_08
+  id: STEP_09
   name: Borrower Info - Vesting
   phase: FORM_UPDATES
   description: >
     Review and populate the Borrower Information - Vesting screen. Confirm occupancy
-    intent, vesting (manner held from marital status + state rules), and build the
-    Final Vesting string. For single/unmarried borrowers without co-borrower:
+    intent and vesting name/type, then build the Final Vesting string. Manner Held
+    (field 33) is read-only here — it is set by the 1003 URLA Lender step (STEP_03).
+    For single/unmarried borrowers without co-borrower:
     "WILL OCCUPY / A SINGLE WOMAN OR UNMARRIED WOMAN". Click Build Final Vesting
     when complete. NBS (non-borrowing spouse) vesting handled separately.
 
 substeps:
-- id: '8.1'
+- id: '9.1'
   name: Update Borrower Vesting
   tool: update_borrower_vesting
   description: >
-    Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent), borrower
-    vesting name/type (1868/1871, 1873/1876), manner held (field 33), and read
-    final vesting (field 1867). Manner held is computed from property state,
-    marital status, co-borrower presence, and NBS flag. Final vesting is NEVER
-    overwritten except for single/unmarried borrowers missing the required suffix
-    (e.g. "AN UNMARRIED WOMAN"). Click Build Final Vesting in Encompass to set 1867.
+    Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent) and borrower
+    vesting name/type (1868/1871, 1873/1876). Read Manner Held (field 33) — set by
+    the 1003 URLA Lender step (STEP_03), not computed here — and read final vesting
+    (field 1867). Final vesting is NEVER overwritten except for single/unmarried
+    borrowers missing the required suffix (e.g. "AN UNMARRIED WOMAN"). Click Build
+    Final Vesting in Encompass to set 1867.
   los_fields_read:
   # ── Property / Loan context ───────────────────────────────────────────
   - key: property_state
@@ -166,11 +167,10 @@ substeps:
     field_name: Manner in Which Title Will Be Held
     category: title
     purpose: >
-      Written when empty from computed value. Never overwritten if populated
-      except NV (forced As Joint Tenants for married couples).
-      Field 33 = Manner of Title (Borrower Vesting form). NOT Estate Will Be Held In.
-      URLA.X138 = same data shown in the 1003 URLA Lender form — always write both together.
-      Estate Will Be Held In is field 1066 (separate field, dropdown: FeeSimple/Leasehold).
+      READ-ONLY here. Manner Held (field 33) + URLA.X138 + Estate Will Be Held In
+      (field 1066) are computed and written by the 1003 URLA Lender step (STEP_03,
+      substep 3.1). This step reads field 33 only to confirm Build Final Vesting
+      has its required input.
   - key: final_vesting
     field_id: '1867'
     field_name: Final Vesting
@@ -191,13 +191,12 @@ substeps:
     logic: >
       Field 1868 (Borrower Vesting Name) must match full borrower name from 4000+4001+4002.
       Field 1871 (Borrower Vesting Type) must be Individual. Write if empty.
-  - name: Manner Held Consistent with State and Marital Status
-    type: custom
+  - name: Manner Held Present (read-only)
+    type: existence_check
     logic: >
-      Field 33 (Manner Held) is computed from property state, marital status,
-      co-borrower presence, NBS flag, and borrower sex. Write only if empty.
-      Community property states: AZ, CA, ID, LA, NV, NM, TX, WA, WI.
-      NV married couples → As Joint Tenants (force overwrite). Flag mismatch for others.
+      Field 33 (Manner Held) is owned by the 1003 URLA Lender step (3.1). This
+      step only reads it; if empty, flag that the 1003 URLA Lender step should be
+      run first so Build Final Vesting has its required input.
   - name: Final Vesting Built
     type: existence_check
     logic: >
@@ -223,10 +222,10 @@ substeps:
     severity: warning
     condition: Field 1872 is empty — Build Final Vesting will produce incomplete output
     suggestion: Set vesting description (1872) before clicking Build Final Vesting
-  - title: Manner Held Mismatch
+  - title: Manner Held Empty
     severity: warning
-    condition: Field 33 does not match computed manner held for state/marital status
-    suggestion: Update Manner Held (field 33) or confirm with team lead
+    condition: Field 33 is empty (should be set by the 1003 URLA Lender step 3.1)
+    suggestion: Run/verify the 1003 URLA Lender step (3.1) to set Manner Held before Build Final Vesting
   - title: Final Vesting Empty
     severity: warning
     condition: Field 1867 is empty
@@ -240,9 +239,6 @@ substeps:
       Update Final Vesting (1867) to include AN UNMARRIED WOMAN/MAN or
       A SINGLE WOMAN/MAN as appropriate
   field_updates:
-  - field_id: '33'
-    value: '{computed_manner_held}'
-    condition: empty
   - field_id: '1868'
     value: '{borrower_full_name}'
     condition: empty

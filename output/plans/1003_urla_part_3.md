@@ -1,6 +1,6 @@
 ## Purpose
 
-Review and populate 1003 URLA Part 3: Assets/VOD (2a), EMD (2b), Liabilities/VOL (2c), 2d, and REO Section 3. Cross-check against bank statements, VOD, and Purchase Contract.
+Review and populate 1003 URLA Part 3: Assets/VOD (3a), EMD (3b), Liabilities/VOL (3c), 3d, and REO Section 3. Cross-check against bank statements, VOD, and Purchase Contract.
 
 
 **NOTE**: Each substep has its own dedicated tool. State (`los_fields`, `doc_fields`, `loan_summary`) is automatically injected.
@@ -9,30 +9,30 @@ Review and populate 1003 URLA Part 3: Assets/VOD (2a), EMD (2b), Liabilities/VOL
 
 | Tool | Purpose |
 |------|---------|
-| `review_urla_assets` | Assets and VOD (2a) |
-| `review_urla_emd` | EMD Check (2b) |
-| `review_urla_liabilities` | Liabilities and VOL (2c) |
-| `review_urla_reo` | Other Assets and REO (2d, Section 3) |
+| `review_urla_assets` | Assets and VOD (3a) |
+| `review_urla_emd` | EMD Check (3b) |
+| `review_urla_liabilities` | Liabilities and VOL (3c) |
+| `review_urla_reo` | Other Assets and REO (3d) |
 
 ## Overview
 
 | Substep | Description | Tool |
 |---------|-------------|------|
-| 5.1 | Assets and VOD (2a) | `review_urla_assets` |
-| 5.2 | EMD Check (2b) | `review_urla_emd` |
-| 5.3 | Liabilities and VOL (2c) | `review_urla_liabilities` |
-| 5.4 | Other Assets and REO (2d, Section 3) | `review_urla_reo` |
+| 6.1 | Assets and VOD (3a) | `review_urla_assets` |
+| 6.2 | EMD Check (3b) | `review_urla_emd` |
+| 6.3 | Liabilities and VOL (3c) | `review_urla_liabilities` |
+| 6.4 | Other Assets and REO (3d) | `review_urla_reo` |
 
 ## Tool Calls
 
 ```python
-# Substep 5.1 - Assets and VOD (2a)
+# Substep 6.1 - Assets and VOD (3a)
 review_urla_assets(loan_guid=loan_id)
-# Substep 5.2 - EMD Check (2b)
+# Substep 6.2 - EMD Check (3b)
 review_urla_emd(loan_guid=loan_id)
-# Substep 5.3 - Liabilities and VOL (2c)
+# Substep 6.3 - Liabilities and VOL (3c)
 review_urla_liabilities(loan_guid=loan_id)
-# Substep 5.4 - Other Assets and REO (2d, Section 3)
+# Substep 6.4 - Other Assets and REO (3d)
 review_urla_reo(loan_guid=loan_id)
 ```
 
@@ -40,10 +40,10 @@ review_urla_reo(loan_guid=loan_id)
 
 ## Substeps
 
-### Substep 5.1 - Assets and VOD (2a)
+### Substep 6.1 - Assets and VOD (3a)
 **Tool**: `review_urla_assets`
 
-Review Section 2a (Assets/VOD). Check bank accounts, checking/savings. Cross-reference against bank statements. Verify account numbers, dates, and balances. Flag if total assets insufficient for closing. Rename asset documents per naming convention (e.g. "Edward Jones x1234 - 04/14/2026").
+Review Section 3a (Assets/VOD). Check bank accounts, checking/savings. Cross-reference against bank statements. Verify account numbers, dates, and balances. Flag if total assets insufficient for closing. Rename asset documents per naming convention (e.g. "Edward Jones x1234 - 04/14/2026").
 
 
 **LOS Fields (read from state):**
@@ -61,10 +61,14 @@ Review Section 2a (Assets/VOD). Check bank accounts, checking/savings. Cross-ref
   - `bank_statement_date`
   - `bank_zel_deposits`
   - `bank_large_deposits`
+  - `bank_institution_name`
+  - `bank_klarna_transactions`
 - **Assets**:
   - `asset_account_number`
   - `asset_balance`
   - `asset_account_date`
+  - `asset_institution_name`
+  - `asset_type`
 - **VOD**:
   - `vod_account_balances`
   - `vod_account_numbers`
@@ -97,15 +101,15 @@ Review Section 2a (Assets/VOD). Check bank accounts, checking/savings. Cross-ref
 
 After completing this substep, call:
 ```
-write_todo(step_id="STEP_05", substep_id="5.1", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+write_todo(step_id="STEP_06", substep_id="6.1", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---
 
-### Substep 5.2 - EMD Check (2b)
+### Substep 6.2 - EMD Check (3b)
 **Tool**: `review_urla_emd`
 
-Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).
+Review Section 3b — Earnest Money Deposit. Verify EMD amount matches Purchase Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).
 
 
 **LOS Fields (read from state):**
@@ -119,6 +123,8 @@ Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase 
   - `emd_amount_pa`
   - `payment_terms`
   - `emd_payable_to`
+  - `purchase_condo_project_name`
+  - `purchase_closing_date`
 
 **Business Rules:**
 - **EMD Amount Matches Purchase Contract** (field_comparison): EMD amount in Section 2b must match Purchase Contract EMD row. Flag mismatch and missing check copy for Realtor email at Step 18.
@@ -134,15 +140,15 @@ Review Section 2b — Earnest Money Deposit. Verify EMD amount matches Purchase 
 
 After completing this substep, call:
 ```
-write_todo(step_id="STEP_05", substep_id="5.2", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+write_todo(step_id="STEP_06", substep_id="6.2", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---
 
-### Substep 5.3 - Liabilities and VOL (2c)
+### Substep 6.3 - Liabilities and VOL (3c)
 **Tool**: `review_urla_liabilities`
 
-Review Section 2c — Liabilities (VOL). Check Excluded Monthly Payment and To Be Paid Off columns. Flag excluded debts for explanation. Flag any debts to be paid off that require most recent statement.
+Review Section 3c — Liabilities (VOL). Check Excluded Monthly Payment and To Be Paid Off columns. Flag excluded debts for explanation. Flag any debts to be paid off that require most recent statement.
 
 
 **LOS Fields (read from state):**
@@ -172,15 +178,15 @@ Review Section 2c — Liabilities (VOL). Check Excluded Monthly Payment and To B
 
 After completing this substep, call:
 ```
-write_todo(step_id="STEP_05", substep_id="5.3", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+write_todo(step_id="STEP_06", substep_id="6.3", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---
 
-### Substep 5.4 - Other Assets and REO (2d, Section 3)
+### Substep 6.4 - Other Assets and REO (3d)
 **Tool**: `review_urla_reo`
 
-Review 2d (Other Assets — usually marked No) and Section 3 (REO). If borrower owns other real property, verify mortgage statement, insurance deck page, HOA statement, and tax bill are present.
+Review 3d (Other Assets — usually marked No) and Section 3 (REO). If borrower owns other real property, verify mortgage statement, insurance deck page, HOA statement, and tax bill are present.
 
 
 **LOS Fields (read from state):**
@@ -192,19 +198,36 @@ Review 2d (Other Assets — usually marked No) and Section 3 (REO). If borrower 
 **Document Types:**
 - **Mortgage Statement**:
   - `mortgage_statement_present`
+- **HOA Statement**:
+  - `hoa_statement_present`
+- **Property Tax Bill**:
+  - `property_tax_bill_present`
+- **Gift Letter**:
+  - `gift_letter_present`
 
 **Business Rules:**
 - **REO Documentation** (custom): If borrower owns other property (REO count > 0), verify: mortgage statement, insurance deck page, HOA statement, tax bill. If count = 0, skip.
+
+- **Gift Letter Required** (custom): If gift_amount > 0, verify gift letter is present in eFolder. Gift letter must include donor info and signed confirmation.
 
 
 **Flags — raise when conditions are met:**
 - WARNING: "REO Documents Missing"
   - Condition: Borrower has REO properties but supporting docs are absent
   - Remedy: Obtain mortgage statement, insurance, HOA, and tax bill for each REO
+- WARNING: "HOA Statement Missing"
+  - Condition: REO property present but HOA statement not in eFolder
+  - Remedy: Request HOA statement for the REO property
+- WARNING: "Property Tax Bill Missing"
+  - Condition: REO property present but property tax bill not in eFolder
+  - Remedy: Request property tax bill for the REO property
+- WARNING: "Gift Letter Missing"
+  - Condition: Gift funds present in loan but gift letter not in eFolder
+  - Remedy: Obtain signed gift letter from donor and borrower
 
 After completing this substep, call:
 ```
-write_todo(step_id="STEP_05", substep_id="5.4", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+write_todo(step_id="STEP_06", substep_id="6.4", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
 ```
 
 ---
@@ -212,8 +235,8 @@ write_todo(step_id="STEP_05", substep_id="5.4", status="completed", notes="<deta
 ## Step Completion
 
 When ALL substeps above are completed:
-1. Call `save_step_report(step_name="STEP_05", status="completed", ...)`
-2. Call `write_todo(step_id="STEP_05", status="completed")` to advance to the next step
-3. Call `write_todo(step_id="STEP_06", status="in_progress")` to start STEP_06 (1003 URLA Part 4)
+1. Call `save_step_report(step_name="STEP_06", status="completed", ...)`
+2. Call `write_todo(step_id="STEP_06", status="completed")` to advance to the next step
+3. Call `write_todo(step_id="STEP_07", status="in_progress")` to start STEP_07 (1003 URLA Part 4)
 
 ⚠️ You MUST call write_todo to advance — do NOT produce a text-only response.

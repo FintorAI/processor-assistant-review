@@ -1,6 +1,6 @@
-"""review_urla_declarations — Tool for substep 6.2: Declarations (Section 5)
+"""review_urla_declarations — Tool for substep 7.2: Declarations (Section 5)
 
-Step 6 (STEP_06): 1003 URLA Part 4
+Step 7 (STEP_07): 1003 URLA Part 4
 Phase: DATA_REVIEW
 
 # FACTORY-LOCK: true
@@ -16,7 +16,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile
+from ._helpers import _los
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def review_urla_declarations(
     Flag warnings when sub-fields are unpopulated after a gate field is Yes, and when
     answers are inconsistent with known loan file facts (occupancy, co-borrower status).
 
-    Call this tool during STEP_06 (1003 URLA Part 4) as substep 6.2.
+    Call this tool during STEP_07 (1003 URLA Part 4) as substep 7.2.
     Reads LOS: declaration_primary_residence (418), declaration_ownership_3yr (403),
                prior_property_type (981), prior_title_held (1069), coborr_ownership_3yr (1108),
                occupancy (1811), coborrower_first_name, loan_purpose.
@@ -88,7 +88,7 @@ def review_urla_declarations(
     occupancy         = _los(state, "occupancy")                      # 1811: PrimaryResidence/etc.
     coborrower_name   = _los(state, "coborrower_first_name")          # 4004: co-borrower presence check
     loan_purpose      = _los(state, "loan_purpose")                   # 19: Purchase/Refinance/etc.
-    estate_held       = _los(state, "estate_held")                    # 1066: Estate Will Be Held In (FeeSimple/Leasehold) — 1003 URLA Lender
+    # estate_held (field 1066) is written by update_borrower_vesting — not checked here
 
     has_coborrower = bool(coborrower_name and str(coborrower_name).strip())
 
@@ -97,7 +97,7 @@ def review_urla_declarations(
 
     def _flag(title, severity, details, suggestion, resolved=False):
         flags.append({
-            "substep": "6.2",
+            "substep": "7.2",
             "title": title,
             "severity": severity,
             "details": details,
@@ -252,26 +252,26 @@ def review_urla_declarations(
             _flag(
                 "Declaration 5a(A) — Co-Borrower Had Prior Ownership",
                 "info",
-                f"Co-borrower field 1108 = Yes (owned property in last 3 years). "
-                f"Cross-check co-borrower prior property details with loan entity.",
+                "Co-borrower field 1108 = Yes (owned property in last 3 years). "
+                "Cross-check co-borrower prior property details with loan entity.",
                 "Verify co-borrower prior property is correctly documented.",
             )
 
     # Estate Held check (field 1066) is in the 1003 URLA Lender form — not Part 4 Declarations.
-    # It lives in substep 6.3 (review_urla_ethnicity) because that substep already reads
+    # It lives in substep 7.3 (review_urla_ethnicity) because that substep already reads
     # URLA Lender form fields (field 1544 borrower_ethnicity, field 1066 estate_held).
 
     # ── Build result ──
     result = {
         "success": True,
-        "substep": "6.2",
+        "substep": "7.2",
         "tool": "review_urla_declarations",
         "flags_count": len(flags),
         "ownership_403": decl_ownership,
         "prior_type_981": prior_type,
         "prior_title_1069": prior_title,
         "message": (
-            f"Declarations (Section 5) completed"
+            "Declarations (Section 5) completed"
             + (f" — ownership past 3yr: {decl_ownership}, prior type: {prior_type}, title held: {prior_title}")
             + (f" — {len(flags)} flag(s)" if flags else "")
         ),
