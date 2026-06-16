@@ -331,7 +331,7 @@ def create_agent():
     system_prompt = system_prompt.replace("{{WORKFLOW_OVERVIEW}}", overview)
 
     agent = create_deep_agent(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         tools=all_tools,
         system_prompt=system_prompt,
         middleware=(ProcessorAgentMiddleware(),),

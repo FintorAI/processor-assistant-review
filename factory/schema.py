@@ -378,7 +378,7 @@ class AgentConfig(BaseModel):
     name: str = Field(..., description="Agent name")
     version: str = Field(default="1.0.0")
     description: str = Field(default="")
-    model: str = Field(default="claude-sonnet-4-20250514")
+    model: str = Field(default="claude-sonnet-4-6")
     phases: list[str] = Field(
         default_factory=lambda: ["VERIFICATION", "PREPARATION", "COMPLIANCE", "ORDER_DOCS", "REVIEW"]
     )

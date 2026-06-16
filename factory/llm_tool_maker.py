@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 8192
 
 TOOL_TEMPLATE = '''"""{{tool_name}} — Tool for substep {{substep_id}}: {{substep_name}}

@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # ── Constants ─────────────────────────────────────────────────────────
 
 # Default model — fast + capable for in-tool reasoning
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 # Smaller model for simple classification / yes-no decisions
 FAST_MODEL = "claude-haiku-3-20250303"
