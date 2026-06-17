@@ -177,7 +177,7 @@ def review_urla_employment(
         flags.append(_flag(
             "5.1",
             "VOE Form Not Populated in Encompass",
-            "blocking",
+            "critical",
             f"Encompass v3 employment API returned 'collection does not exist': {e}. "
             "No employment rows have been created in the VOE form.",
             "Open the VOE form in Encompass and add the borrower's current (and prior, if < 2 years) employer entries.",
@@ -210,7 +210,7 @@ def review_urla_employment(
         flags.append(_flag(
             "5.1",
             "VOE Form Not Populated in Encompass",
-            "blocking",
+            "critical",
             "Encompass v3 employment API returned no records for this borrower.",
             "Open the VOE form in Encompass and add the borrower's current (and prior, if < 2 years) employer entries.",
         ))

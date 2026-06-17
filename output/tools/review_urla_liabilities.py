@@ -75,7 +75,7 @@ def review_urla_liabilities(
     except LookupError:
         flags.append(_flag(
             title="VOL Collection Not Created in Encompass",
-            severity="blocking",
+            severity="critical",
             details="The Verification of Liabilities (VOL) collection does not exist yet in "
                     "Encompass for this loan. No liability rows have been entered.",
             suggestion="Open the 1003 Section 3c in Encompass, run credit or manually enter "
