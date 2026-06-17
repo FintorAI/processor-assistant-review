@@ -112,7 +112,7 @@ class AgentOutput(BaseModel):
 ```python
 class Flag(BaseModel):
     code: str              # e.g. "EMD_AMOUNT_MISMATCH"
-    severity: "info" | "warning" | "critical"
+    severity: "info" | "info-overwrite" | "warning" | "critical"
     substep_id: str        # e.g. "5.2"
     substep_name: str
     message: str
@@ -120,6 +120,18 @@ class Flag(BaseModel):
     resolved: bool
     resolution_note: Optional[str]
 ```
+
+**Canonical flag severities** (workflow tools only):
+
+| Severity | Meaning |
+|---|---|
+| `critical` | Hard blocker — the workflow cannot proceed correctly without resolution (e.g. VOE form empty, required doc missing). Checked by `run_pre_checks` to halt early. |
+| `warning` | Needs processor attention or manual action, but does not halt the workflow. |
+| `info` | Informational — field verified, value confirmed, or FYI context for the processor. |
+| `info-overwrite` | Emitted automatically by `_write_fields()` each time a field is written to Encompass. Provides a per-field audit trail. |
+
+> **`action`** is reserved for `comms_actions` items (STEP_11.3 `build_action_items`) only — it is
+> not a workflow flag severity and must not be used in review/update tools.
 
 ### FieldWrite
 

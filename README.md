@@ -202,3 +202,22 @@ After any YAML edit: run `factory-reset`, confirm `Validation: PASSED`.
 
 Files with `# FACTORY-LOCK: true` on line 9 are never overwritten by the factory.
 Flip from `false` to `true` the moment a tool file gains real business logic.
+
+---
+
+## Flag severities
+
+Workflow tools (`output/tools/*.py`) emit flags with exactly these severities:
+
+| Severity | Meaning |
+|---|---|
+| `critical` | Hard blocker — workflow cannot proceed correctly without resolution (e.g. VOE form empty, required document missing). Checked by `run_pre_checks` (STEP_01) to halt early. |
+| `warning` | Needs processor attention or manual action; does not halt the workflow. |
+| `info` | Informational — value confirmed, field verified, or FYI context. |
+| `info-overwrite` | Auto-emitted by `_write_fields()` each time a field is written to Encompass. Provides a per-field audit trail. |
+
+No other severity values are permitted in workflow tools. `"blocking"` is retired —
+use `"critical"` instead.
+
+> **`action`** is a separate concept used exclusively by `build_action_items`
+> (STEP_11.3) for `comms_actions` items — it is **not** a workflow flag severity.
