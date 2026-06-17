@@ -312,34 +312,37 @@ def review_urla_assets(
                 docs=_relevant_docs(state, doc_types=["Bank Statement"]),
             ))
 
-    # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
-    zelle_deposits = _doc(state, "bank_zel_deposits")
-    if zelle_deposits:
-        desc = str(zelle_deposits).lower()
-        for kw in _ZELLE_KEYWORDS:
-            if kw in desc:
-                flags.append(_flag(
-                    "6.1",
-                    "ZEL / Zelle Deposit Requires Explanation",
-                    "warning",
-                    f"Unusual deposit keyword '{kw}' detected in bank statement: {zelle_deposits!r}.",
-                    "Request borrower Letter of Explanation (LOE) for ZEL/Zelle/Klarna transactions.",
-                    docs=_relevant_docs(state, "bank_zel_deposits", doc_types=["Bank Statement"]),
-                ))
-                break
+        # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
+        # Kept inside the else block so these only fire when a Bank Statement is
+        # actually present — prevents doc_fields contamination from other statement-
+        # type documents populating bank_zel_deposits / bank_large_deposits.
+        zelle_deposits = _doc(state, "bank_zel_deposits")
+        if zelle_deposits:
+            desc = str(zelle_deposits).lower()
+            for kw in _ZELLE_KEYWORDS:
+                if kw in desc:
+                    flags.append(_flag(
+                        "6.1",
+                        "ZEL / Zelle Deposit Requires Explanation",
+                        "warning",
+                        f"Unusual deposit keyword '{kw}' detected in bank statement: {zelle_deposits!r}.",
+                        "Request borrower Letter of Explanation (LOE) for ZEL/Zelle/Klarna transactions.",
+                        docs=_relevant_docs(state, "bank_zel_deposits", doc_types=["Bank Statement"]),
+                    ))
+                    break
 
-    # 4d. Large / green deposit check
-    # The extractor already determined these are notable — flag unconditionally.
-    large_deposits = _doc(state, "bank_large_deposits")
-    if large_deposits:
-        flags.append(_flag(
-            "6.1",
-            "Large / Green Deposit Requires Sourcing",
-            "warning",
-            f"Large or unusual deposit(s) flagged in bank statement: {large_deposits!r}.",
-            "Request documentation sourcing the deposit (LOE + receipts if applicable).",
-            docs=_relevant_docs(state, "bank_large_deposits", doc_types=["Bank Statement"]),
-        ))
+        # 4d. Large / green deposit check
+        # The extractor already determined these are notable — flag unconditionally.
+        large_deposits = _doc(state, "bank_large_deposits")
+        if large_deposits:
+            flags.append(_flag(
+                "6.1",
+                "Large / Green Deposit Requires Sourcing",
+                "warning",
+                f"Large or unusual deposit(s) flagged in bank statement: {large_deposits!r}.",
+                "Request documentation sourcing the deposit (LOE + receipts if applicable).",
+                docs=_relevant_docs(state, "bank_large_deposits", doc_types=["Bank Statement"]),
+            ))
 
     # 4e. VOD cross-reference for bank statements
     if vod_rows:

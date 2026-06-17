@@ -126,7 +126,12 @@ def review_urla_reo(
                 ))
 
         # ── Stale Mortgage Statement check (>90 days old) ──
-        raw_stmt_date = _doc(state, "statement_date")
+        # Only run if the Mortgage Statement bucket is actually present — `statement_date`
+        # in doc_fields can be populated by other statement-type documents (e.g. Bank
+        # Statement), which would otherwise produce a false-positive "Current" flag while
+        # the REO missing-doc warning is also firing.
+        mortgage_present = _efolder_present(state, "Mortgage Statement")
+        raw_stmt_date = _doc(state, "statement_date") if mortgage_present else None
         _mortgage_refs = _relevant_docs(state, "statement_date", doc_types=["Mortgage Statement"])
         if raw_stmt_date:
             try:

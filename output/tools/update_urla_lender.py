@@ -43,6 +43,17 @@ _NO_TENANCY_ENTIRETY_STATES = _COMMUNITY_PROPERTY_STATES
 
 _SPOUSE_VESTING_VARIANTS = {"HUSBAND AND WIFE", "WIFE AND HUSBAND"}
 
+# Sole-ownership vesting descriptions that are compatible with computed "Sole Ownership".
+# Encompasses dropdown for field 33 contains these as distinct entries that all represent
+# title held solely by one person (marital status qualifier only, not a different ownership form).
+_SOLE_OWNERSHIP_VARIANTS = {
+    "SINGLE MAN", "SINGLE WOMAN",
+    "UNMARRIED MAN", "UNMARRIED WOMAN",
+    "A SINGLE MAN", "A SINGLE WOMAN",
+    "AN UNMARRIED MAN", "AN UNMARRIED WOMAN",
+    "MARRIED MAN", "MARRIED WOMAN",
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +172,9 @@ def _manner_held_compatible(los_value: str, computed: str) -> bool:
 
     LOS may be more specific (e.g. "Husband And Wife as Joint Tenants...").
     We accept if LOS contains our computed base anywhere, or if both contain
-    spouse vesting variants ("Husband And Wife" ↔ "Wife And Husband").
+    spouse vesting variants ("Husband And Wife" ↔ "Wife And Husband"),
+    or if computed is "Sole Ownership" and LOS is a recognised sole-ownership
+    vesting description (e.g. "Single Man", "Unmarried Woman").
     """
     if not los_value or not computed:
         return False
@@ -169,9 +182,12 @@ def _manner_held_compatible(los_value: str, computed: str) -> bool:
     comp_up = computed.strip().upper()
     if comp_up in los_up:
         return True
-    # Check if either string contains a spouse vesting variant
+    # Spouse vesting variants: "Husband And Wife" ↔ "Wife And Husband" and longer forms
     if any(variant in los_up for variant in _SPOUSE_VESTING_VARIANTS) and \
        any(variant in comp_up for variant in _SPOUSE_VESTING_VARIANTS):
+        return True
+    # Sole ownership aliases: LOS has a marital-status-qualified form that maps to Sole Ownership
+    if comp_up == "SOLE OWNERSHIP" and any(variant == los_up for variant in _SOLE_OWNERSHIP_VARIANTS):
         return True
     return False
 

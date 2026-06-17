@@ -126,13 +126,22 @@ def update_transmittal_summary(
 
     # ── Rule: Project Type (field 1012) — set to G/Not in PUD for non-condo/PUD ──
     _NOT_IN_PUD_VALUE = "Other: G/Not in a Project or Development"
+    # Encompass returns the raw enum "G_NotInAProjectOrDevelopment" on read; both
+    # forms are semantically identical — normalise before comparing.
+    _NOT_IN_PUD_NORM = "gnotinaprojectordevelopment"
+
+    def _normalise_1012(val: str) -> str:
+        return val.lower().replace(" ", "").replace("_", "").replace("/", "").replace(":", "").replace("-", "").replace(".", "")
+
     if not _is_condo(property_type):
         current_1012 = (project_type_1012 or "").strip()
         if not current_1012:
             # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
             _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "10.1", flags, state=state)
             logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
-        elif _NOT_IN_PUD_VALUE.lower() not in current_1012.lower():
+        elif _normalise_1012(current_1012) == _NOT_IN_PUD_NORM or _NOT_IN_PUD_VALUE.lower() in current_1012.lower():
+            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
+        else:
             flags.append({
                 "substep": "10.1",
                 "title": "Project Type (1012) — Unexpected Value",
@@ -145,8 +154,6 @@ def update_transmittal_summary(
                 "resolved": False,
                 "timestamp": ts,
             })
-        else:
-            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
 
     # ── Rule: Appraisal Form Number (field 1542) + Property Form Type ──────
     # NOTE: Field ID 1542 has NOT been verified against live Encompass.
