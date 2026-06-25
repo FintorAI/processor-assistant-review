@@ -1881,3 +1881,130 @@ def get_vods(loan_id: str, application_id: str = None, state: dict = None) -> li
         logger.error(f"[ENCOMPASS] Network error getting VODs: {e}")
         raise
 
+
+# Maps normalised document account types → Encompass URLA-2020 VOD item ``type`` enum.
+_VOD_ACCOUNT_TYPE_ENUM = {
+    "checking":      "CheckingAccount",
+    "checkingaccount": "CheckingAccount",
+    "savings":       "SavingsAccount",
+    "savingsaccount": "SavingsAccount",
+    "moneymarket":   "MoneyMarketFund",
+    "money market":  "MoneyMarketFund",
+    "certificateofdeposit": "CertificateOfDepositTimeDeposit",
+    "cd":            "CertificateOfDepositTimeDeposit",
+    "mutualfunds":   "MutualFund",
+    "stockbonds":    "Stock",
+    "retirement":    "RetirementFund",
+    "retirementfund": "RetirementFund",
+}
+
+
+def add_vod_accounts(
+    loan_id: str,
+    accounts: list[dict[str, any]],
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Create new VOD (Verification of Deposit) entries on a loan application.
+
+    Used by the assets review to *populate* the 2a Assets / VOD table when a
+    bank-statement account is entirely missing from Encompass. Existing VOD
+    rows are never modified here — each call only **adds** new depository
+    entries via the URLA-2020 schema.
+
+    Endpoint::
+
+        POST /encompass/v3/loans/{loanId}/applications/{applicationId}/vods
+        body: {"holderName": "...", "owner": "Borrower", "items": [ {...} ]}
+
+    Args:
+        loan_id: Encompass loan GUID
+        accounts: list of dicts, each with::
+            {
+              "institution_name": str,   # → holderName
+              "account_type":      str,   # normalised (e.g. "checking"); mapped to enum
+              "account_number":    str,   # → items[].accountIdentifier
+              "account_holder":    str,   # → items[].depositoryAccountName
+              "balance":           float, # → items[].urla2020CashOrMarketValueAmount
+              "owner":             str,   # optional, default "Borrower"
+            }
+        application_id: Application ID (auto-resolved if omitted)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": True, "added": [institution_name, ...]}`` or
+        ``{"success": False, "error": "...", "added": [...]}``.
+    """
+    import requests
+
+    if not accounts:
+        return {"success": True, "added": []}
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    url = (
+        f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+        f"/applications/{application_id}/vods"
+    )
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+
+    added: list[str] = []
+    for acct in accounts:
+        institution = (acct.get("institution_name") or "").strip()
+        if not institution:
+            continue
+        acct_type_norm = (acct.get("account_type") or "").replace(" ", "").lower()
+        enum_type = _VOD_ACCOUNT_TYPE_ENUM.get(acct_type_norm) or _VOD_ACCOUNT_TYPE_ENUM.get(
+            (acct.get("account_type") or "").lower()
+        )
+        item: dict[str, any] = {
+            "itemNumber": 1,
+            "accountIdentifier": (acct.get("account_number") or "").strip() or None,
+            "depositoryAccountName": (acct.get("account_holder") or "").strip() or None,
+        }
+        if enum_type:
+            item["type"] = enum_type
+        if acct.get("balance") is not None:
+            item["urla2020CashOrMarketValueAmount"] = acct["balance"]
+        item = {k: v for k, v in item.items() if v is not None}
+
+        body = {
+            "holderName": institution,
+            "owner": acct.get("owner") or "Borrower",
+            "sourceOfAssetData": "Encompass",
+            "items": [item],
+        }
+
+        try:
+            resp = requests.post(url, json=body, headers=headers, timeout=30)
+            if resp.status_code == 401:
+                client.refresh_token()
+                headers["Authorization"] = f"Bearer {client.access_token}"
+                resp = requests.post(url, json=body, headers=headers, timeout=30)
+            if resp.status_code in (200, 201, 204):
+                logger.info(f"[ENCOMPASS] Added VOD '{institution}' for loan {loan_id[:8]}")
+                added.append(institution)
+            else:
+                error_msg = (
+                    f"VOD POST failed for {institution!r} (status {resp.status_code}): "
+                    f"{resp.text[:300]}"
+                )
+                logger.error(f"[ENCOMPASS] {error_msg}")
+                return {"success": False, "error": error_msg, "added": added}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[ENCOMPASS] Network error adding VOD {institution!r}: {e}")
+            return {"success": False, "error": str(e), "added": added}
+
+    return {"success": True, "added": added}
+

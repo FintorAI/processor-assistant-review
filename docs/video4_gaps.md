@@ -323,12 +323,53 @@ deployed but is now unreachable from review (no action item references it). See 
 | Item | Status | Evidence (thread `2605968646`) |
 |---|---|---|
 | Extraction ran (Step 0.3 `fetch_doc_fields`, `selectionMode=All`) | ✅ | `doc_fields` populated: TD Bank, JAMES ERVIN MARTIN, Checking, acct `441-1856391`, period `05/04–06/03/2026`, begin `963.14` / end `42.42`, avg daily `383.65`, deposits `2715.55`, withdrawals `4757.25`, NSF `0`. `efolder_documents["Bank Statement"]` copy_count=2. |
-| Recency check (60d Conv / 30d FHA) | ✅ | `review_urla_assets.py:237-313`. Statement end `06/03/2026` recent → no stale flag (loan is Conventional). |
+| Recency check (60d Conv / 30d FHA) | ✅ | `review_urla_assets.py`. Statement end `06/03/2026` recent → no stale flag (loan is Conventional). |
 | Large / green deposit sourcing flag | ✅ | Flag fired: `6.1 (warning) Large / Green Deposit Requires Sourcing`. |
-| ZEL / Zelle deposit flag | 🟡 **BUG** | `bank_zel_deposits` was **populated** (`"05/06: 19.50, 05/07: 29.42, 05/19: 98.05, 05/28: 98.05"`) yet **no Zelle flag fired**. `review_urla_assets.py:315-332` substring-matches the keywords `zel/zelle/klarna/firm` *inside the value*; the value holds dates+amounts only, so the dedicated Zelle field never trips. |
-| Cross-check vs VOD ("verify everything matches", URLA 2a) | ❌ | `vod_data = None`. `fetch_vod_data` exists (`data_gathering.py:2039-2094`) but is **not registered** in `__init__.py` / `workflow_config.json`, so VOD balance/account/type checks never run. |
-| Write bank info back to Encompass ("write as needed") | ❌ | `review_urla_assets` is verify-only (no `_write_fields`). |
-| Sufficient-months check | ⚠️ | `bank_statement_months = 1` for a Conventional loan (needs 2), but **no** "Insufficient Bank Statements" flag at 1.1 was emitted — possible gap in `run_pre_checks` month-count logic (copy_count=2 may have masked it). Worth a follow-up probe. |
+| Cross-check vs 2a/VOD ("verify everything matches", URLA 2a) | ✅ **IMPLEMENTED** | `read_vods` now parses the **URLA-2020 / 2a** schema, so the comparison actually runs. Match → **info** "Matches 2a/VOD"; value mismatch → **warning** (no overwrite); missing account → **populate** the 2a/VOD. `review_urla_assets` also reads the 2a/VOD directly when `state['vod_data']` is absent, so it no longer depends on `fetch_vod_data` being wired. |
+| Write bank info back to Encompass ("write as needed") | ✅ **IMPLEMENTED** | New `add_vod_accounts` (`encompass_client.py`) + `add_vods` (`encompass_io.py`). Only **adds** a missing depository account (URLA-2020 POST); existing rows are never overwritten. |
+| ZEL / Zelle deposit flag | 🟡 **BUG (open)** | `bank_zel_deposits` populated yet no Zelle flag — keyword substring-match in `review_urla_assets.py` tests the dates+amounts value, not the presence of the field. Pre-existing; out of scope for this pass. |
+| Sufficient-months check | ⚠️ (open) | `bank_statement_months = 1` for a Conventional loan (needs 2), but no flag at 1.1. Pre-existing; out of scope. |
+
+#### Implementation (this pass)
+
+**Root cause — `read_vods` parsed the wrong schema.** The 2a Assets table on `2605968646`
+is returned by the VOD collection in the **URLA-2020** shape (`holderName`, `items[]`,
+`type`, `accountIdentifier`, `urla2020CashOrMarketValueAmount`, `depositoryAccountName`),
+but `shared/encompass_io.py:read_vods` only read the **legacy** shape (`depInstitution`,
+`accountInformation[]`, `cashOrMarketValue`). It returned `[]`, so every 2a/VOD cross-check
+silently no-op'd. `read_vods` now handles **both** schemas and skips the empty placeholder
+items the URLA-2020 form pads its `items[]` array with.
+
+**Comparison semantics** (`review_urla_assets.py:_compare_with_vod`, per request — *"only
+populate if mismatch, else just flag as info if matching"*):
+
+| Case | Behaviour |
+|---|---|
+| Statement matches 2a/VOD (balance within $1) | **info** flag confirming the match (account + both balances) |
+| Balance differs by > $1 | **warning** — VOD is **not** modified (processor reconciles) |
+| Account entirely missing from 2a/VOD | **populate** — added via `add_vods`, then **info-overwrite** flag (or **warning** if the add failed) |
+
+Account matching is tolerant (last-4 of account number, else institution name), and
+account-type comparison normalises bank-specific labels (e.g. "Woodforest Checking" → checking).
+
+**Verified end-to-end on `2605968646`** (live `read_vods` + real cached extraction):
+
+```
+read_vods → Fidelity Investments (RetirementFund, ****2183, $18,125.18)
+            TD Bank (CheckingAccount, ****6391, $42.42)
+            Woodforest National Bank (CheckingAccount, ****3696, $67.76)
+
+Bank Statement — Matches 2a/VOD  [info]
+  Account '441-1856391' (TD Bank): statement $42.42 matches 2a/VOD $42.42 (within $1.00)
+Bank Statement — Matches 2a/VOD  [info]
+  Account '8024083696' (Woodforest National Bank): statement $67.76 matches 2a/VOD $67.76
+to_add (missing → populate): []   # nothing missing on this loan
+```
+
+> Note: the populate-on-missing **write** (`add_vods` → `POST .../vods`) could not be
+> live-exercised here because no statement account is missing from this loan's 2a/VOD, and a
+> test write was not run against this prod loan. The write path follows the same env/auth/retry
+> pattern as the verified `write_loan_contacts` and only ever *adds* (never mutates existing rows).
 
 ---
 
@@ -341,17 +382,24 @@ populated at confidence 1.0 across 2 copies).
 
 **What worked:** field extraction, recency check, large-deposit sourcing flag.
 
-**What did NOT happen (the "verify everything matches" part):**
-1. **VOD cross-check never ran** — `fetch_vod_data` is unwired, so `state["vod_data"]` is empty and
-   the balance/account/type reconciliation in `review_urla_assets.py:347-362` is a no-op. This is the
-   core "matches URLA Part 3 / 2a" verification and is effectively missing in deployed runs.
-2. **Zelle flag suppressed by a keyword bug** — the populated `bank_zel_deposits` field should flag
+**Now resolved in this pass (the "verify everything matches" part):**
+1. **2a/VOD cross-check now runs** — `read_vods` was reading the legacy schema and returning `[]`
+   for this loan's URLA-2020 (2a) VODs; it now parses both schemas. The reconciliation in
+   `review_urla_assets._compare_with_vod` matches → info-confirms, mismatches → warns, and missing
+   accounts → populate. Verified live on `2605968646` (both statement accounts confirmed matching).
+   `review_urla_assets` now also reads the 2a/VOD directly when `state["vod_data"]` is absent, so the
+   check runs even though `fetch_vod_data` isn't registered as a substep (registration remains a nice-to-have
+   to avoid the extra read, but is no longer required for correctness).
+2. **Write-back implemented** — `add_vod_accounts` / `add_vods` add a missing depository account to
+   the 2a/VOD (never overwrites existing rows), satisfying "write as needed".
+
+**Still open (pre-existing, out of scope for this pass):**
+3. **Zelle flag suppressed by a keyword bug** — the populated `bank_zel_deposits` field should flag
    regardless of its textual content.
-3. **No write-back** — "write as needed" (e.g. asset amounts to VOD/Encompass) is not implemented.
 4. **Months-sufficiency** — 1 month on a Conventional file did not raise the expected flag.
 
-Probe script: `scripts/probe_thread.py` (added). Re-run with
-`venv/bin/python scripts/probe_thread.py --loan 2605968646`.
+Probe scripts: `scripts/probe_thread.py`, `scripts/probe_vod_shape.py` (added). Re-run with
+`venv/bin/python scripts/probe_vod_shape.py --loan 2605968646 --env Prod`.
 
 ---
 

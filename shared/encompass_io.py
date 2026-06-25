@@ -750,6 +750,18 @@ def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     This makes downstream comparison with per-copy bank-statement extractions
     straightforward.
 
+    Two on-the-wire schemas are supported transparently:
+
+      * **Legacy VOD** — ``depInstitution`` / ``for`` with an
+        ``accountInformation[]`` list (``accountType``, ``accountInNameOf``,
+        ``accountNumber``, ``cashOrMarketValue``).
+      * **URLA-2020 ("2a Assets")** — ``holderName`` / ``owner`` with an
+        ``items[]`` list (``type``, ``depositoryAccountName``,
+        ``accountIdentifier``, ``urla2020CashOrMarketValueAmount``). Empty
+        placeholder items are skipped.
+
+    Both normalise to the identical row shape below.
+
     Returned item shape::
 
         {
@@ -782,31 +794,102 @@ def read_vods(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     for vod in raw_vods:
         vod_id    = vod.get("id", "")
         vod_index = vod.get("vodIndex", 0)
-        institution = (vod.get("depInstitution") or "").strip()
-        borrower_type = vod.get("for", "")
+        # Institution + owner differ between the legacy VOD schema and the
+        # URLA-2020 ("2a Assets") schema:
+        #   legacy   → depInstitution / for
+        #   URLA-2020→ holderName     / owner
+        institution = (vod.get("depInstitution") or vod.get("holderName") or "").strip()
+        borrower_type = vod.get("for") or vod.get("owner") or ""
 
-        for acct in vod.get("accountInformation") or []:
-            acct_type   = acct.get("accountType", "")
-            acct_holder = (acct.get("accountInNameOf") or "").strip()
-            acct_num    = (acct.get("accountNumber") or "").strip()
-            try:
-                balance = float(acct.get("cashOrMarketValue") or 0)
-            except (TypeError, ValueError):
-                balance = 0.0
+        # Account rows live under different keys per schema. The legacy form uses
+        # ``accountInformation``; the URLA-2020 form uses ``items``. Prefer
+        # whichever is populated so both layouts normalise to the same row shape.
+        legacy_accounts = vod.get("accountInformation") or []
+        urla_items = vod.get("items") or []
 
-            rows.append({
-                "vod_id":           vod_id,
-                "vod_index":        vod_index,
-                "institution_name": institution,
-                "borrower_type":    borrower_type,
-                "account_type":     acct_type,
-                "account_holder":   acct_holder,
-                "account_number":   acct_num,
-                "balance":          balance,
-            })
+        if legacy_accounts:
+            for acct in legacy_accounts:
+                acct_type   = acct.get("accountType", "")
+                acct_holder = (acct.get("accountInNameOf") or "").strip()
+                acct_num    = (acct.get("accountNumber") or "").strip()
+                try:
+                    balance = float(acct.get("cashOrMarketValue") or 0)
+                except (TypeError, ValueError):
+                    balance = 0.0
+
+                rows.append({
+                    "vod_id":           vod_id,
+                    "vod_index":        vod_index,
+                    "institution_name": institution,
+                    "borrower_type":    borrower_type,
+                    "account_type":     acct_type,
+                    "account_holder":   acct_holder,
+                    "account_number":   acct_num,
+                    "balance":          balance,
+                })
+        else:
+            for item in urla_items:
+                acct_type   = item.get("type", "")
+                acct_holder = (item.get("depositoryAccountName") or "").strip()
+                acct_num    = (item.get("accountIdentifier") or "").strip()
+                raw_val     = item.get("urla2020CashOrMarketValueAmount")
+
+                # URLA-2020 VODs pad the items array with empty placeholder rows
+                # (only itemNumber + depositoryAccountGuid). Skip any row with no
+                # account type, no account number, and no value.
+                if not acct_type and not acct_num and raw_val in (None, ""):
+                    continue
+
+                try:
+                    balance = float(raw_val or 0)
+                except (TypeError, ValueError):
+                    balance = 0.0
+
+                rows.append({
+                    "vod_id":           vod_id,
+                    "vod_index":        vod_index,
+                    "institution_name": institution,
+                    "borrower_type":    borrower_type,
+                    "account_type":     acct_type,
+                    "account_holder":   acct_holder,
+                    "account_number":   acct_num,
+                    "balance":          balance,
+                })
 
     logger.info(f"[ENCOMPASS] read_vods: {len(raw_vods)} VOD object(s) → {len(rows)} account row(s)")
     return rows
+
+
+def add_vods(
+    loan_id: str,
+    accounts: List[Dict[str, Any]],
+    state: dict = None,
+) -> Dict[str, Any]:
+    """Create new VOD entries (URLA-2020 / 2a Assets) on a loan application.
+
+    Thin wrapper over ``encompass_client.add_vod_accounts``. Only *adds* new
+    depository rows — existing VOD entries are never modified. Each ``accounts``
+    dict uses the normalised row shape produced by ``read_vods``
+    (``institution_name``, ``account_type``, ``account_number``,
+    ``account_holder``, ``balance``).
+
+    Returns ``{"success": bool, "added": [...], "error"?: str}``.
+    """
+    try:
+        from encompass_client import add_vod_accounts
+    except ImportError:
+        logger.warning("encompass_client not available — add_vods will fail at runtime")
+        return {"success": False, "error": "encompass_client not available", "added": []}
+
+    if not accounts:
+        return {"success": True, "added": []}
+
+    result = add_vod_accounts(loan_id, accounts, state=state)
+    logger.info(
+        f"[ENCOMPASS] add_vods: requested {len(accounts)} → added "
+        f"{len(result.get('added', []))} for loan {loan_id[:8]}"
+    )
+    return result
 
 
 def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
