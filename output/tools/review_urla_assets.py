@@ -99,6 +99,29 @@ _TYPE_MAP = {
 }
 
 
+def _copy_field(copy: dict, *keys):
+    """Read a field value from an eFolder copy dict, tolerant of both shapes.
+
+    eFolder copies store extracted values under ``extracted_fields`` (the live
+    shape) or ``fields`` (older/simplified shape), and each value may be a flat
+    scalar or a nested ``{"value": ..., "confidence": ...}`` dict. Returns the
+    first non-empty value across ``keys``.
+    """
+    fields = copy.get("extracted_fields") or copy.get("fields") or {}
+    for k in keys:
+        if k in fields:
+            val = fields[k]
+            if isinstance(val, dict):
+                val = val.get("value")
+            if val not in (None, ""):
+                return val
+    return None
+
+
+def _copy_has_fields(copy) -> bool:
+    return isinstance(copy, dict) and ("extracted_fields" in copy or "fields" in copy)
+
+
 def _norm_type(val: str) -> str:
     raw = (val or "").lower().strip()
     if not raw:
@@ -153,15 +176,15 @@ def _compare_with_vod(
 
     for copy in doc_copies:
         # Extract fields from this copy dict
-        if isinstance(copy, dict) and "fields" in copy:
-            # Full copy object from state['efolder_documents']
-            fields = copy.get("fields", {})
-            doc_acct_raw   = fields.get("bank_account_number") or fields.get("asset_account_number")
-            doc_balance    = _parse_float(fields.get("ending_balance") or fields.get("bank_balance") or fields.get("asset_balance"))
-            doc_institution_raw = (fields.get("institution_name") or "").strip()
+        if _copy_has_fields(copy):
+            # Full copy object from state['efolder_documents'] (extracted_fields
+            # with nested {"value": ...} entries, or older flat "fields").
+            doc_acct_raw   = _copy_field(copy, "bank_account_number", "asset_account_number", "account_number")
+            doc_balance    = _parse_float(_copy_field(copy, "ending_balance", "bank_balance", "asset_balance"))
+            doc_institution_raw = (_copy_field(copy, "institution_name") or "").strip()
             doc_institution = doc_institution_raw.lower()
-            doc_acct_type  = (fields.get("account_type") or "").strip()
-            doc_holder     = (fields.get("account_holder_name") or fields.get("borrower_name") or "").strip()
+            doc_acct_type  = (_copy_field(copy, "account_type") or "").strip()
+            doc_holder     = (_copy_field(copy, "account_holder_name", "borrower_name") or "").strip()
         else:
             # Simplified copy from _doc_all (value + metadata)
             doc_acct_raw   = copy.get("value")
@@ -518,9 +541,9 @@ def review_urla_assets(
                 vod_last4 = _last_four(row.get("account_number"))
                 vod_inst  = (row.get("institution_name") or "").lower()
                 for copy in copies:
-                    if isinstance(copy, dict) and "fields" in copy:
-                        doc_num = _last_four(copy.get("fields", {}).get(field_key))
-                        doc_inst = (copy.get("fields", {}).get("institution_name") or "").lower()
+                    if _copy_has_fields(copy):
+                        doc_num = _last_four(_copy_field(copy, field_key, "account_number"))
+                        doc_inst = (_copy_field(copy, "institution_name") or "").lower()
                     else:
                         doc_num = _last_four(copy.get("value"))
                         doc_inst = ""
