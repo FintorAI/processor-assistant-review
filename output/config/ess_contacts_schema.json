@@ -1,0 +1,337 @@
+{
+  "_comment": "Contacts-only extraction schema for the ESS / pre-CD page-5 Contact Information table. Sourced from catchingDoc DocumentType 'Estimated Settlement Statement' (NOT the stale 'ESS' alias). Types are nullable ([type,'null']) so empty Contact-Information columns (e.g. Mortgage Broker) pass LandingAI's output validation instead of discarding the whole result (HTTP 206). Used by shared/ess_contact_bypass.py when the catchingDoc finder won't bind a CD-format pre-CD.",
+  "document_type": "Estimated Settlement Statement",
+  "type": "object",
+  "properties": {
+    "contact_mortgage_broker_contact_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Contact NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_contact_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Contact State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Email address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_contact_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Contact NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Full mailing address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_contact_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Contact NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Full mailing address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Phone number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_contact_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Contact State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Phone number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Full mailing address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Email address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_contact_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Contact State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Email address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Phone number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Phone number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Email address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_contact_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Contact NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_contact_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Contact State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Full mailing address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Contact person name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Contact person name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Full mailing address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_contact_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 Contact State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_mortgage_broker_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Mortgage Broker column \u2014 Contact person name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Email address. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_lender_st_license_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Lender column \u2014 State License ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Contact person name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Contact person name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_seller_contact_nmls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (S) / Seller column \u2014 Contact NMLS ID number. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_settlement_agent_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Settlement Agent column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
+    },
+    "contact_real_estate_broker_buyer_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Contact Information table \u2014 Real Estate Broker (B) / Buyer column \u2014 Phone number. Found on the last page of the ESS. Return null if not present."
+    },
+    "escrow_company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Name of the escrow company. Often same as title company."
+    },
+    "title_company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Name of the title company (e.g., 'Old Republic Title Company of Nevada'). Used for SSPL 'Borrower Did Shop' comparison."
+    }
+  },
+  "required": []
+}

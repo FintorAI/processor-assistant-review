@@ -36,12 +36,99 @@ current state, evidence, and an implementation plan.
 
 | Item | Status | Evidence |
 |---|---|---|
-| ESS document presence check | ✅ | `run_pre_checks.py` reads `ess_present`; `required_docs.json:428-438`. |
-| ESS extraction of **contact/agent fields** (settlement agent, escrow co., license IDs, file #, broker) | ❌ | `required_docs.json` ESS schema is fees/charges only (`ess_total_closing_costs`, `ess_cash_to_close`, …) — **no contact fields**. Registry `document_type_registry.py:209-221` likewise charge-line only. Schemas live server-side (CatchingDoc) per `docs/EFOLDER_EXTRACTION.md`. |
-| ESS Settlement Agent → **Escrow Company** file contact (Company License #, Contact License #, Escrow Case #) | ❌ | No contact-write tool. `encompass_client.py` has **no** `/v3/loans/{id}/contacts` write method (GET only). |
-| ESS Real Estate Broker (B) → **Buyer's Agent** file contact | ❌ | Same as above. |
-| Address match check (ESS vs LOS) | ❌ | Not implemented. |
-| Title Report already extracts `settlement_agent` / `escrow_company` / `title_company` | 🟡 | `document_type_registry.py:167-175`, `required_docs.json:500-521` normalize these into `state["doc_fields"]`, but **no tool maps them to File Contacts**. Useful source for the Escrow Company write. |
+| ESS document present + extracted on File-4 | ✅ | **Correction:** the ESS *does* exist in the live eFolder (1 attachment) and extracts. The earlier cached thread showed `not_found` only because the ESS post-dated that run. Live `GET /v1/loans/{id}/documents` lists `Estimated Settlement Statement`; fresh extraction returns the **65-field fee schema** (shared with Loan Estimate). |
+| ESS extraction of the **Contact Information table** (2nd-to-last page) | ❌ | The live 65-field schema has single `Settlement Agent` + `Title Company` fields (both returned **null** on File-4) and **no broker/license fields at all**. It does **not** parse the structured *Contact Information* table (Lender / Mortgage Broker / Real Estate Broker (B) / Real Estate Broker (S) / Settlement Agent columns × Name/Address/NMLS/ST License/Contact/Contact ST License/Email/Phone rows). This table is the source the processor wants — see mapping below. **Server-side schema change required** (CatchingDoc, `LG-docsOrch/devTool/catchingDoc`). |
+| ESS Settlement Agent col → **Escrow Company** file contact (Company License #, Contact License #, Escrow Case #) | 🟡 **(write path ready)** | The write primitive (`write_loan_contacts`, Gap A) + the `review_file_contacts` sync path are ready; blocked only on the ESS table reaching `doc_fields`. Mapping confirmed below. |
+| ESS Real Estate Broker (B) col → **Buyer's Agent** file contact | 🟡 **(write path ready)** | Same — mapping confirmed below. |
+| ESS Real Estate Broker (S) col → **Seller's Agent** file contact | 🟡 **(write path ready)** | Confirmed the ESS table also carries the **Seller's** broker (RE Broker (S)), so the ESS can populate all three agent/escrow contacts. |
+| Address match check (ESS vs LOS) | ❌ | Not implemented (becomes a `warning` flag once the table is extracted). |
+| Title Report already extracts `settlement_agent` / `escrow_company` / `title_company` | 🟡 | `document_type_registry.py:167-175` normalize these into `state["doc_fields"]` — a useful **fallback** source for the Escrow Company write if the ESS table is absent. |
+
+#### ESS "Contact Information" table → File Contacts mapping (confirmed from File-4 ESS, page N-1)
+
+![ESS Contact Information block](assets/ess_contact_information_block.png)
+
+The ESS's penultimate page carries a structured 5-column contact table. Confirmed values + mapping
+(loan `2605968646`):
+
+| ESS column | → File Contact (`contactType`) | Name→`name` | Contact→`contactName` | ST License ID→`bizLicenseNumber` | Contact ST License ID→`personalLicenseNumber` | Email/Phone/Address |
+|---|---|---|---|---|---|---|
+| **Settlement Agent** | `ESCROW_COMPANY` | Grand Strand Law Group, LLC | Bailey R. Gordon | 471855 | 106680 | bgordon@grandstrandlawgroup.com / (843) 492-5422 / 401 Broadway Street, Myrtle Beach, SC 29577 |
+| **Real Estate Broker (B)** | `BUYERS_AGENT` | Sloan Realty Group | Denise Zrakas | 26733 | 26733 | TC@srgmail.com / (843) 206-0390 / 3120 Waccamaw Blvd Ste C, Myrtle Beach, SC 29579 |
+| **Real Estate Broker (S)** | `SELLERS_AGENT` | Keller Williams The Forturro Group | Joe Scaturro | — | — | joe@forturro.com / (843) 798-8333 / 1801 North Oak Street, Myrtle Beach, SC 29577 |
+| Lender | (skip — already a loan contact) | All Western | Ash Desai | — | — | adesai@allwestern.com / (443) 960-0719 |
+| Mortgage Broker | (empty on this file) | — | — | — | — | — |
+
+> Per `notes.txt:583-592`: ST License ID → **Company** License #, Contact ST License ID → **Contact**
+> License #, File # → Escrow Case # (`referenceNumber`), and "check if addresses match". The ESS table
+> is **richer than the cover-letter image** (Gap A) — it has the license IDs and a full address — so
+> when present it should be the **preferred source** over the image OCR.
+
+#### ✅ VALIDATED end-to-end via local-extraction workaround (2026-06-25)
+
+The "Estimated Settlement Statement" bucket on `2605968646` actually holds a **Closing Disclosure**
+("pre-CD"). It falls through a gap between two schemas:
+
+| | **ESS** doc type | **CD** doc type |
+|---|---|---|
+| Has page-5 `contact_*` table? | ✅ 43 fields | ❌ only `settlement_agent_name` |
+| Binds this attachment via catchingDoc? | ❌ `not_found` — LLM won't classify CD content as an ESS | ❌ `not_found` — finder `avoid_keywords` skip the ESS bucket |
+
+`selectionMode="All"` and `useLlm=False` do **not** help — the finder never binds the attachment.
+
+**The workaround works** (`scripts/probe_ess_local_extract.py`): download the attachment bytes directly
+(`LG-docsOrch/devTool/extract_local.py:download_attachment` → Encompass `attachmentDownloadUrl`; the
+`export-attachments` job `POST /efolder/v1/exportjobs` is the robust fallback for cloud/SkyDrive files)
+and send the PDF straight to **LandingAI with the full ESS schema** — bypassing the finder entirely.
+This returned the complete page-5 table, matching the screenshot exactly (settlement agent + both RE
+brokers + lender, with license IDs, addresses, phones, emails).
+
+> ⚠ **Schema-alias bug to fix before productionizing:** `extract_local.py` maps the bucket → doc type
+> `"ESS"`, but `/efolder/schemas/ESS` returns a **stale 9-field schema** (no contacts). The
+> contact-rich schema (80 props, 43 `contact_*`) is stored under DocumentType
+> **"Estimated Settlement Statement"**. The workaround must fetch the schema by that key (or the alias
+> must be repointed), otherwise it silently extracts 9 fields and drops the entire contact table.
+
+#### ✅ IMPLEMENTED (2026-06-25)
+
+Gap B is now wired end-to-end. Two halves:
+
+**1. Extraction — download-bypass path** (`shared/ess_contact_bypass.py`).
+`extract_ess_contacts(loan_id, state)` lists the eFolder, finds the attachment in the
+"Estimated Settlement Statement" bucket, downloads the PDF bytes directly from Encompass
+(`attachmentDownloadUrl`), and sends it to **LandingAI with the contacts-only ESS schema**,
+bypassing the catchingDoc finder entirely (which won't bind a CD-format pre-CD). It returns the
+`contact_*` field map. Best-effort: if `LANDINGAI_API_KEY` is unset or any step fails it returns
+`None` and the image-OCR path still runs. **`LANDINGAI_API_KEY` must be set in the deployment env.**
+
+The schema is fetched by the correct DocumentType key — **"Estimated Settlement Statement"**, never
+the stale `"ESS"` alias — and bundled at `output/config/ess_contacts_schema.json` as a fallback.
+
+> ⚠ **Root cause of the "docs-orch works but this errors" discrepancy — FIXED.** LandingAI validates
+> its *own* extracted output against the schema you send. Empty Contact-Information columns (e.g. the
+> Mortgage Broker column, blank on this file) come back as `null`, but the source schema declares
+> `"type": "string"` (non-nullable). That mismatch raises a `ValidationError` and LandingAI **discards
+> the entire result** (`HTTP 206`, empty `extracted_schema`). The docs-orch probe only appeared to
+> work because its full 64-field run happened to return non-null values for those columns — flaky and
+> schema-dependent. **Fix:** `_make_nullable()` coerces every property type to `[type, "null"]` so
+> empty columns pass validation. Verified on `2605968646`: contacts-only now returns **22 non-empty
+> contact fields** (HTTP 200), matching the screenshot.
+
+**2. Client-side write** (`output/tools/review_file_contacts.py`, substep 1.2).
+`contact_*` keys were added to the ESS `fields_extracted` in `output/config/required_docs.json` so
+`_normalize_efolder_output` lifts them into `state["doc_fields"]` whenever catchingDoc *does* extract a
+real ESS. `_parse_doc_contacts(state, loan_id)` reads those first and falls back to the bypass for
+pre-CD loans. The renamed `_sync_contacts()` merges the settlement statement **per field over** the
+cover-letter image (ESS wins — it carries license #s + full address), then creates/overwrites
+`ESCROW_COMPANY` / `BUYERS_AGENT` / `SELLERS_AGENT` via `write_loan_contacts`. Incomplete/invalid
+values (e.g. an OCR'd email with a stray space) are dropped and the existing Encompass value is kept
+(the contacts PATCH merges by `contactType`); every write is flagged `info-overwrite` with its source.
+
+| ESS column → contact field | mapping |
+|---|---|
+| `contact_*_name` → `name`, `contact_*_contact` → `contactName` | company + person |
+| `contact_*_st_license_id` → `bizLicenseNumber`, `contact_*_contact_st_license_id` → `personalLicenseNumber` | company / contact license # |
+| `contact_*_address` → `address`, `contact_*_phone` → `phone`, `contact_*_email` → `email` | (phone/email validated) |
 
 ### Gap C — Purchase Contract → File Contacts (MD/SC variants) (`notes.txt:588-606`)
 
@@ -353,13 +440,13 @@ extraction schemas lack contact fields. Sequence:
    `state["almas_notes_images"]`; parse its `KEY CONTACTS` section as a fallback/secondary source.
 5. **Address-match checks** become `warning` flags (ESS vs LOS subject property) rather than writes.
 
-**Suggested priority:** D (vesting) ✅ → A (cover-letter image → File Contacts) ✅ → B (ESS → Escrow
-Company, leveraging Title Report fields already in state) → C (Purchase Agreement agents + MD/SC).
-The contacts write helper (`write_loan_contacts`) is now built and verified, so **B and C are
-unblocked on the write side** — they remain blocked only on the **server-side extraction schema**
-work (adding contact/agent fields + the MD/SC state-conditional instructions). Once those fields
-reach `state["doc_fields"]`, the same `review_file_contacts` populate path can consume them
-(prefer document-sourced values over the image OCR, which stays a fallback).
+**Suggested priority:** D (vesting) ✅ → A (cover-letter image → File Contacts) ✅ → B (ESS / pre-CD →
+Escrow Company + Buyer/Seller Agents) ✅ → C (Purchase Agreement agents + MD/SC). The contacts write
+helper (`write_loan_contacts`) and the `review_file_contacts` populate path are built and verified;
+Gap B's pre-CD extraction is handled by the `shared/ess_contact_bypass.py` download→LandingAI path.
+**C remains** blocked on the **server-side extraction schema** work (adding agent fields + the MD/SC
+state-conditional instructions); once those reach `state["doc_fields"]`, the same `_parse_doc_contacts`
+→ `_sync_contacts` path can consume them (document-sourced values preferred over the image OCR).
 
 ---
 
@@ -368,7 +455,9 @@ reach `state["doc_fields"]`, the same `review_file_contacts` populate path can c
 | File | Role |
 |---|---|
 | `output/tools/build_action_items.py` | Action-item rules (HOA rule removed; `FACTORY-LOCK: true`) |
-| `output/tools/review_file_contacts.py` 🔒 | File Contacts check (1.2) — now also populates missing escrow/agent contacts from the cover-letter image OCR (`_parse_image_contacts` + `_populate_missing_from_image`) |
+| `output/tools/review_file_contacts.py` 🔒 | File Contacts check (1.2) — populates escrow/agent contacts from the **settlement statement** (`_parse_doc_contacts`, Gap B, preferred) merged with the **cover-letter image OCR** (`_parse_image_contacts`, Gap A) via `_sync_contacts` |
+| `shared/ess_contact_bypass.py` | Gap B download→LandingAI bypass: extracts the ESS / pre-CD page-5 Contact Information table when the catchingDoc finder won't bind the attachment (`_make_nullable` schema fix) |
+| `output/config/ess_contacts_schema.json` | Bundled contacts-only ESS schema (nullable types) used by the bypass |
 | `output/tools/update_borrower_vesting.py` | Vesting writes (STEP_09) |
 | `output/tools/update_urla_lender.py` | `_determine_manner_held` (STEP_03) |
 | `output/tools/review_urla_assets.py` 🔒 | Bank statement verification (6.1) |

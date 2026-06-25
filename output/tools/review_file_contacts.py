@@ -99,16 +99,27 @@ def _get_loan_contacts(loan_id: str, state: dict) -> Optional[List[Dict[str, Any
         return None
 
 
-# ── Cover-letter image → File Contacts (Gap A) ──────────────────────────────
-# The frontend OCRs the image Almas attaches to her notes (substep 0.6,
-# extract_almas_images) into state["almas_notes_images"][i]["extracted_text"].
-# That image is a screenshot of Encompass's Roles & Contacts panel; the OCR
-# prompt emits a structured "KEY CONTACTS" section we parse here to sync the
-# escrow/agent file contacts: missing contacts are created, and a present
-# contact that differs from the image is overwritten. OCR is imperfect, so any
-# field whose value looks incomplete/invalid (truncated email/phone) is skipped
-# — and because the contacts PATCH merges by contactType, a skipped field keeps
-# its existing Encompass value. Every create/overwrite is flagged for review.
+# ── Image + Settlement Statement → File Contacts (Gap A + Gap B) ─────────────
+# Two sources feed the escrow/agent File Contacts, in priority order:
+#
+#   1. Settlement statement (Gap B) — the ESS / pre-CD page-5 "Contact
+#      Information" table. Its contact_* fields arrive in state["doc_fields"]
+#      when CatchingDoc extracts a real ESS; on pre-CD loans (a CD-format file in
+#      the ESS bucket that the finder won't bind) we fall back to a direct
+#      download→LandingAI bypass (shared/ess_contact_bypass.py). The ESS table is
+#      RICHER than the image — it has company + contact license #s and the full
+#      address — so it takes precedence per field.
+#
+#   2. Cover-letter image (Gap A) — the frontend OCRs the image Almas attaches to
+#      her notes (substep 0.6) into state["almas_notes_images"][i]["extracted_text"],
+#      a screenshot of Encompass's Roles & Contacts panel. We parse its "KEY
+#      CONTACTS" section to fill any gaps the settlement statement didn't cover.
+#
+# Merged per field (settlement statement wins): missing contacts are created and
+# present-but-differing contacts are overwritten. Any field whose value looks
+# incomplete/invalid (truncated email/phone) is skipped — and because the
+# contacts PATCH merges by contactType, a skipped field keeps its existing
+# Encompass value. Every create/overwrite is flagged for review with its source.
 
 import re
 
@@ -236,10 +247,18 @@ def _looks_complete_phone(value: str) -> bool:
     return len([c for c in value if c.isdigit()]) >= 10
 
 
-def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
-    """Build an Encompass contact object from parsed image fields.
+# Plain string fields copied verbatim (settlement statement supplies licenses +
+# address; the image only supplies name/contactName/personalLicenseNumber).
+_PLAIN_CONTACT_FIELDS = (
+    "name", "contactName", "bizLicenseNumber", "personalLicenseNumber",
+    "referenceNumber", "address", "city", "state", "postalCode",
+)
 
-    Drops any field whose OCR value looks incomplete/invalid (a truncated email
+
+def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
+    """Build an Encompass contact object from parsed (merged) source fields.
+
+    Drops any field whose value looks incomplete/invalid (a truncated email
     like ``foo@gmail.co..`` or a phone with too few digits) and reports it. Since
     the contacts PATCH merges by contactType, a dropped field leaves the existing
     Encompass value untouched.
@@ -247,7 +266,7 @@ def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
     """
     obj: Dict[str, Any] = {"contactType": contact_type}
     dropped: List[str] = []
-    for key in ("name", "contactName", "personalLicenseNumber"):
+    for key in _PLAIN_CONTACT_FIELDS:
         val = (parsed.get(key) or "").strip()
         if val:
             obj[key] = val
@@ -257,7 +276,10 @@ def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
             obj["phone"] = phone
         else:
             dropped.append("phone")
-    email = (parsed.get("email") or "").strip()
+    # Emails can't contain whitespace; a stray space is almost always a PDF
+    # line-wrap artifact (e.g. "grandstrandlaw group.com" where "group" wrapped
+    # to the next line), so collapse internal whitespace before validating.
+    email = re.sub(r"\s+", "", (parsed.get("email") or "").strip())
     if email:
         if _EMAIL_RE.match(email):
             obj["email"] = email
@@ -266,22 +288,87 @@ def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
     return obj, dropped
 
 
-def _sync_contacts_from_image(
+# ── Settlement statement (ESS / pre-CD) contact source (Gap B) ──────────────
+# ESS page-5 column prefix → File Contact type.
+_ESS_COLUMN_TO_CT = {
+    "settlement_agent": "ESCROW_COMPANY",
+    "real_estate_broker_buyer": "BUYERS_AGENT",
+    "real_estate_broker_seller": "SELLERS_AGENT",
+}
+# ESS contact_* sub-key → Encompass contact field.
+_ESS_SUBKEY_TO_FIELD = {
+    "name": "name",
+    "contact": "contactName",
+    "address": "address",
+    "phone": "phone",
+    "email": "email",
+    "st_license_id": "bizLicenseNumber",            # company license #
+    "contact_st_license_id": "personalLicenseNumber",  # individual license #
+}
+
+
+def _doc(state: dict, key: str) -> str:
+    """Read a normalized doc_fields value (``state['doc_fields'][key]['value']``)."""
+    entry = (state.get("doc_fields") or {}).get(key)
+    if isinstance(entry, dict):
+        return str(entry.get("value") or "").strip()
+    return str(entry or "").strip()
+
+
+def _contacts_from_getter(getter) -> Dict[str, Dict[str, str]]:
+    """Build {contactType: {field: value}} from a contact_* key getter."""
+    out: Dict[str, Dict[str, str]] = {}
+    for col, ct in _ESS_COLUMN_TO_CT.items():
+        obj: Dict[str, str] = {}
+        for sub, field in _ESS_SUBKEY_TO_FIELD.items():
+            val = str(getter(f"contact_{col}_{sub}") or "").strip()
+            if val:
+                obj[field] = val
+        if obj.get("name") or obj.get("contactName"):
+            out[ct] = obj
+    return out
+
+
+def _parse_doc_contacts(state: dict, loan_id: str) -> Dict[str, Dict[str, str]]:
+    """Extract escrow/agent contacts from the settlement statement.
+
+    Prefers the contact_* fields already normalized into ``state['doc_fields']``
+    (CatchingDoc extracted a real ESS). When absent — the pre-CD case where the
+    finder won't bind the attachment — falls back to the download→LandingAI
+    bypass (shared/ess_contact_bypass.py). Always best-effort; returns {} on any
+    failure so the image-OCR path still runs.
+    """
+    doc = _contacts_from_getter(lambda k: _doc(state, k))
+    if doc:
+        return doc
+    try:
+        from shared.ess_contact_bypass import extract_ess_contacts
+        raw = extract_ess_contacts(loan_id, state)
+    except Exception as exc:
+        logger.warning(f"[REVIEW_FILE_CONTACTS] ESS contact bypass error: {exc}")
+        raw = None
+    if raw:
+        return _contacts_from_getter(lambda k: raw.get(k, ""))
+    return {}
+
+
+def _sync_contacts(
     loan_id: str,
     state: dict,
     contact_map: Dict[str, Dict[str, Any]],
     required: List[tuple],
     flags: List[Dict[str, Any]],
 ) -> Dict[str, str]:
-    """Create missing AND overwrite differing escrow/agent contacts from the image.
+    """Create/overwrite escrow & agent contacts from the settlement statement + image.
 
-    For each populatable role present in the image:
+    For each populatable role the two sources are merged **per field** with the
+    settlement statement (ESS / pre-CD) winning over the cover-letter image:
       - missing in Encompass → create it;
       - present but differing → overwrite the differing fields.
-    Fields whose OCR value looks incomplete/invalid are skipped; because the
-    contacts PATCH merges by contactType, skipped fields keep their existing
-    Encompass value. ``contact_map`` is updated in place to mirror the write so
-    the caller's present/missing summary is accurate.
+    Fields whose value looks incomplete/invalid are skipped; because the contacts
+    PATCH merges by contactType, skipped fields keep their existing Encompass value.
+    ``contact_map`` is updated in place to mirror the write so the caller's
+    present/missing summary is accurate.
 
     Returns {contactType: "created"|"updated"} for contacts that were written.
     """
@@ -290,40 +377,48 @@ def _sync_contacts_from_image(
         or (state.get("additional_info") or {}).get("almas_notes_images")
     )
     image_contacts = _parse_image_contacts(images)
-    if not image_contacts:
+    doc_contacts = _parse_doc_contacts(state, loan_id)
+    if not image_contacts and not doc_contacts:
         return {}
 
-    # (ct, label, obj, dropped, mode, diffs)
+    # (ct, label, obj, dropped, mode, diffs, source)
     plans: List[tuple] = []
     for ct, label in required:
         if ct not in _IMAGE_POPULATABLE:
             continue
-        parsed = image_contacts.get(ct)
-        if not parsed or not (parsed.get("name") or parsed.get("contactName")):
+        img = image_contacts.get(ct) or {}
+        doc = doc_contacts.get(ct) or {}
+        if not img and not doc:
             continue
-        obj, dropped = _build_contact_obj(ct, parsed)
+        # Merge: image first, settlement statement overrides per field.
+        merged_src: Dict[str, str] = dict(img)
+        merged_src.update({k: v for k, v in doc.items() if v})
+        source = "settlement statement" if doc else "cover-letter image"
+        if not (merged_src.get("name") or merged_src.get("contactName")):
+            continue
+        obj, dropped = _build_contact_obj(ct, merged_src)
         if len(obj) <= 1:  # nothing valid beyond contactType
             continue
         existing = contact_map.get(ct)
         if not existing:
-            plans.append((ct, label, obj, dropped, "created", {}))
+            plans.append((ct, label, obj, dropped, "created", {}, source))
             continue
         diffs = {}
         for k, v in obj.items():
             if k == "contactType":
                 continue
             old = (existing.get(k) or "").strip()
-            if old.lower() != v.strip().lower():
+            if old.lower() != str(v).strip().lower():
                 diffs[k] = (old, v)
         if diffs:
-            plans.append((ct, label, obj, dropped, "updated", diffs))
+            plans.append((ct, label, obj, dropped, "updated", diffs, source))
 
     if not plans:
         return {}
 
     try:
         from encompass_client import write_loan_contacts
-        res = write_loan_contacts(loan_id, [obj for _, _, obj, _, _, _ in plans], state=state)
+        res = write_loan_contacts(loan_id, [p[2] for p in plans], state=state)
     except Exception as exc:
         logger.error(f"[REVIEW_FILE_CONTACTS] contacts write raised: {exc}")
         res = {"success": False, "error": str(exc)}
@@ -333,15 +428,16 @@ def _sync_contacts_from_image(
             title="File Contact Auto-Sync Failed",
             severity="warning",
             details=(
-                f"Attempted to write {', '.join(l for _, l, _, _, _, _ in plans)} from the "
-                f"cover-letter image but the contacts write failed: {res.get('error')}"
+                f"Attempted to write {', '.join(p[1] for p in plans)} from the "
+                f"settlement statement / cover-letter image but the contacts write "
+                f"failed: {res.get('error')}"
             ),
             suggestion="Manually update the contacts in Encompass File Contacts.",
         ))
         return {}
 
     written: Dict[str, str] = {}
-    for ct, label, obj, dropped, mode, diffs in plans:
+    for ct, label, obj, dropped, mode, diffs, source in plans:
         written[ct] = mode
         # Mirror the server-side merge locally for an accurate present summary.
         merged = dict(contact_map.get(ct) or {})
@@ -349,22 +445,22 @@ def _sync_contacts_from_image(
         contact_map[ct] = merged
         summary = _contact_summary(merged)
         note = (
-            f" Skipped {', '.join(dropped)} (incomplete/invalid in OCR — kept existing value)."
+            f" Skipped {', '.join(dropped)} (incomplete/invalid in {source} — kept existing value)."
             if dropped else ""
         )
         if mode == "created":
-            title = f"File Contact Populated from Image: {label}"
+            title = f"File Contact Populated from {source.title()}: {label}"
             details = (
                 f"{label} ({ct}) was missing and has been written to Encompass File Contacts "
-                f"from the cover-letter image OCR: {summary}.{note} "
-                f"Source is image OCR — verify accuracy against the source document."
+                f"from the {source}: {summary}.{note} "
+                f"Verify accuracy against the source document."
             )
         else:
             change = "; ".join(f"{k} '{old or '(empty)'}' → '{new}'" for k, (old, new) in diffs.items())
-            title = f"File Contact Updated from Image: {label}"
+            title = f"File Contact Updated from {source.title()}: {label}"
             details = (
-                f"{label} ({ct}) differed from the cover-letter image and was overwritten "
-                f"({change}).{note} Source is image OCR — verify accuracy against the source document."
+                f"{label} ({ct}) differed from the {source} and was overwritten "
+                f"({change}).{note} Verify accuracy against the source document."
             )
         flags.append({
             "substep": SUBSTEP,
@@ -375,7 +471,7 @@ def _sync_contacts_from_image(
             "resolved": False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
-        logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] {mode} from image — {summary}")
+        logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] {mode} from {source} — {summary}")
     return written
 
 
@@ -438,10 +534,12 @@ def review_file_contacts(
     contact_map = {c.get("contactType", ""): c for c in all_contacts}
     required_pairs = [(r["type"], r["label"]) for r in required_contacts]
 
-    # ── Sync escrow/agent contacts from the cover-letter image (Gap A) ──
-    # Creates missing contacts and overwrites present-but-differing ones; OCR
-    # fields that look incomplete/invalid are skipped (existing value preserved).
-    written = _sync_contacts_from_image(loan_id, state, contact_map, required_pairs, flags)
+    # ── Sync escrow/agent contacts from settlement statement + image (Gap A+B) ──
+    # Settlement statement (ESS / pre-CD page-5 table) is preferred over the
+    # cover-letter image per field. Creates missing contacts and overwrites
+    # present-but-differing ones; fields that look incomplete/invalid are skipped
+    # (existing value preserved via the contacts-collection PATCH merge).
+    written = _sync_contacts(loan_id, state, contact_map, required_pairs, flags)
 
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []
@@ -452,9 +550,9 @@ def review_file_contacts(
         if contact:
             tag = ""
             if written.get(ct) == "created":
-                tag = " (populated from image)"
+                tag = " (auto-populated)"
             elif written.get(ct) == "updated":
-                tag = " (updated from image)"
+                tag = " (auto-updated)"
             summary = _contact_summary(contact)
             present.append(f"  • {label}: {summary}{tag}")
             logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] OK{tag} — {summary}")
