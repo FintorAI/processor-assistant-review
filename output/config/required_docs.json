@@ -390,7 +390,21 @@
         "pa_signing_date",
         "emd_amount_pa",
         "emd_payable_to",
-        "payment_terms"
+        "payment_terms",
+        "buyer_agent_company",
+        "buyer_agent_name",
+        "buyer_agent_license",
+        "buyer_agent_office_code",
+        "buyer_agent_address",
+        "buyer_agent_phone",
+        "buyer_agent_email",
+        "seller_agent_company",
+        "seller_agent_name",
+        "seller_agent_license",
+        "seller_agent_office_code",
+        "seller_agent_address",
+        "seller_agent_phone",
+        "seller_agent_email"
       ]
     },
     "credit_report": {

@@ -141,9 +141,9 @@ values (e.g. an OCR'd email with a stray space) are dropped and the existing Enc
 | Item | Status | Evidence |
 |---|---|---|
 | Purchase Agreement extraction (transaction fields) | ✅ | `required_docs.json:378-394` — price, dates, EMD, seller/buyer name, etc. Used by EMD review (`review_urla_emd.py`). |
-| Purchase Agreement extraction of **agent/brokerage** fields | 🟡 | Registry `document_type_registry.py:189-197` *expects* `buyer_agent_company` / `seller_agent_company`, but these are **not** in `required_docs.json` and not in `FIELD_MAP` — they never reach `state`. |
-| Selling brokerage → **Buyer's Agent** file contact | ❌ | No contact-write path. |
-| Listing brokerage → **Seller's Agent** file contact | ❌ | No contact-write path. |
+| Purchase Agreement extraction of **agent/brokerage** fields | ✅ | **Correction:** the live PA schema *does* model agents — but as **nested objects** `buyers_agent` / `sellers_agent` (props `company_name`, `contact_name`, `license_number`, `mls_id`, `phone`, `email`, `address`, ...), NOT the flat `buyer_agent_company` / `seller_agent_company` the registry lists. The pipeline extracts them, but they were dropped (not in `required_docs.json`, and nested). Now extracted via a flat SC-aware bypass — see IMPLEMENTED below. |
+| Selling brokerage → **Buyer's Agent** file contact | ✅ | Written via `_sync_contacts` (ESS preferred, PA fills gaps). |
+| Listing brokerage → **Seller's Agent** file contact | ✅ | PA supplies the agent license + LLR office code the ESS table leaves blank. |
 | MD / SC purchase-contract layout variants | ❌ | Only in `notes.txt:594-606`. No state-specific schema or branch. (MD handling in repo today is limited to eDisclosure presence checks, not purchase-contract contacts.) Layouts now captured below from real File-4 contracts. |
 | Cross-check Purchase Agreement Seller's Agent vs existing file contacts | ❌ | Not implemented. |
 | Google fallback when company/associate blank | ❌ | Not implemented (out of scope for first pass). |
@@ -241,6 +241,48 @@ Canonical normalized keys downstream: `{buyer,seller}_agent_company`, `_agent_na
 > flatten step must be added in `data_gathering.py` (or via schema `field_mappings`) or the agent
 > values never reach `state["doc_fields"]`. The schema edits themselves are **server-side** in
 > `LG-docsOrch/devTool/catchingDoc` (DynamoDB), not in this repo.
+
+#### ✅ IMPLEMENTED (2026-06-25) — flat SC-aware bypass (no server schema change)
+
+Rather than mutate the prod server schema (nested objects, affects all states, needs forced
+re-extraction to verify), Gap C reuses the Gap B pattern: a **flat, SC-aware schema** sent straight to
+LandingAI, bypassing the nested-object server schema (which LandingAI rejects directly with HTTP 422).
+
+**Why flat + SC-aware descriptions.** I A/B-tested the descriptions on the real File-4 SC contract
+(`scripts/probe_pa_agent_schema.py`). Generic descriptions reproduced the live pipeline's failure
+(seller's agent → only a phone; `27547` mislabeled as `mls_id`). The tuned descriptions — naming the
+SC labels explicitly (*"Seller's Agent Name/License #" line*, *"LLR Office Code" column*, *"Notice
+Email/Address" block*) and separating the **agent license** from the **LLR Office Code** — fixed it:
+
+| field | generic | **SC-aware** |
+|---|---|---|
+| seller agent name | `Joseph Scaturro` | **`Joe M Scaturro`** ✓ |
+| seller agent license (→ `personalLicenseNumber`) | `121177` | **`121177`** ✓ |
+| seller LLR office code (→ `bizLicenseNumber`) | dumped into `mls_id` | **`27547`** separated ✓ |
+| seller email/phone/address | partial | ✓ |
+| buyer company | `Home Placez LLC` (wrong) | **`Sloan Realty Group`** ✓ |
+
+**Pieces.**
+- `output/config/pa_agents_schema.json` — bundled flat schema (16 keys, nullable), SC-aware `description`s.
+- `shared/pa_agent_bypass.py` — `extract_pa_agents(loan_id, state)`: finds the Purchase Agreement
+  attachment, downloads it, runs LandingAI with the flat schema (reuses the Gap B download/LandingAI
+  helpers). Best-effort; `None` if `LANDINGAI_API_KEY` unset.
+- `review_file_contacts.py` — `_pa_agents()` is **gated**: the LandingAI call only fires for purchase
+  loans when the ESS didn't already give both agents an individual license. `_parse_doc_contacts`
+  merges **ESS (preferred) over PA**, so the ESS supplies the brokerage company/contact and the PA fills
+  the **seller's-agent license (`121177`) + LLR office code (`27547`)** the ESS table leaves blank, then
+  `_sync_contacts` upserts `BUYERS_AGENT` / `SELLERS_AGENT`.
+- `required_docs.json` — flat `{buyer,seller}_agent_*` keys added to `purchase_agreement.fields_extracted`
+  so a `doc_fields`-first path works if the server schema is ever flattened to these keys.
+
+Verified end-to-end on `2605968646`: PA bypass returns 10 agent fields; merged seller's agent =
+`Keller Williams The Forturro Group` / `Joe Scaturro` (from ESS) + licenses `27547` / `121177` (from PA).
+
+**MD note / remaining:** the SC-aware schema includes `mls_id` for MD/other-state forms, but the MD
+`ACTING AS` role-routing and `SALES ASSOCIATE` vs `MLS ID` license split (above) are **not** specially
+tuned yet — that needs an MD sample to A/B test the same way. Optionally, the same tuned descriptions
+can later be pushed to the **server-side** nested schema (`LG-docsOrch/devTool/catchingDoc`,
+`update_extraction_schema_from_file`) so the main pipeline improves too and the bypass becomes a fallback.
 
 ### Gap D — Borrower Information – Vesting writes (`notes.txt:622-631`)
 
@@ -455,9 +497,12 @@ state-conditional instructions); once those reach `state["doc_fields"]`, the sam
 | File | Role |
 |---|---|
 | `output/tools/build_action_items.py` | Action-item rules (HOA rule removed; `FACTORY-LOCK: true`) |
-| `output/tools/review_file_contacts.py` 🔒 | File Contacts check (1.2) — populates escrow/agent contacts from the **settlement statement** (`_parse_doc_contacts`, Gap B, preferred) merged with the **cover-letter image OCR** (`_parse_image_contacts`, Gap A) via `_sync_contacts` |
-| `shared/ess_contact_bypass.py` | Gap B download→LandingAI bypass: extracts the ESS / pre-CD page-5 Contact Information table when the catchingDoc finder won't bind the attachment (`_make_nullable` schema fix) |
-| `output/config/ess_contacts_schema.json` | Bundled contacts-only ESS schema (nullable types) used by the bypass |
+| `output/tools/review_file_contacts.py` 🔒 | File Contacts check (1.2) — populates escrow/agent contacts from the **settlement statement** (Gap B) + **Purchase Agreement agents** (Gap C, fills seller's-agent license/office code) merged over the **cover-letter image OCR** (Gap A) via `_parse_doc_contacts` → `_sync_contacts` |
+| `shared/ess_contact_bypass.py` | Gap B download→LandingAI bypass: extracts the ESS / pre-CD page-5 Contact Information table when the catchingDoc finder won't bind the attachment (`_make_nullable` schema fix); exposes shared download/LandingAI helpers |
+| `shared/pa_agent_bypass.py` | Gap C download→LandingAI bypass: extracts Purchase Agreement buyer's/seller's agent fields with the flat SC-aware schema |
+| `output/config/ess_contacts_schema.json` | Bundled contacts-only ESS schema (nullable types) used by the Gap B bypass |
+| `output/config/pa_agents_schema.json` | Bundled flat SC-aware Purchase Agreement agent schema used by the Gap C bypass |
+| `scripts/probe_pa_agent_schema.py` | Gap C experiment harness — A/B test PA agent schema descriptions against LandingAI |
 | `output/tools/update_borrower_vesting.py` | Vesting writes (STEP_09) |
 | `output/tools/update_urla_lender.py` | `_determine_manner_held` (STEP_03) |
 | `output/tools/review_urla_assets.py` 🔒 | Bank statement verification (6.1) |

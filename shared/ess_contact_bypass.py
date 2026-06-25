@@ -137,8 +137,8 @@ def _load_contacts_schema() -> Optional[dict]:
         return None
 
 
-def _find_ess_attachment(client, loan_id: str) -> Optional[str]:
-    """Return the first attachment entityId in the ESS bucket, or None."""
+def _find_attachment(client, loan_id: str, bucket_titles: set, log_prefix: str = "BYPASS") -> Optional[str]:
+    """Return the first attachment entityId in any matching eFolder bucket, or None."""
     url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/documents"
     headers = {"Authorization": f"Bearer {client.access_token}", "Accept": "application/json"}
     resp = requests.get(url, headers=headers, timeout=20)
@@ -150,16 +150,21 @@ def _find_ess_attachment(client, loan_id: str) -> Optional[str]:
 
     for doc in resp.json():
         title = (doc.get("title") or "").strip().lower()
-        if title in _ESS_BUCKET_TITLES:
+        if title in bucket_titles:
             attachments = doc.get("attachments") or []
             if attachments:
                 att_id = attachments[0].get("entityId")
                 logger.info(
-                    f"[ESS_BYPASS] ESS bucket {doc.get('title')!r} -> attachment "
+                    f"[{log_prefix}] bucket {doc.get('title')!r} -> attachment "
                     f"{attachments[0].get('entityName')!r}"
                 )
                 return att_id
     return None
+
+
+def _find_ess_attachment(client, loan_id: str) -> Optional[str]:
+    """Return the first attachment entityId in the ESS bucket, or None."""
+    return _find_attachment(client, loan_id, _ESS_BUCKET_TITLES, "ESS_BYPASS")
 
 
 def _download_attachment(client, loan_id: str, attachment_id: str) -> Optional[bytes]:

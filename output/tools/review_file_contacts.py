@@ -306,6 +306,21 @@ _ESS_SUBKEY_TO_FIELD = {
     "contact_st_license_id": "personalLicenseNumber",  # individual license #
 }
 
+# ── Purchase Agreement agent source (Gap C) ─────────────────────────────────
+# Flat PA keys (from the bundled SC-aware schema / shared/pa_agent_bypass.py)
+# {side}_agent_* → File Contact type + field. The PA primarily fills the
+# seller's-agent license/office-code gap the ESS table leaves empty.
+_PA_SIDE_TO_CT = {"buyer": "BUYERS_AGENT", "seller": "SELLERS_AGENT"}
+_PA_SUBKEY_TO_FIELD = {
+    "company": "name",
+    "name": "contactName",
+    "office_code": "bizLicenseNumber",       # LLR Office Code = company license
+    "license": "personalLicenseNumber",       # individual agent license
+    "address": "address",
+    "phone": "phone",
+    "email": "email",
+}
+
 
 def _doc(state: dict, key: str) -> str:
     """Read a normalized doc_fields value (``state['doc_fields'][key]['value']``)."""
@@ -329,15 +344,22 @@ def _contacts_from_getter(getter) -> Dict[str, Dict[str, str]]:
     return out
 
 
-def _parse_doc_contacts(state: dict, loan_id: str) -> Dict[str, Dict[str, str]]:
-    """Extract escrow/agent contacts from the settlement statement.
+def _contacts_from_pa(getter) -> Dict[str, Dict[str, str]]:
+    """Build {contactType: {field: value}} from flat PA {side}_agent_* keys."""
+    out: Dict[str, Dict[str, str]] = {}
+    for side, ct in _PA_SIDE_TO_CT.items():
+        obj: Dict[str, str] = {}
+        for sub, field in _PA_SUBKEY_TO_FIELD.items():
+            val = str(getter(f"{side}_agent_{sub}") or "").strip()
+            if val:
+                obj[field] = val
+        if obj.get("name") or obj.get("contactName"):
+            out[ct] = obj
+    return out
 
-    Prefers the contact_* fields already normalized into ``state['doc_fields']``
-    (CatchingDoc extracted a real ESS). When absent — the pre-CD case where the
-    finder won't bind the attachment — falls back to the download→LandingAI
-    bypass (shared/ess_contact_bypass.py). Always best-effort; returns {} on any
-    failure so the image-OCR path still runs.
-    """
+
+def _ess_contacts(state: dict, loan_id: str) -> Dict[str, Dict[str, str]]:
+    """ESS / pre-CD settlement statement contacts (doc_fields, else bypass)."""
     doc = _contacts_from_getter(lambda k: _doc(state, k))
     if doc:
         return doc
@@ -347,9 +369,59 @@ def _parse_doc_contacts(state: dict, loan_id: str) -> Dict[str, Dict[str, str]]:
     except Exception as exc:
         logger.warning(f"[REVIEW_FILE_CONTACTS] ESS contact bypass error: {exc}")
         raw = None
-    if raw:
-        return _contacts_from_getter(lambda k: raw.get(k, ""))
-    return {}
+    return _contacts_from_getter(lambda k: raw.get(k, "")) if raw else {}
+
+
+def _pa_agents(state: dict, loan_id: str, ess: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
+    """Purchase Agreement agents (doc_fields flat keys, else gated bypass).
+
+    The bypass (a LandingAI call) only fires for purchase loans when the ESS
+    didn't already supply both agents *with* an individual license number — the
+    PA's main value is the seller's-agent license + LLR office code that the ESS
+    Contact Information table leaves blank.
+    """
+    pa = _contacts_from_pa(lambda k: _doc(state, k))
+    if pa:
+        return pa
+    if "purchase" not in str(_los(state, "loan_purpose") or "").lower():
+        return {}
+    needs_pa = any(
+        not ess.get(ct) or not (ess[ct].get("personalLicenseNumber"))
+        for ct in ("BUYERS_AGENT", "SELLERS_AGENT")
+    )
+    if not needs_pa:
+        return {}
+    try:
+        from shared.pa_agent_bypass import extract_pa_agents
+        raw = extract_pa_agents(loan_id, state)
+    except Exception as exc:
+        logger.warning(f"[REVIEW_FILE_CONTACTS] PA agent bypass error: {exc}")
+        raw = None
+    return _contacts_from_pa(lambda k: raw.get(k, "")) if raw else {}
+
+
+def _parse_doc_contacts(state: dict, loan_id: str) -> Dict[str, Dict[str, str]]:
+    """Extract escrow/agent contacts from the document sources, merged.
+
+    Sources (per-field priority, highest first):
+      1. ESS / pre-CD settlement statement (`_ess_contacts`) — richest table.
+      2. Purchase Agreement agents (`_pa_agents`) — fills the seller's-agent
+         license / LLR office code the ESS table leaves blank.
+
+    Each source reads `state['doc_fields']` first and falls back to a
+    download→LandingAI bypass. Always best-effort; returns {} on total failure so
+    the image-OCR path still runs.
+    """
+    ess = _ess_contacts(state, loan_id)
+    pa = _pa_agents(state, loan_id, ess)
+    if not ess and not pa:
+        return {}
+    merged: Dict[str, Dict[str, str]] = {}
+    for ct in set(ess) | set(pa):
+        obj = dict(pa.get(ct) or {})                       # PA as base
+        obj.update({k: v for k, v in (ess.get(ct) or {}).items() if v})  # ESS overrides
+        merged[ct] = obj
+    return merged
 
 
 def _sync_contacts(
@@ -390,10 +462,10 @@ def _sync_contacts(
         doc = doc_contacts.get(ct) or {}
         if not img and not doc:
             continue
-        # Merge: image first, settlement statement overrides per field.
+        # Merge: image first, document extraction overrides per field.
         merged_src: Dict[str, str] = dict(img)
         merged_src.update({k: v for k, v in doc.items() if v})
-        source = "settlement statement" if doc else "cover-letter image"
+        source = "settlement statement / purchase agreement" if doc else "cover-letter image"
         if not (merged_src.get("name") or merged_src.get("contactName")):
             continue
         obj, dropped = _build_contact_obj(ct, merged_src)
