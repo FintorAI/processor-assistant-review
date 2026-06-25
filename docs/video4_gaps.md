@@ -171,7 +171,7 @@ Canonical normalized keys downstream: `{buyer,seller}_agent_company`, `_agent_na
 | Manner Held = **Tenancy in Common** for unmarried co-owners / siblings | ✅ **(implemented)** | `_determine_manner_held`: `both_on_title and not married` → `"Tenancy in Common"` (was `As Joint Tenants`) → `URLA.X138 = TenantsInCommon`. Verified: File-4 (unmarried co-borrowers, SC) → live value `Tenancy in Common`. |
 | Manner Held = **Sole Ownership** when married buying alone | ✅ **(implemented)** | `_determine_manner_held`: married + no co-borrower/NBS in a non-CP state → `"Sole Ownership"` (was `Married Woman/Man`) → `URLA.X138 = Individual`. Community-property states keep `As His/Her Sole And Separate Property` (more correct there). |
 | Marital-status source | ✅ **(implemented)** | Both tools now prefer **field 52** (Borrower Summary) and fall back to **479** (Vesting form): `marital_status = summary_marital or vesting_marital`. Emits an `info` "Marital Status Source Divergence" flag when 52 and 479 disagree. Field 52 added to `step_03`/`step_09` `los_fields_read` (already global in `FIELD_MAP`). |
-| Build Final Vesting (field 1867) | 🟡 | Not auto-clicked (no API button); still flags "Final Vesting Empty" when 1867 blank. Auto-fills unmarried suffix only. Unchanged — final manner may depend on title work (`notes.txt:630`). |
+| Build Final Vesting (field 1867) | ✅ **(implemented)** | **Field is directly writable via API** (verified on Test loan `3a9c1320`). `_build_final_vesting` now replicates the Encompass "Build Final Vesting" button: `{name1}, {vdesc1}[, AND {name2}, {vdesc2}], {MANNER}`. Written **only when 1867 is empty** (never clobbers a populated value); flagged `info-overwrite` as auto-built for title verification. Identical descriptions collapse (married couple → `JOHN DOE AND JANE DOE, HUSBAND AND WIFE, TENANCY BY THE ENTIRETY`); single borrower → `NAME, AN UNMARRIED WOMAN` (no manner suffix). Verified against File-4 screenshot: `CASSANDRA MATTHEWS, AN UNMARRIED WOMAN, AND JAMES ERVIN MARTIN, AN UNMARRIED MAN, TENANCY IN COMMON`. |
 
 ### Gap E — Blend Follow-Up / No-HOA action item (`notes.txt:608-619`)
 
@@ -275,7 +275,9 @@ Implemented as described in "Action taken" and the Gap D matrix. Summary of what
    and flag divergence. Field 52 added to `step_03`/`step_09` `los_fields_read`.
 3. **Vesting description (1872/1877)** — `_compute_vesting_desc` now per-applicant gender; unmarried
    co-owners get `AN UNMARRIED MAN` / `AN UNMARRIED WOMAN` (was shared `JOINT TENANTS`).
-4. **Build Final Vesting (1867)** — unchanged (flag-only; no API button).
+4. **Build Final Vesting (1867)** — `_build_final_vesting` replicates the Encompass button
+   (`{name1}, {vdesc1}[, AND {name2}, {vdesc2}], {MANNER}`) and writes 1867 when empty (never
+   clobbers a populated value). Field confirmed directly writable via API on Test loan `3a9c1320`.
 
 **Live value acceptance — VERIFIED (2026-06-25).** Read-only field-definition endpoints
 (`/v3/settings/loan/fieldDefinitions`, `/v1/...`, `/v3/loanSchemas/properties`) all return `403`,

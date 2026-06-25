@@ -621,7 +621,7 @@ Cassandra Matthews and James..
 
 - Borrower Information - Vesting    
     - look at Borrower Information - Summary marital status
-        - vesting type should (1872 and 1873) be unmarried woman / management
+        - vesting type should (1872 and 1873) be unmarried woman / man
         - manner in which title will be held is tenancy in Common (unmarried)
         - maybe figure out first 
         - click build final vesting

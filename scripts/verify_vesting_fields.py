@@ -145,15 +145,48 @@ def mode_roundtrip(client, guid: str) -> None:
         print(f"  {verdict:13s} {fid:10s} {val!r:40s} -> {rb!r}")
 
 
+def mode_write1867(client, guid: str) -> None:
+    """Test whether field 1867 (Final Vesting) is directly writable via the API.
+
+    Writes a sample final-vesting string, reads it back, then restores the
+    original (blanking it if it started empty). TEST env only.
+    """
+    print(f"\n=== FINAL VESTING (1867) WRITE TEST on TEST loan {guid[:8]} ===")
+    original = read_fields(guid, ["1867"]).get("1867")
+    print(f"  original 1867 = {original!r}")
+
+    test_val = "JANE Q DOE, AN UNMARRIED WOMAN"
+    print(f"\n--- Writing test value ---")
+    try:
+        ok = write_field(guid, "1867", test_val, state={"env": "Test"})
+        rb = read_fields(guid, ["1867"]).get("1867")
+        accepted = ok and rb is not None and str(rb).strip().lower() == test_val.strip().lower()
+        verdict = "ACCEPTED (writable)" if accepted else (
+            "CANONICALIZED/PARTIAL" if (ok and rb) else "REJECTED (read-only or blocked)")
+        print(f"  [{verdict}] 1867 <- {test_val!r}")
+        print(f"  read-back = {rb!r}")
+    except Exception as e:
+        print(f"  REJECTED — write raised: {humanize_write_error(str(e))}")
+    finally:
+        print("\n--- Restoring original ---")
+        restore_to = original if original is not None else ""
+        try:
+            write_field(guid, "1867", restore_to, state={"env": "Test"})
+            rb2 = read_fields(guid, ["1867"]).get("1867")
+            print(f"  restored 1867 = {rb2!r}")
+        except Exception as e:
+            print(f"  WARN: could not restore 1867: {e}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--loan", required=True)
     ap.add_argument("--env", default="Prod")
-    ap.add_argument("--mode", default="read", choices=["read", "roundtrip"])
+    ap.add_argument("--mode", default="read", choices=["read", "roundtrip", "write1867"])
     args = ap.parse_args()
 
-    if args.mode == "roundtrip" and args.env.upper() != "TEST":
-        print("REFUSING roundtrip outside Test env (it mutates the loan). Use --env Test.")
+    if args.mode in ("roundtrip", "write1867") and args.env.upper() != "TEST":
+        print("REFUSING write modes outside Test env (they mutate the loan). Use --env Test.")
         sys.exit(2)
 
     reset_encompass_state()
@@ -163,8 +196,10 @@ def main() -> None:
 
     if args.mode == "read":
         mode_read(client, guid)
-    else:
+    elif args.mode == "roundtrip":
         mode_roundtrip(client, guid)
+    else:
+        mode_write1867(client, guid)
 
 
 if __name__ == "__main__":
