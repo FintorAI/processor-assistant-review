@@ -221,9 +221,10 @@ def _compare_with_vod(
                     "balance":          doc_balance,
                 })
             else:
+                _tag = doc_institution_raw or (str(doc_acct_raw) if doc_acct_raw else "account")
                 flags.append(_flag(
                     substep,
-                    f"{doc_type_label} — Account Not Found in VOD",
+                    f"{doc_type_label} — Account Not Found in 2a/VOD ({_tag})",
                     "warning",
                     f"Account {doc_acct_raw or doc_institution_raw!r} from extracted {doc_type_label} "
                     f"has no matching VOD entry in Encompass.",
@@ -242,7 +243,7 @@ def _compare_with_vod(
                 # Value mismatch → warn only, never overwrite the VOD.
                 flags.append(_flag(
                     substep,
-                    f"{doc_type_label} — Balance Discrepancy vs 2a/VOD",
+                    f"{doc_type_label} — Balance Discrepancy vs 2a/VOD ({vod_inst_name})",
                     "warning",
                     (
                         f"Account {acct_label!r}: {doc_type_label.lower()} shows "
@@ -256,7 +257,7 @@ def _compare_with_vod(
                 # Match → confirm explicitly as info.
                 flags.append(_flag(
                     substep,
-                    f"{doc_type_label} — Matches 2a/VOD",
+                    f"{doc_type_label} — Matches 2a/VOD ({vod_inst_name})",
                     "info",
                     (
                         f"Account {acct_label!r} ({vod_inst_name}): "
@@ -269,7 +270,7 @@ def _compare_with_vod(
             # Account found but balance unavailable to compare — confirm presence.
             flags.append(_flag(
                 substep,
-                f"{doc_type_label} — Found in 2a/VOD",
+                f"{doc_type_label} — Found in 2a/VOD ({vod_inst_name})",
                 "info",
                 (
                     f"Account {acct_label!r} ({vod_inst_name}) is present in the 2a/VOD, "
@@ -286,7 +287,7 @@ def _compare_with_vod(
         if doc_type_norm and vod_type_norm and doc_type_norm != vod_type_norm:
             flags.append(_flag(
                 substep,
-                f"{doc_type_label} — Account Type Mismatch vs 2a/VOD",
+                f"{doc_type_label} — Account Type Mismatch vs 2a/VOD ({vod_inst_name})",
                 "info",
                 (
                     f"Account {acct_label!r}: document type is '{doc_type_norm}', "
@@ -492,7 +493,7 @@ def review_urla_assets(
                 if inst in _added:
                     flags.append(_flag(
                         "6.1",
-                        "2a/VOD Account Populated from Bank Statement",
+                        f"2a/VOD Account Populated from Bank Statement ({inst})",
                         "info-overwrite",
                         (
                             f"Account {acct_no!r} ({inst}) was missing from the 2a/VOD and has "
@@ -505,7 +506,7 @@ def review_urla_assets(
                 else:
                     flags.append(_flag(
                         "6.1",
-                        "2a/VOD Account Missing — Auto-Add Failed",
+                        f"2a/VOD Account Missing — Auto-Add Failed ({inst})",
                         "warning",
                         (
                             f"Account {acct_no!r} ({inst}) is missing from the 2a/VOD and could "
@@ -558,7 +559,7 @@ def review_urla_assets(
             if key not in matched_vod_ids:
                 flags.append(_flag(
                     "6.1",
-                    "VOD Account Has No Supporting Document",
+                    f"VOD Account Has No Supporting Document ({row.get('institution_name') or row.get('account_number') or 'account'})",
                     "warning",
                     (
                         f"VOD entry for {row['institution_name']!r} "
