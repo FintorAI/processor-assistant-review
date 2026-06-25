@@ -1,0 +1,120 @@
+{
+  "_comment": "Flat agent-extraction schema for the Purchase Agreement, tuned for the South Carolina contract layout ('Buyer's/Seller's Agent Name/License #' line + 'LLR Office Code' column + 'Notice Email/Address' block). Flat keys (not nested objects) because LandingAI rejects nested object schemas with HTTP 422. Types are nullable so empty fields pass output validation. Used by shared/pa_agent_bypass.py.",
+  "document_type": "Purchase Agreement",
+  "type": "object",
+  "properties": {
+    "buyer_agent_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's agent full PERSON name, printed on the 'Buyer's Agent Name/License #' line in the signature section of the contract (e.g. 'Joe M Scaturro'). This is the real-estate agent, NOT the buyer party/owner and NOT the brokerage company."
+    },
+    "buyer_agent_license": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's agent INDIVIDUAL real-estate license number, printed right next to the agent name on the 'Buyer's Agent Name/License #' line (e.g. '121177'). Not the LLR Office Code."
+    },
+    "buyer_agent_office_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The 'LLR Office Code' value in the Buyer's agent block (e.g. '27547'). This is the brokerage/office (COMPANY) license identifier on South Carolina contracts, distinct from the agent's individual license number."
+    },
+    "buyer_agent_company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's brokerage/firm company name (e.g. 'Sloan Realty Group', 'Keller Williams'). Prefer the registered brokerage name; if only a team name like 'Blake Sloan Team' is shown, return that. Do NOT return the buyer party/owner name as the company."
+    },
+    "buyer_agent_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's agent email from the 'Notice Email/Address (Where Buyer wants...)' block (e.g. 'joe@forturro.com'). Remove stray spaces caused by line wraps."
+    },
+    "buyer_agent_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's agent phone, labeled 'Phone:' on the 'Buyer's Agent Name/License #' row (e.g. '(843)798-8333')."
+    },
+    "buyer_agent_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's agent office street address (e.g. '3120 Waccamaw Blvd Ste C, Myrtle Beach, SC 29579'). May appear in the Buyer Notice Email/Address block OR on a separate agent/brokerage info page elsewhere in the contract."
+    },
+    "buyer_agent_mls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "MLS ID if the contract shows one (common on MD/other-state forms). On SC contracts this is usually absent \u2014 the office identifier is the LLR Office Code instead."
+    },
+    "seller_agent_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's agent full PERSON name, printed on the 'Seller's Agent Name/License #' line in the signature section of the contract (e.g. 'Joe M Scaturro'). This is the real-estate agent, NOT the seller party/owner and NOT the brokerage company."
+    },
+    "seller_agent_license": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's agent INDIVIDUAL real-estate license number, printed right next to the agent name on the 'Seller's Agent Name/License #' line (e.g. '121177'). Not the LLR Office Code."
+    },
+    "seller_agent_office_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The 'LLR Office Code' value in the Seller's agent block (e.g. '27547'). This is the brokerage/office (COMPANY) license identifier on South Carolina contracts, distinct from the agent's individual license number."
+    },
+    "seller_agent_company": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's brokerage/firm company name (e.g. 'Sloan Realty Group', 'Keller Williams'). Prefer the registered brokerage name; if only a team name like 'Blake Sloan Team' is shown, return that. Do NOT return the seller party/owner name as the company."
+    },
+    "seller_agent_email": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's agent email from the 'Notice Email/Address (Where Seller wants...)' block (e.g. 'joe@forturro.com'). Remove stray spaces caused by line wraps."
+    },
+    "seller_agent_phone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's agent phone, labeled 'Phone:' on the 'Seller's Agent Name/License #' row (e.g. '(843)798-8333')."
+    },
+    "seller_agent_address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Seller's agent office street address (e.g. '3120 Waccamaw Blvd Ste C, Myrtle Beach, SC 29579'). May appear in the Seller Notice Email/Address block OR on a separate agent/brokerage info page elsewhere in the contract."
+    },
+    "seller_agent_mls_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "MLS ID if the contract shows one (common on MD/other-state forms). On SC contracts this is usually absent \u2014 the office identifier is the LLR Office Code instead."
+    }
+  },
+  "required": []
+}

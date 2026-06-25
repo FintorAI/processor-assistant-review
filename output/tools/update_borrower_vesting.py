@@ -9,10 +9,11 @@ Vesting strategy:
   - Manner Held (field 33): computed from property state, marital status,
     co-borrower presence, NBS, and borrower sex. Written ONLY when empty.
     Exception: NV forces "As Joint Tenants" for married couples on title.
-  - Final Vesting (field 1867): READ-ONLY. The Build Final Vesting button
-    in Encompass generates the full survivorship language. We never overwrite
-    it except to append the required unmarried/single suffix when missing
-    for a single borrower with no co-borrower.
+  - Final Vesting (field 1867): BUILT when empty. We replicate the Encompass
+    "Build Final Vesting" button — "{name1}, {vdesc1}[, AND {name2}, {vdesc2}],
+    {MANNER}" — and write it only when 1867 is empty (never clobber a populated
+    value). When already populated we validate it and, for a single/unmarried
+    borrower, append the required unmarried suffix if missing.
   - Borrower vesting name/type (1868/1871, 1873/1876): written from
     borrower/co-borrower names when empty.
   - Occupancy Intent (Borr/CoBorr.OccupancyIntent): always set from
@@ -70,23 +71,35 @@ def _flag(substep, title, severity, details, suggestion, resolved=False, docs=No
 
 
 def _compute_vesting_desc(marital_status: str, has_coborrower: bool,
-                           has_nbs: bool, is_female: bool) -> str:
+                           has_nbs: bool, applicant_is_female: bool,
+                           borrower_is_female: bool | None = None) -> str:
     """Compute the vesting description dropdown value (field 1872 / 1877).
 
     This is the per-entity vesting string that appears in the Borrower Vesting
     dialog. Build Final Vesting combines it with the borrower name (1868) and
     Manner Held (33) to produce the Final Vesting (1867).
 
+    ``applicant_is_female`` is the gender of the person this description is for
+    (borrower → field 1872, co-borrower → field 1877) and drives the
+    unmarried/single/married-solo wording. ``borrower_is_female`` keys the
+    married-couple joint phrase so both slots stay in agreement (preserves the
+    prior behaviour where both 1872 and 1877 used the primary borrower's order).
+
+    For UNMARRIED co-owners (e.g. unmarried partners, siblings) each person gets
+    their own status ("AN UNMARRIED WOMAN" / "AN UNMARRIED MAN") rather than a
+    shared "JOINT TENANTS" string — the joint relationship is captured in Manner
+    Held (field 33 = "Tenancy in Common"). See notes.txt:624.
+
     Examples: "A SINGLE WOMAN", "AN UNMARRIED MAN", "HUSBAND AND WIFE"
     """
     marital = (marital_status or "").strip().upper()
     is_married = marital == "MARRIED"
-    gender_word = "WOMAN" if is_female else "MAN"
 
     if has_coborrower and is_married:
-        return "WIFE AND HUSBAND" if is_female else "HUSBAND AND WIFE"
-    if has_coborrower:
-        return "JOINT TENANTS"
+        couple_is_female = borrower_is_female if borrower_is_female is not None else applicant_is_female
+        return "WIFE AND HUSBAND" if couple_is_female else "HUSBAND AND WIFE"
+
+    gender_word = "WOMAN" if applicant_is_female else "MAN"
     if marital in ("UNMARRIED", "NOT MARRIED"):
         return f"AN UNMARRIED {gender_word}"
     if marital in ("SINGLE",):
@@ -94,6 +107,52 @@ def _compute_vesting_desc(marital_status: str, has_coborrower: bool,
     if is_married:
         return f"A MARRIED {gender_word}"
     return f"A SINGLE {gender_word}"  # safe fallback
+
+
+def _build_final_vesting(slot1_name: str, slot1_vdesc: str,
+                          slot2_name: str, slot2_vdesc: str,
+                          manner: str, has_coborrower: bool) -> str:
+    """Replicate Encompass's "Build Final Vesting" button (field 1867).
+
+    The button concatenates, in vesting-name order:
+        {name1}, {vesting desc 1}[, AND {name2}, {vesting desc 2}], {MANNER}
+
+    Example (two unmarried co-owners, Tenancy in Common):
+        "CASSANDRA MATTHEWS, AN UNMARRIED WOMAN, AND JAMES ERVIN MARTIN,
+         AN UNMARRIED MAN, TENANCY IN COMMON"
+
+    Rules:
+      - Everything is upper-cased (matches the Encompass output).
+      - When both vesting descriptions are identical (e.g. a married couple's
+        shared "HUSBAND AND WIFE"), the names are joined and the shared
+        description appears once: "{name1} AND {name2}, {desc}, {MANNER}".
+      - Manner Held (field 33) is appended verbatim (upper-cased) only for the
+        multi-party case. For a single borrower the per-person description
+        (e.g. "AN UNMARRIED WOMAN") already carries the status, so the result
+        is just "{name}, {desc}" — matching the prior single-borrower behaviour.
+
+    Returns "" when required inputs are missing (caller then flags instead of
+    writing), so we never produce a malformed final-vesting string.
+    """
+    n1 = (slot1_name or "").strip().upper()
+    d1 = (slot1_vdesc or "").strip().upper()
+    if not n1 or not d1:
+        return ""
+
+    if not has_coborrower:
+        return f"{n1}, {d1}"
+
+    n2 = (slot2_name or "").strip().upper()
+    d2 = (slot2_vdesc or "").strip().upper()
+    m = (manner or "").strip().upper()
+    if not n2 or not d2 or not m:
+        return ""  # multi-party string needs both parties + Manner Held
+
+    if d1 == d2:
+        body = f"{n1} AND {n2}, {d1}"
+    else:
+        body = f"{n1}, {d1}, AND {n2}, {d2}"
+    return f"{body}, {m}"
 
 
 def _compute_occupancy_intent(occupancy_status: str, loan_purpose: str) -> str:
@@ -156,7 +215,11 @@ def update_borrower_vesting(
     borr_ssn    = _los(state, "borrower_ssn")
     borr_dob    = _los(state, "borrower_dob")
     borr_sex    = _los(state, "borrower_sex")
-    marital_status = _los(state, "marital_status")
+    # Marital status: prefer the Borrower Summary value (field 52) per processor
+    # guidance (notes.txt:623); fall back to the Vesting-form copy (field 479).
+    summary_marital = (_los(state, "borrower_marital_status") or "").strip()  # field 52
+    vesting_marital = (_los(state, "marital_status") or "").strip()           # field 479
+    marital_status = summary_marital or vesting_marital
 
     cobr_first  = _los(state, "coborrower_first_name")
     cobr_middle = _los(state, "coborrower_middle_name")
@@ -192,9 +255,22 @@ def update_borrower_vesting(
     wife_first = has_coborrower and cobr_is_female and borr_is_male
 
     logger.info(
-        f"[UPDATE_BORROWER_VESTING] state={prop_st}, marital={marital_status}, "
+        f"[UPDATE_BORROWER_VESTING] state={prop_st}, marital={marital_status} "
+        f"(summary52={summary_marital or '-'}, vesting479={vesting_marital or '-'}), "
         f"has_coborrower={has_coborrower}, has_nbs={has_nbs}, purpose={loan_purpose}"
     )
+
+    if summary_marital and vesting_marital and summary_marital.upper() != vesting_marital.upper():
+        flags.append(_flag("9.1",
+            "Marital Status Source Divergence",
+            "info",
+            (
+                f"Borrower Summary marital status (field 52) = '{summary_marital}' but the "
+                f"Vesting-form copy (field 479) = '{vesting_marital}'. Using the Summary value "
+                f"'{summary_marital}' for vesting computation."
+            ),
+            "Confirm the borrower's marital status and align fields 52 and 479 in Encompass.",
+        ))
 
     # ── A. Occupancy Intent ───────────────────────────────────────────────────
     occ_intent = _compute_occupancy_intent(occupancy_status, loan_purpose)
@@ -263,7 +339,10 @@ def update_borrower_vesting(
     actions.append("SET 1871 (Borrower Vesting Type) = 'Individual'")
 
     # field 1872 — Borrower Vesting Description (the dropdown Build Final Vesting uses)
-    computed_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
+    computed_vdesc = _compute_vesting_desc(
+        marital_status, has_coborrower, has_nbs, is_female, borrower_is_female=is_female,
+    )
+    cobr_vdesc = ""  # set below when a co-borrower is present; needed by Build Final Vesting (section F)
     if not prev_borr_vdesc:
         # Deferred to the loan-entity PATCH in section H2 (read-only in fieldWriter).
         # The authoritative success/failure flag is emitted there.
@@ -306,8 +385,13 @@ def update_borrower_vesting(
         field_updates["1876"] = "Individual"
         actions.append("SET 1876 (Co-Borrower Vesting Type) = 'Individual'")
 
-        # field 1877 — Co-Borrower Vesting Description
-        cobr_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
+        # field 1877 — Co-Borrower Vesting Description.
+        # Use the CO-BORROWER's gender (fixes the prior bug where the borrower's
+        # gender was used) so unmarried co-owners get their own status string;
+        # the married-couple joint phrase stays keyed to the primary borrower.
+        cobr_vdesc = _compute_vesting_desc(
+            marital_status, has_coborrower, has_nbs, cobr_is_female, borrower_is_female=is_female,
+        )
         if not prev_cobr_vdesc:
             vesting_desc_patches["coborrower"] = cobr_vdesc  # written via PATCH (read-only in fieldWriter)
             actions.append(f"SET 1877 (Co-Borrower Vesting Desc) = '{cobr_vdesc}' (was empty)")
@@ -346,15 +430,45 @@ def update_borrower_vesting(
             docs=["Title Report"],
         ))
 
-    # ── F. Final Vesting (field 1867) — read-only ────────────────────────────
+    # ── F. Final Vesting (field 1867) ─────────────────────────────────────────
+    # Build Final Vesting = "{name1}, {vdesc1}[, AND {name2}, {vdesc2}], {MANNER}".
+    # We replicate Encompass's "Build Final Vesting" button (there is no API for the
+    # button itself) and write field 1867 ONLY when it is empty — a populated value
+    # is never clobbered. Names are taken in vesting-slot order so the wife-first
+    # convention carries through, and each name pairs with that slot's description.
     if not current_vesting:
-        flags.append(_flag("9.1",
-            "Final Vesting Empty",
-            "warning",
-            "Final Vesting (field 1867) is empty. Click 'Build Final Vesting' in Encompass after setting Manner Held and borrower info.",
-            "Click 'Build Final Vesting' in Encompass to populate field 1867",
-            docs=["Title Report"],
-        ))
+        slot1_vdesc = cobr_vdesc if wife_first else computed_vdesc
+        slot2_vdesc = computed_vdesc if wife_first else cobr_vdesc
+        built_vesting = _build_final_vesting(
+            slot_1868_name, slot1_vdesc,
+            (slot_1873_name if has_coborrower else ""), slot2_vdesc,
+            current_manner, has_coborrower,
+        )
+        if built_vesting:
+            field_updates["1867"] = built_vesting
+            actions.append(f"SET 1867 (Final Vesting) = '{built_vesting}' (built from vesting descs + Manner Held)")
+            flags.append(_flag("9.1",
+                "Final Vesting Built",
+                "info-overwrite",
+                (
+                    f"Final Vesting (1867) was empty. Auto-built '{built_vesting}' from the "
+                    f"borrower/co-borrower vesting descriptions and Manner Held (field 33) — "
+                    f"mirrors the Encompass 'Build Final Vesting' button."
+                ),
+                f"Set Final Vesting (1867) = '{built_vesting}' — verify against the title report.",
+                resolved=True, docs=["Title Report"],
+            ))
+        else:
+            flags.append(_flag("9.1",
+                "Final Vesting Empty",
+                "warning",
+                (
+                    "Final Vesting (field 1867) is empty and could not be auto-built — "
+                    "Manner Held (field 33) and/or the vesting names are missing."
+                ),
+                "Set Manner Held (3.1) and borrower/co-borrower vesting names, then rerun to auto-build field 1867 (or click 'Build Final Vesting' in Encompass).",
+                docs=["Title Report"],
+            ))
     else:
         # Check for placeholder text
         if any(p in current_vesting.lower() for p in _VESTING_PLACEHOLDER_PATTERNS):

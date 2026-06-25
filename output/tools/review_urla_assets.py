@@ -85,44 +85,114 @@ def _flag(substep: str, title: str, severity: str, details: str, suggestion: str
 # VOD comparison helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+_TYPE_MAP = {
+    "checkingaccount": "checking",
+    "savingsaccount": "savings",
+    "mutualfunds": "mutual funds",
+    "mutualfund": "mutual funds",
+    "moneymarket": "money market",
+    "moneymarketfund": "money market",
+    "retirement": "retirement",
+    "retirementfund": "retirement",
+    "stockbonds": "stocks/bonds",
+    "stock": "stocks/bonds",
+}
+
+
+def _copy_field(copy: dict, *keys):
+    """Read a field value from an eFolder copy dict, tolerant of both shapes.
+
+    eFolder copies store extracted values under ``extracted_fields`` (the live
+    shape) or ``fields`` (older/simplified shape), and each value may be a flat
+    scalar or a nested ``{"value": ..., "confidence": ...}`` dict. Returns the
+    first non-empty value across ``keys``.
+    """
+    fields = copy.get("extracted_fields") or copy.get("fields") or {}
+    for k in keys:
+        if k in fields:
+            val = fields[k]
+            if isinstance(val, dict):
+                val = val.get("value")
+            if val not in (None, ""):
+                return val
+    return None
+
+
+def _copy_has_fields(copy) -> bool:
+    return isinstance(copy, dict) and ("extracted_fields" in copy or "fields" in copy)
+
+
+def _norm_type(val: str) -> str:
+    raw = (val or "").lower().strip()
+    if not raw:
+        return ""
+    mapped = _TYPE_MAP.get(raw.replace(" ", ""))
+    if mapped:
+        return mapped
+    # Fall back to keyword detection for bank-specific labels
+    # (e.g. "Woodforest Checking", "Premium Savings").
+    for kw, norm in (
+        ("checking", "checking"),
+        ("savings", "savings"),
+        ("money market", "money market"),
+        ("retirement", "retirement"),
+        ("mutual", "mutual funds"),
+    ):
+        if kw in raw:
+            return norm
+    return raw
+
+
 def _compare_with_vod(
     doc_copies: list,            # normalised bank-statement or asset copies
     vod_rows: list,              # from state['vod_data']
     doc_type_label: str,         # e.g. "Bank Statement" for flag titles
     substep: str,
-) -> list:
-    """Cross-reference extracted document account rows against VOD entries.
+    allow_populate: bool = False,
+) -> tuple:
+    """Cross-reference extracted document account rows against VOD (2a) entries.
 
     Matching strategy (tolerant):
       1. Try to match on last-4 of account number.
       2. If no account number, match by institution name (case-insensitive).
 
-    Discrepancy criteria:
-      - Balance difference > $1 (rounding tolerance).
-      - Account type mismatch (if both present and clearly different).
+    Per the desired behaviour:
+      - **Match** (account found, balances agree within $1) → an ``info`` flag
+        explicitly confirming the bank statement matches the 2a/VOD entry.
+      - **Value mismatch** (balance differs by > $1) → a ``warning`` flag; the
+        VOD is *not* modified (processor reconciles manually).
+      - **Missing from VOD** (no matching entry) → if ``allow_populate`` is set,
+        the account is queued for creation in the 2a/VOD (returned in the second
+        element); otherwise a ``warning`` flag is raised.
 
-    Returns a list of flag dicts.
+    Returns a tuple ``(flags, accounts_to_add)`` where ``accounts_to_add`` is a
+    list of normalised account dicts the caller should create via ``add_vods``.
     """
-    flags = []
+    flags: list = []
+    to_add: list = []
 
     if not vod_rows:
-        return flags  # VOD not loaded — skip comparison
+        return flags, to_add  # VOD not loaded — skip comparison
 
     for copy in doc_copies:
         # Extract fields from this copy dict
-        if isinstance(copy, dict) and "fields" in copy:
-            # Full copy object from state['efolder_documents']
-            fields = copy.get("fields", {})
-            doc_acct_raw   = fields.get("bank_account_number") or fields.get("asset_account_number")
-            doc_balance    = _parse_float(fields.get("ending_balance") or fields.get("bank_balance") or fields.get("asset_balance"))
-            doc_institution = (fields.get("institution_name") or "").lower().strip()
-            doc_acct_type  = (fields.get("account_type") or "").lower().strip()
+        if _copy_has_fields(copy):
+            # Full copy object from state['efolder_documents'] (extracted_fields
+            # with nested {"value": ...} entries, or older flat "fields").
+            doc_acct_raw   = _copy_field(copy, "bank_account_number", "asset_account_number", "account_number")
+            doc_balance    = _parse_float(_copy_field(copy, "ending_balance", "bank_balance", "asset_balance"))
+            doc_institution_raw = (_copy_field(copy, "institution_name") or "").strip()
+            doc_institution = doc_institution_raw.lower()
+            doc_acct_type  = (_copy_field(copy, "account_type") or "").strip()
+            doc_holder     = (_copy_field(copy, "account_holder_name", "borrower_name") or "").strip()
         else:
             # Simplified copy from _doc_all (value + metadata)
             doc_acct_raw   = copy.get("value")
             doc_balance    = None
+            doc_institution_raw = ""
             doc_institution = ""
             doc_acct_type  = ""
+            doc_holder     = ""
 
         doc_last4 = _last_four(doc_acct_raw)
 
@@ -138,63 +208,95 @@ def _compare_with_vod(
             if not matched_vod and doc_institution and vod_inst and doc_institution in vod_inst:
                 matched_vod = row  # institution-level match (weaker)
 
+        # ── Missing from VOD ────────────────────────────────────────────────
         if not matched_vod:
-            if doc_last4 or doc_institution:
+            if not (doc_last4 or doc_institution):
+                continue
+            if allow_populate:
+                to_add.append({
+                    "institution_name": doc_institution_raw,
+                    "account_type":     doc_acct_type,
+                    "account_number":   str(doc_acct_raw) if doc_acct_raw else "",
+                    "account_holder":   doc_holder,
+                    "balance":          doc_balance,
+                })
+            else:
+                _tag = doc_institution_raw or (str(doc_acct_raw) if doc_acct_raw else "account")
                 flags.append(_flag(
                     substep,
-                    f"{doc_type_label} — Account Not Found in VOD",
+                    f"{doc_type_label} — Account Not Found in 2a/VOD ({_tag})",
                     "warning",
-                    f"Account {doc_acct_raw or doc_institution!r} from extracted {doc_type_label} "
+                    f"Account {doc_acct_raw or doc_institution_raw!r} from extracted {doc_type_label} "
                     f"has no matching VOD entry in Encompass.",
                     "Verify borrower account and add/update VOD in Encompass.",
                 ))
             continue
 
+        # ── Matched — compare balance ───────────────────────────────────────
         vod_balance = matched_vod.get("balance")
-        vod_acct_type = (matched_vod.get("account_type") or "").lower()
+        vod_inst_name = matched_vod.get("institution_name") or doc_institution_raw
+        acct_label = doc_acct_raw or matched_vod.get("account_number") or vod_inst_name
 
-        # Balance discrepancy check
         if doc_balance is not None and vod_balance is not None:
             diff = abs(doc_balance - vod_balance)
             if diff > 1.00:
+                # Value mismatch → warn only, never overwrite the VOD.
                 flags.append(_flag(
                     substep,
-                    f"{doc_type_label} — Balance Discrepancy vs VOD",
+                    f"{doc_type_label} — Balance Discrepancy vs 2a/VOD ({vod_inst_name})",
                     "warning",
                     (
-                        f"Account {doc_acct_raw or matched_vod.get('account_number')!r}: "
-                        f"document shows ${doc_balance:,.2f}, "
-                        f"VOD ({matched_vod['institution_name']}) shows ${vod_balance:,.2f}. "
-                        f"Difference: ${diff:,.2f}."
+                        f"Account {acct_label!r}: {doc_type_label.lower()} shows "
+                        f"${doc_balance:,.2f}, 2a/VOD ({vod_inst_name}) shows "
+                        f"${vod_balance:,.2f}. Difference: ${diff:,.2f}."
                     ),
-                    "Reconcile balance between bank statement and VOD. Update Encompass VOD if needed.",
+                    "Reconcile balance between bank statement and 2a/VOD. "
+                    "Update Encompass manually if the statement is correct.",
                 ))
+            else:
+                # Match → confirm explicitly as info.
+                flags.append(_flag(
+                    substep,
+                    f"{doc_type_label} — Matches 2a/VOD ({vod_inst_name})",
+                    "info",
+                    (
+                        f"Account {acct_label!r} ({vod_inst_name}): "
+                        f"{doc_type_label.lower()} balance ${doc_balance:,.2f} matches "
+                        f"2a/VOD balance ${vod_balance:,.2f} (within $1.00)."
+                    ),
+                    "",
+                ))
+        else:
+            # Account found but balance unavailable to compare — confirm presence.
+            flags.append(_flag(
+                substep,
+                f"{doc_type_label} — Found in 2a/VOD ({vod_inst_name})",
+                "info",
+                (
+                    f"Account {acct_label!r} ({vod_inst_name}) is present in the 2a/VOD, "
+                    f"but the {doc_type_label.lower()} balance could not be extracted to "
+                    f"confirm the amount."
+                ),
+                "Manually confirm the balance matches the 2a/VOD entry.",
+            ))
 
         # Account type mismatch (only flag if both are meaningfully different)
-        _TYPE_MAP = {
-            "checkingaccount": "checking",
-            "savingsaccount": "savings",
-            "mutualfunds": "mutual funds",
-            "moneymarket": "money market",
-            "retirement": "retirement",
-            "stockbonds": "stocks/bonds",
-        }
-        doc_type_norm = _TYPE_MAP.get(doc_acct_type.replace(" ", "").lower(), doc_acct_type)
-        vod_type_norm = _TYPE_MAP.get(vod_acct_type.replace(" ", "").lower(), vod_acct_type)
+        doc_type_norm = _norm_type(doc_acct_type)
+        vod_type_norm = _norm_type(matched_vod.get("account_type"))
 
         if doc_type_norm and vod_type_norm and doc_type_norm != vod_type_norm:
             flags.append(_flag(
                 substep,
-                f"{doc_type_label} — Account Type Mismatch vs VOD",
+                f"{doc_type_label} — Account Type Mismatch vs 2a/VOD ({vod_inst_name})",
                 "info",
                 (
-                    f"Account {doc_acct_raw!r}: document type is '{doc_type_norm}', "
-                    f"VOD type is '{vod_type_norm}'."
+                    f"Account {acct_label!r}: document type is '{doc_type_norm}', "
+                    f"2a/VOD type is '{vod_type_norm}'."
                 ),
                 "Confirm account type with borrower and update VOD in Encompass if needed.",
             ))
 
-    return flags
+    return flags, to_add
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -213,8 +315,11 @@ def review_urla_assets(
       2. ZEL / Zelle / Klarna / unusual deposits → borrower LOE required.
       3. Large / green deposits → sourcing required.
       4. Cross-reference extracted bank-statement balances + account numbers
-         against Encompass VOD data (fetched by fetch_vod_data).
-      5. Cross-reference asset doc balances against VOD data.
+         against Encompass 2a/VOD data (fetched by fetch_vod_data):
+           • match (balance within $1)  → info flag confirming the match
+           • value mismatch (> $1)      → warning (VOD left untouched)
+           • account missing from VOD   → populated into the 2a/VOD via add_vods
+      5. Cross-reference asset doc balances against VOD data (warn-only).
       6. VOD coverage — flags accounts in VOD with no matching doc.
 
     Reads LOS:  total_assets, checking_balance, savings_balance
@@ -243,9 +348,22 @@ def review_urla_assets(
     total_assets      = _parse_float(_los(state, "total_assets"))       # Field 732
     # checking_balance / savings_balance (733/734) reserved for future drill-down checks
 
-    # ── 3. VOD data (from fetch_vod_data) ────────────────────────────────────
-    vod_rows: list = state.get("vod_data") or []
-    logger.info(f"[REVIEW_URLA_ASSETS] VOD rows in state: {len(vod_rows)}")
+    # ── 3. VOD data (from fetch_vod_data, with a self-contained fallback) ─────
+    # Prefer state['vod_data'] when fetch_vod_data has run (the key is present
+    # even if it found zero rows). If the key is absent — fetch_vod_data was not
+    # wired into this run — read the 2a/VOD directly so the cross-check still
+    # executes instead of silently no-op'ing.
+    if "vod_data" in state:
+        vod_rows: list = state.get("vod_data") or []
+    else:
+        try:
+            from shared.encompass_io import read_vods
+            vod_rows = read_vods(loan_id, state=state)
+            logger.info(f"[REVIEW_URLA_ASSETS] vod_data absent — read {len(vod_rows)} VOD row(s) directly")
+        except Exception as exc:
+            logger.warning(f"[REVIEW_URLA_ASSETS] direct VOD read failed: {exc}")
+            vod_rows = []
+    logger.info(f"[REVIEW_URLA_ASSETS] VOD rows available: {len(vod_rows)}")
 
     # ── 4. Bank Statement copies ─────────────────────────────────────────────
     # Each copy dict from _doc_all has: {value, source_document, confidence, copy_index}
@@ -344,22 +462,60 @@ def review_urla_assets(
                 docs=_relevant_docs(state, "bank_large_deposits", doc_types=["Bank Statement"]),
             ))
 
-    # 4e. VOD cross-reference for bank statements
+    # 4e. VOD (2a) cross-reference for bank statements
+    #     match → info-confirm; value mismatch → warning; missing → populate 2a/VOD.
     if vod_rows:
         _bank_refs = _relevant_docs(state, doc_types=["Bank Statement"])
-        _bs_vod_flags = []
+        _bs_vod_flags: list = []
+        _bs_to_add: list = []
         if bank_stmt_full_copies:
-            _bs_vod_flags = _compare_with_vod(
-                bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1"
+            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+                bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         elif bank_statement_copies:
-            _bs_vod_flags = _compare_with_vod(
-                bank_statement_copies, vod_rows, "Bank Statement", "6.1"
+            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+                bank_statement_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         if _bank_refs:
             for _f in _bs_vod_flags:
                 _f["relevant_documents"] = _bank_refs
         flags += _bs_vod_flags
+
+        # Populate the 2a/VOD with any bank-statement account entirely missing
+        # from Encompass. Value mismatches are never overwritten (warned above).
+        if _bs_to_add:
+            from shared.encompass_io import add_vods
+            _add_result = add_vods(loan_id, _bs_to_add, state=state)
+            _added = set(_add_result.get("added", []))
+            for acct in _bs_to_add:
+                inst = acct.get("institution_name") or acct.get("account_number") or "account"
+                acct_no = acct.get("account_number") or inst
+                if inst in _added:
+                    flags.append(_flag(
+                        "6.1",
+                        f"2a/VOD Account Populated from Bank Statement ({inst})",
+                        "info-overwrite",
+                        (
+                            f"Account {acct_no!r} ({inst}) was missing from the 2a/VOD and has "
+                            f"been added from the bank statement"
+                            + (f" with balance ${acct['balance']:,.2f}." if acct.get("balance") is not None else ".")
+                        ),
+                        "",
+                        docs=_bank_refs,
+                    ))
+                else:
+                    flags.append(_flag(
+                        "6.1",
+                        f"2a/VOD Account Missing — Auto-Add Failed ({inst})",
+                        "warning",
+                        (
+                            f"Account {acct_no!r} ({inst}) is missing from the 2a/VOD and could "
+                            f"not be added automatically"
+                            + (f": {_add_result.get('error')}" if _add_result.get("error") else ".")
+                        ),
+                        "Add the account to the 2a/VOD manually in Encompass.",
+                        docs=_bank_refs,
+                    ))
 
     # ── 5. Asset copies ──────────────────────────────────────────────────────
     asset_full_copies = efolder_docs.get("Assets", {}).get("copies", [])
@@ -367,11 +523,11 @@ def review_urla_assets(
 
     if vod_rows:
         _asset_refs = _relevant_docs(state, doc_types=["Assets"])
-        _asset_vod_flags = []
+        _asset_vod_flags: list = []
         if asset_full_copies:
-            _asset_vod_flags = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _ = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
         elif asset_acct_copies:
-            _asset_vod_flags = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _ = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
         if _asset_refs:
             for _f in _asset_vod_flags:
                 _f["relevant_documents"] = _asset_refs
@@ -386,9 +542,9 @@ def review_urla_assets(
                 vod_last4 = _last_four(row.get("account_number"))
                 vod_inst  = (row.get("institution_name") or "").lower()
                 for copy in copies:
-                    if isinstance(copy, dict) and "fields" in copy:
-                        doc_num = _last_four(copy.get("fields", {}).get(field_key))
-                        doc_inst = (copy.get("fields", {}).get("institution_name") or "").lower()
+                    if _copy_has_fields(copy):
+                        doc_num = _last_four(_copy_field(copy, field_key, "account_number"))
+                        doc_inst = (_copy_field(copy, "institution_name") or "").lower()
                     else:
                         doc_num = _last_four(copy.get("value"))
                         doc_inst = ""
@@ -403,7 +559,7 @@ def review_urla_assets(
             if key not in matched_vod_ids:
                 flags.append(_flag(
                     "6.1",
-                    "VOD Account Has No Supporting Document",
+                    f"VOD Account Has No Supporting Document ({row.get('institution_name') or row.get('account_number') or 'account'})",
                     "warning",
                     (
                         f"VOD entry for {row['institution_name']!r} "

@@ -395,6 +395,21 @@ def generate_all(
         # Protected files that should never be cleaned up
         protected_basenames = {"__init__.py", "_helpers.py", "general.py", "__pycache__"}
 
+        def _is_factory_locked(path: str) -> bool:
+            """True if the file opts out of factory management via FACTORY-LOCK: true.
+
+            Hand-wired tools that are not derived from a YAML substep (e.g.
+            build_action_items, STEP_11.3) declare ``# FACTORY-LOCK: true`` and
+            must never be overwritten OR deleted by factory-reset. The lock
+            contract is documented in .cursor/rules/factory-lock-protection.mdc.
+            """
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    head = fh.read(2048)
+            except (OSError, UnicodeDecodeError):
+                return False
+            return "FACTORY-LOCK: true" in head
+
         for scan_dir in ["tools", "plans"]:
             scan_path = os.path.join(output_dir, scan_dir)
             if not os.path.isdir(scan_path):
@@ -408,6 +423,12 @@ def generate_all(
                 if os.path.isdir(fpath):
                     continue
                 if fpath not in generated_set:
+                    if _is_factory_locked(fpath):
+                        logger.info(
+                            f"[CLEANUP] Keeping FACTORY-LOCKed stale file: "
+                            f"{os.path.relpath(fpath, output_dir)}"
+                        )
+                        continue
                     logger.warning(f"[CLEANUP] Removing stale file: {os.path.relpath(fpath, output_dir)}")
                     os.remove(fpath)
                     results.setdefault("files_removed", []).append(fpath)

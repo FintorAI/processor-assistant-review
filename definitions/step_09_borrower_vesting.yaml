@@ -78,7 +78,12 @@ substeps:
     field_id: '479'
     field_name: Borrower Marital Status
     category: borrower_info
-    purpose: Married / Unmarried / Separated — drives manner held and vesting suffix
+    purpose: Married / Unmarried / Separated (Vesting form, field 479) — fallback for manner held and vesting suffix
+  - key: borrower_marital_status
+    field_id: '52'
+    field_name: Borrower Marital Status
+    category: borrower_info
+    purpose: Borrower Summary marital status (field 52) — preferred source for vesting (notes.txt:623)
   - key: borrower_occupancy_intent
     field_id: Borr.OccupancyIntent
     field_name: Borrower Occupancy Intent
