@@ -34,7 +34,7 @@ Action item shape::
       }
     }
 
-# FACTORY-LOCK: false
+# FACTORY-LOCK: true
 """
 
 import json
@@ -308,11 +308,17 @@ def _rule_hoa_loe(state: dict) -> Optional[dict]:
 
 
 # Registry — append future rules (including other components) here.
+# NOTE: `_rule_hoa_loe` is intentionally OMITTED. Per processor feedback
+# (notes.txt:608-619), the "no-HOA" Blend follow-up is case-by-case, not
+# general: whether a borrower needs a no-HOA letter depends on loan type
+# (refi / 2nd-3rd property / already owns property) and cannot be inferred
+# from "non-condo + no HOA Statement in eFolder" alone — that condition
+# over-triggers. The function is kept below for future re-enable once the
+# trigger is made configurable/loan-specific.
 RULES: List[Callable[[dict], Optional[dict]]] = [
     _rule_title_order,
     _rule_lock_desk,
     _rule_emd_request,
-    _rule_hoa_loe,
 ]
 
 

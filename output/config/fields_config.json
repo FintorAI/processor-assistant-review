@@ -816,7 +816,9 @@
       "field_name": "Borrower Marital Status",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_03",
+        "STEP_09"
       ]
     },
     {

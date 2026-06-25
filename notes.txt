@@ -567,5 +567,74 @@ Future Enhancement — Notes Cleanup:
     - docs/video2_gaps.md → already tracks implementation status (keep as-is)
   Remove or archive sections that have been fully implemented and documented.
 
+====
+File 4
+
+Cassandra Matthews and James..
+2605968646
+
+ - Cover Letter
+    - Write from image into file Contacts 
+    - deleted file contacts from the cover letter so likely just needs to populate it in file contacts
+    - deleted team contacts
+
+- Settlement Statement  
+    - Settlement Agent column info to Escrow (means Title) Company
+        - ST License ID to Company License #
+        - Contact ST License ID to Contact License #
+        - File # to Escrow Case #
+        - check if addresses match
+
+    - Real Estate Broker (B) column info to Buyer's Agent
+        - same as above for license #
+        - Purchase Agreement > Seller's Agent 
+            - check if any match with file contacts' name then extract info from there
+        - i think this info can also be seen from the image? they send? that's also written in the cover letter
+
+- Maryland and South Carolina purchase contracts are different
+    - check contact Information
+    - maybe consider this in extraction
+    - Selling brokerage company name -> buyger's agent 
+        - company name, etc.
+        - office address to address fields
+        - broker / sales associate mls id -> company state license #
+        - sales associate name -> agent name
+        - sales associate phone / email -> phone emai; under agent
+        - license number is contact state license #
+    - listing brokerage company name -> seller's agent 
+        - same logic as selling brokerage
+    - sometimes searches up company name and sales associate when not filled out in purchase contract
+
+- Create Blend Follow up 
+    - Action Failed
+    - HOA letter is if borrower is refinancing or purchasing 2nd or 3rd property or already has property 
+    - not universal for all
+    - very specific to each file type
+    - selling a home so follow up would be documentation of her sold home
+        - ULTA (settlement statement)
+    - configure to customize for specific blend follow up
+    - HOA is tricky
+        - maybe just make the follow up configurable 
+        - bottom line we dont know if they have an HOA unless they google or etc. 
+        - maybe just remove rn
+
+
+- Borrower Information - Vesting    
+    - look at Borrower Information - Summary marital status
+        - vesting type should (1872 and 1873) be unmarried woman / management
+        - manner in which title will be held is tenancy in Common (unmarried)
+        - maybe figure out first 
+        - click build final vesting
+        - when married = tenancy by th enetirety or joint tenancy with right of survivorship
+        - if married but buying by himself so would be sole ownership (manner in which title will be held)
+        - will know finally when we get title work (hey what do you want for manner in which title will be held)
+
+- did we extract info from bank statements?
+    - write as needed
+    - verify if everything matches (urla part 3 2a)
+
+
+
+
 
 

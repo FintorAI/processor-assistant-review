@@ -70,23 +70,35 @@ def _flag(substep, title, severity, details, suggestion, resolved=False, docs=No
 
 
 def _compute_vesting_desc(marital_status: str, has_coborrower: bool,
-                           has_nbs: bool, is_female: bool) -> str:
+                           has_nbs: bool, applicant_is_female: bool,
+                           borrower_is_female: bool | None = None) -> str:
     """Compute the vesting description dropdown value (field 1872 / 1877).
 
     This is the per-entity vesting string that appears in the Borrower Vesting
     dialog. Build Final Vesting combines it with the borrower name (1868) and
     Manner Held (33) to produce the Final Vesting (1867).
 
+    ``applicant_is_female`` is the gender of the person this description is for
+    (borrower → field 1872, co-borrower → field 1877) and drives the
+    unmarried/single/married-solo wording. ``borrower_is_female`` keys the
+    married-couple joint phrase so both slots stay in agreement (preserves the
+    prior behaviour where both 1872 and 1877 used the primary borrower's order).
+
+    For UNMARRIED co-owners (e.g. unmarried partners, siblings) each person gets
+    their own status ("AN UNMARRIED WOMAN" / "AN UNMARRIED MAN") rather than a
+    shared "JOINT TENANTS" string — the joint relationship is captured in Manner
+    Held (field 33 = "Tenancy in Common"). See notes.txt:624.
+
     Examples: "A SINGLE WOMAN", "AN UNMARRIED MAN", "HUSBAND AND WIFE"
     """
     marital = (marital_status or "").strip().upper()
     is_married = marital == "MARRIED"
-    gender_word = "WOMAN" if is_female else "MAN"
 
     if has_coborrower and is_married:
-        return "WIFE AND HUSBAND" if is_female else "HUSBAND AND WIFE"
-    if has_coborrower:
-        return "JOINT TENANTS"
+        couple_is_female = borrower_is_female if borrower_is_female is not None else applicant_is_female
+        return "WIFE AND HUSBAND" if couple_is_female else "HUSBAND AND WIFE"
+
+    gender_word = "WOMAN" if applicant_is_female else "MAN"
     if marital in ("UNMARRIED", "NOT MARRIED"):
         return f"AN UNMARRIED {gender_word}"
     if marital in ("SINGLE",):
@@ -156,7 +168,11 @@ def update_borrower_vesting(
     borr_ssn    = _los(state, "borrower_ssn")
     borr_dob    = _los(state, "borrower_dob")
     borr_sex    = _los(state, "borrower_sex")
-    marital_status = _los(state, "marital_status")
+    # Marital status: prefer the Borrower Summary value (field 52) per processor
+    # guidance (notes.txt:623); fall back to the Vesting-form copy (field 479).
+    summary_marital = (_los(state, "borrower_marital_status") or "").strip()  # field 52
+    vesting_marital = (_los(state, "marital_status") or "").strip()           # field 479
+    marital_status = summary_marital or vesting_marital
 
     cobr_first  = _los(state, "coborrower_first_name")
     cobr_middle = _los(state, "coborrower_middle_name")
@@ -192,9 +208,22 @@ def update_borrower_vesting(
     wife_first = has_coborrower and cobr_is_female and borr_is_male
 
     logger.info(
-        f"[UPDATE_BORROWER_VESTING] state={prop_st}, marital={marital_status}, "
+        f"[UPDATE_BORROWER_VESTING] state={prop_st}, marital={marital_status} "
+        f"(summary52={summary_marital or '-'}, vesting479={vesting_marital or '-'}), "
         f"has_coborrower={has_coborrower}, has_nbs={has_nbs}, purpose={loan_purpose}"
     )
+
+    if summary_marital and vesting_marital and summary_marital.upper() != vesting_marital.upper():
+        flags.append(_flag("9.1",
+            "Marital Status Source Divergence",
+            "info",
+            (
+                f"Borrower Summary marital status (field 52) = '{summary_marital}' but the "
+                f"Vesting-form copy (field 479) = '{vesting_marital}'. Using the Summary value "
+                f"'{summary_marital}' for vesting computation."
+            ),
+            "Confirm the borrower's marital status and align fields 52 and 479 in Encompass.",
+        ))
 
     # ── A. Occupancy Intent ───────────────────────────────────────────────────
     occ_intent = _compute_occupancy_intent(occupancy_status, loan_purpose)
@@ -263,7 +292,9 @@ def update_borrower_vesting(
     actions.append("SET 1871 (Borrower Vesting Type) = 'Individual'")
 
     # field 1872 — Borrower Vesting Description (the dropdown Build Final Vesting uses)
-    computed_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
+    computed_vdesc = _compute_vesting_desc(
+        marital_status, has_coborrower, has_nbs, is_female, borrower_is_female=is_female,
+    )
     if not prev_borr_vdesc:
         # Deferred to the loan-entity PATCH in section H2 (read-only in fieldWriter).
         # The authoritative success/failure flag is emitted there.
@@ -306,8 +337,13 @@ def update_borrower_vesting(
         field_updates["1876"] = "Individual"
         actions.append("SET 1876 (Co-Borrower Vesting Type) = 'Individual'")
 
-        # field 1877 — Co-Borrower Vesting Description
-        cobr_vdesc = _compute_vesting_desc(marital_status, has_coborrower, has_nbs, is_female)
+        # field 1877 — Co-Borrower Vesting Description.
+        # Use the CO-BORROWER's gender (fixes the prior bug where the borrower's
+        # gender was used) so unmarried co-owners get their own status string;
+        # the married-couple joint phrase stays keyed to the primary borrower.
+        cobr_vdesc = _compute_vesting_desc(
+            marital_status, has_coborrower, has_nbs, cobr_is_female, borrower_is_female=is_female,
+        )
         if not prev_cobr_vdesc:
             vesting_desc_patches["coborrower"] = cobr_vdesc  # written via PATCH (read-only in fieldWriter)
             actions.append(f"SET 1877 (Co-Borrower Vesting Desc) = '{cobr_vdesc}' (was empty)")

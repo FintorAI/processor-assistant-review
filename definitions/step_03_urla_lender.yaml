@@ -33,7 +33,12 @@ substeps:
     field_id: '479'
     field_name: Borrower Marital Status
     category: borrower_info
-    purpose: Married / Unmarried / Separated — drives manner held
+    purpose: Married / Unmarried / Separated (Vesting form, field 479) — fallback for manner held
+  - key: borrower_marital_status
+    field_id: '52'
+    field_name: Borrower Marital Status
+    category: borrower_info
+    purpose: Borrower Summary marital status (field 52) — preferred source for manner held (notes.txt:623)
   - key: borrower_sex
     field_id: '471'
     field_name: Borrower Sex

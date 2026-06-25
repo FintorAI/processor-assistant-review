@@ -97,14 +97,22 @@ def _determine_manner_held(property_state, marital_status, has_coborrower,
         return "Wife And Husband" if is_female else "Husband And Wife"
 
     if both_on_title:
-        return "As Joint Tenants"
+        # Unmarried co-owners on title (unmarried partners, siblings, etc.) take
+        # title as Tenants in Common per processor guidance (notes.txt:625, and
+        # video-2 note line 464: "if siblings, Tenancy in Common").
+        # Casing matches the processor's live convention on loan 2605968646
+        # (field 33 = "Tenancy in Common"); field 33 stores values verbatim.
+        return "Tenancy in Common"
 
     if is_community and is_married:
         return "As Her Sole And Separate Property" if is_female else "As His Sole And Separate Property"
     if marital in ("UNMARRIED", "SINGLE", "NOT MARRIED", "SEPARATED"):
         return "Unmarried Woman" if is_female else "Unmarried Man"
     if is_married:
-        return "Married Woman" if is_female else "Married Man"
+        # Married borrower taking title alone (no co-borrower / NBS) in a
+        # non-community-property state → Sole Ownership (notes.txt:629:
+        # "if married but buying by himself so would be sole ownership").
+        return "Sole Ownership"
 
     return "Sole Ownership"
 
@@ -224,7 +232,12 @@ def update_urla_lender(
 
     # ── Read fields ───────────────────────────────────────────────────────────
     property_state = _los(state, "property_state")
-    marital_status = _los(state, "marital_status")
+    # Marital status: prefer the Borrower Summary value (field 52) per processor
+    # guidance (notes.txt:623 "look at Borrower Information - Summary marital
+    # status"); fall back to the Vesting-form copy (field 479) when 52 is blank.
+    summary_marital = (_los(state, "borrower_marital_status") or "").strip()  # field 52
+    vesting_marital = (_los(state, "marital_status") or "").strip()           # field 479
+    marital_status = summary_marital or vesting_marital
     borr_sex = _los(state, "borrower_sex")
 
     cobr_first = _los(state, "coborrower_first_name")
@@ -244,9 +257,22 @@ def update_urla_lender(
     prop_st = (property_state or "").strip().upper()
 
     logger.info(
-        f"[UPDATE_URLA_LENDER] state={prop_st}, marital={marital_status}, "
+        f"[UPDATE_URLA_LENDER] state={prop_st}, marital={marital_status} "
+        f"(summary52={summary_marital or '-'}, vesting479={vesting_marital or '-'}), "
         f"has_coborrower={has_coborrower}, has_nbs={has_nbs}"
     )
+
+    if summary_marital and vesting_marital and summary_marital.upper() != vesting_marital.upper():
+        flags.append(_flag("3.1",
+            "Marital Status Source Divergence",
+            "info",
+            (
+                f"Borrower Summary marital status (field 52) = '{summary_marital}' but the "
+                f"Vesting-form copy (field 479) = '{vesting_marital}'. Using the Summary value "
+                f"'{summary_marital}' for manner-held computation."
+            ),
+            "Confirm the borrower's marital status and align fields 52 and 479 in Encompass.",
+        ))
 
     # ── A. Manner in Which Title Will Be Held (field 33 + URLA.X138) ───────────
     computed_manner = _determine_manner_held(
