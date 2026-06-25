@@ -1258,6 +1258,77 @@ def write_borrower_vesting_description(
         return {"success": False, "error": str(e)}
 
 
+def write_loan_contacts(
+    loan_id: str,
+    contacts: list[dict[str, any]],
+    state: dict = None,
+) -> dict[str, any]:
+    """Upsert File Contacts on a loan via the contacts collection PATCH.
+
+    Endpoint (verified against the Test instance, 2026-06-25)::
+
+        PATCH /encompass/v3/loans/{loanId}/contacts
+        body: [ {"contactType": "...", "name": "...", ...}, ... ]   -> 204
+
+    The body MUST be a JSON **array** of contact objects (a dict body returns
+    ``400 "Null value is not allowed with collection operation"``; ``POST`` and
+    a per-type ``PATCH /contacts/{type}`` both return ``403``). The collection
+    PATCH upserts by ``contactType`` — existing keys are merged, so only pass
+    the contact types you intend to create/update.
+
+    Recognised contactType values include ``ESCROW_COMPANY``, ``BUYERS_AGENT``,
+    ``SELLERS_AGENT``, ``SELLER``, ``SETTLEMENT_AGENT``. Common per-contact
+    fields: ``name`` (company), ``contactName`` (person), ``phone``, ``cell``,
+    ``email``, ``address``, ``city``, ``state``, ``postalCode``,
+    ``bizLicenseNumber`` (company license), ``personalLicenseNumber`` (contact
+    license), ``referenceNumber`` (escrow/file #).
+
+    Args:
+        loan_id: Encompass loan GUID
+        contacts: list of contact dicts (each MUST include ``contactType``)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": True, "written": [contactType, ...]}`` or
+        ``{"success": False, "error": "..."}``.
+    """
+    import requests
+
+    if not contacts:
+        return {"success": True, "written": []}
+    bad = [c for c in contacts if not c.get("contactType")]
+    if bad:
+        return {"success": False, "error": f"{len(bad)} contact(s) missing contactType"}
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/contacts"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    written = [c.get("contactType") for c in contacts]
+
+    try:
+        resp = requests.patch(url, json=contacts, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, json=contacts, headers=headers, timeout=30)
+        if resp.status_code in (200, 204):
+            logger.info(
+                f"[ENCOMPASS] Upserted {len(contacts)} file contact(s) "
+                f"{written} for loan {loan_id[:8]}"
+            )
+            return {"success": True, "written": written}
+        error_msg = f"contacts PATCH failed (status {resp.status_code}): {resp.text[:300]}"
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {"success": False, "error": error_msg}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error writing file contacts: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def get_employment(
     loan_id: str,
     application_id: str = None,

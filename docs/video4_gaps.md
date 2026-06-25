@@ -25,7 +25,7 @@ current state, evidence, and an implementation plan.
 | OCR the image Almas sends (`additional_info.almas_notes_images`) | ✅ | `extract_almas_images` (substep 0.6), `data_gathering.py:2119-2250`. Claude-vision prompt explicitly asks for a `KEY CONTACTS` section; result stored on `state["almas_notes_images"]`. |
 | Image text → Cover Letter (`CX.KM.SUBMISSION.NOTES`) | ✅ | `draft_cover_letter.py:106-142,183-186` appends OCR text to submission notes. |
 | Strip team contacts from cover letter | ✅ | `draft_cover_letter.py:31-44` (`_strip_boilerplate` drops `team contacts` lines). |
-| Image contacts → **File Contacts** (Encompass) | ❌ | `review_file_contacts.py` never reads `almas_notes_images` / `doc_fields`; it is read-only. The data-gathering docstring (`data_gathering.py:2133-2136`) *claims* substep 1.2 cross-checks the image, but no such code exists. |
+| Image contacts → **File Contacts** (Encompass) | ✅ **(implemented)** | `review_file_contacts.py` parses the OCR'd `KEY CONTACTS` block (`_parse_image_contacts`) and **syncs** Escrow Company / Buyer's Agent / Seller's Agent file contacts via the new `write_loan_contacts()` helper (`PATCH /v3/loans/{id}/contacts`, list body — verified live): missing contacts are **created**, and a present contact that **differs from the image is overwritten** (`_sync_contacts_from_image`). OCR fields that look incomplete/invalid (truncated email/phone) are **skipped** — and since the PATCH merges by `contactType`, a skipped field keeps its existing Encompass value. Every create/overwrite emits an `info-overwrite` flag (the overwrite flag lists the field-by-field diff). Verified end-to-end on Test loan `3a9c1320` and against the File-4 OCR. |
 
 ### Gap B — Estimated Settlement Statement (ESS) → File Contacts (`notes.txt:581-592`)
 
@@ -228,6 +228,16 @@ Probe script: `scripts/probe_thread.py` (added). Re-run with
 
 ## Action taken in this pass
 
+- **Implemented Gap A (cover-letter image → File Contacts).** Added `write_loan_contacts()` to
+  `encompass_client.py` (contacts collection `PATCH`, verb/shape verified live — see Plans A/B/C step 1)
+  and extended `review_file_contacts.py` to parse the OCR'd `KEY CONTACTS` block and **sync** Escrow
+  Company / Buyer's Agent / Seller's Agent contacts: **create** when missing, **overwrite** when a
+  present contact differs from the image (`_sync_contacts_from_image`). OCR fields that look
+  incomplete/invalid (truncated email/phone) are skipped — and because the PATCH merges by
+  `contactType`, a skipped field keeps its existing Encompass value. Every create/overwrite is flagged
+  `info-overwrite` (overwrites list the field-by-field diff). Parser + validation + sync logic
+  unit-tested against the real File-4 OCR (incl. a present-but-differing mismatch); end-to-end write
+  verified on Test loan `3a9c1320` (then restored). `review_file_contacts.py` stays `FACTORY-LOCK: true`.
 - **Implemented the vesting writes (Gap D)** — see the Gap D matrix above. `_determine_manner_held`
   (`update_urla_lender.py`) now returns `Tenancy in Common` for unmarried co-owners and
   `Sole Ownership` for a married borrower buying alone (non-CP); both tools prefer Borrower Summary
@@ -310,10 +320,14 @@ Writes are still gated to **empty** field 33 only (`_manner_held_compatible` avo
 These three share the **same missing primitive**: there is no Encompass contacts write path, and the
 extraction schemas lack contact fields. Sequence:
 
-1. **Add a contacts write helper to `encompass_client.py`** — `POST`/`PATCH`
-   `/encompass/v3/loans/{loanId}/contacts` (verify the exact verb/shape against the EncompassConnect
-   contacts API; confirm `contactType` enums: `ESCROW_COMPANY`, `BUYERS_AGENT`, `SELLERS_AGENT`,
-   `SELLER`). Wrap writes so they are auditable like `_write_fields`.
+1. ✅ **DONE — contacts write helper added to `encompass_client.py`** (`write_loan_contacts`). Verb/shape
+   confirmed empirically against the Test instance: **`PATCH /encompass/v3/loans/{loanId}/contacts`
+   with a JSON *array* body** → `204` (a dict body → `400`; `POST` and per-type `PATCH /contacts/{type}`
+   → `403`). The collection PATCH **merges by `contactType`** (writing a subset of fields preserves the
+   rest). Confirmed `contactType` enums live: `ESCROW_COMPANY`, `BUYERS_AGENT`, `SELLERS_AGENT`,
+   `SELLER`, `SETTLEMENT_AGENT`. Field map: `name`=company, `contactName`=person,
+   `bizLicenseNumber`=company license, `personalLicenseNumber`=contact license,
+   `referenceNumber`=escrow/file #. Probe: `scripts/probe_contacts.py`.
 2. **Extend extraction schemas (server-side CatchingDoc + `required_docs.json` contract):**
    - ESS: add `settlement_agent_name/license_id`, `contact_license_id`, `file_number`,
      `company_address`, `real_estate_broker_*` (Buyer's Agent block).
@@ -339,9 +353,13 @@ extraction schemas lack contact fields. Sequence:
    `state["almas_notes_images"]`; parse its `KEY CONTACTS` section as a fallback/secondary source.
 5. **Address-match checks** become `warning` flags (ESS vs LOS subject property) rather than writes.
 
-**Suggested priority:** D (vesting, self-contained) → B (ESS → Escrow Company, leveraging Title
-Report fields already in state) → C (Purchase Agreement agents + MD/SC) → A (image parse as
-supplementary source). Plans A–C are blocked on the contacts write helper + server-side schema work.
+**Suggested priority:** D (vesting) ✅ → A (cover-letter image → File Contacts) ✅ → B (ESS → Escrow
+Company, leveraging Title Report fields already in state) → C (Purchase Agreement agents + MD/SC).
+The contacts write helper (`write_loan_contacts`) is now built and verified, so **B and C are
+unblocked on the write side** — they remain blocked only on the **server-side extraction schema**
+work (adding contact/agent fields + the MD/SC state-conditional instructions). Once those fields
+reach `state["doc_fields"]`, the same `review_file_contacts` populate path can consume them
+(prefer document-sourced values over the image OCR, which stays a fallback).
 
 ---
 
@@ -350,13 +368,14 @@ supplementary source). Plans A–C are blocked on the contacts write helper + se
 | File | Role |
 |---|---|
 | `output/tools/build_action_items.py` | Action-item rules (HOA rule removed; `FACTORY-LOCK: true`) |
-| `output/tools/review_file_contacts.py` | Read-only File Contacts check (1.2) — target for write extension |
+| `output/tools/review_file_contacts.py` 🔒 | File Contacts check (1.2) — now also populates missing escrow/agent contacts from the cover-letter image OCR (`_parse_image_contacts` + `_populate_missing_from_image`) |
 | `output/tools/update_borrower_vesting.py` | Vesting writes (STEP_09) |
 | `output/tools/update_urla_lender.py` | `_determine_manner_held` (STEP_03) |
 | `output/tools/review_urla_assets.py` 🔒 | Bank statement verification (6.1) |
 | `output/tools/data_gathering.py` | `fetch_doc_fields` (0.3), `extract_almas_images` (0.6), `fetch_vod_data` (unwired) |
 | `output/config/required_docs.json` | Extraction contracts (ESS / Purchase Agreement / Bank Statement) |
 | `shared/document_type_registry.py` | Broader doc field expectations |
-| `encompass_client.py` | Field/condition APIs — **no contacts write** (gap) |
-| `scripts/probe_thread.py` | Deployed-thread probe (added this pass) |
+| `encompass_client.py` | Field/condition APIs + `write_loan_contacts()` (contacts collection PATCH) |
+| `scripts/probe_thread.py` | Deployed-thread probe |
+| `scripts/probe_contacts.py` | File Contacts schema + write-endpoint probe (added this pass) |
 | `processor-assistant-communications/graphs/processor_blend_loe.py` | No-HOA Blend graph (now unreferenced) |
