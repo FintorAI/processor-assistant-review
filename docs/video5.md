@@ -242,11 +242,30 @@ Borrower summary origination
       4533/4534/FE0117/FE0217 in FIELD_MAP + step_04 YAML.
 
 1003 URLA P2
+- Base income X 26 (if biweekly compensation) / 12 = compare with Encompass income for both borrowers
+    - FIX (DONE): review_urla_employment (5.1) now runs the full VOE↔1003 income/
+      employment cross-check for BOTH the borrower and the co-borrower. The whole
+      check was refactored into reusable helpers (`_split_current_prior`,
+      `_voe_values`, `_check_current_employer`, `_check_prior_employers`,
+      `_check_employment_gap`) so each applicant is validated independently:
+        - Each applicant is matched to its OWN VOE copy by employer name. The
+          co-borrower only trusts a copy when its employer name token-matches the
+          LOS employer (prevents the copy-0 fallback from comparing the co-borrower
+          against the borrower's VOE and fabricating mismatches).
+        - All flag titles are person-tagged "(Borrower)" / "(Co-Borrower)" so the
+          dedupe reducer keeps both applicants' flags.
+        - No bi-weekly base-pay normalization was added — the existing
+          monthly-base-pay comparison (with the rate × hours derivation in the
+          mismatch detail) already covers it.
+    - FIX (DONE, Q2): added a positive income-match info flag for both borrowers —
+      "Monthly Base Pay Match — Current/Prior (Borrower|Co-Borrower)" fires (severity
+      `info`) when LOS monthly base pay matches the VOE within $1, confirming the
+      income was validated (no action needed).
 - Income Calculation Worksheet
 
 1003 URLA P3
-- Retirement Funds
-    - Since FHA loan, they only use 60% of value (262… x 0.6)
+- If Assets has Retirement Funds and loan is FHA, extract value from the Retirement Account Statement (see screenshot)
+    - If FHA loan, only 60% of the value should be used, so this should match with what's in encompass (Amount x.6)
 
 2015 Itemization 
 - Doesn’t really need any money for closing (negative CTC)
