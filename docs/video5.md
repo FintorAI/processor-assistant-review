@@ -297,16 +297,56 @@ Borrower summary origination
 2015 Itemization 
 - Doesn’t really need any money for closing (negative CTC)
 
-FHA Management
+New workflow step: FHA-Specific Forms (STEP_11)
+- FIX (DONE — workflow): FHA-only work now lives in its own step inserted after
+  Transmittal Summary (STEP_10) and before Processor Workflow and Closing, which
+  was renumbered STEP_11 → STEP_12. New `definitions/step_11_fha_forms.yaml`
+  (phase FORM_UPDATES) with two FHA-gated substeps:
+    - 11.1 FHA Management → `update_fha_management`
+    - 11.2 HUD Transmittal → `update_hud_transmittal`
+  Both no-op when loan_type != FHA. Renumber also patched the locked tools
+  (update_processor_workflow/closing, build_action_items: 11.x→12.x, STEP_11→
+  STEP_12). factory-reset → Validation PASSED (12 steps); workflow CSVs
+  regenerated.
+
+FHA Management (substep 11.1, update_fha_management)
 - CAIVRS # is extracted from CAIVRS document in efolder for borrower and co-borrower
+    - FIX (DONE — schema): a "CAIVRS" schema already existed in catchingDoc but was
+      single-borrower and lacked the actual "CAIVRS #". Enhanced it (pushed live,
+      LG-docsOrch/devTool/catchingDoc/schemas/CAIVRS_schema.json) to extract the
+      per-applicant Authorization Number — the value after "Authorization Number:"
+      on each "Borrower / Coborrower N SSN ..." line (e.g. A173234126) — plus the
+      SSN for the borrower and up to 3 co-borrowers, while keeping all existing
+      fields. Mirrored as the `caivrs` bucket in required_docs.json (collision-safe
+      keys only: borrower/coborrower(2/3)_authorization_number, caivrs_status,
+      authorization_date) and added "CAIVRS" to required_docs_conditions.json so
+      it's pulled from the eFolder.
+    - FIX (DONE — write logic, gated): update_fha_management reads the per-applicant
+      Authorization Numbers from doc_fields and writes them write-only-if-blank to
+      the Encompass CAIVRS fields. The write path is gated behind
+      `CAIVRS_FIELDS_VERIFIED` + a `CAIVRS_FIELDS` map (field IDs per applicant).
+      While the IDs are unverified the tool does NOT write — it raises a
+      "CAIVRS Numbers Pending Manual Entry" warning listing each applicant's number.
+      Once written it raises an info flag listing what was set. A
+      "CAIVRS Document Missing" warning fires for FHA loans with no extracted number.
+    - FIX (BLOCKED — field IDs): need the verified Encompass CAIVRS field IDs
+      (FHA Management → Tracking tab) for borrower + each co-borrower. Fill them into
+      CAIVRS_FIELDS and flip CAIVRS_FIELDS_VERIFIED = True to enable the write.
 - Case number
     - FHA Government Documents -> FHA Case Number (field id 1040) (special code, 703 since its a regular property)
+    - FIX (DONE — flag): update_fha_management reads field 1040 (added to FIELD_MAP
+      as `fha_case_number`) and raises "FHA Case Number Missing" if blank. The case
+      number is assigned via FHA Connection, not written by the agent.
 
-HUD Transmittal
+HUD Transmittal (substep 11.2, update_hud_transmittal)
 - Underwriter normally fills this out
 - Source / EIN = MMP /52
     - Gov’t 
 - Case number + ADP code
+    - FIX (DONE — flag-only): update_hud_transmittal is FHA-gated and flag-only
+      (the underwriter completes the HUD-92900-LT). Always raises a "HUD-92900-LT
+      Review Required" info flag (verify Source/EIN = MMP/52 + case number + ADP
+      703), plus a "Case Number Missing" warning when field 1040 is blank.
 
 Transmittal Summary
 - Project type == Other: PUD, Property Type == PUD

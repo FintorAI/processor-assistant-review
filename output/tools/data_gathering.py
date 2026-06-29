@@ -157,6 +157,7 @@ def _derive_loan_characteristics(state: dict) -> tuple[str, str, int]:
 # ── Field mapping: field_id -> {key, field_name, category} ──
 FIELD_MAP = {
     "1041": {"key": "property_type", "field_name": "Property Type", "category": "property"},
+    "1040": {"key": "fha_case_number", "field_name": "FHA/VA Agency Case Number", "category": "loan_info"},
     "233": {"key": "hoa_dues_monthly", "field_name": "Proposed Homeowner Assoc. Dues (Monthly)", "category": "property"},
     "52": {"key": "borrower_marital_status", "field_name": "Borrower Marital Status", "category": "borrower_info"},
     "53": {"key": "borrower_dependents_count", "field_name": "Borrower Dependents Count", "category": "borrower_info"},

@@ -20,6 +20,15 @@
       ]
     },
     {
+      "key": "fha_case_number",
+      "field_id": "1040",
+      "field_name": "FHA/VA Agency Case Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "property_type",
       "field_id": "1041",
       "field_name": "Property Type",
@@ -97,7 +106,8 @@
         "STEP_01",
         "STEP_02",
         "STEP_08",
-        "STEP_11"
+        "STEP_11",
+        "STEP_12"
       ]
     },
     {
@@ -489,7 +499,7 @@
         "STEP_02",
         "STEP_04",
         "STEP_09",
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1015,7 +1025,7 @@
       "field_name": "Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1556,7 +1566,7 @@
       "field_name": "Signing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1622,7 +1632,7 @@
       "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1696,7 +1706,7 @@
       "field_name": "Non-Del Inv. Approval",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1705,7 +1715,7 @@
       "field_name": "Product Type",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1714,7 +1724,7 @@
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -2570,6 +2580,15 @@
       ]
     },
     {
+      "key": "authorization_date",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "authorization_printed",
       "source_documents": [
         "VOE"
@@ -2669,12 +2688,57 @@
       ]
     },
     {
+      "key": "borrower_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "borrower_name",
       "source_documents": [
         "VOE"
       ],
       "used_by_steps": [
         "STEP_05"
+      ]
+    },
+    {
+      "key": "caivrs_status",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower2_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower3_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -3328,10 +3392,10 @@
     }
   ],
   "stats": {
-    "total_los_fields": 270,
-    "total_doc_fields": 93,
-    "total_document_types": 29,
-    "total_steps": 11,
+    "total_los_fields": 271,
+    "total_doc_fields": 99,
+    "total_document_types": 30,
+    "total_steps": 12,
     "categories": [
       "assets",
       "borrower_info",
@@ -3356,6 +3420,7 @@
       "Assets",
       "Bank Statement",
       "Borrower's Certification & Authorization",
+      "CAIVRS",
       "Credit Report",
       "Driver's License",
       "Estimated Settlement Statement",

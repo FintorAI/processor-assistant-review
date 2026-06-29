@@ -23,6 +23,7 @@
         "Assets",
         "Purchase Agreement",
         "Credit Report",
+        "CAIVRS",
         "Driver's License",
         "Estimated Settlement Statement",
         "Flood Certificate",
@@ -117,6 +118,10 @@
     },
     "Credit Report": {
       "docrepo_key": "credit_report"
+    },
+    "CAIVRS": {
+      "docrepo_key": "caivrs",
+      "encompass_buckets": ["CAIVRS", "CAIVRS Authorization", "FHA Government Documents"]
     },
     "Driver's License": {
       "docrepo_key": "drivers_license",

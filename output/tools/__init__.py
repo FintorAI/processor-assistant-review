@@ -44,9 +44,13 @@ from .draft_cover_letter import draft_cover_letter
 from .update_borrower_vesting import update_borrower_vesting
 # STEP_10 / 10.1: Update Transmittal Summary
 from .update_transmittal_summary import update_transmittal_summary
-# STEP_11 / 11.1: Processor Workflow Update
+# STEP_11 / 11.1: FHA Management
+from .update_fha_management import update_fha_management
+# STEP_11 / 11.2: HUD Transmittal
+from .update_hud_transmittal import update_hud_transmittal
+# STEP_12 / 12.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
-# STEP_11 / 11.2: Processor Closing Update
+# STEP_12 / 12.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
 
 def get_all_tools() -> list:
@@ -81,6 +85,8 @@ def get_all_tools() -> list:
     tools.append(draft_cover_letter)
     tools.append(update_borrower_vesting)
     tools.append(update_transmittal_summary)
+    tools.append(update_fha_management)
+    tools.append(update_hud_transmittal)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
     return tools
@@ -114,6 +120,8 @@ __all__ = [
     "draft_cover_letter",
     "update_borrower_vesting",
     "update_transmittal_summary",
+    "update_fha_management",
+    "update_hud_transmittal",
     "update_processor_workflow",
     "update_processor_closing",
 ]

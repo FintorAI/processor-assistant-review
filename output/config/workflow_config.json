@@ -67,7 +67,8 @@
       "STEP_08",
       "STEP_09",
       "STEP_10",
-      "STEP_11"
+      "STEP_11",
+      "STEP_12"
     ]
   },
   "step_order": [
@@ -82,7 +83,8 @@
     "STEP_08",
     "STEP_09",
     "STEP_10",
-    "STEP_11"
+    "STEP_11",
+    "STEP_12"
   ],
   "steps": {
     "STEP_00": {
@@ -105,13 +107,13 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (270 fields)",
+          "name": "Fetch LOS Fields (271 fields)",
           "tools": [
             "fetch_los_fields"
           ]
         },
         "3": {
-          "name": "Fetch Doc Fields (29 document types)",
+          "name": "Fetch Doc Fields (30 document types)",
           "tools": [
             "fetch_doc_fields"
           ]
@@ -379,6 +381,29 @@
       }
     },
     "STEP_11": {
+      "name": "FHA-Specific Forms",
+      "phase": "FORM_UPDATES",
+      "plan_file": "fha_specific_forms.md",
+      "tools": [
+        "update_fha_management",
+        "update_hud_transmittal"
+      ],
+      "substeps": {
+        "1": {
+          "name": "FHA Management",
+          "tools": [
+            "update_fha_management"
+          ]
+        },
+        "2": {
+          "name": "HUD Transmittal",
+          "tools": [
+            "update_hud_transmittal"
+          ]
+        }
+      }
+    },
+    "STEP_12": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",

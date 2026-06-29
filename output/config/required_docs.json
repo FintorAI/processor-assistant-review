@@ -484,6 +484,26 @@
         "fact_act_present"
       ]
     },
+    "caivrs": {
+      "name": "CAIVRS",
+      "efolder_doc_type": "CAIVRS",
+      "category": "credit",
+      "optional": true,
+      "aliases": [
+        "CAIVRS Report",
+        "CAIVRS Authorization",
+        "Credit Alert Verification",
+        "Credit Alert"
+      ],
+      "fields_extracted": [
+        "caivrs_status",
+        "borrower_authorization_number",
+        "coborrower_authorization_number",
+        "coborrower2_authorization_number",
+        "coborrower3_authorization_number",
+        "authorization_date"
+      ]
+    },
     "drivers_license": {
       "name": "Driver's License",
       "category": "identity",
