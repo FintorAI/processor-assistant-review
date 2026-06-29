@@ -67,6 +67,40 @@ substeps:
     field_name: Property Type
     category: property
     purpose: If Condo/PUD, raise pending flag for CUA condo advisor substep
+  - key: hoa_dues_monthly
+    field_id: '233'
+    field_name: Proposed Homeowner Assoc. Dues (Monthly)
+    category: property
+    purpose: >
+      PUD signal — HOA dues present on a non-condo property suggests the subject
+      may sit in a Planned Unit Development. Used by the PUD-detection rule.
+  - key: attachment_type
+    field_id: CX.ATTACHMENT.TYPE
+    field_name: Attachment Type (Attached/Detached)
+    category: property
+    purpose: >
+      PUD signal — an Attached property combined with HOA dues is a common PUD
+      indicator. Used by the PUD-detection rule.
+  - key: property_address
+    field_id: '11'
+    field_name: Property Street Address
+    category: property
+    purpose: Build the Zillow verification deep-link for the PUD-detection flag
+  - key: property_city
+    field_id: '12'
+    field_name: Property City
+    category: property
+    purpose: Build the Zillow verification deep-link for the PUD-detection flag
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: Build the Zillow verification deep-link for the PUD-detection flag
+  - key: property_zip
+    field_id: '15'
+    field_name: Property ZIP
+    category: property
+    purpose: Build the Zillow verification deep-link for the PUD-detection flag
   - key: condo_project_name
     field_id: CX.CONDO.PROJECT.NAME
     field_name: Condo Project Name
@@ -91,6 +125,16 @@ substeps:
       If property_type contains Condo or PUD and condo_project_name/id are blank,
       raise an info flag indicating condo fields await the computer-use agent
       (Freddie Mac Condo Project Advisor browser lookup).
+  - name: PUD Detection
+    type: custom
+    logic: >
+      For a non-condo property, gather PUD signals: (a) document-backed — the
+      appraisal (URAR/1004) Project Type checkbox indicates PUD; (b) heuristic —
+      HOA dues present (field 233) plus an Attached dwelling (CX.ATTACHMENT.TYPE
+      or property_type). When any signal is present, do NOT auto-set field 1012 to
+      "Not in a Project"; instead raise a flag-to-verify (warning if appraisal or
+      HOA+Attached agree, else info) with a Zillow address deep link. No
+      property/project type is auto-written — the processor confirms.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning
@@ -104,6 +148,14 @@ substeps:
     severity: info
     condition: Condo/PUD property and project name/ID not yet populated
     suggestion: Computer-use agent will run Freddie Mac Condo Project Advisor to populate project name and ID
+  - title: Possible PUD — Verify Property / Project Type
+    severity: warning
+    condition: >
+      Non-condo property with PUD indicators (appraisal Project Type = PUD, or
+      HOA dues present + Attached dwelling)
+    suggestion: >
+      Verify on Zillow whether the subject is in a Planned Unit Development; if so
+      set Property Type (1041) = PUD and Project Type (1012) = "Other: P/PUD"
   field_updates: []
 
 dev:

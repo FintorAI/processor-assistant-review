@@ -8,6 +8,7 @@ Phase: DATA_REVIEW
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -16,7 +17,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _profile, _write_fields
+from ._helpers import _los, _profile, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,56 @@ def _safe_int(val) -> int:
         return int(float(str(val).strip())) if val and str(val).strip() else 0
     except (ValueError, TypeError):
         return 0
+
+
+# Canonical Encompass "Unit Type" values keyed by the designator words that may
+# appear glued onto a unit number (e.g. "Unit 1313", "Apt. 4B").
+_UNIT_DESIGNATORS = {
+    "unit": "Unit",
+    "apt": "Apartment", "apartment": "Apartment",
+    "ste": "Suite", "suite": "Suite",
+    "bldg": "Building", "building": "Building",
+    "fl": "Floor", "floor": "Floor",
+    "rm": "Room", "room": "Room",
+    "spc": "Space", "space": "Space",
+    "lot": "Lot",
+    "trlr": "Trailer", "trailer": "Trailer",
+    "ph": "Penthouse", "penthouse": "Penthouse",
+    "dept": "Department", "department": "Department",
+}
+
+# (label, unit-type field, unit-type key, unit-# field, unit-# key)
+_UNIT_ADDR_FIELDS = [
+    ("Borrower Current", "FR0125", "borr_present_unit_type", "FR0127", "borr_present_unit_number"),
+    ("Co-Borrower Current", "FR0225", "coborr_present_unit_type", "FR0227", "coborr_present_unit_number"),
+    ("Borrower Former", "FR0325", "borr_former_unit_type", "FR0327", "borr_former_unit_number"),
+    ("Co-Borrower Former", "FR0425", "coborr_former_unit_type", "FR0427", "coborr_former_unit_number"),
+]
+
+
+def _normalize_unit(unit_type, unit_number):
+    """Split a designator word out of a unit number.
+
+    "Unit 1313" -> ("Unit", "1313"); "Apt. 4B" -> ("Apartment", "4B");
+    "#1313" -> (unit_type, "1313"). A bare identifier ("1313") is left untouched.
+    Returns (new_type, new_number, changed).
+    """
+    raw = (unit_number or "").strip()
+    if not raw:
+        return unit_type, unit_number, False
+
+    # Leading designator word: "Unit 1313", "Apt. 4B", "Suite #200"
+    m = re.match(r"^([A-Za-z]+)\.?\s+#?\s*(\S.*)$", raw)
+    if m and m.group(1).lower() in _UNIT_DESIGNATORS:
+        return _UNIT_DESIGNATORS[m.group(1).lower()], m.group(2).strip(), True
+
+    # Leading '#': "#1313" -> "1313" (type left as-is)
+    m = re.match(r"^#\s*(\S.*)$", raw)
+    if m:
+        new_num = m.group(1).strip()
+        return unit_type, new_num, new_num != raw
+
+    return unit_type, unit_number, False
 
 
 @tool
@@ -190,6 +241,30 @@ def review_urla_page1(
                       f"Co-Borrower at Current Address < 2 Years ({coborr_yrs}Y {coborr_mos}M) — Former Address Required", "warning",
                       "Co-Borrower former address (FR0426/FR0406) is blank.",
                       "Processor must populate co-borrower former address on 1003 URLA Part 1.")
+
+    # ── Rule: Normalize Address Unit # / Unit Type ────────────────────────
+    # The Unit # field sometimes carries a glued-on designator (e.g. "Unit 1313").
+    # Split it: Unit # becomes the bare identifier ("1313") and Unit Type becomes
+    # the designator ("Unit"). Applies to current + former, borrower + co-borrower.
+    for _label, _type_fid, _type_key, _num_fid, _num_key in _UNIT_ADDR_FIELDS:
+        if _label.startswith("Co-Borrower") and not has_coborrower:
+            continue
+        cur_type = _los(state, _type_key)
+        cur_num = _los(state, _num_key)
+        new_type, new_num, changed = _normalize_unit(cur_type, cur_num)
+        if not changed:
+            continue
+        updates = {}
+        if (new_num or "") != (cur_num or ""):
+            updates[_num_fid] = new_num
+        if (new_type or "") != (cur_type or ""):
+            updates[_type_fid] = new_type
+        if not updates:
+            continue
+        _write_fields(loan_id=loan_id, updates=updates, substep="4.1",
+                      flags=flags, state=state,
+                      labels={_num_fid: f"{_label} Address — Unit #",
+                              _type_fid: f"{_label} Address — Unit Type"})
 
     # ── Rule: Housing Type / Rent Amount ──────────────────────────────────
     _housing_checks = [

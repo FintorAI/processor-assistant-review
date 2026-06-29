@@ -66,7 +66,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02",
-        "STEP_04"
+        "STEP_04",
+        "STEP_10"
       ]
     },
     {
@@ -114,7 +115,8 @@
       "field_name": "Property City",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_10"
       ]
     },
     {
@@ -171,7 +173,8 @@
         "STEP_01",
         "STEP_02",
         "STEP_03",
-        "STEP_09"
+        "STEP_09",
+        "STEP_10"
       ]
     },
     {
@@ -264,7 +267,8 @@
       "field_name": "Property ZIP",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_10"
       ]
     },
     {
@@ -504,6 +508,15 @@
       "category": "assets",
       "used_by_steps": [
         "STEP_07"
+      ]
+    },
+    {
+      "key": "hoa_dues_monthly",
+      "field_id": "233",
+      "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
       ]
     },
     {
@@ -806,6 +819,42 @@
       "field_id": "5",
       "field_name": "Monthly Payment (P&I)",
       "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_gov_id",
+      "field_id": "5053",
+      "field_name": "Borrower Government ID",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_gov_id",
+      "field_id": "5054",
+      "field_name": "Co-Borrower Government ID",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_gov_id_type",
+      "field_id": "5055",
+      "field_name": "Borrower Government ID Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_gov_id_type",
+      "field_id": "5056",
+      "field_name": "Co-Borrower Government ID Type",
+      "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -1527,7 +1576,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_03",
-        "STEP_07"
+        "STEP_07",
+        "STEP_10"
       ]
     },
     {
@@ -1941,12 +1991,30 @@
       ]
     },
     {
+      "key": "borr_present_unit_type",
+      "field_id": "FR0125",
+      "field_name": "Borrower Present Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_present_addr",
       "field_id": "FR0126",
       "field_name": "Borrower Present Street Address",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_present_unit_number",
+      "field_id": "FR0127",
+      "field_name": "Borrower Present Address Unit",
+      "category": "borrower_info",
+      "used_by_steps": [
         "STEP_04"
       ]
     },
@@ -1963,6 +2031,24 @@
       "key": "coborr_present_mos",
       "field_id": "FR0224",
       "field_name": "Co-Borrower Months at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_present_unit_type",
+      "field_id": "FR0225",
+      "field_name": "Co-Borrower Present Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_present_unit_number",
+      "field_id": "FR0227",
+      "field_name": "Co-Borrower Present Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -2014,9 +2100,27 @@
       ]
     },
     {
+      "key": "borr_former_unit_type",
+      "field_id": "FR0325",
+      "field_name": "Borrower Former Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_former_addr",
       "field_id": "FR0326",
       "field_name": "Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_former_unit_number",
+      "field_id": "FR0327",
+      "field_name": "Borrower Former Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -2068,9 +2172,27 @@
       ]
     },
     {
+      "key": "coborr_former_unit_type",
+      "field_id": "FR0425",
+      "field_name": "Co-Borrower Former Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "coborr_former_addr",
       "field_id": "FR0426",
       "field_name": "Co-Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_former_unit_number",
+      "field_id": "FR0427",
+      "field_name": "Co-Borrower Former Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -3170,7 +3292,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 253,
+    "total_los_fields": 266,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 11,

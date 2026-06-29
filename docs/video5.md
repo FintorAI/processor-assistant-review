@@ -142,11 +142,72 @@ Borrower summary origination
 - Driver's License present but expiry date could not be read.
     - Could not read Government ID?
     - verify if we were able to read this
-- Current address
-    - Unit type is Unit 1313
-    - Unit # is 1313 (remove it from Unit type)
-    - Climbing ivy dr
-- Changed property type to PUD
+    - INVESTIGATION: The IDs *were* read. The eFolder has 2 Driver's License
+      copies (Jhonel + Jonathan), both extracted successfully — but the
+      extraction service returned only a raw `document_content` OCR blob
+      (source `efolderDirectProcess`) instead of the structured schema fields.
+      The expiry is in that blob (Jhonel `Date of exp 01/22/2034`,
+      Jonathan `06/22/2034`), but `dl_expiry` was never populated, so
+      run_pre_checks (1.1) raised "ID Expiry Unknown".
+    - ROOT CAUSE: not a missing schema. The live catchingDoc "Driver's License"
+      schema already defines dl_expiry / dl_name / license_number / etc. with
+      good descriptions. The runtime `/efolder/direct` extraction simply did not
+      apply it and fell back to a content dump. The proper long-term fix is
+      server-side (LG-docsOrch extraction Lambda must apply the DL schema).
+    - FIX (DONE, client-side fallback): data_gathering._normalize_efolder_output
+      now detects when an ID doc (Driver's License / Passport / Permanent
+      Resident Card) returns only `document_content` and parses dl_expiry,
+      borrower_dob, dl_name, dl_borrower_name, and dl_present out of the OCR text
+      (`_parse_id_document_content`, confidence 0.6 so a real schema extraction
+      still wins). Also hardened run_pre_checks to parse MM/DD/YYYY (state-ID
+      format) in addition to ISO, so a populated expiry is no longer misread as
+      "unknown".
+    - FIX (DONE, Government ID write): the same content parser now also extracts
+      the Government ID number (the "Customer identifier", e.g. `MD-10272427156`
+      → `10272427156`, state prefix stripped) as `dl_gov_id` and the ID type
+      (`DL` for a Driver's License) as `dl_gov_id_type`. review_borrower_summary
+      maps each license copy to the right person by name and writes Government ID
+      / Government ID Type for the borrower (fields 5053 / 5055) and co-borrower
+      (5054 / 5056), with an info-overwrite flag. Registered dl_gov_id /
+      dl_gov_id_type on the DL doc and 5053–5056 in FIELD_MAP + step_02 YAML.
+- Current address and former address
+    - If Unit # says "Unit 1313", remove "Unit" and should only be 1313 
+    - Unit type then should be "Unit"
+    - FIX (DONE): review_urla_page1 (4.1) normalizes the Unit # / Unit Type for
+      borrower + co-borrower, current + former (FR0125/FR0127, FR0225/FR0227,
+      FR0325/FR0327, FR0425/FR0427). A designator glued onto the Unit #
+      ("Unit 1313") is split — Unit # becomes `1313`, Unit Type becomes `Unit`
+      (also handles Apt/Suite/Bldg/… and `#1313`); a bare identifier is left as-is.
+- Subject property information
+    - Googled the address, looked at the pic, looks like its attached because it has an apartment attached to it, but it also had HOA dues, so changed property type to PUD
+    - FEASIBILITY: not via a web "Google" search (no internal address-search API;
+      external places APIs can't authoritatively classify PUD). Reliable
+      programmatic paths instead: (a) extract "Project Type" from the Appraisal
+      (Form 1004) — authoritative; or (b) heuristic flag from HOA dues present
+      (field 233) + property_type/attachment `Attached` + project type not Condo.
+      Flag-to-verify, not auto-write, since misclassifying property type affects
+      pricing/eligibility.
+    - FIX (DONE, path c = both a + b): update_transmittal_summary (10.1) now runs
+      PUD detection on non-condo properties. Signals:
+        (a) document-backed — appraisal `appraisal_project_type` (URAR Project Type
+            checkbox) indicates PUD (authoritative);
+        (b) heuristic — HOA dues present (field 233, now read into state) +
+            Attached dwelling (CX.ATTACHMENT.TYPE or property_type).
+      When any signal is present it SKIPS the old "Not in a Project" 1012 auto-write
+      and raises a `Possible PUD — Verify Property / Project Type` flag (warning if
+      the appraisal says PUD or HOA+Attached agree, else info). The flag carries a
+      Zillow address deep-link (`https://www.zillow.com/homes/<addr>_rb/`) so the
+      processor can do the manual "Go to Zillow" check, and recommends setting
+      Property Type (1041) = PUD and Project Type (1012) = "Other: P/PUD".
+    - Registered field 233 (HOA dues) in FIELD_MAP + step_10 YAML; added an
+      `appraisal` doc bucket (read-side, `appraisal_project_type`) to
+      required_docs.json. NOTE: the appraisal Project Type field still needs the
+      server-side catchingDoc Appraisal schema to populate it; until then path (a)
+      is dormant and the heuristic (b) carries detection.
+    - NO auto-write of property/project type — deliberately flag-only.
+    - External "Zillow API": no authoritative PUD-classification endpoint and no
+      API key available, so the integration is a deep-link the processor opens
+      (mirrors the manual workflow) rather than a live lookup.
 
 1003 URLA P1
 - Copies work phone number from part 2 to this
@@ -174,6 +235,11 @@ Transmittal Summary
 - Project type == Other: PUD, Property Type == PUD
 - Project name 
 - Go to Zillow (Germantown view)
+    - FIX (DONE): handled by the same PUD-detection rule in
+      update_transmittal_summary (10.1) — see "Subject property information" above.
+      The flag recommends Project Type (1012) = "Other: P/PUD" + Property Type
+      (1041) = PUD, and embeds the Zillow deep-link for the address. Project Name
+      (CX.CONDO.PROJECT.NAME) stays a CUA/browser lookup (cannot be derived here).
 
 
 For FHA loans, bucket is HUD .. Transmittal (verify in efolder)

@@ -29,6 +29,25 @@
         "transmittal_loan_amount"
       ]
     },
+    "appraisal": {
+      "name": "Appraisal (URAR / 1004)",
+      "efolder_doc_type": "Appraisal",
+      "category": "collateral",
+      "optional": true,
+      "aliases": [
+        "Appraisal",
+        "URAR",
+        "Uniform Residential Appraisal Report",
+        "1004",
+        "Appraisal Report"
+      ],
+      "_note": "appraisal_project_type is the authoritative PUD signal (URAR 'Project Type' checkbox: PUD / Condominium / Cooperative). Requires the server-side catchingDoc Appraisal schema to extract this field; read-side support lives in update_transmittal_summary (PUD detection).",
+      "fields_extracted": [
+        "appraisal_project_type",
+        "appraisal_attachment_type",
+        "appraisal_hoa_indicator"
+      ]
+    },
     "du_findings": {
       "name": "DU Findings / AUS Certificate",
       "efolder_doc_type": "Underwriting",
@@ -436,7 +455,9 @@
         "dl_expiry",
         "dl_name",
         "dl_borrower_name",
-        "dl_ethnicity_indicator"
+        "dl_ethnicity_indicator",
+        "dl_gov_id",
+        "dl_gov_id_type"
       ]
     },
     "estimated_settlement_statement": {

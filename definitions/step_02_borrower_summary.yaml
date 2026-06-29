@@ -17,6 +17,27 @@ substeps:
     Cross-check subject property address against listing (Google). Confirm credit
     score, loan amount, and AMI / Affordable Loan Eligibility fields.
   los_fields_read:
+  # ── Government ID + Type (written from Driver's License doc content) ──
+  - key: borrower_gov_id
+    field_id: '5053'
+    field_name: Borrower Government ID
+    category: borrower_info
+    purpose: Populated from the Driver's License customer identifier
+  - key: borrower_gov_id_type
+    field_id: '5055'
+    field_name: Borrower Government ID Type
+    category: borrower_info
+    purpose: Populated as DL when sourced from a Driver's License
+  - key: coborrower_gov_id
+    field_id: '5054'
+    field_name: Co-Borrower Government ID
+    category: borrower_info
+    purpose: Populated from the co-borrower Driver's License customer identifier
+  - key: coborrower_gov_id_type
+    field_id: '5056'
+    field_name: Co-Borrower Government ID Type
+    category: borrower_info
+    purpose: Populated as DL when sourced from a Driver's License
   # ── Borrower identity ──────────────────────────────────────────────
   - key: borrower_first_name
     field_id: '4000'

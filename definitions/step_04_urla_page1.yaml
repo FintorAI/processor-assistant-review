@@ -200,6 +200,47 @@ substeps:
     field_name: Co-Borrower Former Address Does Not Apply
     category: borrower_info
     purpose: Auto-checked when co-borrower has >= 2 years at current address
+  # ── Residence Address Unit Type / Unit # (normalized in review_urla_page1) ──
+  - key: borr_present_unit_type
+    field_id: FR0125
+    field_name: Borrower Present Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: borr_present_unit_number
+    field_id: FR0127
+    field_name: Borrower Present Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator ("Unit 1313") is stripped
+  - key: coborr_present_unit_type
+    field_id: FR0225
+    field_name: Co-Borrower Present Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: coborr_present_unit_number
+    field_id: FR0227
+    field_name: Co-Borrower Present Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
+  - key: borr_former_unit_type
+    field_id: FR0325
+    field_name: Borrower Former Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: borr_former_unit_number
+    field_id: FR0327
+    field_name: Borrower Former Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
+  - key: coborr_former_unit_type
+    field_id: FR0425
+    field_name: Co-Borrower Former Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: coborr_former_unit_number
+    field_id: FR0427
+    field_name: Co-Borrower Former Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
   # ── Mailing Address ───────────────────────────────────────────────────
   - key: borr_mailing_same_as_present
     field_id: '1819'

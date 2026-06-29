@@ -9,6 +9,12 @@ What this agent does:
   2. Project Type info — read field 1553, surface as info flag.
   3. Condo pending flag — if property is Condo/PUD and project fields are blank,
      flag info that the computer-use agent must run Freddie Mac Condo Project Advisor.
+  4. PUD detection — for a non-condo property, look for PUD indicators
+     (document-backed appraisal Project Type, plus the heuristic of HOA dues +
+     Attached dwelling). When present, skip the "Not in a Project" auto-write and
+     raise a flag-to-verify with a Zillow deep link (matches the manual
+     "Go to Zillow" workflow). No auto-write of property/project type — the
+     processor confirms, since misclassification affects pricing/eligibility.
 
 What this agent does NOT do:
   - Populate Project Name (CX.CONDO.PROJECT.NAME) — requires browser lookup (CUA).
@@ -27,7 +33,9 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _write_fields
+from urllib.parse import quote
+
+from ._helpers import _doc, _los, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +57,40 @@ def _parse_rate(val: Optional[str]) -> Optional[float]:
         return None
 
 
+def _parse_money(val: Optional[str]) -> Optional[float]:
+    if val is None:
+        return None
+    try:
+        cleaned = str(val).replace("$", "").replace(",", "").strip()
+        return float(cleaned) if cleaned else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _is_attached(val: Optional[str]) -> bool:
+    """True if a property/attachment type string indicates an Attached dwelling."""
+    if not val:
+        return False
+    low = val.lower()
+    # Guard against "Detached" matching the "attached" substring.
+    return "attach" in low and "detach" not in low
+
+
+def _zillow_search_url(
+    street: Optional[str],
+    city: Optional[str],
+    state: Optional[str],
+    zip_: Optional[str],
+) -> Optional[str]:
+    """Build a Zillow address-search deep link so a processor can visually verify
+    whether the subject sits in a Planned Unit Development (matches the manual
+    'Go to Zillow' workflow)."""
+    parts = [p.strip() for p in (street, city, state, zip_) if p and str(p).strip()]
+    if not parts:
+        return None
+    return "https://www.zillow.com/homes/" + quote(" ".join(parts)) + "_rb/"
+
+
 @tool
 def update_transmittal_summary(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -59,9 +101,11 @@ def update_transmittal_summary(
 
     Call this tool during STEP_10 (Transmittal Summary) as substep 10.1.
     Reads LOS: note_rate, qualifying_rate, transmittal_project_type, property_type,
-               condo_project_name, condo_project_id
+               condo_project_name, condo_project_id, hoa_dues_monthly,
+               attachment_type, property_address/city/state/zip
+    Reads DOC: appraisal_project_type
     Flags: Note Rate vs Qualifying Rate Mismatch (warning), Project Type (info),
-           Condo Project Fields Pending (info)
+           Condo Project Fields Pending (info), Possible PUD — Verify (warning/info)
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -84,6 +128,10 @@ def update_transmittal_summary(
     property_type        = _los(state, "property_type")         # field 1041
     condo_project_name   = _los(state, "condo_project_name")    # CX.CONDO.PROJECT.NAME
     condo_project_id     = _los(state, "condo_project_id")      # CX.CONDO.PROJECT.ID
+    hoa_dues             = _los(state, "hoa_dues_monthly")      # field 233
+    attachment_type      = _los(state, "attachment_type")       # CX.ATTACHMENT.TYPE
+    # Authoritative PUD signal when the appraisal (URAR/1004) has been extracted.
+    appraisal_project_type = _doc(state, "appraisal_project_type")
 
     ts = datetime.now(timezone.utc).isoformat()
 
@@ -133,27 +181,87 @@ def update_transmittal_summary(
     def _normalise_1012(val: str) -> str:
         return val.lower().replace(" ", "").replace("_", "").replace("/", "").replace(":", "").replace("-", "").replace(".", "")
 
+    # ── PUD detection signals (path c: document-backed + heuristic) ─────────
+    # (a) document-backed: appraisal "Project Type" checkbox == PUD (authoritative)
+    _appraisal_says_pud = any(
+        t in (appraisal_project_type or "").lower()
+        for t in ("pud", "planned unit")
+    )
+    # (b) heuristic: HOA dues present on a non-condo property + Attached dwelling
+    _hoa_amt = _parse_money(hoa_dues)
+    _hoa_present = _hoa_amt is not None and _hoa_amt > 0
+    _attached = _is_attached(attachment_type) or _is_attached(property_type)
+
+    pud_signals: list[str] = []
+    if _appraisal_says_pud:
+        pud_signals.append(f"Appraisal Project Type indicates PUD ({appraisal_project_type!r})")
+    if _hoa_present:
+        pud_signals.append(f"HOA dues present (field 233 = {hoa_dues})")
+    if _attached:
+        pud_signals.append("Property is Attached")
+
     if not _is_condo(property_type):
-        current_1012 = (project_type_1012 or "").strip()
-        if not current_1012:
-            # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
-            _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "10.1", flags, state=state)
-            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
-        elif _normalise_1012(current_1012) == _NOT_IN_PUD_NORM or _NOT_IN_PUD_VALUE.lower() in current_1012.lower():
-            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
-        else:
+        if pud_signals:
+            # Do NOT auto-stamp "Not in a Project" — the subject shows PUD indicators.
+            # Flag-to-verify only: misclassifying property/project type affects
+            # pricing/eligibility, so leave the final call to the processor.
+            _strong = _appraisal_says_pud or (_hoa_present and _attached)
+            zurl = _zillow_search_url(
+                _los(state, "property_address"),
+                _los(state, "property_city"),
+                _los(state, "property_state"),
+                _los(state, "property_zip"),
+            )
             flags.append({
                 "substep": "10.1",
-                "title": "Project Type (1012) — Unexpected Value",
-                "severity": "warning",
+                "title": "Possible PUD — Verify Property / Project Type",
+                "severity": "warning" if _strong else "info",
                 "details": (
-                    f"Field 1012 = {current_1012!r}. Expected '{_NOT_IN_PUD_VALUE}' "
-                    f"for a non-condo/PUD property ({property_type!r})."
+                    "Subject property shows PUD indicators: "
+                    + "; ".join(pud_signals)
+                    + f". Field 1012 (Project Type) was NOT auto-set to "
+                    f"'{_NOT_IN_PUD_VALUE}' because of these signals "
+                    f"(current value: {project_type_1012 or 'blank'})."
                 ),
-                "suggestion": "Verify whether this property is in a PUD or development project. Correct field 1012 if needed.",
+                "suggestion": (
+                    "Verify whether the subject sits in a Planned Unit Development"
+                    + (f" — Zillow: {zurl}" if zurl else "")
+                    + ". If it is a PUD, set Property Type (field 1041) = PUD and "
+                    "Project Type (field 1012) = 'Other: P/PUD'. "
+                    + (
+                        "The appraisal (URAR) authoritatively indicates PUD."
+                        if _appraisal_says_pud else
+                        "Confirm via the appraisal Project Type checkbox once received."
+                    )
+                ),
                 "resolved": False,
                 "timestamp": ts,
             })
+            logger.info(
+                f"[UPDATE_TRANSMITTAL_SUMMARY] PUD signals present "
+                f"({pud_signals}) — skipped 1012 'Not in a Project' auto-write."
+            )
+        else:
+            current_1012 = (project_type_1012 or "").strip()
+            if not current_1012:
+                # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
+                _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "10.1", flags, state=state)
+                logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
+            elif _normalise_1012(current_1012) == _NOT_IN_PUD_NORM or _NOT_IN_PUD_VALUE.lower() in current_1012.lower():
+                logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
+            else:
+                flags.append({
+                    "substep": "10.1",
+                    "title": "Project Type (1012) — Unexpected Value",
+                    "severity": "warning",
+                    "details": (
+                        f"Field 1012 = {current_1012!r}. Expected '{_NOT_IN_PUD_VALUE}' "
+                        f"for a non-condo/PUD property ({property_type!r})."
+                    ),
+                    "suggestion": "Verify whether this property is in a PUD or development project. Correct field 1012 if needed.",
+                    "resolved": False,
+                    "timestamp": ts,
+                })
 
     # ── Rule: Appraisal Form Number (field 1542) + Property Form Type ──────
     # NOTE: Field ID 1542 has NOT been verified against live Encompass.
@@ -259,6 +367,7 @@ def update_transmittal_summary(
         "qualifying_rate": qualifying_rate,
         "project_type": project_type,
         "is_condo": _is_condo(property_type),
+        "pud_signals": pud_signals,
         "flags_count": len(flags),
         "message": (
             f"Transmittal Summary: note_rate={note_rate}, qualifying_rate={qualifying_rate}, "
