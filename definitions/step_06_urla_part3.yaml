@@ -122,10 +122,10 @@ substeps:
     Contract. Flag if EMD check copy is missing (trigger email to Realtor via Step 18).
   los_fields_read:
   - key: emd_amount
-    field_id: '186'
+    field_id: URLAROA0103
     field_name: EMD Amount
     category: assets
-    purpose: Match against Purchase Contract EMD row
+    purpose: Match against Purchase Contract EMD row (URLA Other Assets Cash/Market Value)
   doc_types:
   - document_type: Purchase Agreement
     all_copies: false

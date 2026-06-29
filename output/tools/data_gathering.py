@@ -180,7 +180,14 @@ FIELD_MAP = {
     "172": {"key": "other_income_type", "field_name": "Other Income Type", "category": "income"},
     "173": {"key": "other_income_amount", "field_name": "Other Income Amount (Monthly)", "category": "income"},
     "1811": {"key": "occupancy", "field_name": "Occupancy", "category": "loan_info"},
-    "186": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
+    # EMD amount is the URLA Other Assets Cash/Market Value (NOT field 186, which is
+    # the Escrow Company's Escrow Case #). The authoritative dollar value is synced
+    # from the otherAssets API by review_urla_emd; this flat read is the initial value.
+    "URLAROA0103": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
+    # Field 186 = Escrow Company "Escrow Case #" (same data as the contacts API
+    # referenceNumber — verified in the Test instance). Written from the settlement
+    # statement File # by review_file_contacts.
+    "186": {"key": "escrow_case_number", "field_name": "Escrow Case #", "category": "file_contacts"},
     "19": {"key": "loan_purpose", "field_name": "Loan Purpose", "category": "loan_info"},
     # "218": invalid field ID in Encompass batch API — removed 2026-05-14
     "231": {"key": "gift_amount", "field_name": "Gift Amount", "category": "assets"},

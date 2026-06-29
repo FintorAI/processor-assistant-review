@@ -105,7 +105,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (252 fields)",
+          "name": "Fetch LOS Fields (253 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -384,8 +384,7 @@
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
         "update_processor_closing",
-        "update_processor_workflow",
-        "build_action_items"
+        "update_processor_workflow"
       ],
       "substeps": {
         "1": {
@@ -398,12 +397,6 @@
           "name": "Processor Closing Update",
           "tools": [
             "update_processor_closing"
-          ]
-        },
-        "3": {
-          "name": "Build Communications Action Items",
-          "tools": [
-            "build_action_items"
           ]
         }
       }

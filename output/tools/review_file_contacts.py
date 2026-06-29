@@ -8,6 +8,7 @@ Phase: INTAKE
 
 import json
 import logging
+import re
 import sys
 import requests
 from datetime import datetime, timezone
@@ -121,8 +122,6 @@ def _get_loan_contacts(loan_id: str, state: dict) -> Optional[List[Dict[str, Any
 # contacts PATCH merges by contactType, a skipped field keeps its existing
 # Encompass value. Every create/overwrite is flagged for review with its source.
 
-import re
-
 _ROLE_TO_CONTACT_TYPE = {
     "escrow company": "ESCROW_COMPANY",
     "buyer's agent": "BUYERS_AGENT",
@@ -200,7 +199,7 @@ def _merge_role_lines(text: str, found: Dict[str, Dict[str, str]]) -> None:
         **40** Escrow Company
         Grand Strand Law Group | Amy Tush | 843-492-5422 | amy@...
     """
-    lines = [l.rstrip() for l in (text or "").splitlines()]
+    lines = [ln.rstrip() for ln in (text or "").splitlines()]
     for i, raw in enumerate(lines):
         m = re.match(r"^\*\*\d+\*\*\s*(.+)$", raw.strip())
         if not m:
@@ -255,6 +254,178 @@ _PLAIN_CONTACT_FIELDS = (
 )
 
 
+# Human-readable labels for the contact fields we write (used in flag bullets).
+_FIELD_LABEL = {
+    "name": "Company Name",
+    "contactName": "Contact",
+    "address": "Address",
+    "city": "City",
+    "state": "State",
+    "postalCode": "ZIP",
+    "phone": "Phone",
+    "email": "Email",
+    "bizLicenseNumber": "Company License #",
+    "personalLicenseNumber": "License #",
+    "referenceNumber": "Escrow Case #",
+}
+
+_ADDRESS_FIELDS = ("address", "city", "state", "postalCode")
+
+_US_STATES = {
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL",
+    "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT",
+    "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
+    "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
+}
+
+# Street-suffix tokens that mark the end of the street name.
+_STREET_SUFFIX = {
+    "st", "street", "ave", "avenue", "blvd", "boulevard", "rd", "road", "dr",
+    "drive", "ln", "lane", "ct", "court", "cir", "circle", "way", "pl", "place",
+    "pkwy", "parkway", "ter", "terrace", "hwy", "highway", "trl", "trail", "sq",
+    "square", "loop", "pike", "row", "run", "path", "crossing", "xing", "pt",
+    "point", "plz", "plaza",
+}
+# Unit designators that belong to the street line (come after the street suffix).
+_UNIT_PREFIX = {
+    "ste", "suite", "apt", "apartment", "unit", "bldg", "building", "fl",
+    "floor", "rm", "room", "no", "lot", "#",
+}
+# Abbreviation → canonical form, applied token-wise for address comparison only.
+_ADDR_ABBR = {
+    "st": "street", "str": "street", "ave": "avenue", "av": "avenue",
+    "blvd": "boulevard", "rd": "road", "dr": "drive", "ln": "lane",
+    "ct": "court", "cir": "circle", "pkwy": "parkway", "hwy": "highway",
+    "ter": "terrace", "pl": "place", "sq": "square", "plz": "plaza",
+    "ste": "suite", "apt": "apartment", "bldg": "building", "fl": "floor",
+    "rm": "room", "no": "number", "n": "north", "s": "south", "e": "east",
+    "w": "west", "ne": "northeast", "nw": "northwest", "se": "southeast",
+    "sw": "southwest",
+}
+
+
+def _is_unit_token(tok: str) -> bool:
+    norm = re.sub(r"[^a-z#]", "", tok.lower())
+    if not norm:
+        return False
+    if norm.startswith("#"):
+        return True
+    # Bare unit word, or unit glued to its identifier (e.g. "ste.140" -> "ste140").
+    for u in _UNIT_PREFIX:
+        if u == "#":
+            continue
+        if norm == u or (norm.startswith(u) and norm[len(u):].isdigit()):
+            return True
+    return False
+
+
+def _split_address(full: str) -> Dict[str, str]:
+    """Best-effort split of a one-line US address into components.
+
+    Returns a dict with any of ``address`` (street + unit), ``city``, ``state``,
+    ``postalCode`` that could be reliably parsed. ZIP and state are extracted via
+    regex; the street/city boundary is found at the last street-suffix token (e.g.
+    'Drive', 'Boulevard') plus any following unit ('#1020', 'Ste.140'). Returns an
+    empty dict when no structure can be parsed (caller keeps the raw string).
+
+    Examples:
+        '20251 Century Boulevard Ste.140 Germantown, MD 20874'
+            -> address='20251 Century Boulevard Ste.140', city='Germantown',
+               state='MD', postalCode='20874'
+        '1441 McCormick Drive #1020 Upper Marlboro, MD 20774'
+            -> address='1441 McCormick Drive #1020', city='Upper Marlboro',
+               state='MD', postalCode='20774'
+    """
+    s = re.sub(r"\s+", " ", (full or "").strip())
+    if not s:
+        return {}
+    out: Dict[str, str] = {}
+
+    m = re.search(r"(\d{5}(?:-\d{4})?)\s*$", s)
+    if m:
+        out["postalCode"] = m.group(1)
+        s = s[: m.start()].strip().rstrip(",").strip()
+
+    m = re.search(r"[,\s]+([A-Za-z]{2})\.?$", s)
+    if m and m.group(1).upper() in _US_STATES:
+        out["state"] = m.group(1).upper()
+        s = s[: m.start()].strip().rstrip(",").strip()
+
+    # Remaining = "street [unit] city". The street ends at the last street-suffix
+    # token (e.g. 'Circle', 'Drive') plus any trailing unit ('Ste 220', '#1020').
+    tokens = s.split(" ")
+    last_suffix = -1
+    for i, tok in enumerate(tokens):
+        if re.sub(r"[^a-z]", "", tok.lower()) in _STREET_SUFFIX:
+            last_suffix = i
+    if last_suffix >= 0:
+        j = last_suffix + 1
+        while j < len(tokens):
+            tok = tokens[j]
+            if tok.lstrip().startswith("#"):
+                j += 1
+                continue
+            norm = re.sub(r"[^a-z]", "", tok.lower())
+            if norm in _UNIT_PREFIX or (
+                norm and any(norm.startswith(u) and norm[len(u):] == "" for u in _UNIT_PREFIX)
+            ):
+                j += 1
+                # consume the unit's identifier (e.g. 'Ste 220', 'Apt B')
+                if j < len(tokens):
+                    nxt = re.sub(r"[^a-z0-9]", "", tokens[j].lower())
+                    if nxt and (any(c.isdigit() for c in nxt) or len(nxt) <= 2):
+                        j += 1
+                continue
+            if _is_unit_token(tok):  # glued form, e.g. 'Ste.140', '#1020'
+                j += 1
+                continue
+            break
+        street = " ".join(tokens[:j]).strip().rstrip(",").strip()
+        city = " ".join(tokens[j:]).strip().rstrip(",").strip()
+        if street:
+            out["address"] = street
+        if city:
+            out["city"] = city
+    elif "," in s:  # no recognizable street suffix → fall back to comma boundary
+        street, _, city = s.rpartition(",")
+        if street.strip():
+            out["address"] = street.strip().rstrip(",").strip()
+        if city.strip():
+            out["city"] = city.strip()
+    else:
+        out["address"] = s
+    return {k: v for k, v in out.items() if v}
+
+
+def _norm_addr(s: str) -> str:
+    """Normalize an address string for equality comparison (abbrev + punctuation)."""
+    s = (s or "").lower()
+    s = re.sub(r"[.,#]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return " ".join(_ADDR_ABBR.get(tok, tok) for tok in s.split(" ") if tok)
+
+
+def _join_addr(d: Dict[str, Any]) -> str:
+    return " ".join(
+        str(d.get(k) or "").strip() for k in _ADDRESS_FIELDS if str(d.get(k) or "").strip()
+    )
+
+
+def _diff_bullets(diffs: Dict[str, tuple]) -> str:
+    return "\n".join(
+        f"  • {_FIELD_LABEL.get(k, k)}: '{old or '(empty)'}' → '{new}'"
+        for k, (old, new) in diffs.items()
+    )
+
+
+def _field_bullets(obj: Dict[str, Any]) -> str:
+    return "\n".join(
+        f"  • {_FIELD_LABEL.get(k, k)}: '{v}'"
+        for k, v in obj.items()
+        if k != "contactType" and v
+    )
+
+
 def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
     """Build an Encompass contact object from parsed (merged) source fields.
 
@@ -264,6 +435,19 @@ def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
     Encompass value untouched.
     Returns (contact_obj, dropped_field_names).
     """
+    parsed = dict(parsed)  # don't mutate the caller's merged source
+
+    # Settlement statement / OCR usually give a single full address string. Split
+    # it into street/city/state/ZIP so we don't cram the whole line into `address`.
+    full_addr = (parsed.get("address") or "").strip()
+    if full_addr:
+        comp = _split_address(full_addr)
+        if comp.get("city") or comp.get("state") or comp.get("postalCode"):
+            parsed["address"] = comp.get("address", full_addr)
+            for k in ("city", "state", "postalCode"):
+                if comp.get(k) and not (parsed.get(k) or "").strip():
+                    parsed[k] = comp[k]
+
     obj: Dict[str, Any] = {"contactType": contact_type}
     dropped: List[str] = []
     for key in _PLAIN_CONTACT_FIELDS:
@@ -304,6 +488,9 @@ _ESS_SUBKEY_TO_FIELD = {
     "email": "email",
     "st_license_id": "bizLicenseNumber",            # company license #
     "contact_st_license_id": "personalLicenseNumber",  # individual license #
+    # Settlement File # → Escrow Case #. Written via the File Contacts API as
+    # referenceNumber (verified to be the same field as Encompass loan field 186).
+    "file_number": "referenceNumber",
 }
 
 # ── Purchase Agreement agent source (Gap C) ─────────────────────────────────
@@ -477,13 +664,31 @@ def _sync_contacts(
             continue
         diffs = {}
         for k, v in obj.items():
-            if k == "contactType":
+            if k == "contactType" or k in _ADDRESS_FIELDS:
                 continue
             old = (existing.get(k) or "").strip()
             if old.lower() != str(v).strip().lower():
                 diffs[k] = (old, v)
+        # Address group: compare the *full* reconstructed address (street + city +
+        # state + ZIP) so a pure formatting difference (e.g. "Blvd" vs "Boulevard",
+        # or the doc cramming city/state/ZIP into one line) does NOT trigger an
+        # overwrite. Only flag/write the differing components on a real discrepancy.
+        if any(k in obj for k in _ADDRESS_FIELDS):
+            new_addr = {**existing, **{k: obj[k] for k in _ADDRESS_FIELDS if k in obj}}
+            if _norm_addr(_join_addr(existing)) != _norm_addr(_join_addr(new_addr)):
+                for k in _ADDRESS_FIELDS:
+                    if k not in obj:
+                        continue
+                    old = (existing.get(k) or "").strip()
+                    new = str(obj[k]).strip()
+                    if old.lower() != new.lower():
+                        diffs[k] = (old, new)
         if diffs:
-            plans.append((ct, label, obj, dropped, "updated", diffs, source))
+            # Only send the fields we actually decided to write (keeps the contacts
+            # PATCH from clobbering address components we judged equal).
+            write_obj = {"contactType": ct}
+            write_obj.update({k: obj[k] for k in diffs if k in obj})
+            plans.append((ct, label, write_obj, dropped, "updated", diffs, source))
 
     if not plans:
         return {}
@@ -523,16 +728,20 @@ def _sync_contacts(
         if mode == "created":
             title = f"File Contact Populated from {source.title()}: {label}"
             details = (
-                f"{label} ({ct}) was missing and has been written to Encompass File Contacts "
-                f"from the {source}: {summary}.{note} "
+                f"{label} ({ct}) was missing and has been written to Encompass File "
+                f"Contacts from the {source}:\n"
+                f"{_field_bullets(obj)}\n"
+                f"{note + chr(10) if note else ''}"
                 f"Verify accuracy against the source document."
             )
         else:
-            change = "; ".join(f"{k} '{old or '(empty)'}' → '{new}'" for k, (old, new) in diffs.items())
             title = f"File Contact Updated from {source.title()}: {label}"
             details = (
-                f"{label} ({ct}) differed from the {source} and was overwritten "
-                f"({change}).{note} Verify accuracy against the source document."
+                f"{label} ({ct}) differed from the {source} and the following "
+                f"field(s) were overwritten:\n"
+                f"{_diff_bullets(diffs)}\n"
+                f"{note + chr(10) if note else ''}"
+                f"Verify accuracy against the source document."
             )
         flags.append({
             "substep": SUBSTEP,
@@ -544,6 +753,113 @@ def _sync_contacts(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] {mode} from {source} — {summary}")
+    return written
+
+
+def _sync_seller_addresses(
+    loan_id: str,
+    state: dict,
+    contact_map: Dict[str, Dict[str, Any]],
+    flags: List[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Populate the Seller file contacts' address with the subject property.
+
+    Per processor convention the Seller file contacts (Seller 1 = ``SELLER``,
+    Seller 2 = ``SELLER2``) carry the **subject property address**. Reads the LOS
+    subject-property address (fields 11/12/14/15) and writes
+    ``address/city/state/postalCode`` to each *existing* seller contact, overwriting
+    differing fields. Purchase loans only.
+
+    Only enriches seller contacts that already exist — it never fabricates a Seller 1
+    or Seller 2 (a genuinely missing seller still raises the "Missing File Contact"
+    warning). Emits an ``info-overwrite`` flag per contact written.
+    """
+    if "purchase" not in str(_los(state, "loan_purpose") or "").lower():
+        return {}
+
+    addr: Dict[str, str] = {}
+    for los_key, field in (
+        ("property_address", "address"),
+        ("property_city", "city"),
+        ("property_state", "state"),
+        ("property_zip", "postalCode"),
+    ):
+        val = str(_los(state, los_key) or "").strip()
+        if val:
+            addr[field] = val
+    if not addr.get("address"):
+        return {}
+
+    targets = [
+        (ct, label)
+        for ct, label in (("SELLER", "Seller 1"), ("SELLER2", "Seller 2"))
+        if contact_map.get(ct)
+    ]
+    if not targets:
+        return {}
+
+    plans: List[tuple] = []
+    for ct, label in targets:
+        existing = contact_map.get(ct) or {}
+        diffs = {}
+        for k, v in addr.items():
+            old = (existing.get(k) or "").strip()
+            if old.lower() != v.strip().lower():
+                diffs[k] = (old, v)
+        if not diffs:
+            continue
+        obj = {"contactType": ct}
+        obj.update(addr)
+        plans.append((ct, label, obj, diffs))
+
+    if not plans:
+        return {}
+
+    try:
+        from encompass_client import write_loan_contacts
+        res = write_loan_contacts(loan_id, [p[2] for p in plans], state=state)
+    except Exception as exc:
+        logger.error(f"[REVIEW_FILE_CONTACTS] seller address write raised: {exc}")
+        res = {"success": False, "error": str(exc)}
+
+    if not res.get("success"):
+        flags.append(_flag(
+            title="Seller Address Auto-Sync Failed",
+            severity="warning",
+            details=(
+                f"Attempted to write the subject property address to "
+                f"{', '.join(p[1] for p in plans)} but the contacts write failed: "
+                f"{res.get('error')}"
+            ),
+            suggestion="Manually set the Seller 1 / Seller 2 address in Encompass File Contacts.",
+        ))
+        return {}
+
+    addr_str = ", ".join(
+        v for v in (addr.get("address"), addr.get("city"),
+                    addr.get("state"), addr.get("postalCode")) if v
+    )
+    written: Dict[str, str] = {}
+    for ct, label, obj, diffs in plans:
+        written[ct] = "updated"
+        merged = dict(contact_map.get(ct) or {})
+        merged.update(obj)
+        contact_map[ct] = merged
+        flags.append({
+            "substep": SUBSTEP,
+            "title": f"File Contact Updated from Subject Property: {label} Address",
+            "severity": "info-overwrite",
+            "details": (
+                f"{label} ({ct}) address was set to the subject property address "
+                f"({addr_str}) — the following field(s) were written:\n"
+                f"{_diff_bullets(diffs)}\n"
+                f"Verify this matches the seller's intended address."
+            ),
+            "suggestion": f"Verify the {label} address in Encompass File Contacts.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] address set from subject property — {addr_str}")
     return written
 
 
@@ -561,6 +877,19 @@ def review_file_contacts(
 
     Flags a warning for each missing contact. Raises an info flag listing all
     present contacts for processor awareness.
+
+    Auto-sync (each write raises an ``info-overwrite`` flag):
+      - Escrow Company / Buyer's & Seller's Agent — created/overwritten from the
+        settlement statement (ESS / pre-CD) and cover-letter image. Full address
+        strings are split into street/city/state/ZIP; an existing address is only
+        overwritten on a real discrepancy (formatting-only differences are ignored).
+        The settlement File # ("File #: …") is written to the Escrow Company's
+        Escrow Case # via the contacts API ``referenceNumber`` (the same field as
+        Encompass loan field 186).
+      - Seller 1 / Seller 2 — the subject property address (LOS fields 11/12/14/15)
+        is written to each existing seller contact's address.
+
+    Every auto-write flag enumerates the written field(s) as a bullet list.
 
     Call this tool during STEP_01 (Pre-Checks) as substep 1.2.
     """
@@ -612,6 +941,9 @@ def review_file_contacts(
     # present-but-differing ones; fields that look incomplete/invalid are skipped
     # (existing value preserved via the contacts-collection PATCH merge).
     written = _sync_contacts(loan_id, state, contact_map, required_pairs, flags)
+
+    # ── Populate Seller 1/2 addresses with the subject property (purchase) ──
+    written.update(_sync_seller_addresses(loan_id, state, contact_map, flags))
 
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []

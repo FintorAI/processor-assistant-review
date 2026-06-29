@@ -405,12 +405,12 @@
       ]
     },
     {
-      "key": "emd_amount",
+      "key": "escrow_case_number",
       "field_id": "186",
-      "field_name": "EMD Amount",
-      "category": "assets",
+      "field_name": "Escrow Case #",
+      "category": "file_contacts",
       "used_by_steps": [
-        "STEP_06"
+        "STEP_01"
       ]
     },
     {
@@ -2311,6 +2311,15 @@
       ]
     },
     {
+      "key": "emd_amount",
+      "field_id": "URLAROA0103",
+      "field_name": "EMD Amount",
+      "category": "assets",
+      "used_by_steps": [
+        "STEP_06"
+      ]
+    },
+    {
       "key": "credit_score_decision",
       "field_id": "VASUMM.X23",
       "field_name": "Credit Score for Decision Making",
@@ -3161,7 +3170,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 252,
+    "total_los_fields": 253,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 11,
@@ -3174,6 +3183,7 @@
       "credit",
       "declarations",
       "employment",
+      "file_contacts",
       "grant_program",
       "income",
       "liabilities",

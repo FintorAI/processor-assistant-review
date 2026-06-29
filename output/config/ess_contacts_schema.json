@@ -311,6 +311,13 @@
       ],
       "description": "Contact Information table \u2014 Settlement Agent column \u2014 Company/entity name. Found on the last page of the ESS. Return null if not present."
     },
+    "contact_settlement_agent_file_number": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The settlement / escrow File number shown in the 'Closing Information' header of the settlement statement / Closing Disclosure, labeled 'File #' (e.g. 'File #: 2610313'). This is the escrow case / file number that goes in the Escrow Company's 'Escrow Case #' field \u2014 NOT a license, NMLS, or loan number. Return null if not present."
+    },
     "contact_real_estate_broker_buyer_phone": {
       "type": [
         "string",
