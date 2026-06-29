@@ -20,6 +20,15 @@
       ]
     },
     {
+      "key": "borrower_caivrs_number",
+      "field_id": "1018",
+      "field_name": "Borrower CAIVRS Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "fha_case_number",
       "field_id": "1040",
       "field_name": "FHA/VA Agency Case Number",
@@ -95,6 +104,15 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_caivrs_number",
+      "field_id": "1144",
+      "field_name": "Co-Borrower CAIVRS Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -555,6 +573,24 @@
       "category": "credit",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "caivrs_date_updated",
+      "field_id": "3067",
+      "field_name": "CAIVRS Date Updated",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "caivrs_updated_by",
+      "field_id": "3068",
+      "field_name": "CAIVRS Updated By",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -3392,7 +3428,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 271,
+    "total_los_fields": 275,
     "total_doc_fields": 99,
     "total_document_types": 30,
     "total_steps": 12,

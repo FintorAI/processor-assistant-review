@@ -158,6 +158,10 @@ def _derive_loan_characteristics(state: dict) -> tuple[str, str, int]:
 FIELD_MAP = {
     "1041": {"key": "property_type", "field_name": "Property Type", "category": "property"},
     "1040": {"key": "fha_case_number", "field_name": "FHA/VA Agency Case Number", "category": "loan_info"},
+    "1018": {"key": "borrower_caivrs_number", "field_name": "Borrower CAIVRS Number", "category": "loan_info"},
+    "1144": {"key": "coborrower_caivrs_number", "field_name": "Co-Borrower CAIVRS Number", "category": "loan_info"},
+    "3067": {"key": "caivrs_date_updated", "field_name": "CAIVRS Date Updated", "category": "loan_info"},
+    "3068": {"key": "caivrs_updated_by", "field_name": "CAIVRS Updated By", "category": "loan_info"},
     "233": {"key": "hoa_dues_monthly", "field_name": "Proposed Homeowner Assoc. Dues (Monthly)", "category": "property"},
     "52": {"key": "borrower_marital_status", "field_name": "Borrower Marital Status", "category": "borrower_info"},
     "53": {"key": "borrower_dependents_count", "field_name": "Borrower Dependents Count", "category": "borrower_info"},

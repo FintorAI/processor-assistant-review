@@ -37,6 +37,26 @@ substeps:
     field_name: FHA/VA Agency Case Number
     category: loan_info
     purpose: Confirm FHA Case Number is assigned (FHA Government Documents)
+  - key: borrower_caivrs_number
+    field_id: '1018'
+    field_name: Borrower CAIVRS Number
+    category: loan_info
+    purpose: Written write-only-if-blank from the CAIVRS document (borrower)
+  - key: coborrower_caivrs_number
+    field_id: '1144'
+    field_name: Co-Borrower CAIVRS Number
+    category: loan_info
+    purpose: Written write-only-if-blank from the CAIVRS document (co-borrower)
+  - key: caivrs_date_updated
+    field_id: '3067'
+    field_name: CAIVRS Date Updated
+    category: loan_info
+    purpose: Date the CAIVRS number fields were updated (MM/DD/YYYY)
+  - key: caivrs_updated_by
+    field_id: '3068'
+    field_name: CAIVRS Updated By
+    category: loan_info
+    purpose: Who updated the CAIVRS number fields
   doc_types:
   - document_type: CAIVRS
     all_copies: false
@@ -58,11 +78,11 @@ substeps:
     type: custom
     logic: >
       For each applicant, if the CAIVRS document has an Authorization Number and
-      the corresponding Encompass CAIVRS field is blank, write it. Never
-      overwrite a populated CAIVRS field. The Encompass CAIVRS field IDs are not
-      yet verified — the tool keeps them in a single CAIVRS_FIELDS map and only
-      writes when that map is confirmed (otherwise it flags the numbers for
-      manual entry).
+      the corresponding Encompass CAIVRS field is blank, write it (borrower 1018,
+      co-borrower 1144). Never overwrite a populated CAIVRS field. When any number
+      is written, stamp CAIVRS Date Updated (3067, MM/DD/YYYY = today) and CAIVRS
+      Updated By (3068 = adesai). Extra applicants (coborrower2/3) have no
+      Encompass CAIVRS field, so their numbers are flagged for manual entry.
   - name: FHA Case Number Present
     type: existence_check
     logic: >

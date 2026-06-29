@@ -321,17 +321,15 @@ FHA Management (substep 11.1, update_fha_management)
       keys only: borrower/coborrower(2/3)_authorization_number, caivrs_status,
       authorization_date) and added "CAIVRS" to required_docs_conditions.json so
       it's pulled from the eFolder.
-    - FIX (DONE — write logic, gated): update_fha_management reads the per-applicant
-      Authorization Numbers from doc_fields and writes them write-only-if-blank to
-      the Encompass CAIVRS fields. The write path is gated behind
-      `CAIVRS_FIELDS_VERIFIED` + a `CAIVRS_FIELDS` map (field IDs per applicant).
-      While the IDs are unverified the tool does NOT write — it raises a
-      "CAIVRS Numbers Pending Manual Entry" warning listing each applicant's number.
-      Once written it raises an info flag listing what was set. A
+    - FIX (DONE — write): update_fha_management reads the per-applicant Authorization
+      Numbers from doc_fields and writes them write-only-if-blank to the verified
+      Encompass CAIVRS fields — borrower 1018, co-borrower 1144. When any number is
+      written it also stamps CAIVRS Date Updated (3067, MM/DD/YYYY = today) and CAIVRS
+      Updated By (3068 = adesai), and raises an info flag listing what was set.
+      Applicants beyond borrower/co-borrower (coborrower2/3 from the doc) have no
+      Encompass CAIVRS field, so they're flagged for manual entry. A
       "CAIVRS Document Missing" warning fires for FHA loans with no extracted number.
-    - FIX (BLOCKED — field IDs): need the verified Encompass CAIVRS field IDs
-      (FHA Management → Tracking tab) for borrower + each co-borrower. Fill them into
-      CAIVRS_FIELDS and flip CAIVRS_FIELDS_VERIFIED = True to enable the write.
+      Field IDs 1018/1144/3067/3068 added to FIELD_MAP + step_11 los_fields_read.
 - Case number
     - FHA Government Documents -> FHA Case Number (field id 1040) (special code, 703 since its a regular property)
     - FIX (DONE — flag): update_fha_management reads field 1040 (added to FIELD_MAP
