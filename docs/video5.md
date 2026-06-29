@@ -364,8 +364,13 @@ Transmittal Summary
     - FIX (DONE): handled by the same PUD-detection rule in
       update_transmittal_summary (10.1) — see "Subject property information" above.
       The flag recommends Project Type (1012) = "Other: P/PUD" + Property Type
-      (1041) = PUD, and embeds the Zillow deep-link for the address. Project Name
-      (CX.CONDO.PROJECT.NAME) stays a CUA/browser lookup (cannot be derived here).
+      (1041) = PUD, and embeds the Zillow deep-link for the address.
+    - FIX (DONE — project name via API): the HasData/Zillow lookup now also returns
+      the community/subdivision name (resoData.subdivisionName), and when PUD
+      indicators are present the tool writes Project Name (CX.CONDO.PROJECT.NAME)
+      write-only-if-blank from that subdivision (e.g. "Germantown View" for this
+      loan). No longer a CUA/browser-only field. CPM Project ID# (CX.CONDO.PROJECT.ID)
+      still needs the Freddie Mac Condo Project Advisor (CUA).
 
 For FHA loans, bucket is HUD .. Transmittal (verify in efolder)
 

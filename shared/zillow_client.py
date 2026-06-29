@@ -9,6 +9,7 @@ the public-record facts that matter for PUD classification:
   - home_type / structure_type  (SingleFamily / Townhouse / Condo / …)
   - has_attached_property        (shared wall → attached dwelling)
   - hoa_fee                      (HOA dues present → community/association)
+  - subdivision                  (community/subdivision name → PUD project name)
 
 API docs: https://docs.hasdata.com/apis/zillow/listing
 Auth: HASDATA_API_KEY in the environment (x-api-key header).
@@ -50,6 +51,7 @@ class ZillowPropertyFacts:
     architectural_style: Optional[str] = None
     has_attached_property: Optional[bool] = None
     hoa_fee: Optional[str] = None
+    subdivision: Optional[str] = None
     community_features: List[str] = field(default_factory=list)
 
 
@@ -129,11 +131,17 @@ class ZillowClient:
                 architectural_style=reso.get("architecturalStyle"),
                 has_attached_property=reso.get("hasAttachedProperty"),
                 hoa_fee=_parse_hoa(reso),
+                subdivision=(
+                    reso.get("subdivisionName")
+                    or prop.get("subdivisionName")
+                    or reso.get("subdivision")
+                ),
                 community_features=reso.get("communityFeatures") or [],
             )
             logger.info(
                 f"[ZILLOW] Found {facts.url} — type={facts.home_type}, "
-                f"attached={facts.has_attached_property}, hoa={facts.hoa_fee}"
+                f"attached={facts.has_attached_property}, hoa={facts.hoa_fee}, "
+                f"subdivision={facts.subdivision!r}"
             )
             return facts
         except Exception as e:  # noqa: BLE001 — best-effort, never break the agent

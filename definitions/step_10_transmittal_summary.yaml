@@ -138,7 +138,9 @@ substeps:
       "Not in a Project"; instead raise a flag-to-verify (warning if the appraisal
       says PUD, HOA+Attached agree, or 2+ Zillow signals; else info) with the
       Zillow listing URL (or an address deep link as fallback). No property/project
-      type is auto-written — the processor confirms.
+      type is auto-written — the processor confirms. When PUD indicators are present
+      and the Zillow lookup returns a community/subdivision name, Project Name
+      (CX.CONDO.PROJECT.NAME) is written write-only-if-blank from that subdivision.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning

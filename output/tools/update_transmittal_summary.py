@@ -18,9 +18,11 @@ What this agent does:
      present, skip the "Not in a Project" auto-write and raise a flag-to-verify.
      No auto-write of property/project type — the processor confirms, since
      misclassification affects pricing/eligibility.
+  5. Project Name — when PUD indicators are present, populate Project Name
+     (CX.CONDO.PROJECT.NAME, write-only-if-blank) from the Zillow community /
+     subdivision name returned by the HasData lookup (e.g. "Germantown View").
 
 What this agent does NOT do:
-  - Populate Project Name (CX.CONDO.PROJECT.NAME) — requires browser lookup (CUA).
   - Populate CPM Project ID# (CX.CONDO.PROJECT.ID) — requires browser lookup (CUA).
   See ARCHITECTURE.md "Transmittal Summary — Condo Split" for the full design.
 """
@@ -209,6 +211,7 @@ def update_transmittal_summary(
         # Automates the manual "Go to Zillow" check the processor does to eyeball
         # whether the subject is attached / in a community with HOA dues.
         zillow_url = None
+        zillow_subdivision = None
         zillow_signals: list[str] = []
         try:
             from shared.zillow_client import is_pud_indicative, lookup_property_sync
@@ -220,6 +223,7 @@ def update_transmittal_summary(
             )
             if zf.found:
                 zillow_url = zf.url
+                zillow_subdivision = zf.subdivision
                 if zf.has_attached_property:
                     _attached = True
                 _, zillow_signals = is_pud_indicative(zf)
@@ -271,6 +275,20 @@ def update_transmittal_summary(
                 f"[UPDATE_TRANSMITTAL_SUMMARY] PUD signals present "
                 f"({pud_signals}) — skipped 1012 'Not in a Project' auto-write."
             )
+
+            # Project Name (CX.CONDO.PROJECT.NAME) — derive from the Zillow
+            # community/subdivision (e.g. "Germantown View"). Write-only-if-blank;
+            # this replaces the old browser/CUA lookup for the project name.
+            if zillow_subdivision and not condo_project_name:
+                _write_fields(
+                    loan_id, {"CX.CONDO.PROJECT.NAME": zillow_subdivision}, "10.1",
+                    flags, state=state, labels={"CX.CONDO.PROJECT.NAME": "Project Name"},
+                )
+                condo_project_name = zillow_subdivision
+                logger.info(
+                    f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote Project Name "
+                    f"(CX.CONDO.PROJECT.NAME) = {zillow_subdivision!r} from Zillow subdivision."
+                )
         else:
             current_1012 = (project_type_1012 or "").strip()
             if not current_1012:
