@@ -111,7 +111,8 @@ def review_urla_page1(
     Call this tool during STEP_04 (1003 URLA Page 1) as substep 4.1.
     Does NOT re-check borrower name / SSN / DOB / marital status — those are owned by STEP_02.
     Writes: 1819 (borr mailing same), 1820 (coborr mailing same),
-            URLA.X265 (borr former addr N/A), URLA.X266 (coborr former addr N/A)
+            URLA.X265 (borr former addr N/A), URLA.X266 (coborr former addr N/A),
+            4533/4534 (P1 work phone backfilled from Part 2 phone FE0117/FE0217)
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -265,6 +266,28 @@ def review_urla_page1(
                       flags=flags, state=state,
                       labels={_num_fid: f"{_label} Address — Unit #",
                               _type_fid: f"{_label} Address — Unit Type"})
+
+    # ── Rule: P1 Work Phone backfill from Part 2 phone ────────────────────
+    # If the URLA Page 1 work phone (4533/4534) is empty, copy the Part 2 phone
+    # (FE0117/FE0217) into it. Only fills when P1 is blank — never overwrites an
+    # existing P1 value, and only writes when there is a Part 2 value to copy.
+    _phone_backfill = [
+        ("Borrower", "borr_p1_work_phone", "4533", "borr_part2_phone", "FE0117"),
+    ]
+    if has_coborrower:
+        _phone_backfill.append(
+            ("Co-Borrower", "coborr_p1_work_phone", "4534", "coborr_part2_phone", "FE0217")
+        )
+    for _who, _dest_key, _dest_fid, _src_key, _src_fid in _phone_backfill:
+        _dest_val = str(_los(state, _dest_key) or "").strip()
+        if _dest_val:
+            continue  # P1 work phone already populated — leave it
+        _src_val = str(_los(state, _src_key) or "").strip()
+        if not _src_val:
+            continue  # nothing to copy from Part 2
+        _write_fields(loan_id=loan_id, updates={_dest_fid: _src_val}, substep="4.1",
+                      flags=flags, state=state,
+                      labels={_dest_fid: f"{_who} Work Phone (P1) — copied from Part 2 phone ({_src_fid})"})
 
     # ── Rule: Housing Type / Rent Amount ──────────────────────────────────
     _housing_checks = [

@@ -224,9 +224,24 @@ Borrower summary origination
       server-side catchingDoc Appraisal schema to populate it; until then path (a)
       is dormant and (b)+(c) carry detection.
     - NO auto-write of property/project type — deliberately flag-only.
+    - API KEY / SECURITY: HASDATA_API_KEY lives in `.env` (gitignored). The
+      throwaway `hasdata.md` note at the repo root also held the raw key, so it was
+      added to `.gitignore` — safe to delete it since `.env` is the source of truth.
+      The Zillow client reads the key via `os.getenv` (LangGraph loads `.env` at
+      runtime); a plain `python` process needs `dotenv.load_dotenv()` first.
+    - HasData free tier = 1,000 credits/month; one lookup per loan at step 10
+      (only for non-condo properties, so condo/PUD loans spend nothing).
+    - Commits: PUD detection scaffolding `e0cc9f5`; live Zillow lookup `fc2c109`.
 
 1003 URLA P1
-- Copies work phone number from part 2 to this
+- If work phone number fields in P1 are empty, copy from phone number fields in part 2 (FE0117 FE0217) to work phone number fields in P1 (4533 4534)
+    - FIX (DONE): review_urla_page1 (4.1) backfills the P1 work phone — for
+      borrower (4533 ← FE0117) and co-borrower (4534 ← FE0217). Only fills when the
+      P1 field is BLANK (never overwrites an existing value) and only when Part 2
+      has a value to copy. Emits the standard audited write flag. Registered
+      4533/4534/FE0117/FE0217 in FIELD_MAP + step_04 YAML.
+
+1003 URLA P2
 - Income Calculation Worksheet
 
 1003 URLA P3

@@ -767,6 +767,24 @@
       ]
     },
     {
+      "key": "borr_p1_work_phone",
+      "field_id": "4533",
+      "field_name": "Borrower Work Phone (1003 URLA Page 1)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_p1_work_phone",
+      "field_id": "4534",
+      "field_name": "Co-Borrower Work Phone (1003 URLA Page 1)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borrower_sex",
       "field_id": "471",
       "field_name": "Borrower Sex",
@@ -1718,6 +1736,15 @@
       ]
     },
     {
+      "key": "borr_part2_phone",
+      "field_id": "FE0117",
+      "field_name": "Borrower Phone (1003 URLA Part 2)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_base_monthly_income",
       "field_id": "FE0119",
       "field_name": "Borrower \u2014 Base Monthly Income (Section 1b)",
@@ -1742,6 +1769,15 @@
       "category": "income",
       "used_by_steps": [
         "STEP_05"
+      ]
+    },
+    {
+      "key": "coborr_part2_phone",
+      "field_id": "FE0217",
+      "field_name": "Co-Borrower Phone (1003 URLA Part 2)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -3292,7 +3328,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 266,
+    "total_los_fields": 270,
     "total_doc_fields": 93,
     "total_document_types": 29,
     "total_steps": 11,
