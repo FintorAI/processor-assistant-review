@@ -6,9 +6,10 @@ Phase: FORM_UPDATES
 FHA-only. Two parts:
   1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from
      the CAIVRS document into the Encompass CAIVRS fields (write-only-if-blank).
-  2. FHA Case Number — confirm the FHA Case Number (field 1040) is assigned. The
-     number is assigned via FHA Connection, not written here; ADP code is 703 for
-     a standard 1-unit property.
+  2. FHA Case Number — write the assigned FHA Case Number (field 1040) from the
+     FHA Government Documents extraction when 1040 is blank. Field 1040 is the
+     same case-number field shown on the HUD-92900-LT, so one write covers both
+     forms. ADP code is 703 for a standard 1-unit property.
 
 No-op when loan_type != FHA.
 
@@ -82,8 +83,9 @@ def update_fha_management(
        the CAIVRS document into the Encompass CAIVRS fields (write-only-if-blank).
        Emits an info flag listing what was written. While the Encompass CAIVRS
        field IDs are unverified, the numbers are flagged for manual entry instead.
-    2. FHA Case Number — flag a warning if the FHA Case Number (field 1040) is
-       blank (assign via FHA Connection; ADP code 703 for a standard 1-unit).
+    2. FHA Case Number — write the assigned case number (field 1040) from the FHA
+       Government Documents extraction when 1040 is blank (same field as the
+       HUD-92900-LT); flag a warning if blank with nothing to write.
 
     No-op when loan_type != FHA. Call as STEP_11 substep 11.1.
     """
@@ -222,23 +224,51 @@ def update_fha_management(
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
-    # ── FHA Case Number ──
-    if not fha_case_number or str(fha_case_number).strip() == "":
-        flags.append({
-            "substep": "11.1",
-            "title": "FHA Case Number Missing",
-            "severity": "warning",
-            "details": "FHA Case Number (field 1040) is blank.",
-            "suggestion": "Assign the FHA Case Number via FHA Connection (ADP code 703 for a standard 1-unit property).",
-            "resolved": False,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+    # ── FHA Case Number (field 1040 — same field on FHA Management + HUD-92900-LT) ──
+    case_present = bool(fha_case_number and str(fha_case_number).strip())
+    if not case_present:
+        # Write-when-missing: source the assigned case number from the FHA
+        # Government Documents extraction.
+        case_doc = _clean(_doc(state, "fha_assigned_case_number"))
+        adp_doc = _clean(_doc(state, "fha_adp_code"))
+        if case_doc:
+            _write_fields(
+                loan_id, {"1040": case_doc}, substep="11.1", flags=flags,
+                state=state, labels={"1040": "FHA Case Number"},
+            )
+            case_present = True
+            adp_note = f" (ADP code {adp_doc})" if adp_doc else ""
+            flags.append({
+                "substep": "11.1",
+                "title": "FHA Case Number Written",
+                "severity": "info",
+                "details": (
+                    f"Field 1040 was blank — wrote FHA Case Number {case_doc}{adp_note} "
+                    "from FHA Government Documents. This is the same field shown on the "
+                    "HUD-92900-LT."
+                ),
+                "suggestion": "Verify the FHA Case Number on the FHA Management screen against the document.",
+                "resolved": True,
+                "relevant_documents": ["FHA Government Documents"],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        else:
+            flags.append({
+                "substep": "11.1",
+                "title": "FHA Case Number Missing",
+                "severity": "warning",
+                "details": "FHA Case Number (field 1040) is blank and none was extracted from FHA Government Documents.",
+                "suggestion": "Assign the FHA Case Number via FHA Connection (ADP code 703 for a standard 1-unit property).",
+                "resolved": False,
+                "relevant_documents": ["FHA Government Documents"],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
 
     result = {
         "success": True,
         "substep": "11.1",
         "tool": "update_fha_management",
-        "fha_case_number_present": bool(fha_case_number and str(fha_case_number).strip()),
+        "fha_case_number_present": case_present,
         "caivrs_numbers_found": len(present),
         "caivrs_numbers_written": len(written_labels),
         "caivrs_extra_numbers": len(extras),

@@ -504,6 +504,23 @@
         "authorization_date"
       ]
     },
+    "fha_government_documents": {
+      "name": "FHA Government Documents",
+      "efolder_doc_type": "FHA Government Documents",
+      "category": "loan_info",
+      "optional": true,
+      "aliases": [
+        "FHA Case Number Assignment",
+        "Case Number Assignment",
+        "FHA Connection"
+      ],
+      "fields_extracted": [
+        "fha_assigned_case_number",
+        "fha_adp_code",
+        "fha_section_of_act",
+        "fha_case_assignment_date"
+      ]
+    },
     "drivers_license": {
       "name": "Driver's License",
       "category": "identity",

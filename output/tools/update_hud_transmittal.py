@@ -22,7 +22,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _profile
+from ._helpers import _doc, _los, _profile
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,14 @@ def update_hud_transmittal(
 
     flags: list[dict] = []
     fha_case_number = _los(state, "fha_case_number")
-    case_present = bool(fha_case_number and str(fha_case_number).strip())
+    # Field 1040 is the same case-number field FHA Management (11.1) may have just
+    # written; state["los_fields"] isn't refreshed after a write, so also accept the
+    # assigned case number from FHA Government Documents as "present".
+    case_doc = _doc(state, "fha_assigned_case_number")
+    case_present = bool(
+        (fha_case_number and str(fha_case_number).strip())
+        or (case_doc and str(case_doc).strip())
+    )
 
     flags.append({
         "substep": "11.2",

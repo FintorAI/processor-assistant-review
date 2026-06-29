@@ -3022,6 +3022,42 @@
       ]
     },
     {
+      "key": "fha_adp_code",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_assigned_case_number",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_case_assignment_date",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_section_of_act",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "flood_cert_present",
       "source_documents": [
         "Flood Certificate"
@@ -3429,8 +3465,8 @@
   ],
   "stats": {
     "total_los_fields": 275,
-    "total_doc_fields": 99,
-    "total_document_types": 30,
+    "total_doc_fields": 103,
+    "total_document_types": 31,
     "total_steps": 12,
     "categories": [
       "assets",
@@ -3461,6 +3497,7 @@
       "Driver's License",
       "Estimated Settlement Statement",
       "Evidence of Hazard Insurance",
+      "FHA Government Documents",
       "Flood Certificate",
       "General Letter of Explanation",
       "Gift Letter",

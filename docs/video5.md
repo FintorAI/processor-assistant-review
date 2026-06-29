@@ -332,9 +332,17 @@ FHA Management (substep 11.1, update_fha_management)
       Field IDs 1018/1144/3067/3068 added to FIELD_MAP + step_11 los_fields_read.
 - Case number
     - FHA Government Documents -> FHA Case Number (field id 1040) (special code, 703 since its a regular property)
-    - FIX (DONE — flag): update_fha_management reads field 1040 (added to FIELD_MAP
-      as `fha_case_number`) and raises "FHA Case Number Missing" if blank. The case
-      number is assigned via FHA Connection, not written by the agent.
+    - FIX (DONE — write): update_fha_management writes field 1040 (in FIELD_MAP as
+      `fha_case_number`) write-only-if-blank from the assigned case number extracted
+      from the FHA Government Documents bucket. Field 1040 is the SAME case-number
+      field shown on the HUD-92900-LT, so one write covers both forms. New doc type
+      "FHA Government Documents" schema added + pushed live (LG-docsOrch/devTool/
+      catchingDoc/schemas/FHA_Government_Documents_schema.json: fha_assigned_case_
+      number, fha_adp_code, fha_section_of_act, fha_case_assignment_date) and mirrored
+      as the `fha_government_documents` bucket in required_docs.json +
+      required_docs_conditions.json (bucket "FHA Government Documents"). Raises
+      "FHA Case Number Written" (info) on write, or "FHA Case Number Missing"
+      (warning) only when 1040 is blank AND nothing was extracted.
 
 HUD Transmittal (substep 11.2, update_hud_transmittal)
 - Underwriter normally fills this out
@@ -344,7 +352,10 @@ HUD Transmittal (substep 11.2, update_hud_transmittal)
     - FIX (DONE — flag-only): update_hud_transmittal is FHA-gated and flag-only
       (the underwriter completes the HUD-92900-LT). Always raises a "HUD-92900-LT
       Review Required" info flag (verify Source/EIN = MMP/52 + case number + ADP
-      703), plus a "Case Number Missing" warning when field 1040 is blank.
+      703). The case number is the SAME field 1040 written in FHA Management (11.1);
+      since state isn't refreshed after a write, HUD treats 1040 as present when
+      either the field or the FHA Government Documents extraction has it, and only
+      warns "Case Number Missing" when both are empty.
 
 Transmittal Summary
 - Project type == Other: PUD, Property Type == PUD

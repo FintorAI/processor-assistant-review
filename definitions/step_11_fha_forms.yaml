@@ -73,6 +73,17 @@ substeps:
       purpose: Fourth applicant CAIVRS Authorization Number
     - key: authorization_date
       purpose: Date CAIVRS authorization was run
+  - document_type: FHA Government Documents
+    all_copies: false
+    fields:
+    - key: fha_assigned_case_number
+      purpose: HUD-assigned FHA Case Number (written to field 1040 if blank)
+    - key: fha_adp_code
+      purpose: ADP code accompanying the case number (e.g. 703)
+    - key: fha_section_of_act
+      purpose: Section of the National Housing Act (e.g. 203(b))
+    - key: fha_case_assignment_date
+      purpose: Date the FHA Case Number was assigned
   rules:
   - name: Write CAIVRS Authorization Numbers
     type: custom
@@ -83,12 +94,15 @@ substeps:
       is written, stamp CAIVRS Date Updated (3067, MM/DD/YYYY = today) and CAIVRS
       Updated By (3068 = adesai). Extra applicants (coborrower2/3) have no
       Encompass CAIVRS field, so their numbers are flagged for manual entry.
-  - name: FHA Case Number Present
-    type: existence_check
+  - name: Write FHA Case Number
+    type: custom
     logic: >
-      Flag a warning if the FHA Case Number (field 1040) is blank — it must be
-      assigned via FHA Connection before submission. ADP code is 703 for a
-      standard 1-unit property.
+      If the FHA Case Number (field 1040) is blank and the FHA Government
+      Documents extraction has an assigned case number, write it to field 1040
+      (this is the same field shown on the HUD-92900-LT, so one write covers
+      both forms). If 1040 is blank and no case number was extracted, flag a
+      warning — it must be assigned via FHA Connection before submission. ADP
+      code is 703 for a standard 1-unit property.
   flags:
   - title: CAIVRS Numbers Written
     severity: info
@@ -104,9 +118,13 @@ substeps:
     severity: warning
     condition: FHA loan with no CAIVRS document / no Authorization Numbers extracted
     suggestion: Run CAIVRS Authorization in FHA Connection and upload the result to the eFolder
+  - title: FHA Case Number Written
+    severity: info
+    condition: Field 1040 was blank and the assigned case number from FHA Government Documents was written
+    suggestion: Verify the FHA Case Number on the FHA Management screen against the document
   - title: FHA Case Number Missing
     severity: warning
-    condition: FHA loan with blank FHA Case Number (field 1040)
+    condition: FHA loan with blank FHA Case Number (field 1040) and none extracted from FHA Government Documents
     suggestion: Assign the FHA Case Number via FHA Connection (ADP code 703 for standard 1-unit)
 
 - id: '11.2'
@@ -130,7 +148,13 @@ substeps:
     field_id: '1040'
     field_name: FHA/VA Agency Case Number
     category: loan_info
-    purpose: HUD-92900-LT requires the case number
+    purpose: HUD-92900-LT requires the case number (same field 1040 as FHA Management)
+  doc_types:
+  - document_type: FHA Government Documents
+    all_copies: false
+    fields:
+    - key: fha_assigned_case_number
+      purpose: Assigned case number (accepts as present even before state refresh)
   rules:
   - name: HUD-92900-LT Review
     type: existence_check
