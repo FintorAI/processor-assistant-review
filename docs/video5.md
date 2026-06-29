@@ -266,6 +266,33 @@ Borrower summary origination
 1003 URLA P3
 - If Assets has Retirement Funds and loan is FHA, extract value from the Retirement Account Statement (see screenshot)
     - If FHA loan, only 60% of the value should be used, so this should match with what's in encompass (Amount x.6)
+    - FIX (DONE — schema): added a dedicated "Retirement Account Statement" doc type
+      to catchingDoc / eFolder (LG-docsOrch/devTool/catchingDoc/schemas/
+      Retirement_Account_Statement_schema.json, pushed live — Version 0, IsActive).
+      Distinct from the depository Bank Statement and the thin generic "Assets"
+      schema. Extracts the fields the FHA haircut needs: vested_balance,
+      total_value, ending_balance, outstanding_loan_balance (401k loans subtracted
+      first), eligible_withdrawal_amount, terms_of_withdrawal_present (100%-access
+      evidence), is_retirement_account, plus institution/owner/account-type/date
+      fields. Verification field = vested_balance (fallbacks total_value →
+      ending_balance). Mirrored as the `retirement_account_statement` bucket in
+      output/config/required_docs.json so the agent picks up these fields.
+    - FIX (DONE — rule): review_urla_assets (6.1) section 5b now computes, for FHA
+      loans, expected = (vested − outstanding 401(k) loan) × 0.6 and compares it to
+      the matched retirement account amount in the Encompass 2a/VOD:
+        - within $1 → info "FHA Retirement 60% Haircut Matches 2a/VOD".
+        - mismatch → warning showing vested, loan, the 60% expected figure, the
+          Encompass amount, and the delta; suggests correcting to vested × 0.6.
+        - when terms_of_withdrawal_present and the VOD equals 100% of net vested →
+          info "Uses 100% — Terms of Withdrawal Documented" (no false mismatch).
+        - retirement account missing from the 2a/VOD → warning with the expected
+          60% amount to enter.
+      Reads the new Retirement Account Statement fields (vested_balance,
+      total_value/ending_balance fallback, outstanding_loan_balance,
+      terms_of_withdrawal_present), also catches retirement accounts mis-filed in
+      the generic Assets bucket, and feeds retirement copies into the VOD-coverage
+      check so retirement VOD rows aren't flagged as unsupported. Flag-only —
+      never overwrites the VOD.
 
 2015 Itemization 
 - Doesn’t really need any money for closing (negative CTC)
@@ -273,7 +300,7 @@ Borrower summary origination
 FHA Management
 - CAIVRS # is extracted from CAIVRS document in efolder for borrower and co-borrower
 - Case number
-    - FHA Government Documents -> Case Number (special code, 703 since its a regular property)
+    - FHA Government Documents -> FHA Case Number (field id 1040) (special code, 703 since its a regular property)
 
 HUD Transmittal
 - Underwriter normally fills this out
@@ -291,18 +318,19 @@ Transmittal Summary
       (1041) = PUD, and embeds the Zillow deep-link for the address. Project Name
       (CX.CONDO.PROJECT.NAME) stays a CUA/browser lookup (cannot be derived here).
 
-
 For FHA loans, bucket is HUD .. Transmittal (verify in efolder)
 
-- Run AUS
-    - Button on Fintor that runs these
-    - 95% are Fannie Mae
-
+UI fixes:
 - Make mark as ready for UW button configurable
 	- Retirement statement (Fidelity) / terms of withdrawal
-
-- Hit finished on the In Processing / Submitted today loan
+- Maybe add as a button?
+    - Hit finished on the In Processing / Submitted today loan
 
 - Homebuyers education cert
 - DPA registration
 - DPA approval
+
+Blocked:
+- Run AUS
+    - Button on Fintor that runs these
+    - 95% are Fannie Mae

@@ -143,6 +143,63 @@ def _norm_type(val: str) -> str:
     return raw
 
 
+def _truthy(v) -> bool:
+    """Loose boolean parse for extracted indicator fields."""
+    if isinstance(v, bool):
+        return v
+    return str(v or "").strip().lower() in ("true", "yes", "y", "1", "x", "checked")
+
+
+def _retirement_records(copies: list, assume_retirement: bool) -> list:
+    """Build normalized retirement records from full eFolder copy dicts.
+
+    ``assume_retirement`` — when True (dedicated "Retirement Account Statement"
+    bucket) every copy is treated as a retirement account; when False (generic
+    "Assets" bucket) only copies flagged ``is_retirement_account`` or whose
+    account_type normalizes to "retirement" are kept.
+    """
+    recs: list = []
+    for copy in copies or []:
+        if not _copy_has_fields(copy):
+            continue
+        atype = (_copy_field(copy, "account_type") or "")
+        is_ret = _truthy(_copy_field(copy, "is_retirement_account"))
+        if not assume_retirement and not (is_ret or _norm_type(atype) == "retirement"):
+            continue
+        acct_raw = _copy_field(copy, "account_number", "account_number_last4", "asset_account_number")
+        recs.append({
+            "vested":          _parse_float(_copy_field(copy, "vested_balance", "total_value", "ending_balance")),
+            "outstanding":     _parse_float(_copy_field(copy, "outstanding_loan_balance")),
+            "terms_present":   _truthy(_copy_field(copy, "terms_of_withdrawal_present")),
+            "institution_raw": (_copy_field(copy, "institution_name") or "").strip(),
+            "institution":     (_copy_field(copy, "institution_name") or "").strip().lower(),
+            "last4":           _last_four(acct_raw),
+            "account_type":    atype,
+        })
+    return recs
+
+
+def _match_retirement_vod(rec: dict, vod_rows: list) -> Optional[dict]:
+    """Find the 2a/VOD row that corresponds to a retirement statement record."""
+    ret_rows = [r for r in vod_rows if _norm_type(r.get("account_type")) == "retirement"]
+    last4 = rec.get("last4")
+    if last4:
+        for r in ret_rows:
+            if _last_four(r.get("account_number")) == last4:
+                return r
+        for r in vod_rows:  # account number wins even if type label is off
+            if _last_four(r.get("account_number")) == last4:
+                return r
+    inst = rec.get("institution")
+    if inst:
+        for r in ret_rows:
+            if inst in (r.get("institution_name") or "").lower():
+                return r
+    if len(ret_rows) == 1:
+        return ret_rows[0]
+    return None
+
+
 def _compare_with_vod(
     doc_copies: list,            # normalised bank-statement or asset copies
     vod_rows: list,              # from state['vod_data']
@@ -320,10 +377,16 @@ def review_urla_assets(
            • value mismatch (> $1)      → warning (VOD left untouched)
            • account missing from VOD   → populated into the 2a/VOD via add_vods
       5. Cross-reference asset doc balances against VOD data (warn-only).
+      5b. FHA retirement 60% haircut: for FHA loans, compares the Encompass
+          2a/VOD retirement amount against vested × 0.6 (net of any 401(k)
+          loan). Match → info; mismatch → warning. When terms of withdrawal
+          are documented, 100% of the net vested balance is accepted as a match.
       6. VOD coverage — flags accounts in VOD with no matching doc.
 
     Reads LOS:  total_assets, checking_balance, savings_balance
-    Reads Docs: Bank Statement (all copies), Assets (all copies)
+    Reads Docs: Bank Statement (all copies), Assets (all copies),
+                Retirement Account Statement (vested_balance, total_value,
+                outstanding_loan_balance, terms_of_withdrawal_present, ...)
     Reads State: vod_data (populated by fetch_vod_data)
 
     Call this tool during STEP_06 (1003 URLA Part 3) as substep 6.1.
@@ -533,6 +596,123 @@ def review_urla_assets(
                 _f["relevant_documents"] = _asset_refs
         flags += _asset_vod_flags
 
+    # ── 5b. FHA retirement 60% haircut ───────────────────────────────────────
+    # FHA counts only 60% of a retirement account's vested balance (net of any
+    # loan against it) toward funds — unless terms of withdrawal evidence the
+    # borrower can access 100%. The Encompass 2a/VOD amount for the retirement
+    # account should therefore equal vested × 0.6 (net of loans). Flag only —
+    # never overwrites the VOD.
+    retirement_full_copies = efolder_docs.get("Retirement Account Statement", {}).get("copies", [])
+    if is_fha:
+        ret_records = _retirement_records(retirement_full_copies, assume_retirement=True)
+        # Catch retirement accounts mis-filed under the generic Assets bucket.
+        ret_records += _retirement_records(asset_full_copies, assume_retirement=False)
+        # Single-value fallback: vested_balance is retirement-specific (bank
+        # statements never carry it), so doc_fields presence is a safe signal.
+        if not ret_records:
+            _v = _parse_float(_doc(state, "vested_balance"))
+            if _v is not None:
+                ret_records = [{
+                    "vested":          _v,
+                    "outstanding":     _parse_float(_doc(state, "outstanding_loan_balance")),
+                    "terms_present":   _truthy(_doc(state, "terms_of_withdrawal_present")),
+                    "institution_raw": (_doc(state, "institution_name") or "").strip(),
+                    "institution":     (_doc(state, "institution_name") or "").strip().lower(),
+                    "last4":           _last_four(_doc(state, "account_number_last4") or _doc(state, "account_number")),
+                    "account_type":    _doc(state, "account_type") or "",
+                }]
+
+        _ret_refs = _relevant_docs(state, doc_types=["Retirement Account Statement", "Assets"])
+        for rec in ret_records:
+            vested = rec.get("vested")
+            inst_label = rec.get("institution_raw") or "retirement account"
+            if vested is None:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement Value Not Extracted ({inst_label})",
+                    "warning",
+                    "A retirement account statement is present but no vested/total balance "
+                    "could be extracted, so the FHA 60% haircut could not be verified.",
+                    "Manually confirm the Encompass 2a/VOD shows 60% of the vested balance "
+                    "(net of any 401(k) loan).",
+                    docs=_ret_refs,
+                ))
+                continue
+
+            outstanding = rec.get("outstanding") or 0.0
+            net = max(vested - outstanding, 0.0)
+            expected = round(net * 0.60, 2)        # standard FHA retirement haircut
+            expected_full = round(net, 2)          # 100% when terms of withdrawal allow it
+            terms_present = rec.get("terms_present")
+            basis = f"vested ${vested:,.2f}" + (f" − 401(k) loan ${outstanding:,.2f}" if outstanding else "")
+
+            matched = _match_retirement_vod(rec, vod_rows)
+            vod_balance = matched.get("balance") if matched else None
+            if matched and vod_balance is not None:
+                inst_label = matched.get("institution_name") or inst_label
+
+            if matched is None:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement Account Not in 2a/VOD ({inst_label})",
+                    "warning",
+                    f"Retirement statement shows {basis}. FHA-eligible at 60% = ${expected:,.2f}, "
+                    f"but no matching retirement account was found in the Encompass 2a/VOD.",
+                    f"Add the retirement account to the 2a/VOD at ${expected:,.2f} (vested × 0.6"
+                    + (", or up to ${0:,.2f} at 100% with terms of withdrawal".format(expected_full) if terms_present else "")
+                    + ").",
+                    docs=_ret_refs,
+                ))
+                continue
+
+            if vod_balance is None:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement Amount Unverifiable in 2a/VOD ({inst_label})",
+                    "info",
+                    f"Retirement statement shows {basis} (FHA-eligible at 60% = ${expected:,.2f}), "
+                    f"but the Encompass 2a/VOD balance could not be read to compare.",
+                    "Manually confirm the 2a/VOD shows 60% of vested (net of any loan).",
+                    docs=_ret_refs,
+                ))
+                continue
+
+            if abs(vod_balance - expected) <= 1.00:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement 60% Haircut Matches 2a/VOD ({inst_label})",
+                    "info",
+                    f"{basis}; FHA-eligible at 60% = ${expected:,.2f} matches the Encompass "
+                    f"2a/VOD amount ${vod_balance:,.2f} (within $1).",
+                    "",
+                    docs=_ret_refs,
+                ))
+            elif terms_present and abs(vod_balance - expected_full) <= 1.00:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement Uses 100% — Terms of Withdrawal Documented ({inst_label})",
+                    "info",
+                    f"{basis}; Encompass 2a/VOD amount ${vod_balance:,.2f} equals 100% of the net "
+                    f"vested balance. Terms of withdrawal are present on the statement, which can "
+                    f"support using 100% instead of the 60% FHA haircut (${expected:,.2f}).",
+                    "Verify the terms of withdrawal support 100% usage; otherwise reduce to "
+                    f"${expected:,.2f} (vested × 0.6).",
+                    docs=_ret_refs,
+                ))
+            else:
+                flags.append(_flag(
+                    "6.1",
+                    f"FHA Retirement 60% Haircut Mismatch ({inst_label})",
+                    "warning",
+                    f"{basis}; FHA-eligible at 60% = ${expected:,.2f}, but the Encompass 2a/VOD "
+                    f"shows ${vod_balance:,.2f} (Δ ${abs(vod_balance - expected):,.2f})."
+                    + (f" Terms of withdrawal are present, so up to ${expected_full:,.2f} (100%) "
+                       "may be allowed." if terms_present else ""),
+                    "Update the Encompass retirement asset to vested × 0.6 (net of any 401(k) "
+                    "loan)" + (", unless terms of withdrawal support using 100%." if terms_present else "."),
+                    docs=_ret_refs,
+                ))
+
     # ── 6. VOD coverage — accounts in VOD with no matching doc ───────────────
     if vod_rows:
         matched_vod_ids = set()
@@ -553,6 +733,7 @@ def review_urla_assets(
 
         _check_matches(bank_stmt_full_copies or bank_statement_copies, "bank_account_number")
         _check_matches(asset_full_copies or asset_acct_copies, "asset_account_number")
+        _check_matches(retirement_full_copies, "account_number")
 
         for row in vod_rows:
             key = row["vod_id"] + "_" + (row.get("account_number") or "")

@@ -394,6 +394,50 @@
         "asset_balance"
       ]
     },
+    "retirement_account_statement": {
+      "name": "Retirement Account Statement",
+      "efolder_doc_type": "Retirement Account Statement",
+      "category": "assets",
+      "aliases": [
+        "Retirement Statement",
+        "401k Statement",
+        "401(k) Statement",
+        "403b Statement",
+        "IRA Statement",
+        "Roth IRA Statement",
+        "Pension Statement",
+        "Investment Statement",
+        "Brokerage Statement",
+        "Edward Jones",
+        "Fidelity Statement",
+        "Vanguard Statement",
+        "Empower Statement",
+        "Charles Schwab Statement",
+        "TSP Statement"
+      ],
+      "fields_extracted": [
+        "institution_name",
+        "account_holder_name",
+        "borrower_name",
+        "account_owner_type",
+        "account_type",
+        "is_retirement_account",
+        "account_number",
+        "account_number_last4",
+        "statement_period_start",
+        "statement_period_end",
+        "statement_date",
+        "beginning_balance",
+        "ending_balance",
+        "total_value",
+        "vested_balance",
+        "eligible_withdrawal_amount",
+        "outstanding_loan_balance",
+        "contributions_ytd",
+        "terms_of_withdrawal_present",
+        "assets_present"
+      ]
+    },
     "purchase_agreement": {
       "name": "Purchase Agreement",
       "category": "contract",
