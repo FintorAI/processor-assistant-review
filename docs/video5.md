@@ -187,27 +187,43 @@ Borrower summary origination
       (field 233) + property_type/attachment `Attached` + project type not Condo.
       Flag-to-verify, not auto-write, since misclassifying property type affects
       pricing/eligibility.
-    - FIX (DONE, path c = both a + b): update_transmittal_summary (10.1) now runs
-      PUD detection on non-condo properties. Signals:
+    - FIX (DONE, path c = a + b + external Zillow): update_transmittal_summary
+      (10.1) now runs PUD detection on non-condo properties. Signals:
         (a) document-backed — appraisal `appraisal_project_type` (URAR Project Type
             checkbox) indicates PUD (authoritative);
         (b) heuristic — HOA dues present (field 233, now read into state) +
-            Attached dwelling (CX.ATTACHMENT.TYPE or property_type).
+            Attached dwelling (CX.ATTACHMENT.TYPE or property_type);
+        (c) external — live Zillow lookup via HasData (shared/zillow_client.py):
+            home/structure type (Townhouse/Condo/…), `hasAttachedProperty`, and
+            HOA dues parsed from `atAGlanceFacts`. This AUTOMATES the manual
+            "Go to Zillow" check. Best-effort: needs HASDATA_API_KEY (in .env);
+            on any error/disabled it silently falls back to (a)+(b) + a deep-link.
       When any signal is present it SKIPS the old "Not in a Project" 1012 auto-write
       and raises a `Possible PUD — Verify Property / Project Type` flag (warning if
-      the appraisal says PUD or HOA+Attached agree, else info). The flag carries a
-      Zillow address deep-link (`https://www.zillow.com/homes/<addr>_rb/`) so the
-      processor can do the manual "Go to Zillow" check, and recommends setting
-      Property Type (1041) = PUD and Project Type (1012) = "Other: P/PUD".
+      the appraisal says PUD, HOA+Attached agree, or 2+ Zillow signals; else info).
+      The flag carries the real Zillow listing URL (or an address deep-link
+      fallback) and recommends setting Property Type (1041) = PUD and Project Type
+      (1012) = "Other: P/PUD".
+    - Zillow client uses HasData's Zillow Listing API
+      (`https://api.hasdata.com/scrape/zillow/listing`, keyword=full address) — raw
+      requests+BeautifulSoup against zillow.com gets 403'd; HasData handles proxy
+      rotation / CAPTCHA. Pass the FULL address (street, city, state, ZIP); a
+      partial/typo'd address returns a search-results page (no single property).
+    - Verified live on the real subject 12859 Climbing Ivy Dr, Germantown, MD
+      20874 → home_type=TOWNHOUSE, structure=End of Row/Townhouse, HOA=$88/mo →
+      PUD detected (2 signals → warning). Control: 5548 Daffodil Dr →
+      SINGLE_FAMILY, Ranch/Rambler, no HOA → correctly NO PUD signal.
+    - IMPORTANT FINDING: Zillow's `hasAttachedProperty` boolean is UNRELIABLE — it
+      returned False for the Climbing Ivy end-of-row townhouse that obviously
+      shares a wall. So detection leans on `home_type`/`structure_type`
+      (townhouse/row/duplex/twin/condo/…) + HOA dues, NOT on that boolean (the
+      boolean is still used as a bonus signal when True, never to suppress).
     - Registered field 233 (HOA dues) in FIELD_MAP + step_10 YAML; added an
       `appraisal` doc bucket (read-side, `appraisal_project_type`) to
       required_docs.json. NOTE: the appraisal Project Type field still needs the
       server-side catchingDoc Appraisal schema to populate it; until then path (a)
-      is dormant and the heuristic (b) carries detection.
+      is dormant and (b)+(c) carry detection.
     - NO auto-write of property/project type — deliberately flag-only.
-    - External "Zillow API": no authoritative PUD-classification endpoint and no
-      API key available, so the integration is a deep-link the processor opens
-      (mirrors the manual workflow) rather than a live lookup.
 
 1003 URLA P1
 - Copies work phone number from part 2 to this

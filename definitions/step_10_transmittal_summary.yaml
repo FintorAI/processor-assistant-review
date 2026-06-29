@@ -128,13 +128,17 @@ substeps:
   - name: PUD Detection
     type: custom
     logic: >
-      For a non-condo property, gather PUD signals: (a) document-backed — the
-      appraisal (URAR/1004) Project Type checkbox indicates PUD; (b) heuristic —
-      HOA dues present (field 233) plus an Attached dwelling (CX.ATTACHMENT.TYPE
-      or property_type). When any signal is present, do NOT auto-set field 1012 to
-      "Not in a Project"; instead raise a flag-to-verify (warning if appraisal or
-      HOA+Attached agree, else info) with a Zillow address deep link. No
-      property/project type is auto-written — the processor confirms.
+      For a non-condo property, gather PUD signals from three sources:
+      (a) document-backed — the appraisal (URAR/1004) Project Type checkbox
+      indicates PUD; (b) heuristic — HOA dues present (field 233) plus an Attached
+      dwelling (CX.ATTACHMENT.TYPE or property_type); (c) external — Zillow public
+      records via HasData (home/structure type, hasAttachedProperty, HOA dues),
+      which automates the manual "Go to Zillow" check (needs HASDATA_API_KEY;
+      best-effort). When any signal is present, do NOT auto-set field 1012 to
+      "Not in a Project"; instead raise a flag-to-verify (warning if the appraisal
+      says PUD, HOA+Attached agree, or 2+ Zillow signals; else info) with the
+      Zillow listing URL (or an address deep link as fallback). No property/project
+      type is auto-written — the processor confirms.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning

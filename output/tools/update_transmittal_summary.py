@@ -9,12 +9,15 @@ What this agent does:
   2. Project Type info — read field 1553, surface as info flag.
   3. Condo pending flag — if property is Condo/PUD and project fields are blank,
      flag info that the computer-use agent must run Freddie Mac Condo Project Advisor.
-  4. PUD detection — for a non-condo property, look for PUD indicators
-     (document-backed appraisal Project Type, plus the heuristic of HOA dues +
-     Attached dwelling). When present, skip the "Not in a Project" auto-write and
-     raise a flag-to-verify with a Zillow deep link (matches the manual
-     "Go to Zillow" workflow). No auto-write of property/project type — the
-     processor confirms, since misclassification affects pricing/eligibility.
+  4. PUD detection — for a non-condo property, look for PUD indicators from three
+     sources: (a) document-backed appraisal Project Type; (b) heuristic of HOA
+     dues (field 233) + Attached dwelling; (c) external Zillow public records via
+     HasData (home/structure type, hasAttachedProperty, HOA dues) — this automates
+     the manual "Go to Zillow" check and needs HASDATA_API_KEY (best-effort: falls
+     back to a Zillow deep link if disabled/unavailable). When any signal is
+     present, skip the "Not in a Project" auto-write and raise a flag-to-verify.
+     No auto-write of property/project type — the processor confirms, since
+     misclassification affects pricing/eligibility.
 
 What this agent does NOT do:
   - Populate Project Name (CX.CONDO.PROJECT.NAME) — requires browser lookup (CUA).
@@ -181,7 +184,7 @@ def update_transmittal_summary(
     def _normalise_1012(val: str) -> str:
         return val.lower().replace(" ", "").replace("_", "").replace("/", "").replace(":", "").replace("-", "").replace(".", "")
 
-    # ── PUD detection signals (path c: document-backed + heuristic) ─────────
+    # ── PUD detection (path c: document-backed + heuristic + external Zillow) ─
     # (a) document-backed: appraisal "Project Type" checkbox == PUD (authoritative)
     _appraisal_says_pud = any(
         t in (appraisal_project_type or "").lower()
@@ -193,20 +196,47 @@ def update_transmittal_summary(
     _attached = _is_attached(attachment_type) or _is_attached(property_type)
 
     pud_signals: list[str] = []
-    if _appraisal_says_pud:
-        pud_signals.append(f"Appraisal Project Type indicates PUD ({appraisal_project_type!r})")
-    if _hoa_present:
-        pud_signals.append(f"HOA dues present (field 233 = {hoa_dues})")
-    if _attached:
-        pud_signals.append("Property is Attached")
 
     if not _is_condo(property_type):
+        if _appraisal_says_pud:
+            pud_signals.append(f"Appraisal Project Type indicates PUD ({appraisal_project_type!r})")
+        if _hoa_present:
+            pud_signals.append(f"HOA dues present (field 233 = {hoa_dues})")
+        if _attached:
+            pud_signals.append("Property is Attached (Encompass)")
+
+        # (c) external — Zillow public records (best-effort; needs HASDATA_API_KEY).
+        # Automates the manual "Go to Zillow" check the processor does to eyeball
+        # whether the subject is attached / in a community with HOA dues.
+        zillow_url = None
+        zillow_signals: list[str] = []
+        try:
+            from shared.zillow_client import is_pud_indicative, lookup_property_sync
+            zf = lookup_property_sync(
+                _los(state, "property_address"),
+                _los(state, "property_city"),
+                _los(state, "property_state"),
+                _los(state, "property_zip"),
+            )
+            if zf.found:
+                zillow_url = zf.url
+                if zf.has_attached_property:
+                    _attached = True
+                _, zillow_signals = is_pud_indicative(zf)
+                pud_signals.extend(zillow_signals)
+        except Exception as e:  # noqa: BLE001 — a lookup must never break the agent
+            logger.warning(f"[UPDATE_TRANSMITTAL_SUMMARY] Zillow lookup failed: {e}")
+
         if pud_signals:
             # Do NOT auto-stamp "Not in a Project" — the subject shows PUD indicators.
             # Flag-to-verify only: misclassifying property/project type affects
             # pricing/eligibility, so leave the final call to the processor.
-            _strong = _appraisal_says_pud or (_hoa_present and _attached)
-            zurl = _zillow_search_url(
+            _strong = (
+                _appraisal_says_pud
+                or (_hoa_present and _attached)
+                or len(zillow_signals) >= 2
+            )
+            link = zillow_url or _zillow_search_url(
                 _los(state, "property_address"),
                 _los(state, "property_city"),
                 _los(state, "property_state"),
@@ -225,7 +255,7 @@ def update_transmittal_summary(
                 ),
                 "suggestion": (
                     "Verify whether the subject sits in a Planned Unit Development"
-                    + (f" — Zillow: {zurl}" if zurl else "")
+                    + (f" — Zillow: {link}" if link else "")
                     + ". If it is a PUD, set Property Type (field 1041) = PUD and "
                     "Project Type (field 1012) = 'Other: P/PUD'. "
                     + (
