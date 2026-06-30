@@ -166,6 +166,15 @@
       ]
     },
     {
+      "key": "condo_project_name",
+      "field_id": "1298",
+      "field_name": "Condo Project Name (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
+      ]
+    },
+    {
       "key": "property_county",
       "field_id": "13",
       "field_name": "Property County",
@@ -573,6 +582,15 @@
       "category": "credit",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "condo_project_id",
+      "field_id": "3050",
+      "field_name": "CPM Project ID",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
       ]
     },
     {
@@ -1641,24 +1659,6 @@
       "used_by_steps": [
         "STEP_03",
         "STEP_07",
-        "STEP_10"
-      ]
-    },
-    {
-      "key": "condo_project_id",
-      "field_id": "CX.CONDO.PROJECT.ID",
-      "field_name": "Condo Project ID",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_10"
-      ]
-    },
-    {
-      "key": "condo_project_name",
-      "field_id": "CX.CONDO.PROJECT.NAME",
-      "field_name": "Condo Project Name",
-      "category": "property",
-      "used_by_steps": [
         "STEP_10"
       ]
     },
@@ -3103,6 +3103,15 @@
       ]
     },
     {
+      "key": "hoa_dues",
+      "source_documents": [
+        "HOA Statement"
+      ],
+      "used_by_steps": [
+        "STEP_12"
+      ]
+    },
+    {
       "key": "hoa_statement_present",
       "source_documents": [
         "HOA Statement"
@@ -3391,6 +3400,15 @@
       ]
     },
     {
+      "key": "title_company",
+      "source_documents": [
+        "Title Report"
+      ],
+      "used_by_steps": [
+        "STEP_12"
+      ]
+    },
+    {
       "key": "title_legal_description",
       "source_documents": [
         "Title Report"
@@ -3465,7 +3483,7 @@
   ],
   "stats": {
     "total_los_fields": 275,
-    "total_doc_fields": 103,
+    "total_doc_fields": 105,
     "total_document_types": 31,
     "total_steps": 12,
     "categories": [

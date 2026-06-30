@@ -231,8 +231,8 @@ FIELD_MAP = {
     "CX.APPRAISAL.WAIVER": {"key": "appraisal_waiver", "field_name": "Appraisal Waiver", "category": "collateral"},
     "CX.ATTACHMENT.TYPE": {"key": "attachment_type", "field_name": "Attachment Type (Attached/Detached)", "category": "property"},
     "CX.AUS.COLLATERAL.RELIEF": {"key": "aus_collateral_relief", "field_name": "AUS Collateral Relief", "category": "aus"},
-    "CX.CONDO.PROJECT.ID": {"key": "condo_project_id", "field_name": "Condo Project ID", "category": "property"},
-    "CX.CONDO.PROJECT.NAME": {"key": "condo_project_name", "field_name": "Condo Project Name", "category": "property"},
+    "3050": {"key": "condo_project_id", "field_name": "CPM Project ID", "category": "property"},
+    "1298": {"key": "condo_project_name", "field_name": "Condo Project Name (Transmittal Summary)", "category": "property"},
     "CX.CONDO.PROJECT.TYPE": {"key": "condo_project_type", "field_name": "Condo Project Type", "category": "property"},
     "CX.DOC.TYPE": {"key": "doc_type", "field_name": "Doc Type (Wet / E-sign / Hybrid)", "category": "processor_workflow"},
     "CX.FINAL.VESTING": {"key": "final_vesting", "field_name": "Final Vesting", "category": "title"},
@@ -1956,19 +1956,26 @@ def build_loan_summary(
         except (ValueError, TypeError):
             ltv = None
 
+    # Mortgage type / purpose: the preflight summary fields are often blank, so
+    # fall back to the authoritative LOS fields (1172 Mortgage Type, loan_purpose)
+    # before defaulting. Defaulting straight to "Conventional" silently mis-gates
+    # FHA-specific logic on FHA loans where the preflight field never populated.
+    _mortgage_type = _get("preflight_mortgage_type") or _get("loan_type")
+    _loan_purpose = _get("preflight_loan_purpose") or _get("loan_purpose")
+
     derived = {
         "has_coborrower": has_coborrower,
         "is_note_llc": is_note_llc,
         "is_trust": is_trust,
-        "loan_type": _get("preflight_mortgage_type"),
-        "loan_purpose": _get("preflight_loan_purpose"),
+        "loan_type": _mortgage_type,
+        "loan_purpose": _loan_purpose,
         "ltv": ltv,
     }
 
     # ── Loan Profile (5 discriminators for rule modifiers) ──
     loan_profile = {
-        "loan_type": _get("preflight_mortgage_type") or "Conventional",
-        "purpose": _get("preflight_loan_purpose") or "Purchase",
+        "loan_type": _mortgage_type or "Conventional",
+        "purpose": _loan_purpose or "Purchase",
         "state": prop_state,
         "trust": is_trust,
         "note_llc": is_note_llc,

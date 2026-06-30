@@ -102,13 +102,13 @@ substeps:
     category: property
     purpose: Build the Zillow verification deep-link for the PUD-detection flag
   - key: condo_project_name
-    field_id: CX.CONDO.PROJECT.NAME
-    field_name: Condo Project Name
+    field_id: '1298'
+    field_name: Condo Project Name (Transmittal Summary)
     category: property
-    purpose: Written by CUA after Freddie Mac CPA lookup — read to check if already populated
+    purpose: Written write-only-if-blank from the Zillow subdivision when PUD indicators are present
   - key: condo_project_id
-    field_id: CX.CONDO.PROJECT.ID
-    field_name: Condo Project ID
+    field_id: '3050'
+    field_name: CPM Project ID
     category: property
     purpose: Written by CUA after Freddie Mac CPA lookup — read to check if already populated
   doc_types: []
@@ -140,7 +140,7 @@ substeps:
       Zillow listing URL (or an address deep link as fallback). No property/project
       type is auto-written — the processor confirms. When PUD indicators are present
       and the Zillow lookup returns a community/subdivision name, Project Name
-      (CX.CONDO.PROJECT.NAME) is written write-only-if-blank from that subdivision.
+      (field 1298) is written write-only-if-blank from that subdivision.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning

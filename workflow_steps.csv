@@ -1,7 +1,7 @@
 Phase,Phase_Name,Step_ID,Step_Num,Step_Name,Substep_ID,Substep_Name,Plan_File,Tools
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.md,find_loan
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (271 fields),data_gathering.md,fetch_los_fields
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (30 document types),data_gathering.md,fetch_doc_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (275 fields),data_gathering.md,fetch_los_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (31 document types),data_gathering.md,fetch_doc_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.5,Validate Property Address (USPS),data_gathering.md,validate_property_address
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.6,Extract Almas-Notes Images (Vision OCR),data_gathering.md,extract_almas_images
@@ -26,3 +26,4 @@ FORM_UPDATES,Form Updates,STEP_11,11,FHA-Specific Forms,11.1,FHA Management,fha_
 FORM_UPDATES,Form Updates,STEP_11,11,FHA-Specific Forms,11.2,HUD Transmittal,fha_specific_forms.md,update_hud_transmittal
 FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
 FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
+FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.3,Build Action Items,processor_workflow_and_closing.md,build_action_items

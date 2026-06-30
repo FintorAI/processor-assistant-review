@@ -411,12 +411,18 @@ Project Type (info)
 Condo Project Fields Pending — CUA Required (info)
 Possible PUD — Verify Property / Project Type (warning)"
 Step 11: FHA-Specific Forms,11.1,FHA Management,"Populate the FHA Management screen (Tracking tab). Two parts: 1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from the CAIVRS document (borrower + co-borrowers) into the Encompass CAIVRS fields. Write-only-if-blank; emits an info flag listing what was written and a warning if the document has a number Encompass is missing. 2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code (703 for a standard 1-unit property) are present. Flag if missing; the case number itself is assigned via FHA Connection, not written here. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
-1040: FHA/VA Agency Case Number",CAIVRS,—,"CAIVRS Numbers Written (info)
+1040: FHA/VA Agency Case Number
+1018: Borrower CAIVRS Number
+1144: Co-Borrower CAIVRS Number
+3067: CAIVRS Date Updated
+3068: CAIVRS Updated By","CAIVRS
+FHA Government Documents",—,"CAIVRS Numbers Written (info)
 CAIVRS Numbers Pending Manual Entry (warning)
 CAIVRS Document Missing (warning)
+FHA Case Number Written (info)
 FHA Case Number Missing (warning)"
 Step 11: FHA-Specific Forms,11.2,HUD Transmittal,"Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed by the underwriter, so the agent verifies/flags rather than writes: Source/EIN should be MMP / 52 (Government), and the FHA Case Number + ADP code must be present. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
-1040: FHA/VA Agency Case Number",—,—,"HUD-92900-LT Review Required (info)
+1040: FHA/VA Agency Case Number",FHA Government Documents,—,"HUD-92900-LT Review Required (info)
 HUD-92900-LT Case Number Missing (warning)"
 Step 12: Processor Workflow and Closing,12.1,Processor Workflow Update,"Fill out the Processor Workflow screen: set Product Type (derived from loan type), Non-Del Inv. Approval (usually No), and Documentation Type (Full Doc for conventional loans).","1172: Mortgage Type
 CX.PRODUCTTYPE: Product Type
@@ -432,3 +438,5 @@ CX.WIREDATELO: Wire Requested Date
 19: Loan Purpose",—,"CUST50FV: Signing Date -> {closing_date} [if loan_purpose == Purchase]
 CX.WIREDATELO: Wire Requested Date -> {closing_date} [if loan_purpose == Purchase]","Closing Date Not Set (warning)
 Signing Date Not Set (warning)"
+Step 12: Processor Workflow and Closing,12.3,Build Action Items,"Final substep — run last, after all reviews and form updates are complete. Derives component-agnostic communications action items from the review state (unresolved flags + loan facts) and writes them to state['comms_actions'] for the dashboard to trigger downstream agents (email / Blend follow-up). Each rule emits at most one item, carrying a component + trigger block so new components can be added without changing the schema. Items are merged/deduped by id across re-runs (runtime status preserved). No Encompass writes.",—,"Title Report
+HOA Statement",—,—

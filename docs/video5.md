@@ -308,6 +308,18 @@ New workflow step: FHA-Specific Forms (STEP_11)
   (update_processor_workflow/closing, build_action_items: 11.x→12.x, STEP_11→
   STEP_12). factory-reset → Validation PASSED (12 steps); workflow CSVs
   regenerated.
+- FIX (DONE — verification 2605968111): the first end-to-end run on this FHA loan
+  SKIPPED both 11.1 and 11.2 with "loan_type != FHA — Conventional". Root cause:
+  `build_loan_summary` set `loan_profile.loan_type = preflight_mortgage_type or
+  "Conventional"`, and `preflight_mortgage_type` was blank, so the profile defaulted
+  to Conventional even though the authoritative LOS Mortgage Type (field 1172) =
+  FHA. `_is_fha` read the profile first via `or`, short-circuiting on the wrong
+  value. Two-part fix: (a) `build_loan_summary` now falls back to the LOS
+  loan_type (1172) / loan_purpose before defaulting; (b) `_is_fha` in both
+  update_fha_management and update_hud_transmittal now treats the loan as FHA if
+  EITHER the LOS field OR the profile says FHA. The extracted FHA data was already
+  correct (case # 249-7656682-703, ADP 703, CAIVRS borrower A173234126 / co-borrower
+  A173455513) — only the gate was wrong.
 
 FHA Management (substep 11.1, update_fha_management)
 - CAIVRS # is extracted from CAIVRS document in efolder for borrower and co-borrower
@@ -371,6 +383,24 @@ Transmittal Summary
       write-only-if-blank from that subdivision (e.g. "Germantown View" for this
       loan). No longer a CUA/browser-only field. CPM Project ID# (CX.CONDO.PROJECT.ID)
       still needs the Freddie Mac Condo Project Advisor (CUA).
+    - FIX (DONE — verification 2605968111): the project-name write was UNREACHABLE
+      for loans already classified PUD. The Zillow lookup + Project Name write lived
+      inside the `if not _is_condo(property_type):` branch, but field 1041 was
+      already 'PUD' (so `_is_condo` is True) — the code fell straight through to the
+      "Condo Project Fields Pending — CUA Required" flag without ever calling Zillow.
+      Fix: factored the lookup into `_zillow_lookup(state)` and now also run it in
+      the condo/PUD branch — when Project Name is blank it writes the Zillow
+      subdivision (write-only-if-blank) and only CPM Project ID# remains flagged for
+      the CUA.
+    - RESOLVED (field ID): the first re-run reached Zillow and attempted the write,
+      but Encompass rejected the placeholder custom field
+      ("CX.CONDO.PROJECT.NAME: custom field not defined in this instance"). Verified
+      field IDs supplied and wired in: Transmittal Summary Project Name = field
+      **1298**, CPM Project ID# = field **3050** (updated FIELD_MAP, step_10 YAML,
+      and update_transmittal_summary writes/labels; factory-reset → Validation
+      PASSED). The write is also guarded so a rejected write keeps Project Name in
+      the pending flag (no longer masked as written). CPM Project ID# (3050) still
+      needs the Freddie Mac CPA (CUA).
 
 For FHA loans, bucket is HUD .. Transmittal (verify in efolder)
 

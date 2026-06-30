@@ -57,9 +57,16 @@ CAIVRS_UPDATED_BY = "adesai"
 
 
 def _is_fha(state: dict) -> bool:
-    """True when the loan is FHA (profile first, LOS field 1172 fallback)."""
-    lt = _profile(state, "loan_type") or _los(state, "loan_type") or ""
-    return "fha" in str(lt).strip().lower()
+    """True when the loan is FHA.
+
+    Checks BOTH the LOS Mortgage Type (field 1172, authoritative) and the Step-0
+    loan_profile. The profile defaults to "Conventional" when the preflight type
+    is blank, so it must never override an FHA value coming from the LOS field —
+    treat the loan as FHA if either source says FHA.
+    """
+    los_lt = str(_los(state, "loan_type") or "").lower()
+    prof_lt = str(_profile(state, "loan_type") or "").lower()
+    return "fha" in los_lt or "fha" in prof_lt
 
 
 def _clean(val) -> str | None:

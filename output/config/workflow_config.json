@@ -408,6 +408,7 @@
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
+        "build_action_items",
         "update_processor_closing",
         "update_processor_workflow"
       ],
@@ -422,6 +423,12 @@
           "name": "Processor Closing Update",
           "tools": [
             "update_processor_closing"
+          ]
+        },
+        "3": {
+          "name": "Build Action Items",
+          "tools": [
+            "build_action_items"
           ]
         }
       }

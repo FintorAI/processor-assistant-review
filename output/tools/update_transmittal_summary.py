@@ -19,11 +19,11 @@ What this agent does:
      No auto-write of property/project type — the processor confirms, since
      misclassification affects pricing/eligibility.
   5. Project Name — when PUD indicators are present, populate Project Name
-     (CX.CONDO.PROJECT.NAME, write-only-if-blank) from the Zillow community /
-     subdivision name returned by the HasData lookup (e.g. "Germantown View").
+     (field 1298, write-only-if-blank) from the Zillow community / subdivision
+     name returned by the HasData lookup (e.g. "Germantown View").
 
 What this agent does NOT do:
-  - Populate CPM Project ID# (CX.CONDO.PROJECT.ID) — requires browser lookup (CUA).
+  - Populate CPM Project ID# (field 3050) — requires browser lookup (CUA).
   See ARCHITECTURE.md "Transmittal Summary — Condo Split" for the full design.
 """
 # FACTORY-LOCK: true
@@ -96,6 +96,30 @@ def _zillow_search_url(
     return "https://www.zillow.com/homes/" + quote(" ".join(parts)) + "_rb/"
 
 
+def _zillow_lookup(state: dict):
+    """Best-effort Zillow/HasData public-records lookup for the subject property.
+
+    Returns (url, subdivision, has_attached, signals). Never raises — a lookup
+    failure (missing HASDATA_API_KEY, network, off-market property) must never
+    break the agent, so it returns empty values instead.
+    """
+    try:
+        from shared.zillow_client import is_pud_indicative, lookup_property_sync
+        zf = lookup_property_sync(
+            _los(state, "property_address"),
+            _los(state, "property_city"),
+            _los(state, "property_state"),
+            _los(state, "property_zip"),
+        )
+        if not zf.found:
+            return None, None, False, []
+        _, signals = is_pud_indicative(zf)
+        return zf.url, zf.subdivision, bool(zf.has_attached_property), signals
+    except Exception as e:  # noqa: BLE001 — a lookup must never break the agent
+        logger.warning(f"[UPDATE_TRANSMITTAL_SUMMARY] Zillow lookup failed: {e}")
+        return None, None, False, []
+
+
 @tool
 def update_transmittal_summary(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -131,8 +155,8 @@ def update_transmittal_summary(
     appraisal_form_number = _los(state, "appraisal_form_number") # field 1542 — UNVERIFIED field ID
     property_form_type   = _los(state, "property_form_type")    # TSUM.PropertyFormType
     property_type        = _los(state, "property_type")         # field 1041
-    condo_project_name   = _los(state, "condo_project_name")    # CX.CONDO.PROJECT.NAME
-    condo_project_id     = _los(state, "condo_project_id")      # CX.CONDO.PROJECT.ID
+    condo_project_name   = _los(state, "condo_project_name")    # field 1298
+    condo_project_id     = _los(state, "condo_project_id")      # field 3050
     hoa_dues             = _los(state, "hoa_dues_monthly")      # field 233
     attachment_type      = _los(state, "attachment_type")       # CX.ATTACHMENT.TYPE
     # Authoritative PUD signal when the appraisal (URAR/1004) has been extracted.
@@ -210,26 +234,11 @@ def update_transmittal_summary(
         # (c) external — Zillow public records (best-effort; needs HASDATA_API_KEY).
         # Automates the manual "Go to Zillow" check the processor does to eyeball
         # whether the subject is attached / in a community with HOA dues.
-        zillow_url = None
-        zillow_subdivision = None
-        zillow_signals: list[str] = []
-        try:
-            from shared.zillow_client import is_pud_indicative, lookup_property_sync
-            zf = lookup_property_sync(
-                _los(state, "property_address"),
-                _los(state, "property_city"),
-                _los(state, "property_state"),
-                _los(state, "property_zip"),
-            )
-            if zf.found:
-                zillow_url = zf.url
-                zillow_subdivision = zf.subdivision
-                if zf.has_attached_property:
-                    _attached = True
-                _, zillow_signals = is_pud_indicative(zf)
-                pud_signals.extend(zillow_signals)
-        except Exception as e:  # noqa: BLE001 — a lookup must never break the agent
-            logger.warning(f"[UPDATE_TRANSMITTAL_SUMMARY] Zillow lookup failed: {e}")
+        zillow_url, zillow_subdivision, _z_attached, zillow_signals = _zillow_lookup(state)
+        if _z_attached:
+            _attached = True
+        if zillow_signals:
+            pud_signals.extend(zillow_signals)
 
         if pud_signals:
             # Do NOT auto-stamp "Not in a Project" — the subject shows PUD indicators.
@@ -276,19 +285,21 @@ def update_transmittal_summary(
                 f"({pud_signals}) — skipped 1012 'Not in a Project' auto-write."
             )
 
-            # Project Name (CX.CONDO.PROJECT.NAME) — derive from the Zillow
-            # community/subdivision (e.g. "Germantown View"). Write-only-if-blank;
-            # this replaces the old browser/CUA lookup for the project name.
+            # Project Name (field 1298) — derive from the Zillow community /
+            # subdivision (e.g. "Germantown View"). Write-only-if-blank; this
+            # replaces the old browser/CUA lookup for the project name.
             if zillow_subdivision and not condo_project_name:
+                _before_pn = len(flags)
                 _write_fields(
-                    loan_id, {"CX.CONDO.PROJECT.NAME": zillow_subdivision}, "10.1",
-                    flags, state=state, labels={"CX.CONDO.PROJECT.NAME": "Project Name"},
+                    loan_id, {"1298": zillow_subdivision}, "10.1",
+                    flags, state=state, labels={"1298": "Project Name"},
                 )
-                condo_project_name = zillow_subdivision
-                logger.info(
-                    f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote Project Name "
-                    f"(CX.CONDO.PROJECT.NAME) = {zillow_subdivision!r} from Zillow subdivision."
-                )
+                if any(f.get("title") == "Auto-corrected: Project Name" for f in flags[_before_pn:]):
+                    condo_project_name = zillow_subdivision
+                    logger.info(
+                        f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote Project Name "
+                        f"(field 1298) = {zillow_subdivision!r} from Zillow subdivision."
+                    )
         else:
             current_1012 = (project_type_1012 or "").strip()
             if not current_1012:
@@ -381,12 +392,39 @@ def update_transmittal_summary(
 
     # ── Rule: Condo project fields pending CUA ──────────────────────────────
     if _is_condo(property_type):
+        # Project Name (field 1298) is no longer browser/CUA-only — it
+        # can be auto-filled from the Zillow community/subdivision (e.g. "Germantown
+        # View"). The non-condo PUD-detection block above never runs once the
+        # property is already classified Condo/PUD, so do the Zillow lookup here
+        # too. Write-only-if-blank. CPM Project ID# still needs the CUA browser lookup.
+        if not condo_project_name:
+            _zurl, _zsub, _zatt, _zsig = _zillow_lookup(state)
+            if _zsub:
+                _before = len(flags)
+                _write_fields(
+                    loan_id, {"1298": _zsub}, "10.1", flags,
+                    state=state, labels={"1298": "Project Name"},
+                )
+                # Only treat the name as populated when Encompass actually accepted
+                # the write — otherwise the pending flag below must still list it so
+                # the rejection (e.g. undefined custom field) isn't masked.
+                _wrote_ok = any(
+                    f.get("title") == "Auto-corrected: Project Name"
+                    for f in flags[_before:]
+                )
+                if _wrote_ok:
+                    condo_project_name = _zsub
+                    logger.info(
+                        f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote Project Name "
+                        f"(field 1298) = {_zsub!r} from Zillow subdivision."
+                    )
+
         if not condo_project_name or not condo_project_id:
             missing_fields = []
             if not condo_project_name:
-                missing_fields.append("Project Name (CX.CONDO.PROJECT.NAME)")
+                missing_fields.append("Project Name (field 1298)")
             if not condo_project_id:
-                missing_fields.append("CPM Project ID# (CX.CONDO.PROJECT.ID)")
+                missing_fields.append("CPM Project ID# (field 3050)")
             flags.append({
                 "substep": "10.1",
                 "title": "Condo Project Fields Pending — CUA Required",
@@ -394,10 +432,11 @@ def update_transmittal_summary(
                 "details": (
                     f"Property type is {property_type!r} (Condo/PUD). "
                     f"Missing: {', '.join(missing_fields)}. "
-                    f"These are populated by the computer-use agent after the "
-                    f"Freddie Mac Condo Project Advisor browser lookup."
+                    f"CPM Project ID# requires the computer-use agent's Freddie Mac "
+                    f"Condo Project Advisor browser lookup; Project Name is auto-filled "
+                    f"from the Zillow subdivision when available."
                 ),
-                "suggestion": "Ensure computer-use agent runs the Freddie Mac Condo Project Advisor substep.",
+                "suggestion": "Ensure computer-use agent runs the Freddie Mac Condo Project Advisor substep for the CPM Project ID#.",
                 "resolved": False,
                 "timestamp": ts,
             })
