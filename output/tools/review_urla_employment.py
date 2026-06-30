@@ -544,11 +544,25 @@ def review_urla_employment(
     current_entry, prior_entries = _split_current_prior(api_entries, flags, "Borrower")
 
     # Co-borrower employment (also drives the Does-Not-Apply checks below)
+    coborr_fetch_failed = False
     try:
         coborr_api_entries = read_employment(loan_id, state=state, applicant_type="coborrower")
-    except (LookupError, Exception):
+    except LookupError:
+        # Expected when the co-borrower has no employment records.
         coborr_api_entries = []
+    except Exception as e:  # noqa: BLE001 — record real failures rather than hide them
+        logger.warning(f"[REVIEW_URLA_EMPLOYMENT] Co-borrower employment fetch failed: {e}")
+        coborr_api_entries = []
+        coborr_fetch_failed = True
     has_coborr = len(coborr_api_entries) > 0 or bool(_los(state, "coborrower_first_name"))
+    if coborr_fetch_failed and has_coborr:
+        flags.append(_flag("5.1",
+            "Co-Borrower Employment Fetch Failed",
+            "warning",
+            "Could not read the co-borrower's employment records from Encompass, so the "
+            "co-borrower employment cross-check may be incomplete.",
+            "Re-run the review or verify the co-borrower's employment entries manually.",
+        ))
     coborr_current, coborr_priors = _split_current_prior(coborr_api_entries, flags, "Co-Borrower")
 
     # ── Match each applicant to its own VOE copy (by employer name) ────────────
@@ -560,6 +574,7 @@ def review_urla_employment(
     def _voe_match(entry, fallback, require_match):
         name = (entry.get("employer_name") if entry else "") or ""
         flat, idx = _get_voe_copy_for_employer(state, name)
+        matched = idx is not None
         # For the co-borrower, only trust the copy when its employer name actually
         # shares a token with the LOS employer — otherwise the helper's copy-0
         # fallback could point at the borrower's VOE and fabricate mismatches.
@@ -567,17 +582,20 @@ def review_urla_employment(
             copy_emp = flat.get("current_employer_name") or ""
             if not (set(_normalize_name(name).split()) & set(_normalize_name(copy_emp).split())):
                 flat, idx = {}, None
+                matched = False
         refs = _relevant_docs(
             state,
             doc_types=["VOE - non service provider"],
             matched=({"VOE - non service provider": idx} if idx is not None else None),
         )
         # Borrower keeps the historical top-level _doc fallback; co-borrower uses
-        # only its matched copy (global doc_fields are the borrower's).
-        return _voe_values(flat, fallback_state=fallback), refs
+        # only its matched copy (global doc_fields are the borrower's). `matched`
+        # is returned so the caller can flag an unmatched/missing co-borrower VOE
+        # even after `flat` is cleared above.
+        return _voe_values(flat, fallback_state=fallback), refs, matched
 
-    borr_voe, borr_refs_cur = _voe_match(current_entry, state, require_match=False)
-    coborr_voe, coborr_refs_cur = _voe_match(coborr_current, None, require_match=True)
+    borr_voe, borr_refs_cur, _ = _voe_match(current_entry, state, require_match=False)
+    coborr_voe, coborr_refs_cur, coborr_voe_matched = _voe_match(coborr_current, None, require_match=True)
 
     # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
@@ -617,6 +635,15 @@ def review_urla_employment(
 
     if has_coborr and coborr_api_entries:
         if coborr_current:
+            if not coborr_voe_matched:
+                flags.append(_flag("5.1",
+                    "VOE Not Matched — Current (Co-Borrower)",
+                    "warning",
+                    "No VOE copy could be matched to the co-borrower's current employer, "
+                    "so the co-borrower income/employment cross-check could not be "
+                    "completed against a verification of employment.",
+                    "Confirm a VOE for the co-borrower's current employer is in the eFolder.",
+                ))
             _check_current_employer("Co-Borrower", coborr_current, coborr_voe, coborr_refs_cur,
                                     bool(coborr_priors), flags)
         elif any(_entry_populated(e) for e in coborr_api_entries):

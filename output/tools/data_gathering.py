@@ -729,7 +729,17 @@ def _normalize_efolder_output(
             _dc_raw = normalized_extracted["document_content"][1]
             _dc_text = _dc_raw.get("value") if isinstance(_dc_raw, dict) else _dc_raw
             for _pk, _pv in _parse_id_document_content(_dc_text, doc_type).items():
-                if _pk not in normalized_extracted:
+                if _pv in (None, "", "null"):
+                    continue
+                # Fill missing keys AND replace structured fields that came back
+                # empty/unreadable (e.g. blank dl_expiry / dl_gov_id) — keep the
+                # lower confidence so a real schema value still wins on conflict.
+                _existing = normalized_extracted.get(_pk)
+                _existing_val = None
+                if _existing is not None:
+                    _ev = _existing[1]
+                    _existing_val = _ev.get("value") if isinstance(_ev, dict) else _ev
+                if _existing is None or _existing_val in (None, "", "null"):
                     normalized_extracted[_pk] = (_pk, {"value": _pv, "confidence": 0.6})
 
         for expected_key in expected_keys:

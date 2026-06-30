@@ -105,8 +105,10 @@ class ZillowClient:
         loc = " ".join(p for p in (str(state or "").strip(), str(zip_code or "").strip()) if p)
         keyword = ", ".join(p for p in (str(street).strip(), str(city or "").strip(), loc) if p)
 
+        # Redacted location token for logs — never log the full street address.
+        log_loc = loc or "unknown area"
         try:
-            logger.info(f"[ZILLOW] Looking up: {keyword!r}")
+            logger.info(f"[ZILLOW] Looking up property in {log_loc}")
             resp = requests.get(
                 LISTING_URL,
                 headers={"Content-Type": "application/json", "x-api-key": self.api_key},
@@ -139,13 +141,13 @@ class ZillowClient:
                 community_features=reso.get("communityFeatures") or [],
             )
             logger.info(
-                f"[ZILLOW] Found {facts.url} — type={facts.home_type}, "
+                f"[ZILLOW] Found property ({log_loc}) — type={facts.home_type}, "
                 f"attached={facts.has_attached_property}, hoa={facts.hoa_fee}, "
                 f"subdivision={facts.subdivision!r}"
             )
             return facts
         except Exception as e:  # noqa: BLE001 — best-effort, never break the agent
-            logger.warning(f"[ZILLOW] Lookup failed for {keyword!r}: {e}")
+            logger.warning(f"[ZILLOW] Lookup failed ({log_loc}): {e}")
             return ZillowPropertyFacts(found=False, error=str(e))
 
 

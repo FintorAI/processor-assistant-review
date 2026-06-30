@@ -142,13 +142,18 @@ def _load_contacts_schema() -> Optional[dict]:
     except Exception as exc:
         logger.warning(f"[ESS_BYPASS] Live schema fetch failed ({exc}); using bundled schema.")
 
-    # Fallback: bundled config.
+    # Fallback: bundled config. Inject the extra contact field(s) here too so the
+    # offline schema matches the live-schema branch (the bundled file already
+    # ships them, but setdefault keeps the two paths consistent if it drifts).
     try:
         with open(_BUNDLED_SCHEMA) as f:
             bundled = json.load(f)
+        props = dict(bundled.get("properties", {}))
+        for k, v in _EXTRA_CONTACT_FIELDS.items():
+            props.setdefault(k, v)
         return {
             "type": "object",
-            "properties": _make_nullable(bundled.get("properties", {})),
+            "properties": _make_nullable(props),
             "required": bundled.get("required", []),
         }
     except Exception as exc:

@@ -623,6 +623,23 @@ def review_urla_assets(
                 }]
 
         _ret_refs = _relevant_docs(state, doc_types=["Retirement Account Statement", "Assets"])
+
+        # Statements are on file but neither the record parse nor the single-field
+        # fallback yielded anything usable — don't fall through as if there's no
+        # retirement evidence; flag so the 60% haircut isn't silently skipped.
+        if retirement_full_copies and not ret_records:
+            flags.append(_flag(
+                "6.1",
+                "FHA Retirement Statement Not Extracted",
+                "warning",
+                "A Retirement Account Statement is on file but no vested/total balance "
+                "or account record could be extracted, so the FHA 60% haircut could not "
+                "be verified.",
+                "Manually confirm the Encompass 2a/VOD shows 60% of the vested balance "
+                "(net of any 401(k) loan).",
+                docs=_ret_refs,
+            ))
+
         for rec in ret_records:
             vested = rec.get("vested")
             inst_label = rec.get("institution_raw") or "retirement account"

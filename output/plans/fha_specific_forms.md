@@ -37,12 +37,18 @@ update_hud_transmittal(loan_guid=loan_id)
 
 Populate the FHA Management screen (Tracking tab). Two parts:
   1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted
-     from the CAIVRS document (borrower + co-borrowers) into the Encompass
-     CAIVRS fields. Write-only-if-blank; emits an info flag listing what was
-     written and a warning if the document has a number Encompass is missing.
-  2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code
-     (703 for a standard 1-unit property) are present. Flag if missing; the
-     case number itself is assigned via FHA Connection, not written here.
+     from the CAIVRS document (borrower 1018, co-borrower 1144) into the
+     Encompass CAIVRS fields, write-only-if-blank, stamping CAIVRS Date Updated
+     (3067) and Updated By (3068). Emits an info flag listing what was written,
+     a warning when a read-back failure prevents the blank-check, and a warning
+     for any extra document numbers with no dedicated Encompass field.
+  2. FHA Case Number — when field 1040 is blank, write the assigned case number
+     extracted from FHA Government Documents (write-when-missing); otherwise
+     confirm it is present. Flag if 1040 is blank and no number could be
+     extracted. The ADP code (703 for a standard 1-unit property) is surfaced in
+     the flag detail for verification, not written.
+
+Input documents: CAIVRS, FHA Government Documents.
 FHA-only: no-op when loan_type != FHA.
 
 
@@ -95,7 +101,7 @@ write_todo(step_id="STEP_11", substep_id="11.1", status="completed", notes="<det
 ### Substep 11.2 - HUD Transmittal
 **Tool**: `update_hud_transmittal`
 
-Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed by the underwriter, so the agent verifies/flags rather than writes: Source/EIN should be MMP / 52 (Government), and the FHA Case Number + ADP code must be present. FHA-only: no-op when loan_type != FHA.
+Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed by the underwriter, so the agent flags rather than writes. The only programmatic check is FHA Case Number presence (field 1040, or fha_assigned_case_number from FHA Government Documents). Source/EIN (MMP / 52, Government) and the ADP code live on the underwriter-completed form and are NOT read into state, so they are surfaced as manual-verification reminders only. FHA-only: no-op when loan_type != FHA.
 
 
 **Condition:** Only runs when {"equals": "FHA", "field": "loan_type"}
@@ -108,7 +114,7 @@ Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed 
 | FHA/VA Agency Case Number | `1040` | `fha_case_number` | HUD-92900-LT requires the case number |
 
 **Business Rules:**
-- **HUD-92900-LT Review** (existence_check): Surface the HUD-92900-LT for processor/underwriter review. Confirm Source/EIN = MMP/52 (Government) and that the FHA Case Number + ADP code are present. Flag-only — the underwriter completes this form.
+- **HUD-92900-LT Review** (existence_check): Programmatically confirm the FHA Case Number is present (field 1040, or fha_assigned_case_number). Source/EIN = MMP/52 (Government) and the ADP code are surfaced as manual-verification reminders only — those values are not read into state, so no automated existence/mismatch check is performed on them. The underwriter completes this form.
 
 
 **Flags — raise when conditions are met:**

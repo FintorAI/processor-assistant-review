@@ -1,18 +1,22 @@
-# Video 5 Verification — Loan 2605968111 (Suttles, Jhonel & Jonathan)
+# Video 5 Verification — FHA Sample Loan (redacted)
 
 End-to-end `review` runs against local `langgraph dev` on **Encompass Prod**, used to
 verify every fix documented in `docs/video5.md`. Findings below are taken from the
 final thread's agent state.
 
+> **Note:** All borrower, property, and government-identifier values in this artifact
+> have been replaced with synthetic placeholders (`[redacted]`). Only non-identifying
+> structural detail (field IDs, flag titles, pass/fail status) is retained.
+
 | | |
 |---|---|
-| Loan | 2605968111 — Jhonel & Jonathan Suttles |
-| Property | 12859 Climbing Ivy Dr, Germantown, MD 20874 |
-| Program | **FHA MMP 5%** (Purchase, both borrowers on loan + title) |
+| Loan | `[loan # redacted]` — Borrower / Co-Borrower `[redacted]` |
+| Property | `[subject property — redacted]` |
+| Program | **FHA** (Purchase, both borrowers on loan + title) |
 | Env | Prod |
-| Run 1 thread | `019f16a9-8081-7bb2-8a2d-b88c2ba1ae26` (initial verification) |
-| Run 2 thread | `019f16bf-72ab-7030-865b-9ef41a14b23b` (**last run** — after FHA + PUD code fixes) |
-| Outcome | All 12 steps completed (`current_step = COMPLETED`), 79 flags |
+| Run 1 thread | `[thread id redacted]` (initial verification) |
+| Run 2 thread | `[thread id redacted]` (**last run** — after FHA + PUD code fixes) |
+| Outcome | All 12 steps completed (`current_step = COMPLETED`), ~79 flags |
 
 The "last run" (Run 2) is the source of truth below. Run 1 is referenced only where
 it surfaced a bug that Run 2 then confirmed fixed.
@@ -28,11 +32,11 @@ it surfaced a bug that Run 2 then confirmed fixed.
 | File contacts — flags list written fields | ✅ PASS | bullet-list per contact flag |
 | File contacts — Buyer/Seller agent + Escrow | ✅ PASS | all three updated from settlement / purchase agreement |
 | File contacts — smart address comparison | ✅ PASS | only genuine diffs flagged |
-| File contacts — Seller 1/2 = subject property | ✅ PASS | both set to 12859 Climbing Ivy Dr |
+| File contacts — Seller 1/2 = subject property | ✅ PASS | both set to subject property |
 | Borrower summary — DL Gov ID + type write | ✅ PASS | field 5053 + 5055 written |
 | URLA P1 — unit normalization | ✅ PASS (N/A) | no unit in address → no spurious writes |
 | URLA P1 — work-phone backfill | ✅ PASS (N/A) | P1 work phones already present → no backfill needed |
-| URLA P2 — income validation (borrower) | ✅ PASS | base-pay match flag, $14,123.18 |
+| URLA P2 — income validation (borrower) | ✅ PASS | base-pay match flag |
 | URLA P2 — co-borrower validation + match flag | ⚠️ PARTIAL (data) | co-borrower cross-check ran; base-pay match couldn't confirm (VOE base pay not extracted) |
 | URLA Part 3 — retirement FHA 60% | ✅ PASS (N/A) | assets = bank statements; no retirement statement to evaluate |
 | Transmittal — PUD detection | ✅ PASS | Project Type PUD surfaced; appraisal doc = PUD |
@@ -49,21 +53,19 @@ it surfaced a bug that Run 2 then confirmed fixed.
 
 **PASS.** `CX.KM.SUBMISSION.NOTES` contains **no** verbatim OCR / purchase-agreement
 image text. The File Summary, Team Contacts, Appraisal, and Additional Notes sections
-were dropped; `AUS Findings: DU` and `Loan Program: FHA MMP 5%` were salvaged.
+were dropped; `AUS Findings` and `Loan Program` were salvaged.
 Appended "Documents still needed:" (Appraisal, HOI, Title Report).
-- Flags: `Cover Letter — Submission Notes Written` (680 chars, sections removed).
+- Flags: `Cover Letter — Submission Notes Written` (sections removed).
 
 ## 2. File Contacts (`review_file_contacts`, 1.2)
 
 **PASS.** Contacts updated from the settlement statement / purchase agreement with
 flags enumerating each written field as a bullet list:
-- **Escrow Company** → Andrea Martinez-Conte; address split to `77 Upper Rock Circle,
-  Ste 220` / city `Rockville` / ZIP `20850`.
-- **Buyer's Agent** → address split `1441 McCormick Drive #1020`; only phone format +
-  street diff flagged (smart comparison suppressed formatting-only noise).
-- **Seller's Agent** → address split `20251 Century Boulevard Ste.140`; company
-  license diff surfaced for verification.
-- **Seller 1 / Seller 2** → address set to subject property `12859 Climbing Ivy Dr`.
+- **Escrow Company** → `[escrow agent — redacted]`; address split to street / city / ZIP.
+- **Buyer's Agent** → address split; only phone format + street diff flagged (smart
+  comparison suppressed formatting-only noise).
+- **Seller's Agent** → address split; company license diff surfaced for verification.
+- **Seller 1 / Seller 2** → address set to the subject property.
 
 Address splitting, smart comparison, bullet-list flags, and seller-address sync all
 confirmed working.
@@ -71,7 +73,7 @@ confirmed working.
 ## 3. Borrower Summary — Origination (`review_borrower_summary`, 2.1)
 
 **PASS.** Driver's License extraction + write works — no "ID Expiry Unknown" flag:
-- `Auto-corrected: Borrower Government ID` → field **5053** = `10272427156`
+- `Auto-corrected: Borrower Government ID` → field **5053** = `[gov id redacted]`
 - `Auto-corrected: Borrower Government ID Type` → field **5055** = `DL`
 
 No co-borrower Gov ID written (co-borrower DL not extractable) — acceptable.
@@ -79,35 +81,33 @@ No co-borrower Gov ID written (co-borrower DL not extractable) — acceptable.
 ## 4. URLA Page 1 (`review_urla_page1`, 4.1)
 
 **PASS (N/A for this loan).**
-- Unit normalization: 12859 Climbing Ivy Dr has no unit → no spurious unit-field writes.
+- Unit normalization: subject property has no unit → no spurious unit-field writes.
 - P1 work-phone backfill (4533←FE0117 / 4534←FE0217): no backfill flag → P1 work
   phones already populated (logic only fires on blank). Both borrowers ≥ 2Y at current
   address, dependents present.
 
 ## 5. URLA Page 2 — Employment (`review_urla_employment`, 5.1)
 
-- **Borrower (Jhonel / Capital One):** ✅ `Monthly Base Pay Match — Current (Borrower)`
-  — LOS (1003) `$14,123.18/mo` == VOE `$14,123.18/mo`. Employer/position mismatches
-  flagged separately.
-- **Co-borrower (Jonathan / ARK Line):** ⚠️ cross-check **ran** (produced
-  `Position Title Mismatch — Current (Co-Borrower)` and `Section 2d Income — Co-Borrower`),
-  confirming the "both borrowers" fix is active. The base-pay **match** flag did not
-  fire because the co-borrower's VOE `current_monthly_base_pay` / `current_employer_name`
-  were **not extracted** (only `previous_employer_name` came through) — nothing to
-  compare. **Data limitation, not a code gap.**
+- **Borrower:** ✅ `Monthly Base Pay Match — Current (Borrower)` — LOS (1003) base pay
+  == VOE base pay. Employer/position mismatches flagged separately.
+- **Co-borrower:** ⚠️ cross-check **ran** (produced `Position Title Mismatch — Current
+  (Co-Borrower)` and `Section 2d Income — Co-Borrower`), confirming the "both borrowers"
+  fix is active. The base-pay **match** flag did not fire because the co-borrower's VOE
+  `current_monthly_base_pay` / `current_employer_name` were **not extracted** (only
+  `previous_employer_name` came through) — nothing to compare. **Data limitation, not a
+  code gap.**
 
 ## 6. URLA Part 3 — Assets (`review_urla_assets`, 6.1)
 
 **PASS (N/A).** Source of assets = bank statements (no Retirement Account Statement on
 file), so the FHA 60% haircut rule had nothing to evaluate and correctly no-op'd. Bank
-statements matched 2a/VOD (Chase, Capital One); Zelle / large-deposit sourcing flags
-raised as expected.
+statements matched 2a/VOD; large-deposit sourcing flags raised as expected.
 
 ## 7. Transmittal Summary — PUD (`update_transmittal_summary`, 10.1)
 
 **PASS (detection) + FIXED (project name).**
 - Project Type (field 1553) = `PUD`; appraisal doc Project Type = `PUD`; property type
-  (1041) already `PUD`; HOA dues (233) = `88.00`.
+  (1041) already `PUD`; HOA dues (233) present.
 - **Bug found in Run 1:** the Zillow subdivision → Project Name write lived only in the
   `if not _is_condo(property_type)` branch, so for an already-`PUD` property the code
   fell straight through to the "CUA Required" flag and never called Zillow. **Fixed** —
@@ -118,8 +118,8 @@ raised as expected.
   instance` → the field ID was wrong.
 - **Now resolved (post-run):** verified field IDs wired in — Project Name = **1298**,
   CPM Project ID# = **3050** (FIELD_MAP + step_10 YAML + tool). The next run will save
-  the subdivision (e.g. "Germantown View") to field 1298; CPM Project ID# (3050) still
-  needs the Freddie Mac CPA browser lookup (CUA).
+  the subdivision to field 1298; CPM Project ID# (3050) still needs the Freddie Mac CPA
+  browser lookup (CUA).
 
 ## 8. FHA-Specific Forms — STEP_11 (FHA-gated)
 
@@ -135,13 +135,13 @@ raised as expected.
   the LOS field or the profile says FHA.
 - **Run 2 confirmed:**
   - **11.1 FHA Management** — executed. FHA Case Number present (field 1040 =
-    `249-7656682-703`); 2 CAIVRS numbers found (borrower `A173234126`, co-borrower
-    `A173455513`), 0 written (already populated → correct write-if-blank no-op);
+    `[fha case # redacted]`); 2 CAIVRS numbers found (borrower + co-borrower,
+    `[caivrs redacted]`), 0 written (already populated → correct write-if-blank no-op);
     `caivrs_fields_verified = TRUE`.
   - **11.2 HUD Transmittal** — executed; raised `HUD-92900-LT Review Required` (info);
     case number present.
 
-All extracted FHA data (case # / ADP 703 / CAIVRS) was correct from the start — only the
+All extracted FHA data (case # / ADP / CAIVRS) was correct from the start — only the
 gate was wrong.
 
 ## 9. build_action_items (12.3) — comms action items

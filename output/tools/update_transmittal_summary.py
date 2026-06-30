@@ -53,6 +53,17 @@ def _is_condo(property_type: Optional[str]) -> bool:
     return any(t in property_type.lower() for t in CONDO_PROPERTY_TYPES)
 
 
+def _is_actual_condo(property_type: Optional[str]) -> bool:
+    """True only for an actual condominium (not a PUD).
+
+    ``_is_condo`` matches both condo and PUD; the Freddie Mac Condo Project
+    Advisor / CPM Project ID# (CUA) workflow only applies to condos, so PUDs must
+    be excluded from that guidance."""
+    if not property_type:
+        return False
+    return any(t in property_type.lower() for t in ("condo", "condominium"))
+
+
 def _parse_rate(val: Optional[str]) -> Optional[float]:
     if val is None:
         return None
@@ -240,27 +251,32 @@ def update_transmittal_summary(
         if zillow_signals:
             pud_signals.extend(zillow_signals)
 
-        if pud_signals:
-            # Do NOT auto-stamp "Not in a Project" — the subject shows PUD indicators.
-            # Flag-to-verify only: misclassifying property/project type affects
-            # pricing/eligibility, so leave the final call to the processor.
-            _strong = (
-                _appraisal_says_pud
-                or (_hoa_present and _attached)
-                or len(zillow_signals) >= 2
-            )
-            link = zillow_url or _zillow_search_url(
-                _los(state, "property_address"),
-                _los(state, "property_city"),
-                _los(state, "property_state"),
-                _los(state, "property_zip"),
-            )
+        # Only a STRONG PUD indicator suppresses the default "Not in a Project"
+        # write. A single weak hint (HOA-only or attached-only, one Zillow signal)
+        # must NOT block the default non-PUD write — otherwise every HOA-bearing
+        # detached SFR would be left blank. Weak hints are surfaced as info instead.
+        _strong = (
+            _appraisal_says_pud
+            or (_hoa_present and _attached)
+            or len(zillow_signals) >= 2
+        )
+        link = zillow_url or _zillow_search_url(
+            _los(state, "property_address"),
+            _los(state, "property_city"),
+            _los(state, "property_state"),
+            _los(state, "property_zip"),
+        )
+
+        if _strong:
+            # Do NOT auto-stamp "Not in a Project" — the subject shows strong PUD
+            # indicators. Flag-to-verify only: misclassifying property/project type
+            # affects pricing/eligibility, so leave the final call to the processor.
             flags.append({
                 "substep": "10.1",
                 "title": "Possible PUD — Verify Property / Project Type",
-                "severity": "warning" if _strong else "info",
+                "severity": "warning",
                 "details": (
-                    "Subject property shows PUD indicators: "
+                    "Subject property shows strong PUD indicators: "
                     + "; ".join(pud_signals)
                     + f". Field 1012 (Project Type) was NOT auto-set to "
                     f"'{_NOT_IN_PUD_VALUE}' because of these signals "
@@ -281,13 +297,12 @@ def update_transmittal_summary(
                 "timestamp": ts,
             })
             logger.info(
-                f"[UPDATE_TRANSMITTAL_SUMMARY] PUD signals present "
+                f"[UPDATE_TRANSMITTAL_SUMMARY] Strong PUD signals present "
                 f"({pud_signals}) — skipped 1012 'Not in a Project' auto-write."
             )
 
             # Project Name (field 1298) — derive from the Zillow community /
-            # subdivision (e.g. "Germantown View"). Write-only-if-blank; this
-            # replaces the old browser/CUA lookup for the project name.
+            # subdivision. Write-only-if-blank; replaces the old browser/CUA lookup.
             if zillow_subdivision and not condo_project_name:
                 _before_pn = len(flags)
                 _write_fields(
@@ -301,6 +316,27 @@ def update_transmittal_summary(
                         f"(field 1298) = {zillow_subdivision!r} from Zillow subdivision."
                     )
         else:
+            # No strong PUD indicator → preserve the default non-PUD 1012 write.
+            if pud_signals:
+                flags.append({
+                    "substep": "10.1",
+                    "title": "Possible PUD — Weak Indicators (Verify)",
+                    "severity": "info",
+                    "details": (
+                        "Subject property shows weak PUD hint(s): "
+                        + "; ".join(pud_signals)
+                        + f". Field 1012 (Project Type) was still set to the default "
+                        f"'{_NOT_IN_PUD_VALUE}' (no strong PUD indicator); confirm the "
+                        "subject is not in a PUD."
+                    ),
+                    "suggestion": (
+                        "Verify whether the subject sits in a Planned Unit Development"
+                        + (f" — Zillow: {link}" if link else "")
+                        + "."
+                    ),
+                    "resolved": False,
+                    "timestamp": ts,
+                })
             current_1012 = (project_type_1012 or "").strip()
             if not current_1012:
                 # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
@@ -419,32 +455,35 @@ def update_transmittal_summary(
                         f"(field 1298) = {_zsub!r} from Zillow subdivision."
                     )
 
-        if not condo_project_name or not condo_project_id:
-            missing_fields = []
-            if not condo_project_name:
-                missing_fields.append("Project Name (field 1298)")
-            if not condo_project_id:
-                missing_fields.append("CPM Project ID# (field 3050)")
-            flags.append({
-                "substep": "10.1",
-                "title": "Condo Project Fields Pending — CUA Required",
-                "severity": "info",
-                "details": (
-                    f"Property type is {property_type!r} (Condo/PUD). "
-                    f"Missing: {', '.join(missing_fields)}. "
-                    f"CPM Project ID# requires the computer-use agent's Freddie Mac "
-                    f"Condo Project Advisor browser lookup; Project Name is auto-filled "
-                    f"from the Zillow subdivision when available."
-                ),
-                "suggestion": "Ensure computer-use agent runs the Freddie Mac Condo Project Advisor substep for the CPM Project ID#.",
-                "resolved": False,
-                "timestamp": ts,
-            })
-        else:
-            logger.info(
-                f"[UPDATE_TRANSMITTAL_SUMMARY] Condo fields already populated: "
-                f"name={condo_project_name!r}, id={condo_project_id!r}"
-            )
+        # CPM Project ID# / Freddie Mac Condo Project Advisor (CUA) guidance is
+        # condo-only — PUDs share _is_condo() but do NOT use the CPM workflow.
+        if _is_actual_condo(property_type):
+            if not condo_project_name or not condo_project_id:
+                missing_fields = []
+                if not condo_project_name:
+                    missing_fields.append("Project Name (field 1298)")
+                if not condo_project_id:
+                    missing_fields.append("CPM Project ID# (field 3050)")
+                flags.append({
+                    "substep": "10.1",
+                    "title": "Condo Project Fields Pending — CUA Required",
+                    "severity": "info",
+                    "details": (
+                        f"Property type is {property_type!r} (Condominium). "
+                        f"Missing: {', '.join(missing_fields)}. "
+                        f"CPM Project ID# requires the computer-use agent's Freddie Mac "
+                        f"Condo Project Advisor browser lookup; Project Name is auto-filled "
+                        f"from the Zillow subdivision when available."
+                    ),
+                    "suggestion": "Ensure computer-use agent runs the Freddie Mac Condo Project Advisor substep for the CPM Project ID#.",
+                    "resolved": False,
+                    "timestamp": ts,
+                })
+            else:
+                logger.info(
+                    f"[UPDATE_TRANSMITTAL_SUMMARY] Condo fields already populated: "
+                    f"name={condo_project_name!r}, id={condo_project_id!r}"
+                )
 
     result = {
         "success": True,

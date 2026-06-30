@@ -12,7 +12,7 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
@@ -86,6 +86,25 @@ def _match_copy_to_person(records: dict, first, last):
     return best[0] if best else None
 
 
+def _blank(val) -> bool:
+    """True when a LOS value is missing/empty (so it's safe to fill)."""
+    return not (val and str(val).strip())
+
+
+def _norm_gov_id_type(raw) -> Optional[str]:
+    """Normalize an OCR'd Government ID type to a canonical Encompass value.
+
+    The source is always the Driver's License doc, so license-like variants map
+    to "DL"; any other extracted type is preserved as-is."""
+    s = str(raw or "").strip()
+    if not s:
+        return None
+    low = s.lower()
+    if "driver" in low or low in ("dl", "dln", "d/l", "dl#"):
+        return "DL"
+    return s
+
+
 def _write_government_id(state, loan_id, flags, b_first, b_last, c_first, c_last, has_co) -> None:
     """Populate Government ID + Type for borrower (5053/5055) and co-borrower
     (5054/5056) from the Driver's License doc content, mapping each license copy
@@ -106,15 +125,24 @@ def _write_government_id(state, loan_id, flags, b_first, b_last, c_first, c_last
             rest = [ci for ci in order if ci != b_ci]
             c_ci = rest[0] if rest else None
 
+    # field id → LOS state key, so we can honor write-only-if-blank and not
+    # clobber a manually-corrected Government ID / Type on every run.
+    _gov_los = {"5053": "borrower_gov_id", "5054": "coborrower_gov_id",
+                "5055": "borrower_gov_id_type", "5056": "coborrower_gov_id_type"}
+
     def _write_person(ci, id_field, type_field, label):
         if ci is None:
             return
         rec = records.get(ci, {})
         updates = {}
-        if rec.get("gov_id"):
+        # 5053/5054 — Government ID number, write only when Encompass is blank.
+        if rec.get("gov_id") and _blank(_los(state, _gov_los[id_field])):
             updates[id_field] = rec["gov_id"]
-        if rec.get("gov_id_type"):
-            updates[type_field] = rec["gov_id_type"]
+        # 5055/5056 — normalize OCR type to the canonical "DL" (source is the
+        # Driver's License doc); write only when blank.
+        norm_type = _norm_gov_id_type(rec.get("gov_id_type"))
+        if norm_type and _blank(_los(state, _gov_los[type_field])):
+            updates[type_field] = norm_type
         if updates:
             _write_fields(loan_id=loan_id, updates=updates, substep="2.1",
                           flags=flags, state=state,

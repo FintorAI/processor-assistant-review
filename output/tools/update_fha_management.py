@@ -170,49 +170,71 @@ def update_fha_management(
         # Verified path: write-only-if-blank against the live Encompass values.
         field_ids = [str(c["field_id"]) for c in CAIVRS_FIELDS.values() if c["field_id"]]
         current: dict[str, object] = {}
+        read_ok = True
         try:
             from encompass_client import read_loan_fields
             current = read_loan_fields(loan_id, field_ids, state=state) or {}
         except Exception as e:  # noqa: BLE001 — surface read failure as a flag
+            read_ok = False
             logger.warning(f"[UPDATE_FHA_MANAGEMENT] CAIVRS read-back failed: {e}")
 
-        writes: dict[str, str] = {}
-        labels: dict[str, str] = {}
-        for cfg in CAIVRS_FIELDS.values():
-            fid = cfg["field_id"]
-            num = _clean(_doc(state, str(cfg["doc_key"])))
-            if not fid or not num:
-                continue
-            fid = str(fid)
-            labels[fid] = str(cfg["label"])
-            existing = current.get(fid)
-            if existing is None or str(existing).strip() == "":
-                writes[fid] = num
-                written_labels.append(f"{cfg['label']}: {num}")
-
-        if writes:
-            # Stamp who/when the CAIVRS fields were updated.
-            today = datetime.now(timezone.utc).strftime("%m/%d/%Y")
-            writes[CAIVRS_DATE_FIELD] = today
-            writes[CAIVRS_BY_FIELD] = CAIVRS_UPDATED_BY
-            labels[CAIVRS_DATE_FIELD] = "CAIVRS Date Updated"
-            labels[CAIVRS_BY_FIELD] = "CAIVRS Updated By"
-
-            _write_fields(loan_id, writes, substep="11.1", flags=flags, state=state, labels=labels)
+        if not read_ok:
+            # We could not read the current CAIVRS values, so we cannot honor
+            # write-only-if-blank. Abort the write path rather than risk
+            # overwriting a manually-entered number with stale doc data.
             flags.append({
                 "substep": "11.1",
-                "title": "CAIVRS Numbers Written",
-                "severity": "info",
+                "title": "CAIVRS Read-Back Failed — Not Written",
+                "severity": "warning",
                 "details": (
-                    "Wrote CAIVRS Authorization Number(s):\n"
-                    + "\n".join(f"  • {x}" for x in written_labels)
-                    + f"\nStamped CAIVRS Date Updated = {today}, Updated By = {CAIVRS_UPDATED_BY}."
+                    "Could not read the current Encompass CAIVRS field values, so the "
+                    "write-only-if-blank guard could not be applied and no CAIVRS "
+                    "numbers were written automatically."
                 ),
-                "suggestion": "Verify the CAIVRS numbers on the FHA Management screen against the document.",
-                "resolved": True,
+                "suggestion": "Verify/enter the CAIVRS Authorization Number(s) manually on the FHA Management Tracking tab.",
+                "resolved": False,
                 "relevant_documents": ["CAIVRS"],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
+            writes, labels = {}, {}
+        else:
+            writes = {}
+            labels = {}
+            for cfg in CAIVRS_FIELDS.values():
+                fid = cfg["field_id"]
+                num = _clean(_doc(state, str(cfg["doc_key"])))
+                if not fid or not num:
+                    continue
+                fid = str(fid)
+                labels[fid] = str(cfg["label"])
+                existing = current.get(fid)
+                if existing is None or str(existing).strip() == "":
+                    writes[fid] = num
+                    written_labels.append(f"{cfg['label']}: {num}")
+
+            if writes:
+                # Stamp who/when the CAIVRS fields were updated.
+                today = datetime.now(timezone.utc).strftime("%m/%d/%Y")
+                writes[CAIVRS_DATE_FIELD] = today
+                writes[CAIVRS_BY_FIELD] = CAIVRS_UPDATED_BY
+                labels[CAIVRS_DATE_FIELD] = "CAIVRS Date Updated"
+                labels[CAIVRS_BY_FIELD] = "CAIVRS Updated By"
+
+                _write_fields(loan_id, writes, substep="11.1", flags=flags, state=state, labels=labels)
+                flags.append({
+                    "substep": "11.1",
+                    "title": "CAIVRS Numbers Written",
+                    "severity": "info",
+                    "details": (
+                        "Wrote CAIVRS Authorization Number(s):\n"
+                        + "\n".join(f"  • {x}" for x in written_labels)
+                        + f"\nStamped CAIVRS Date Updated = {today}, Updated By = {CAIVRS_UPDATED_BY}."
+                    ),
+                    "suggestion": "Verify the CAIVRS numbers on the FHA Management screen against the document.",
+                    "resolved": True,
+                    "relevant_documents": ["CAIVRS"],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
 
     # ── Extra applicants with no Encompass CAIVRS field ──
     if extras:

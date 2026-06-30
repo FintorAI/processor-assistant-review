@@ -135,9 +135,12 @@ substeps:
     equals: FHA
   description: >
     Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally
-    completed by the underwriter, so the agent verifies/flags rather than writes:
-    Source/EIN should be MMP / 52 (Government), and the FHA Case Number + ADP code
-    must be present. FHA-only: no-op when loan_type != FHA.
+    completed by the underwriter, so the agent flags rather than writes. The
+    only programmatic check is FHA Case Number presence (field 1040 /
+    fha_assigned_case_number); Source/EIN (MMP / 52, Government) and the ADP code
+    live on the underwriter-completed form and are NOT read into state, so they
+    are surfaced as manual-verification reminders only. FHA-only: no-op when
+    loan_type != FHA.
   los_fields_read:
   - key: loan_type
     field_id: '1172'
@@ -159,9 +162,12 @@ substeps:
   - name: HUD-92900-LT Review
     type: existence_check
     logic: >
-      Surface the HUD-92900-LT for processor/underwriter review. Confirm
-      Source/EIN = MMP/52 (Government) and that the FHA Case Number + ADP code
-      are present. Flag-only — the underwriter completes this form.
+      Programmatically confirm the FHA Case Number is present (field 1040, or
+      fha_assigned_case_number from FHA Government Documents before the state
+      refresh). Source/EIN = MMP/52 (Government) and the ADP code are surfaced
+      as manual-verification reminders only — those values are not read into
+      state, so no automated existence/mismatch check is performed on them. The
+      underwriter completes this form.
   flags:
   - title: HUD-92900-LT Review Required
     severity: info

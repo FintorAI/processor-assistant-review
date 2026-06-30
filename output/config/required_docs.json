@@ -845,6 +845,9 @@
     "disclosure": "Loan Estimate, Lock Confirmation, Initial Disclosures, CPL",
     "insurance": "Hazard insurance, flood certificate",
     "title": "Title report",
-    "reo": "REO / other owned property documents (Mortgage Statement, HOA, tax bill)"
+    "reo": "REO / other owned property documents (Mortgage Statement, HOA, tax bill)",
+    "collateral": "Collateral / valuation documents (Appraisal, URAR / 1004)",
+    "loan_info": "Loan-level government docs (FHA Government Documents, CAIVRS)",
+    "property": "Property tax and assessment documents"
   }
 }
