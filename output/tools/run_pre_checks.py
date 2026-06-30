@@ -219,12 +219,16 @@ def run_pre_checks(
                   "Request additional bank statements from borrower.")
 
     # ── Rule: DL Not Expired ──
+    # Accept the common license formats (MM/DD/YYYY is what most state IDs use)
+    # in addition to ISO, so a populated expiry is not misread as "unknown".
     dl_expiry_date = None
     if dl_expiry:
-        try:
-            dl_expiry_date = datetime.strptime(str(dl_expiry), "%Y-%m-%d").date()
-        except ValueError:
-            pass
+        for _fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y"):
+            try:
+                dl_expiry_date = datetime.strptime(str(dl_expiry).strip(), _fmt).date()
+                break
+            except ValueError:
+                continue
 
     if dl_expiry_date is not None and dl_expiry_date < date.today():
         _flag(flags, "1.1", "ID Expired", "warning",

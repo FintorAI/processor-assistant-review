@@ -116,7 +116,7 @@ Review Section 3b — Earnest Money Deposit. Verify EMD amount matches Purchase 
 
 | Encompass Field | Field ID | Key | Purpose |
 |-----------------|----------|-----|---------|
-| EMD Amount | `186` | `emd_amount` | Match against Purchase Contract EMD row |
+| EMD Amount | `URLAROA0103` | `emd_amount` | Match against Purchase Contract EMD row (URLA Other Assets Cash/Market Value) |
 
 **Document Types:**
 - **Purchase Agreement**:

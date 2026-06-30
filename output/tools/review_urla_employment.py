@@ -134,6 +134,315 @@ def _get_voe_copy_for_employer(state: dict, los_employer_name: str):
     return flat, 0
 
 
+def _voe_values(copy_flat: dict, fallback_state: Optional[dict] = None) -> dict:
+    """Build the VOE comparison dict from a matched copy's flat fields.
+
+    For the borrower we fall back to the top-level _doc(...) values to preserve
+    historical behavior; the co-borrower uses only its own matched copy (the
+    global doc_fields are the borrower's).
+    """
+    def g(key):
+        v = copy_flat.get(key)
+        if (v is None or v == "") and fallback_state is not None:
+            v = _doc(fallback_state, key)
+        return v
+    return {
+        "cur_name":     g("current_employer_name"),
+        "cur_hire":     g("current_original_hire_date"),
+        "cur_base_pay": g("current_monthly_base_pay"),
+        "cur_position": g("current_position_title"),
+        "cur_rate":     g("current_rate_of_pay"),
+        "cur_hours_pp": g("current_avg_hours_per_pay_period"),
+        "cur_pp_freq":  g("current_pay_period_frequency"),
+        "prev_name":    g("previous_employer_name"),
+        "prev_base_pay": g("previous_monthly_base_pay"),
+    }
+
+
+def _split_current_prior(entries: list, flags: list, who: str):
+    """Return (current_entry, [prior_entries]) from a normalized employment list.
+    Flags multiple-current as a warning."""
+    current_entry = None
+    prior_entries: list = []
+    for e in entries:
+        if not _entry_populated(e):
+            continue
+        if e.get("current"):
+            if current_entry:
+                flags.append(_flag("5.1",
+                    f"Multiple Current Employers ({who})",
+                    "warning",
+                    f"More than one {who.lower()} employment record has currentEmploymentIndicator=True. "
+                    f"First: '{current_entry.get('employer_name')}', also: '{e.get('employer_name')}'.",
+                    "Verify only one entry should be Current; mark additional entries as Prior if applicable.",
+                ))
+            else:
+                current_entry = e
+        else:
+            prior_entries.append(e)
+    return current_entry, prior_entries
+
+
+def _check_current_employer(who: str, e: dict, voe: dict, refs_cur: list,
+                            has_prior: bool, flags: list) -> None:
+    """Cross-check a Current employment entry against the matched VOE copy."""
+    # printAttachmentIndicator — "print see attached borrower's authorization"
+    raw = e.get("_raw") or {}
+    if raw.get("printAttachmentIndicator") is False:
+        flags.append(_flag("5.1",
+            f"Authorization Attachment Not Checked ({who})",
+            "warning",
+            "printAttachmentIndicator is False — 'see attached borrower's authorization' will not print on the VOE signature line.",
+            "Check the authorization attachment checkbox in Encompass for the current employer.",
+        ))
+
+    voe_cur_name = voe.get("cur_name")
+    # Employer name
+    if voe_cur_name:
+        los_name = _normalize_name(e.get("employer_name"))
+        doc_name = _normalize_name(voe_cur_name)
+        if los_name and doc_name and los_name != doc_name:
+            flags.append(_flag("5.1",
+                f"Employer Name Mismatch — Current ({who})",
+                "warning",
+                f"LOS: '{e.get('employer_name')}' | VOE: '{voe_cur_name}'",
+                "Correct the employer name in Encompass to match the VOE",
+                docs=refs_cur,
+            ))
+    elif not e.get("employer_name"):
+        flags.append(_flag("5.1",
+            f"Current Employer Name Missing ({who})",
+            "warning",
+            "BE0102 (employer name) is empty for the Current employment entry.",
+            "Enter the current employer name in Encompass",
+        ))
+
+    # Position / title vs VOE
+    voe_cur_position = voe.get("cur_position")
+    if voe_cur_position and e.get("position_title"):
+        if _normalize_name(e["position_title"]) != _normalize_name(voe_cur_position):
+            flags.append(_flag("5.1",
+                f"Position Title Mismatch — Current ({who})",
+                "warning",
+                f"LOS: '{e['position_title']}' | VOE: '{voe_cur_position}'",
+                "Correct the position/title in Encompass to match the VOE",
+                docs=refs_cur,
+            ))
+
+    # Employer phone — presence only
+    if not e.get("employer_phone"):
+        flags.append(_flag("5.1",
+            f"Current Employer Phone Missing ({who}, BE0117)",
+            "warning",
+            "BE0117 (employer phone) is empty for the current employer.",
+            "Enter the current employer phone number in Encompass",
+        ))
+
+    # Date hired vs VOE — normalize both to YYYY-MM-DD before comparing
+    voe_cur_hire = voe.get("cur_hire")
+    if voe_cur_hire and e.get("date_hired"):
+        _date_fmts = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
+
+        def _parse_date(s):
+            for _f in _date_fmts:
+                try:
+                    return datetime.strptime(s.strip(), _f).date()
+                except ValueError:
+                    continue
+            return None
+        _los_d = _parse_date(e["date_hired"])
+        _voe_d = _parse_date(voe_cur_hire)
+        if _los_d and _voe_d and _los_d != _voe_d:
+            flags.append(_flag("5.1",
+                f"Hire Date Mismatch — Current ({who})",
+                "warning",
+                f"LOS hire date: '{e['date_hired']}' | VOE original hire date: '{voe_cur_hire}'",
+                "Correct the hire date in Encompass to match the VOE",
+                docs=refs_cur,
+            ))
+
+    # Date terminated — must be null/empty for current employer
+    if e.get("date_terminated"):
+        flags.append(_flag("5.1",
+            f"Date Terminated Populated for Current Employer ({who}, BE0114)",
+            "warning",
+            f"BE0114 shows termination date '{e['date_terminated']}' but employment type is Current.",
+            "Clear the termination date for the current employer in Encompass",
+        ))
+
+    # Monthly base pay vs VOE
+    voe_cur_base_pay = voe.get("cur_base_pay")
+    if voe_cur_base_pay or e.get("monthly_base_pay"):
+        los_pay = _parse_amount(e.get("monthly_base_pay"))
+        doc_pay = _parse_amount(voe_cur_base_pay)
+        if los_pay is not None and doc_pay is not None:
+            if abs(los_pay - doc_pay) > 1.00:  # allow $1 rounding tolerance
+                # Show the full derivation so the processor can see WHY they differ.
+                _detail = (
+                    f"LOS (1003): ${los_pay:,.2f}/mo  |  VOE: ${doc_pay:,.2f}/mo  |  "
+                    f"Δ ${abs(los_pay - doc_pay):,.2f}/mo"
+                )
+                _rate  = _parse_amount(voe.get("cur_rate"))
+                _hours = _parse_amount(voe.get("cur_hours_pp"))
+                _ppy   = _periods_per_year(voe.get("cur_pp_freq"))
+                if _rate and _hours and _ppy:
+                    _voe_annual = _rate * _hours * _ppy
+                    _detail += (
+                        f"\nVOE base = rate × avg hours/pay-period × periods/yr ÷ 12: "
+                        f"${_rate:,.2f}/hr × {_hours:g} hrs × {_ppy} ({voe.get('cur_pp_freq')}) "
+                        f"= ${_voe_annual:,.2f}/yr ÷ 12 = ${_voe_annual / 12:,.2f}/mo "
+                        f"({_hours * _ppy:,.0f} hrs/yr ≈ {(_hours * _ppy) / 52:.1f} hrs/wk)"
+                    )
+                if _rate:
+                    _los_annual_hrs = los_pay * 12 / _rate
+                    _detail += (
+                        f"\nLOS base ${los_pay:,.2f}/mo at ${_rate:,.2f}/hr implies "
+                        f"{_los_annual_hrs:,.0f} hrs/yr ≈ {_los_annual_hrs / 52:.1f} hrs/wk "
+                        f"(${_rate:,.2f} × 40 × 52 ÷ 12 = ${_rate * 40 * 52 / 12:,.2f}/mo)"
+                    )
+                    if _hours and _ppy:
+                        _voe_hpw = (_hours * _ppy) / 52
+                        _los_hpw = _los_annual_hrs / 52
+                        _detail += (
+                            f"\n→ Difference driven by hours/week: VOE {_voe_hpw:.1f} vs LOS "
+                            f"{_los_hpw:.1f} ({_voe_hpw - _los_hpw:+.1f} hrs/wk)."
+                        )
+                flags.append(_flag("5.1",
+                    f"Monthly Base Pay Mismatch — Current ({who})",
+                    "warning",
+                    _detail,
+                    "Reconcile the monthly base pay with the VOE — the gap is driven by the "
+                    "assumed hours/week. Confirm whether to qualify on 40 hrs base or the VOE's "
+                    "averaged hours (which include regular overtime).",
+                    docs=refs_cur,
+                ))
+            else:
+                # Income matches VOE — surface a positive confirmation.
+                flags.append(_flag("5.1",
+                    f"Monthly Base Pay Match — Current ({who})",
+                    "info",
+                    f"Income validated: LOS (1003) ${los_pay:,.2f}/mo matches VOE ${doc_pay:,.2f}/mo (±$1).",
+                    "Current employment income agrees with the VOE — no action needed.",
+                    docs=refs_cur,
+                ))
+
+    # Employment duration — trigger gap check if < 2 years total
+    yrs = e.get("years_in_job")
+    mos = e.get("months_in_job")
+    total_mos = (int(yrs or 0) * 12 + int(mos or 0)) if (yrs is not None or mos is not None) else None
+    if total_mos is not None and total_mos < 24 and not has_prior:
+        flags.append(_flag("5.1",
+            f"Employment History Gap — No Prior Employer ({who}, < 2 Years Current)",
+            "warning",
+            f"Current employment is {total_mos} months (< 2 years) and no prior employer entry found.",
+            "Add prior employment history entries in Encompass to document 2-year history",
+        ))
+
+
+def _check_prior_employers(who: str, prior_entries: list, voe: dict,
+                           refs_all: list, flags: list) -> None:
+    """Cross-check Prior employment entries against the VOE 'previous_*' fields."""
+    voe_prev_name = voe.get("prev_name")
+    voe_prev_base_pay = voe.get("prev_base_pay")
+    for e in prior_entries:
+        if voe_prev_name and e.get("employer_name"):
+            los_name = _normalize_name(e["employer_name"])
+            doc_name = _normalize_name(voe_prev_name)
+            if los_name and doc_name and los_name != doc_name:
+                flags.append(_flag("5.1",
+                    f"Employer Name Mismatch — Prior ({who})",
+                    "warning",
+                    f"LOS prior employer: '{e['employer_name']}' | VOE previous: '{voe_prev_name}'",
+                    "Correct the prior employer name in Encompass to match the VOE",
+                    docs=refs_all,
+                ))
+
+        if not e.get("date_terminated"):
+            flags.append(_flag("5.1",
+                f"Date Terminated Missing for Prior Employer ({who}, BE0114)",
+                "warning",
+                f"Employment entry for '{e.get('employer_name', 'unknown')}' is Prior but date terminated is empty.",
+                "Enter the termination date for the prior employer in Encompass",
+            ))
+
+        if voe_prev_base_pay or e.get("monthly_base_pay"):
+            los_pay = _parse_amount(e.get("monthly_base_pay"))
+            doc_pay = _parse_amount(voe_prev_base_pay)
+            if los_pay is not None and doc_pay is not None:
+                if abs(los_pay - doc_pay) > 1.00:
+                    flags.append(_flag("5.1",
+                        f"Monthly Base Pay Mismatch — Prior ({who})",
+                        "warning",
+                        f"LOS: ${los_pay:,.2f} | VOE previous: ${doc_pay:,.2f}",
+                        "Reconcile prior employer base pay with the VOE",
+                        docs=refs_all,
+                    ))
+                else:
+                    flags.append(_flag("5.1",
+                        f"Monthly Base Pay Match — Prior ({who})",
+                        "info",
+                        f"Income validated: LOS ${los_pay:,.2f}/mo matches VOE previous ${doc_pay:,.2f}/mo (±$1).",
+                        "Prior employment income agrees with the VOE — no action needed.",
+                        docs=refs_all,
+                    ))
+
+
+def _check_employment_gap(who: str, current_entry: Optional[dict],
+                          prior_entries: list, loan_type: str, flags: list) -> None:
+    """Flag the gap between the most-recent prior job and the current hire date."""
+    if not (current_entry and prior_entries):
+        return
+    cur_hire = current_entry.get("date_hired")
+    _date_fmts_gap = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
+
+    def _parse_date_gap(s):
+        if not s:
+            return None
+        for _f in _date_fmts_gap:
+            try:
+                return datetime.strptime(s.strip(), _f).date()
+            except ValueError:
+                continue
+        return None
+
+    _most_recent_prior = None
+    _most_recent_term_date = None
+    for prior in prior_entries:
+        _td = _parse_date_gap(prior.get("date_terminated"))
+        if _td and (_most_recent_term_date is None or _td > _most_recent_term_date):
+            _most_recent_term_date = _td
+            _most_recent_prior = prior
+
+    if not (_most_recent_prior and cur_hire):
+        return
+    prior_term = _most_recent_prior.get("date_terminated")
+    d_hire = _parse_date_gap(cur_hire)
+    d_term = _most_recent_term_date
+    if not (d_hire and d_term):
+        return
+    try:
+        gap_days = (d_hire - d_term).days
+        if gap_days > 30:
+            gap_months = gap_days // 30
+            if gap_months < 6:
+                if loan_type.upper() == "FHA":
+                    flags.append(_flag("5.1",
+                        f"FHA Employment Gap — Explanation Required ({who})",
+                        "warning",
+                        f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). FHA requires explanation for gaps < 6 months.",
+                        "Obtain a written explanation letter from the borrower for the employment gap",
+                    ))
+            else:
+                flags.append(_flag("5.1",
+                    f"Employment Gap > 6 Months — Documentation Required ({who})",
+                    "warning",
+                    f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). Requires documented 2-year history.",
+                    "Document the 2-year employment history before the gap and verify income continuity",
+                ))
+    except Exception:
+        pass
+
+
 # ── Main tool ─────────────────────────────────────────────────────────────────
 
 @tool
@@ -143,12 +452,15 @@ def review_urla_employment(
 ) -> Command:
     """Cross-check employment fields against VOE using BE01xx/BE02xx/BE03xx entries.
 
-    For each populated employment entry:
-    - Reads BE0x09 (employment type) to determine if Current or Prior.
+    Runs the full income/employment cross-check for BOTH the borrower and the
+    co-borrower (each matched to its own VOE copy by employer name). For each:
+    - Reads currentEmploymentIndicator to determine Current vs Prior.
     - Verifies LOS employment fields against the corresponding VOE doc fields
-      (current_ prefix for Current employer, previous_ prefix for Prior employer).
-    - Checks authorization checkbox (BE0236), date terminated logic, and
-      employment duration for gap analysis.
+      (current_ prefix for Current employer, previous_ prefix for Prior employer):
+      employer name, position, hire date, date terminated, and monthly base pay.
+    - Emits a positive "Monthly Base Pay Match" info flag when income agrees.
+    - Checks authorization checkbox, date terminated logic, and employment gaps.
+    All flag titles are person-tagged (Borrower / Co-Borrower) so dedup keeps both.
 
     Call this tool during STEP_05 (1003 URLA Page 2) as substep 5.1.
 
@@ -227,56 +539,63 @@ def review_urla_employment(
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
 
-    # ── Identify current and prior entries ────────────────────────────────────
+    # ── Identify current / prior employment for borrower + co-borrower ─────────
     # currentEmploymentIndicator: True = Current, False = Prior
-    current_entry = None
-    prior_entries = []
+    current_entry, prior_entries = _split_current_prior(api_entries, flags, "Borrower")
 
-    for e in api_entries:
-        if not _entry_populated(e):
-            continue
-        if e.get("current"):
-            if current_entry:
-                flags.append(_flag("5.1",
-                    "Multiple Current Employers",
-                    "warning",
-                    f"More than one employment record has currentEmploymentIndicator=True. "
-                    f"First: '{current_entry.get('employer_name')}', also: '{e.get('employer_name')}'.",
-                    "Verify only one entry should be Current; mark additional entries as Prior if applicable.",
-                ))
-            else:
-                current_entry = e
-        else:
-            prior_entries.append(e)
+    # Co-borrower employment (also drives the Does-Not-Apply checks below)
+    coborr_fetch_failed = False
+    try:
+        coborr_api_entries = read_employment(loan_id, state=state, applicant_type="coborrower")
+    except LookupError:
+        # Expected when the co-borrower has no employment records.
+        coborr_api_entries = []
+    except Exception as e:  # noqa: BLE001 — record real failures rather than hide them
+        logger.warning(f"[REVIEW_URLA_EMPLOYMENT] Co-borrower employment fetch failed: {e}")
+        coborr_api_entries = []
+        coborr_fetch_failed = True
+    has_coborr = len(coborr_api_entries) > 0 or bool(_los(state, "coborrower_first_name"))
+    if coborr_fetch_failed and has_coborr:
+        flags.append(_flag("5.1",
+            "Co-Borrower Employment Fetch Failed",
+            "warning",
+            "Could not read the co-borrower's employment records from Encompass, so the "
+            "co-borrower employment cross-check may be incomplete.",
+            "Re-run the review or verify the co-borrower's employment entries manually.",
+        ))
+    coborr_current, coborr_priors = _split_current_prior(coborr_api_entries, flags, "Co-Borrower")
 
-    # Build a dict-of-entries keyed by index for backward compatibility
-    entries = {f"api_{i}": e for i, e in enumerate(api_entries)}
-
-    # ── Read VOE doc fields ───────────────────────────────────────────────────
-    # VOE bucket may hold multiple attachments (one per employer). For current-employer
-    # cross-checks we find the copy whose employer name matches the LOS current employer.
-    # This prevents false mismatches when e.g. a terminated employer's PVOE is copy 0.
-    _los_cur_employer = current_entry.get("employer_name") if current_entry else None
-    _voe_cur, _voe_cur_idx = _get_voe_copy_for_employer(state, _los_cur_employer or "")
-
-    # DocRepo coordinate refs for the VOE bucket (all copies). For current-employer
-    # cross-checks we mark the copy that was matched to the LOS current employer.
+    # ── Match each applicant to its own VOE copy (by employer name) ────────────
+    # The VOE bucket may hold multiple attachments (one per employer/person). We
+    # match each applicant's current employer to the right copy so a terminated or
+    # other-person's VOE doesn't cause false mismatches.
     _voe_refs_all = _relevant_docs(state, doc_types=["VOE - non service provider"])
-    _voe_refs_cur = _relevant_docs(
-        state,
-        doc_types=["VOE - non service provider"],
-        matched=({"VOE - non service provider": _voe_cur_idx} if _voe_cur_idx is not None else None),
-    )
 
-    voe_cur_name       = _voe_cur.get("current_employer_name") or _doc(state, "current_employer_name")
-    voe_cur_hire       = _voe_cur.get("current_original_hire_date") or _doc(state, "current_original_hire_date")
-    voe_cur_base_pay   = _voe_cur.get("current_monthly_base_pay") or _doc(state, "current_monthly_base_pay")
-    voe_cur_position   = _voe_cur.get("current_position_title") or _doc(state, "current_position_title")
-    # Pay-rate inputs the VOE used to derive current_monthly_base_pay — surfaced in the
-    # base-pay mismatch flag so the processor can see exactly how the figure was computed.
-    voe_cur_rate       = _voe_cur.get("current_rate_of_pay") or _doc(state, "current_rate_of_pay")
-    voe_cur_hours_pp   = _voe_cur.get("current_avg_hours_per_pay_period") or _doc(state, "current_avg_hours_per_pay_period")
-    voe_cur_pp_freq    = _voe_cur.get("current_pay_period_frequency") or _doc(state, "current_pay_period_frequency")
+    def _voe_match(entry, fallback, require_match):
+        name = (entry.get("employer_name") if entry else "") or ""
+        flat, idx = _get_voe_copy_for_employer(state, name)
+        matched = idx is not None
+        # For the co-borrower, only trust the copy when its employer name actually
+        # shares a token with the LOS employer — otherwise the helper's copy-0
+        # fallback could point at the borrower's VOE and fabricate mismatches.
+        if require_match:
+            copy_emp = flat.get("current_employer_name") or ""
+            if not (set(_normalize_name(name).split()) & set(_normalize_name(copy_emp).split())):
+                flat, idx = {}, None
+                matched = False
+        refs = _relevant_docs(
+            state,
+            doc_types=["VOE - non service provider"],
+            matched=({"VOE - non service provider": idx} if idx is not None else None),
+        )
+        # Borrower keeps the historical top-level _doc fallback; co-borrower uses
+        # only its matched copy (global doc_fields are the borrower's). `matched`
+        # is returned so the caller can flag an unmatched/missing co-borrower VOE
+        # even after `flat` is cleared above.
+        return _voe_values(flat, fallback_state=fallback), refs, matched
+
+    borr_voe, borr_refs_cur, _ = _voe_match(current_entry, state, require_match=False)
+    coborr_voe, coborr_refs_cur, coborr_voe_matched = _voe_match(coborr_current, None, require_match=True)
 
     # ── Section 1b/1c/1d income fields + Does Not Apply checkboxes ───────────
     borr_base_income        = _los(state, "borr_base_monthly_income")      # FE0119
@@ -300,211 +619,46 @@ def review_urla_employment(
     borr_1d_dna             = _los(state, "borr_1d_dna")                   # URLA.X203
     coborr_1d_dna           = _los(state, "coborr_1d_dna")                 # URLA.X204
 
-    voe_prev_name      = _doc(state, "previous_employer_name")
-    voe_prev_base_pay  = _doc(state, "previous_monthly_base_pay")
-
-    # ── Current employer cross-checks ─────────────────────────────────────────
+    # ── Employment cross-checks — borrower then co-borrower ───────────────────
     if current_entry:
-        e = current_entry
+        _check_current_employer("Borrower", current_entry, borr_voe, borr_refs_cur,
+                                bool(prior_entries), flags)
+    elif any(_entry_populated(e) for e in api_entries):
+        flags.append(_flag("5.1",
+            "No Current Employer Entry Found (Borrower)",
+            "warning",
+            "Employment entries exist but none are marked as Current.",
+            "Mark the current employer entry type as 'Current' in Encompass (BE0109)",
+        ))
+    _check_prior_employers("Borrower", prior_entries, borr_voe, _voe_refs_all, flags)
+    _check_employment_gap("Borrower", current_entry, prior_entries, loan_type, flags)
 
-        # printAttachmentIndicator — "print see attached borrower's authorization"
-        raw = e.get("_raw") or {}
-        print_auth = raw.get("printAttachmentIndicator")
-        if print_auth is False:
-            flags.append(_flag("5.1",
-                "Authorization Attachment Not Checked",
-                "warning",
-                "printAttachmentIndicator is False — 'see attached borrower's authorization' will not print on the VOE signature line.",
-                "Check the authorization attachment checkbox in Encompass for the current employer.",
-            ))
-
-        # Employer name
-        if voe_cur_name:
-            los_name = _normalize_name(e.get("employer_name"))
-            doc_name = _normalize_name(voe_cur_name)
-            if los_name and doc_name and los_name != doc_name:
+    if has_coborr and coborr_api_entries:
+        if coborr_current:
+            if not coborr_voe_matched:
                 flags.append(_flag("5.1",
-                    "Employer Name Mismatch (VOE vs 1003)",
+                    "VOE Not Matched — Current (Co-Borrower)",
                     "warning",
-                    f"LOS: '{e.get('employer_name')}' | VOE: '{voe_cur_name}'",
-                    "Correct the employer name in Encompass to match the VOE",
-                    docs=_voe_refs_cur,
+                    "No VOE copy could be matched to the co-borrower's current employer, "
+                    "so the co-borrower income/employment cross-check could not be "
+                    "completed against a verification of employment.",
+                    "Confirm a VOE for the co-borrower's current employer is in the eFolder.",
                 ))
-        elif not e.get("employer_name"):
+            _check_current_employer("Co-Borrower", coborr_current, coborr_voe, coborr_refs_cur,
+                                    bool(coborr_priors), flags)
+        elif any(_entry_populated(e) for e in coborr_api_entries):
             flags.append(_flag("5.1",
-                "Current Employer Name Missing",
+                "No Current Employer Entry Found (Co-Borrower)",
                 "warning",
-                "BE0102 (employer name) is empty for the Current employment entry.",
-                "Enter the current employer name in Encompass",
+                "Co-borrower employment entries exist but none are marked as Current.",
+                "Mark the co-borrower current employer entry type as 'Current' in Encompass (BE0109)",
             ))
-
-        # Position / title / type of business (BE0110) — cross-check vs VOE
-        if voe_cur_position and e.get("position_title"):
-            if _normalize_name(e["position_title"]) != _normalize_name(voe_cur_position):
-                flags.append(_flag("5.1",
-                    "Position Title Mismatch — Current (VOE vs 1003)",
-                    "warning",
-                    f"LOS: '{e['position_title']}' | VOE: '{voe_cur_position}'",
-                    "Correct the position/title in Encompass to match the VOE",
-                    docs=_voe_refs_cur,
-                ))
-
-        # Employer phone — presence only
-        if not e.get("employer_phone"):
-            flags.append(_flag("5.1",
-                "Current Employer Phone Missing (BE0117)",
-                "warning",
-                "BE0117 (employer phone) is empty for the current employer.",
-                "Enter the current employer phone number in Encompass",
-            ))
-
-        # Date hired vs VOE — normalize both to YYYY-MM-DD before comparing
-        if voe_cur_hire and e.get("date_hired"):
-            _date_fmts = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
-            def _parse_date(s):
-                for _f in _date_fmts:
-                    try:
-                        return datetime.strptime(s.strip(), _f).date()
-                    except ValueError:
-                        continue
-                return None
-            _los_d = _parse_date(e["date_hired"])
-            _voe_d = _parse_date(voe_cur_hire)
-            if _los_d and _voe_d and _los_d != _voe_d:
-                flags.append(_flag("5.1",
-                    "Hire Date Mismatch — Current (VOE vs 1003)",
-                    "warning",
-                    f"LOS hire date: '{e['date_hired']}' | VOE original hire date: '{voe_cur_hire}'",
-                    "Correct the hire date in Encompass to match the VOE",
-                    docs=_voe_refs_cur,
-                ))
-
-        # Date terminated — must be null/empty for current employer
-        if e.get("date_terminated"):
-            flags.append(_flag("5.1",
-                "Date Terminated Populated for Current Employer (BE0114)",
-                "warning",
-                f"BE0114 shows termination date '{e['date_terminated']}' but employment type is Current.",
-                "Clear the termination date for the current employer in Encompass",
-            ))
-
-        # Monthly base pay vs VOE
-        if voe_cur_base_pay or e.get("monthly_base_pay"):
-            los_pay = _parse_amount(e.get("monthly_base_pay"))
-            doc_pay = _parse_amount(voe_cur_base_pay)
-            if los_pay is not None and doc_pay is not None:
-                if abs(los_pay - doc_pay) > 1.00:  # allow $1 rounding tolerance
-                    # Show the full derivation so the processor can see WHY they differ.
-                    _detail = (
-                        f"LOS (1003): ${los_pay:,.2f}/mo  |  VOE: ${doc_pay:,.2f}/mo  |  "
-                        f"Δ ${abs(los_pay - doc_pay):,.2f}/mo"
-                    )
-                    _rate  = _parse_amount(voe_cur_rate)
-                    _hours = _parse_amount(voe_cur_hours_pp)
-                    _ppy   = _periods_per_year(voe_cur_pp_freq)
-                    if _rate and _hours and _ppy:
-                        _voe_annual = _rate * _hours * _ppy
-                        _detail += (
-                            f"\nVOE base = rate × avg hours/pay-period × periods/yr ÷ 12: "
-                            f"${_rate:,.2f}/hr × {_hours:g} hrs × {_ppy} ({voe_cur_pp_freq}) "
-                            f"= ${_voe_annual:,.2f}/yr ÷ 12 = ${_voe_annual / 12:,.2f}/mo "
-                            f"({_hours * _ppy:,.0f} hrs/yr ≈ {(_hours * _ppy) / 52:.1f} hrs/wk)"
-                        )
-                    if _rate:
-                        _los_annual_hrs = los_pay * 12 / _rate
-                        _detail += (
-                            f"\nLOS base ${los_pay:,.2f}/mo at ${_rate:,.2f}/hr implies "
-                            f"{_los_annual_hrs:,.0f} hrs/yr ≈ {_los_annual_hrs / 52:.1f} hrs/wk "
-                            f"(${_rate:,.2f} × 40 × 52 ÷ 12 = ${_rate * 40 * 52 / 12:,.2f}/mo)"
-                        )
-                        if _hours and _ppy:
-                            _voe_hpw = (_hours * _ppy) / 52
-                            _los_hpw = _los_annual_hrs / 52
-                            _detail += (
-                                f"\n→ Difference driven by hours/week: VOE {_voe_hpw:.1f} vs LOS "
-                                f"{_los_hpw:.1f} ({_voe_hpw - _los_hpw:+.1f} hrs/wk)."
-                            )
-                    flags.append(_flag("5.1",
-                        "Monthly Base Pay Mismatch — Current (VOE vs 1003)",
-                        "warning",
-                        _detail,
-                        "Reconcile the monthly base pay with the VOE — the gap is driven by the "
-                        "assumed hours/week. Confirm whether to qualify on 40 hrs base or the VOE's "
-                        "averaged hours (which include regular overtime).",
-                        docs=_voe_refs_cur,
-                    ))
-
-        # Employment duration — trigger gap check if < 2 years total
-        yrs = e.get("years_in_job")
-        mos = e.get("months_in_job")
-        total_mos = (int(yrs or 0) * 12 + int(mos or 0)) if (yrs is not None or mos is not None) else None
-        if total_mos is not None and total_mos < 24:
-            if not prior_entries:
-                flags.append(_flag("5.1",
-                    "Employment History Gap — No Prior Employer (< 2 Years Current)",
-                    "warning",
-                    f"Current employment is {total_mos} months (< 2 years) and no prior employer entry found.",
-                    "Add prior employment history entries in Encompass to document 2-year history",
-                ))
-
-    else:
-        # No current employer found among populated entries
-        if any(_entry_populated(e) for e in entries.values()):
-            flags.append(_flag("5.1",
-                "No Current Employer Entry Found",
-                "warning",
-                "Employment entries exist but none are marked as Current.",
-                "Mark the current employer entry type as 'Current' in Encompass (BE0109)",
-            ))
-
-    # ── Prior employer cross-checks ───────────────────────────────────────────
-    for e in prior_entries:
-        # Employer name vs VOE previous
-        if voe_prev_name and e.get("employer_name"):
-            los_name = _normalize_name(e["employer_name"])
-            doc_name = _normalize_name(voe_prev_name)
-            if los_name and doc_name and los_name != doc_name:
-                flags.append(_flag("5.1",
-                    "Employer Name Mismatch — Prior (VOE vs 1003)",
-                    "warning",
-                    f"LOS prior employer: '{e['employer_name']}' | VOE previous: '{voe_prev_name}'",
-                    "Correct the prior employer name in Encompass to match the VOE",
-                    docs=_voe_refs_all,
-                ))
-
-        # Date terminated must be populated for prior employer
-        if not e.get("date_terminated"):
-            flags.append(_flag("5.1",
-                "Date Terminated Missing for Prior Employer (BE0114)",
-                "warning",
-                f"Employment entry for '{e.get('employer_name', 'unknown')}' is Prior but date terminated is empty.",
-                "Enter the termination date for the prior employer in Encompass",
-            ))
-
-        # Monthly base pay vs VOE previous
-        if voe_prev_base_pay or e.get("monthly_base_pay"):
-            los_pay = _parse_amount(e.get("monthly_base_pay"))
-            doc_pay = _parse_amount(voe_prev_base_pay)
-            if los_pay is not None and doc_pay is not None:
-                if abs(los_pay - doc_pay) > 1.00:
-                    flags.append(_flag("5.1",
-                        "Monthly Base Pay Mismatch — Prior (VOE vs 1003)",
-                        "warning",
-                        f"LOS: ${los_pay:,.2f} | VOE previous: ${doc_pay:,.2f}",
-                        "Reconcile prior employer base pay with the VOE",
-                        docs=_voe_refs_all,
-                    ))
+        _check_prior_employers("Co-Borrower", coborr_priors, coborr_voe, _voe_refs_all, flags)
+        _check_employment_gap("Co-Borrower", coborr_current, coborr_priors, loan_type, flags)
 
     # ── Does Not Apply checkbox detection: sections 1b / 1c / 1d ────────────
     def _dna_checked(val) -> bool:
         return str(val or "").strip().lower() in ("true", "yes", "y", "1", "checked", "x")
-
-    # Determine if loan has a co-borrower (re-use entries already fetched, or detect from state)
-    try:
-        coborr_entries = read_employment(loan_id, state=state, applicant_type="coborrower")
-        has_coborr = len(coborr_entries) > 0
-    except (LookupError, Exception):
-        has_coborr = bool(_los(state, "coborrower_first_name"))
 
     # ── 2b (URLA Part 2): Employee / Employer income (FE0119 / FE0219) ─────────
     if not _dna_checked(borr_1b_dna):
@@ -615,58 +769,7 @@ def review_urla_employment(
             docs=_voe_refs_all,
         ))
 
-    # ── Employment gap checks — use only the most recent prior job ───────────
-    # Only the gap between the immediately preceding job and the current hire
-    # is relevant. Older gaps are accounted for by requiring 2-year history docs.
-    if current_entry and prior_entries:
-        cur_hire = current_entry.get("date_hired")
-        _date_fmts_gap = ["%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"]
-
-        def _parse_date_gap(s):
-            if not s:
-                return None
-            for _f in _date_fmts_gap:
-                try:
-                    return datetime.strptime(s.strip(), _f).date()
-                except ValueError:
-                    continue
-            return None
-
-        # Find the most recent prior job by termination date
-        _most_recent_prior = None
-        _most_recent_term_date = None
-        for prior in prior_entries:
-            _td = _parse_date_gap(prior.get("date_terminated"))
-            if _td and (_most_recent_term_date is None or _td > _most_recent_term_date):
-                _most_recent_term_date = _td
-                _most_recent_prior = prior
-
-        if _most_recent_prior and cur_hire:
-            prior_term = _most_recent_prior.get("date_terminated")
-            d_hire = _parse_date_gap(cur_hire)
-            d_term = _most_recent_term_date
-            if d_hire and d_term:
-                try:
-                    gap_days = (d_hire - d_term).days
-                    if gap_days > 30:
-                        gap_months = gap_days // 30
-                        if gap_months < 6:
-                            if loan_type.upper() == "FHA":
-                                flags.append(_flag("5.1",
-                                    "FHA Employment Gap — Explanation Required",
-                                    "warning",
-                                    f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). FHA requires explanation for gaps < 6 months.",
-                                    "Obtain a written explanation letter from the borrower for the employment gap",
-                                ))
-                        else:
-                            flags.append(_flag("5.1",
-                                "Employment Gap > 6 Months — Documentation Required",
-                                "warning",
-                                f"Gap of ~{gap_months} month(s) between prior termination ({prior_term}) and current hire ({cur_hire}). Requires documented 2-year history.",
-                                "Document the 2-year employment history before the gap and verify income continuity",
-                            ))
-                except Exception:
-                    pass
+    # (Employment-gap analysis runs per-applicant above via _check_employment_gap.)
 
     # ── Rule: Married + Same Employer → copy tenure fields to co-borrower slot ──
     _borr_marital   = (_los(state, "borrower_marital_status") or "").strip().upper()

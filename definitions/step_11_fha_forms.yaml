@@ -1,0 +1,182 @@
+step:
+  id: STEP_11
+  name: FHA-Specific Forms
+  phase: FORM_UPDATES
+  description: >
+    FHA-only forms that don't apply to conventional/VA/USDA loans. Covers FHA
+    Management (CAIVRS authorization numbers + FHA Case Number/ADP code) and the
+    HUD-92900-LT Transmittal. Every substep is gated on loan_type == FHA and is a
+    no-op for non-FHA loans. Runs after the Transmittal Summary (STEP_10) and
+    before Processor Workflow and Closing (STEP_12).
+
+substeps:
+- id: '11.1'
+  name: FHA Management
+  tool: update_fha_management
+  condition:
+    field: loan_type
+    equals: FHA
+  description: >
+    Populate the FHA Management screen (Tracking tab). Two parts:
+      1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted
+         from the CAIVRS document (borrower + co-borrowers) into the Encompass
+         CAIVRS fields. Write-only-if-blank; emits an info flag listing what was
+         written and a warning if the document has a number Encompass is missing.
+      2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code
+         (703 for a standard 1-unit property) are present. Flag if missing; the
+         case number itself is assigned via FHA Connection, not written here.
+    FHA-only: no-op when loan_type != FHA.
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Gate — substep only runs for FHA loans
+  - key: fha_case_number
+    field_id: '1040'
+    field_name: FHA/VA Agency Case Number
+    category: loan_info
+    purpose: Confirm FHA Case Number is assigned (FHA Government Documents)
+  - key: borrower_caivrs_number
+    field_id: '1018'
+    field_name: Borrower CAIVRS Number
+    category: loan_info
+    purpose: Written write-only-if-blank from the CAIVRS document (borrower)
+  - key: coborrower_caivrs_number
+    field_id: '1144'
+    field_name: Co-Borrower CAIVRS Number
+    category: loan_info
+    purpose: Written write-only-if-blank from the CAIVRS document (co-borrower)
+  - key: caivrs_date_updated
+    field_id: '3067'
+    field_name: CAIVRS Date Updated
+    category: loan_info
+    purpose: Date the CAIVRS number fields were updated (MM/DD/YYYY)
+  - key: caivrs_updated_by
+    field_id: '3068'
+    field_name: CAIVRS Updated By
+    category: loan_info
+    purpose: Who updated the CAIVRS number fields
+  doc_types:
+  - document_type: CAIVRS
+    all_copies: false
+    fields:
+    - key: caivrs_status
+      purpose: Overall CAIVRS result (clear / has findings)
+    - key: borrower_authorization_number
+      purpose: Borrower CAIVRS Authorization Number
+    - key: coborrower_authorization_number
+      purpose: Co-borrower CAIVRS Authorization Number
+    - key: coborrower2_authorization_number
+      purpose: Third applicant CAIVRS Authorization Number
+    - key: coborrower3_authorization_number
+      purpose: Fourth applicant CAIVRS Authorization Number
+    - key: authorization_date
+      purpose: Date CAIVRS authorization was run
+  - document_type: FHA Government Documents
+    all_copies: false
+    fields:
+    - key: fha_assigned_case_number
+      purpose: HUD-assigned FHA Case Number (written to field 1040 if blank)
+    - key: fha_adp_code
+      purpose: ADP code accompanying the case number (e.g. 703)
+    - key: fha_section_of_act
+      purpose: Section of the National Housing Act (e.g. 203(b))
+    - key: fha_case_assignment_date
+      purpose: Date the FHA Case Number was assigned
+  rules:
+  - name: Write CAIVRS Authorization Numbers
+    type: custom
+    logic: >
+      For each applicant, if the CAIVRS document has an Authorization Number and
+      the corresponding Encompass CAIVRS field is blank, write it (borrower 1018,
+      co-borrower 1144). Never overwrite a populated CAIVRS field. When any number
+      is written, stamp CAIVRS Date Updated (3067, MM/DD/YYYY = today) and CAIVRS
+      Updated By (3068 = adesai). Extra applicants (coborrower2/3) have no
+      Encompass CAIVRS field, so their numbers are flagged for manual entry.
+  - name: Write FHA Case Number
+    type: custom
+    logic: >
+      If the FHA Case Number (field 1040) is blank and the FHA Government
+      Documents extraction has an assigned case number, write it to field 1040
+      (this is the same field shown on the HUD-92900-LT, so one write covers
+      both forms). If 1040 is blank and no case number was extracted, flag a
+      warning — it must be assigned via FHA Connection before submission. ADP
+      code is 703 for a standard 1-unit property.
+  flags:
+  - title: CAIVRS Numbers Written
+    severity: info
+    condition: One or more CAIVRS Authorization Numbers were written to Encompass
+    suggestion: Verify the CAIVRS numbers on the FHA Management screen against the document
+  - title: CAIVRS Numbers Pending Manual Entry
+    severity: warning
+    condition: >
+      CAIVRS document has Authorization Numbers but the Encompass CAIVRS field IDs
+      are unverified, so they were not written automatically
+    suggestion: Enter the CAIVRS Authorization Number(s) on the FHA Management Tracking tab
+  - title: CAIVRS Document Missing
+    severity: warning
+    condition: FHA loan with no CAIVRS document / no Authorization Numbers extracted
+    suggestion: Run CAIVRS Authorization in FHA Connection and upload the result to the eFolder
+  - title: FHA Case Number Written
+    severity: info
+    condition: Field 1040 was blank and the assigned case number from FHA Government Documents was written
+    suggestion: Verify the FHA Case Number on the FHA Management screen against the document
+  - title: FHA Case Number Missing
+    severity: warning
+    condition: FHA loan with blank FHA Case Number (field 1040) and none extracted from FHA Government Documents
+    suggestion: Assign the FHA Case Number via FHA Connection (ADP code 703 for standard 1-unit)
+
+- id: '11.2'
+  name: HUD Transmittal
+  tool: update_hud_transmittal
+  condition:
+    field: loan_type
+    equals: FHA
+  description: >
+    Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally
+    completed by the underwriter, so the agent flags rather than writes. The
+    only programmatic check is FHA Case Number presence (field 1040 /
+    fha_assigned_case_number); Source/EIN (MMP / 52, Government) and the ADP code
+    live on the underwriter-completed form and are NOT read into state, so they
+    are surfaced as manual-verification reminders only. FHA-only: no-op when
+    loan_type != FHA.
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: Gate — substep only runs for FHA loans
+  - key: fha_case_number
+    field_id: '1040'
+    field_name: FHA/VA Agency Case Number
+    category: loan_info
+    purpose: HUD-92900-LT requires the case number (same field 1040 as FHA Management)
+  doc_types:
+  - document_type: FHA Government Documents
+    all_copies: false
+    fields:
+    - key: fha_assigned_case_number
+      purpose: Assigned case number (accepts as present even before state refresh)
+  rules:
+  - name: HUD-92900-LT Review
+    type: existence_check
+    logic: >
+      Programmatically confirm the FHA Case Number is present (field 1040, or
+      fha_assigned_case_number from FHA Government Documents before the state
+      refresh). Source/EIN = MMP/52 (Government) and the ADP code are surfaced
+      as manual-verification reminders only — those values are not read into
+      state, so no automated existence/mismatch check is performed on them. The
+      underwriter completes this form.
+  flags:
+  - title: HUD-92900-LT Review Required
+    severity: info
+    condition: Always raised for FHA loans — underwriter completes the HUD-92900-LT
+    suggestion: Verify Source/EIN = MMP/52 (Government) and FHA Case Number + ADP code on the HUD Transmittal
+  - title: HUD-92900-LT Case Number Missing
+    severity: warning
+    condition: FHA loan with blank FHA Case Number (field 1040) — HUD Transmittal incomplete
+    suggestion: Assign the FHA Case Number before the underwriter completes the HUD-92900-LT
+
+dev:
+  skip: false

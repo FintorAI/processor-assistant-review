@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
+hasdata.md
 .venv
 env/
 venv/
@@ -225,4 +226,4 @@ __marimo__/
 
 # Local — never committed (all local-only files live in local/)
 local/
-
+scripts/

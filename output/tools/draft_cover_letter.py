@@ -8,6 +8,7 @@ Phase: FORM_UPDATES
 
 import json
 import logging
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,39 +27,81 @@ if str(ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-# Lines in Almas' email that UW does not need — stripped before writing to Encompass.
-# Match is case-insensitive, prefix-only (up to first newline).
+# Almas' notes are organized into emoji-headed sections. Per processor feedback
+# (Video 5), the UW cover letter must drop the File Summary, Team Contacts,
+# Appraisal, and Additional Notes sections entirely.
+
+# Recognized section headers, matched emoji/whitespace-insensitively (lowercased,
+# leading non-letters and a trailing ':' removed).
+_SECTION_HEADERS = {
+    "file summary",
+    "employment & income", "employment and income",
+    "assets",
+    "team contacts",
+    "appraisal",
+    "additional notes",
+}
+# Sections removed wholesale (header + all content until the next section).
+_DROP_SECTIONS = {"file summary", "team contacts", "appraisal", "additional notes"}
+# Section header lines removed from the output (the dropped sections plus the
+# Employment & Income label, which is noise once its sub-lines remain). The Assets
+# header is kept as a visual divider.
+_DROP_HEADER = _DROP_SECTIONS | {"employment & income", "employment and income"}
+# Underwriting-relevant File Summary lines kept even though the section is dropped.
+_SECTION_KEEP = {"file summary": ("aus findings", "loan program")}
+# Boilerplate identifier lines UW does not need (matched as a case-insensitive
+# prefix) inside the sections we keep.
 _STRIP_PREFIXES = (
     "client name",
     "property address",
     "closing date",
     "borrower(s) on loan:",
     "borrower(s) on title:",
-    "employment & income",
     "voe contact email:",
     "need business return",
-    "dependents",
-    "assets",          # investment/reserve detail — not relevant for UW cover letter
-    "asset ",          # catches "Asset (cash-out)" variants
-    "team contacts",
-    "appraisal",       # handled separately in "Documents still needed" section
+    "use this section",
 )
 
 
-def _strip_boilerplate(notes: str) -> str:
-    """Remove boilerplate lines from Almas' email before writing to CX.KM.SUBMISSION.NOTES.
+def _norm_header(line: str) -> str:
+    """Normalize a line to its section-header form (drop leading emoji + trailing ':')."""
+    s = re.sub(r"^[^0-9A-Za-z]+", "", line.strip()).strip().lower()
+    return s.rstrip(":").strip()
 
-    Any line whose stripped content starts with a prefix in _STRIP_PREFIXES is dropped.
-    Consecutive blank lines left behind are collapsed to a single blank line.
+
+def _strip_boilerplate(notes: str) -> str:
+    """Clean Almas' email before writing to CX.KM.SUBMISSION.NOTES.
+
+    - Drops the File Summary, Team Contacts, Appraisal, and Additional Notes
+      sections entirely (header + content), salvaging AUS Findings / Loan Program
+      from File Summary.
+    - Drops the section header label for Employment & Income (keeps its content).
+    - Drops boilerplate identifier lines (client name, property address, etc.).
+    - Collapses consecutive blank lines.
     """
     cleaned: list[str] = []
+    current = ""
+    dropping = False
     for line in notes.splitlines():
-        stripped = line.strip().lower()
-        if any(stripped.startswith(p) for p in _STRIP_PREFIXES):
+        stripped = line.strip()
+        header = _norm_header(line) if stripped else ""
+        if header in _SECTION_HEADERS:
+            current = header
+            dropping = header in _DROP_SECTIONS
+            if header in _DROP_HEADER:
+                continue
+            cleaned.append(line)  # keep the header as a divider (e.g. "💰 Assets")
+            continue
+        if dropping:
+            keep = _SECTION_KEEP.get(current, ())
+            if keep and stripped.lower().startswith(keep):
+                cleaned.append(line)
+            continue
+        if any(stripped.lower().startswith(p) for p in _STRIP_PREFIXES):
             continue
         cleaned.append(line)
 
-    # Collapse runs of more than one blank line
+    # Collapse runs of more than one blank line.
     result: list[str] = []
     prev_blank = False
     for line in cleaned:
@@ -103,27 +146,22 @@ def draft_cover_letter(
     )
     almas_notes = _strip_boilerplate(str(almas_notes).strip())
 
-    # ── Append OCR'd text from Almas-notes images (transcribed in step 0.6) ──
-    # These images are uploaded to DocRepo by the frontend (not the eFolder), so
-    # extract_almas_images OCRs them via Claude vision and stores the text on
-    # state['almas_notes_images']. We append that text here and surface each image
-    # as a DocRepo coordinate reference on the 7.1 flag (built directly from the
-    # frontend-provided coordinates — these are not eFolder docs, so _doc_coords
-    # does not apply).
+    # ── Almas-notes images (transcribed in step 0.6) ──
+    # These images are uploaded to DocRepo by the frontend (not the eFolder) and
+    # OCR'd by extract_almas_images. Per processor feedback we do NOT append the
+    # OCR'd transcription to the cover letter (it is boilerplate / contact info that
+    # belongs in File Contacts, handled by review_file_contacts). We still surface
+    # each image as a DocRepo coordinate reference on the 8.1 flag for traceability.
     almas_images = (
         state.get("almas_notes_images")
         or (state.get("additional_info") or {}).get("almas_notes_images")
         or []
     )
     image_refs: list[dict] = []
-    image_text_blocks: list[str] = []
     for idx, img in enumerate(almas_images):
         if not isinstance(img, dict):
             continue
-        text = (img.get("extracted_text") or "").strip()
         label = img.get("filename") or f"Almas Notes Image {idx + 1}"
-        if text:
-            image_text_blocks.append(f"[{label}]\n{text}")
         doc_id = img.get("doc_id") or img.get("docrepo_location") or ""
         url = img.get("url") or img.get("signed_url") or img.get("s3_url") or ""
         if doc_id or url:
@@ -137,9 +175,6 @@ def draft_cover_letter(
                 "source": "almas_notes_image",
                 "copies": [],
             })
-    if image_text_blocks:
-        joined = "\n\n".join(image_text_blocks)
-        almas_notes = (almas_notes + "\n\n" + joined) if almas_notes else joined
 
     # ── Build "Documents still needed:" appendix ──
     missing_docs: list[str] = []
@@ -189,22 +224,18 @@ def draft_cover_letter(
             + ", ".join(missing_docs) + "."
             if missing_docs else " No missing docs appended (all present in eFolder)."
         )
-        image_summary = (
-            f" Appended OCR'd text from {len(image_text_blocks)} Almas-notes image(s)."
-            if image_text_blocks else ""
-        )
         notes_flag = {
             "substep": "8.1",
             "title": "Cover Letter — Submission Notes Written",
             "severity": "info-overwrite",
             "details": (
                 f"Almas' notes copied to CX.KM.SUBMISSION.NOTES "
-                f"({len(almas_notes)} characters).{missing_summary}{image_summary}"
+                f"({len(almas_notes)} characters), with the File Summary, Team "
+                f"Contacts, Appraisal, and Additional Notes sections removed."
+                f"{missing_summary}"
             ),
             "suggestion": (
-                "Review the submission notes and remove any sections not applicable "
-                "to this loan (e.g. Title Company, Appraisal, Additional Notes "
-                "if pre-populated by Almas)."
+                "Review the submission notes for accuracy before submitting to UW."
             ),
             "resolved": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),

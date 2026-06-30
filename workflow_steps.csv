@@ -1,7 +1,7 @@
 Phase,Phase_Name,Step_ID,Step_Num,Step_Name,Substep_ID,Substep_Name,Plan_File,Tools
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.md,find_loan
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (252 fields),data_gathering.md,fetch_los_fields
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (29 document types),data_gathering.md,fetch_doc_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (275 fields),data_gathering.md,fetch_los_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (31 document types),data_gathering.md,fetch_doc_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.5,Validate Property Address (USPS),data_gathering.md,validate_property_address
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.6,Extract Almas-Notes Images (Vision OCR),data_gathering.md,extract_almas_images
@@ -22,6 +22,8 @@ DATA_REVIEW,Data Review,STEP_07,7,1003 URLA Part 4,7.3,Ethnicity and ID Cross-Ch
 FORM_UPDATES,Form Updates,STEP_08,8,Cover Letter,8.1,Draft Cover Letter / Submission Notes,cover_letter.md,draft_cover_letter
 FORM_UPDATES,Form Updates,STEP_09,9,Borrower Info - Vesting,9.1,Update Borrower Vesting,borrower_info___vesting.md,update_borrower_vesting
 FORM_UPDATES,Form Updates,STEP_10,10,Transmittal Summary,10.1,Update Transmittal Summary,transmittal_summary.md,update_transmittal_summary
-FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
-FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
-FORM_UPDATES,Form Updates,STEP_11,11,Processor Workflow and Closing,11.3,Build Communications Action Items,processor_workflow_and_closing.md,build_action_items
+FORM_UPDATES,Form Updates,STEP_11,11,FHA-Specific Forms,11.1,FHA Management,fha_specific_forms.md,update_fha_management
+FORM_UPDATES,Form Updates,STEP_11,11,FHA-Specific Forms,11.2,HUD Transmittal,fha_specific_forms.md,update_hud_transmittal
+FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
+FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
+FORM_UPDATES,Form Updates,STEP_12,12,Processor Workflow and Closing,12.3,Build Action Items,processor_workflow_and_closing.md,build_action_items

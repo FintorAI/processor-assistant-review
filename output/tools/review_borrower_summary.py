@@ -12,14 +12,14 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _write_fields, _relevant_docs
+from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,114 @@ def _is_checked(val) -> bool:
     if val is None:
         return False
     return str(val).strip().lower() in ("y", "yes", "true", "1")
+
+
+def _id_copies(state: dict) -> dict:
+    """Collect per-copy Government ID info from the Driver's License doc copies.
+
+    Returns {copy_index: {"gov_id": ..., "gov_id_type": ..., "name": ...}}.
+    """
+    out: dict = {}
+
+    def _ingest(key: str, field: str) -> None:
+        for c in _doc_all(state, key):
+            if not isinstance(c, dict):
+                continue
+            val = c.get("value")
+            if val in (None, ""):
+                continue
+            out.setdefault(c.get("copy_index", 0), {}).setdefault(field, val)
+
+    _ingest("dl_gov_id", "gov_id")
+    _ingest("dl_gov_id_type", "gov_id_type")
+    _ingest("dl_borrower_name", "name")
+    _ingest("dl_name", "name")  # fallback name source
+    return out
+
+
+def _match_copy_to_person(records: dict, first, last):
+    """Return the copy_index whose ID name best matches the given person, else None."""
+    first_l = (first or "").strip().lower()
+    last_l = (last or "").strip().lower()
+    if not (first_l or last_l):
+        return None
+    best = None
+    for ci, rec in records.items():
+        name = (rec.get("name") or "").lower()
+        if not name:
+            continue
+        score = (2 if last_l and last_l in name else 0) + (1 if first_l and first_l in name else 0)
+        if score and (best is None or score > best[1]):
+            best = (ci, score)
+    return best[0] if best else None
+
+
+def _blank(val) -> bool:
+    """True when a LOS value is missing/empty (so it's safe to fill)."""
+    return not (val and str(val).strip())
+
+
+def _norm_gov_id_type(raw) -> Optional[str]:
+    """Normalize an OCR'd Government ID type to a canonical Encompass value.
+
+    The source is always the Driver's License doc, so license-like variants map
+    to "DL"; any other extracted type is preserved as-is."""
+    s = str(raw or "").strip()
+    if not s:
+        return None
+    low = s.lower()
+    if "driver" in low or low in ("dl", "dln", "d/l", "dl#"):
+        return "DL"
+    return s
+
+
+def _write_government_id(state, loan_id, flags, b_first, b_last, c_first, c_last, has_co) -> None:
+    """Populate Government ID + Type for borrower (5053/5055) and co-borrower
+    (5054/5056) from the Driver's License doc content, mapping each license copy
+    to the correct person by name (falling back to copy order)."""
+    records = _id_copies(state)
+    if not records:
+        return
+
+    order = sorted(records)
+    b_ci = _match_copy_to_person(records, b_first, b_last)
+    if b_ci is None and order:
+        b_ci = order[0]
+
+    c_ci = None
+    if has_co:
+        c_ci = _match_copy_to_person(records, c_first, c_last)
+        if c_ci is None or c_ci == b_ci:
+            rest = [ci for ci in order if ci != b_ci]
+            c_ci = rest[0] if rest else None
+
+    # field id → LOS state key, so we can honor write-only-if-blank and not
+    # clobber a manually-corrected Government ID / Type on every run.
+    _gov_los = {"5053": "borrower_gov_id", "5054": "coborrower_gov_id",
+                "5055": "borrower_gov_id_type", "5056": "coborrower_gov_id_type"}
+
+    def _write_person(ci, id_field, type_field, label):
+        if ci is None:
+            return
+        rec = records.get(ci, {})
+        updates = {}
+        # 5053/5054 — Government ID number, write only when Encompass is blank.
+        if rec.get("gov_id") and _blank(_los(state, _gov_los[id_field])):
+            updates[id_field] = rec["gov_id"]
+        # 5055/5056 — normalize OCR type to the canonical "DL" (source is the
+        # Driver's License doc); write only when blank.
+        norm_type = _norm_gov_id_type(rec.get("gov_id_type"))
+        if norm_type and _blank(_los(state, _gov_los[type_field])):
+            updates[type_field] = norm_type
+        if updates:
+            _write_fields(loan_id=loan_id, updates=updates, substep="2.1",
+                          flags=flags, state=state,
+                          labels={id_field: f"{label} Government ID",
+                                  type_field: f"{label} Government ID Type"})
+
+    _write_person(b_ci, "5053", "5055", "Borrower")
+    if has_co:
+        _write_person(c_ci, "5054", "5056", "Co-Borrower")
 
 
 @tool
@@ -452,6 +560,11 @@ def review_borrower_summary(
                       docs=_relevant_docs(state, "dl_expiry", doc_types=["Driver's License"]))
         except Exception:
             pass
+
+    # ── Rule: Government ID + Type (from Driver's License doc content) ─────
+    _write_government_id(state, loan_id, flags,
+                         borrower_first_name, borrower_last_name,
+                         coborrower_first_name, coborrower_last_name, has_coborrower)
 
     # ── Rule: Transaction Details ─────────────────────────────────────────
     EXPECTED_LENDER = "All Western Mortgage Inc."

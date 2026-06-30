@@ -64,6 +64,23 @@ _ESS_BUCKET_TITLES = {
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "output" / "config"
 _BUNDLED_SCHEMA = _CONFIG_DIR / "ess_contacts_schema.json"
 
+# Fields we need downstream that the remote catchingDoc contact schema does not yet
+# define. Named ``contact_settlement_agent_*`` so they survive the ``contact_*``
+# filter and map onto the Escrow Company (settlement agent) File Contact. Injected
+# into whichever schema (live or bundled) is sent to LandingAI.
+_EXTRA_CONTACT_FIELDS = {
+    "contact_settlement_agent_file_number": {
+        "type": ["string", "null"],
+        "description": (
+            "The settlement / escrow File number shown in the 'Closing Information' "
+            "header of the settlement statement / Closing Disclosure, labeled 'File #' "
+            "(e.g. 'File #: 2610313'). This is the escrow case / file number that goes "
+            "in the Escrow Company's 'Escrow Case #' field — NOT a license, NMLS, or "
+            "loan number. Return null if not present."
+        ),
+    },
+}
+
 
 def _make_nullable(props: dict) -> dict:
     """Allow ``null`` for every property type.
@@ -114,6 +131,8 @@ def _load_contacts_schema() -> Optional[dict]:
                 for k in ("escrow_company", "title_company"):
                     if k in props:
                         contact[k] = props[k]
+                for k, v in _EXTRA_CONTACT_FIELDS.items():
+                    contact.setdefault(k, v)
                 logger.info(f"[ESS_BYPASS] Loaded live contacts schema ({len(contact)} fields)")
                 return {"type": "object", "properties": _make_nullable(contact), "required": []}
             logger.warning(
@@ -123,13 +142,18 @@ def _load_contacts_schema() -> Optional[dict]:
     except Exception as exc:
         logger.warning(f"[ESS_BYPASS] Live schema fetch failed ({exc}); using bundled schema.")
 
-    # Fallback: bundled config.
+    # Fallback: bundled config. Inject the extra contact field(s) here too so the
+    # offline schema matches the live-schema branch (the bundled file already
+    # ships them, but setdefault keeps the two paths consistent if it drifts).
     try:
         with open(_BUNDLED_SCHEMA) as f:
             bundled = json.load(f)
+        props = dict(bundled.get("properties", {}))
+        for k, v in _EXTRA_CONTACT_FIELDS.items():
+            props.setdefault(k, v)
         return {
             "type": "object",
-            "properties": _make_nullable(bundled.get("properties", {})),
+            "properties": _make_nullable(props),
             "required": bundled.get("required", []),
         }
     except Exception as exc:

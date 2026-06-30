@@ -1,5 +1,5 @@
 step:
-  id: STEP_11
+  id: STEP_12
   name: Processor Workflow and Closing
   phase: FORM_UPDATES
   description: >
@@ -8,7 +8,7 @@ step:
     and wire requested date.
 
 substeps:
-- id: '11.1'
+- id: '12.1'
   name: Processor Workflow Update
   tool: update_processor_workflow
   description: >
@@ -75,7 +75,7 @@ substeps:
     value: 'No'
     condition: always
 
-- id: '11.2'
+- id: '12.2'
   name: Processor Closing Update
   tool: update_processor_closing
   description: >
@@ -127,6 +127,43 @@ substeps:
   - field_id: CX.WIREDATELO
     value: '{closing_date}'
     condition: loan_purpose == Purchase
+
+- id: '12.3'
+  name: Build Action Items
+  tool: build_action_items
+  description: >
+    Final substep — run last, after all reviews and form updates are complete.
+    Derives component-agnostic communications action items from the review state
+    (unresolved flags + loan facts) and writes them to state['comms_actions'] for
+    the dashboard to trigger downstream agents (email / Blend follow-up). Each
+    rule emits at most one item, carrying a component + trigger block so new
+    components can be added without changing the schema. Items are merged/deduped
+    by id across re-runs (runtime status preserved). No Encompass writes.
+  los_fields_read: []
+  doc_types:
+  - document_type: Title Report
+    all_copies: false
+    fields:
+    - key: title_company
+      purpose: Presence check — no title report present triggers an Order Title Report item
+  - document_type: HOA Statement
+    all_copies: false
+    fields:
+    - key: hoa_dues
+      purpose: Presence check — missing HOA statement on a condo can trigger a no-HOA LOE item
+  rules:
+  - name: Derive Communications Action Items
+    type: custom
+    logic: >
+      Inspect the eFolder + unresolved review flags and emit at most one action
+      item per rule: (1) Order Title Report when no Title Report is present;
+      (2) Lock-Desk Address Correction when a LOCKED loan has an unresolved
+      address discrepancy; (3) EMD Check Request to the buyer's agent when an EMD
+      flag is unresolved; (4) no-HOA LOE (Blend) when HOA status is unconfirmed on
+      a condo and no HOA Statement is present. Each item is component-agnostic
+      with a trigger block (agent / graph_id / resume_contract / payload) and is
+      deduped by id. Test runs redirect email to test inboxes.
+  flags: []
 
 dev:
   skip: false

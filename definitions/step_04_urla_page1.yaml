@@ -200,6 +200,68 @@ substeps:
     field_name: Co-Borrower Former Address Does Not Apply
     category: borrower_info
     purpose: Auto-checked when co-borrower has >= 2 years at current address
+  # ── Residence Address Unit Type / Unit # (normalized in review_urla_page1) ──
+  - key: borr_present_unit_type
+    field_id: FR0125
+    field_name: Borrower Present Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: borr_present_unit_number
+    field_id: FR0127
+    field_name: Borrower Present Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator ("Unit 1313") is stripped
+  - key: coborr_present_unit_type
+    field_id: FR0225
+    field_name: Co-Borrower Present Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: coborr_present_unit_number
+    field_id: FR0227
+    field_name: Co-Borrower Present Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
+  - key: borr_former_unit_type
+    field_id: FR0325
+    field_name: Borrower Former Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: borr_former_unit_number
+    field_id: FR0327
+    field_name: Borrower Former Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
+  - key: coborr_former_unit_type
+    field_id: FR0425
+    field_name: Co-Borrower Former Address Unit Type
+    category: borrower_info
+    purpose: Designator (Unit/Apt/Suite) split out of the unit # and normalized
+  - key: coborr_former_unit_number
+    field_id: FR0427
+    field_name: Co-Borrower Former Address Unit #
+    category: borrower_info
+    purpose: Unit identifier only; a glued-on designator is stripped
+  # ── Work Phone backfill (P1 work phone from Part 2 phone) ──────────────
+  - key: borr_p1_work_phone
+    field_id: '4533'
+    field_name: Borrower Work Phone (1003 URLA Page 1)
+    category: borrower_info
+    purpose: Backfilled from Part 2 phone (FE0117) when blank — never overwritten
+  - key: coborr_p1_work_phone
+    field_id: '4534'
+    field_name: Co-Borrower Work Phone (1003 URLA Page 1)
+    category: borrower_info
+    purpose: Backfilled from Part 2 phone (FE0217) when blank — never overwritten
+  - key: borr_part2_phone
+    field_id: FE0117
+    field_name: Borrower Phone (1003 URLA Part 2)
+    category: borrower_info
+    purpose: Source for the P1 work-phone backfill (borrower)
+  - key: coborr_part2_phone
+    field_id: FE0217
+    field_name: Co-Borrower Phone (1003 URLA Part 2)
+    category: borrower_info
+    purpose: Source for the P1 work-phone backfill (co-borrower)
   # ── Mailing Address ───────────────────────────────────────────────────
   - key: borr_mailing_same_as_present
     field_id: '1819'

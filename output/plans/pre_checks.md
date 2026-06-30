@@ -170,6 +170,7 @@ Verify that the four key file contacts are assigned in Encompass: Buyer's Agent,
 | Encompass Field | Field ID | Key | Purpose |
 |-----------------|----------|-----|---------|
 | Seller 1 Name | `638` | `seller_1_name` | Seller 1 full name — cross-check against SELLER contact type |
+| Escrow Case # | `186` | `escrow_case_number` | Escrow Company Escrow Case # — current value before writing the settlement File # |
 
 **Business Rules:**
 - **Required Contacts Present** (existence_check): Buyer's Agent, Seller's Agent, Seller 1 (SELLER contact type), and Escrow Company must all be assigned to the loan in Encompass. Flag each missing contact as a warning.

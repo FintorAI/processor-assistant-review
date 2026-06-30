@@ -148,7 +148,8 @@ The loan profile drives `rule_modifiers` on all subsequent substeps.
 | `1819` | borr_mailing_same_as_present | Borrower Mailing Address Same as Present | borrower_info |
 | `1820` | coborr_mailing_same_as_present | Co-Borrower Mailing Address Same as Present | borrower_info |
 | `1821` | estimated_value | Estimated Value | collateral |
-| `186` | emd_amount | EMD Amount | assets |
+| `URLAROA0103` | emd_amount | EMD Amount | assets |
+| `186` | escrow_case_number | Escrow Case # | file_contacts |
 | `1867` | final_vesting | Final Vesting | title |
 | `1868` | borrower_vesting_name | Borrower Vesting Name | title |
 | `1871` | borrower_vesting_type | Borrower Vesting Type | title |

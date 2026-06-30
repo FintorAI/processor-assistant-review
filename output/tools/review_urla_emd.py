@@ -94,7 +94,8 @@ def review_urla_emd(
 
     # Write the authoritative API value back into los_fields so that downstream
     # tools (e.g. build_action_items) read the real dollar amount rather than
-    # the flat field 186, which may hold a contract number or be blank.
+    # the flat field URLAROA0103 (URLA Other Assets Cash/Market Value), which may
+    # be blank or reflect a different other-asset row.
     if los_emd is not None:
         logger.info(f"[REVIEW_URLA_EMD] Syncing emd_amount=${los_emd:,.2f} → los_fields")
 
@@ -201,7 +202,7 @@ def review_urla_emd(
     if flags:
         update["flags"] = flags
     # Sync the API-sourced EMD back to los_fields so build_action_items (STEP_11.3)
-    # reads the real dollar amount instead of flat field 186.
+    # reads the real dollar amount instead of flat field URLAROA0103.
     # los_fields uses merge_dicts in the state reducer — safe to write a single key.
     if los_emd is not None:
         update["los_fields"] = {"emd_amount": {"value": str(los_emd)}}

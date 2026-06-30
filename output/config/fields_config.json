@@ -20,6 +20,24 @@
       ]
     },
     {
+      "key": "borrower_caivrs_number",
+      "field_id": "1018",
+      "field_name": "Borrower CAIVRS Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_case_number",
+      "field_id": "1040",
+      "field_name": "FHA/VA Agency Case Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "property_type",
       "field_id": "1041",
       "field_name": "Property Type",
@@ -66,7 +84,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02",
-        "STEP_04"
+        "STEP_04",
+        "STEP_10"
       ]
     },
     {
@@ -88,6 +107,15 @@
       ]
     },
     {
+      "key": "coborrower_caivrs_number",
+      "field_id": "1144",
+      "field_name": "Co-Borrower CAIVRS Number",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "loan_type",
       "field_id": "1172",
       "field_name": "Mortgage Type",
@@ -96,7 +124,8 @@
         "STEP_01",
         "STEP_02",
         "STEP_08",
-        "STEP_11"
+        "STEP_11",
+        "STEP_12"
       ]
     },
     {
@@ -114,7 +143,8 @@
       "field_name": "Property City",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_10"
       ]
     },
     {
@@ -133,6 +163,15 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "condo_project_name",
+      "field_id": "1298",
+      "field_name": "Condo Project Name (Transmittal Summary)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
       ]
     },
     {
@@ -171,7 +210,8 @@
         "STEP_01",
         "STEP_02",
         "STEP_03",
-        "STEP_09"
+        "STEP_09",
+        "STEP_10"
       ]
     },
     {
@@ -264,7 +304,8 @@
       "field_name": "Property ZIP",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_10"
       ]
     },
     {
@@ -405,12 +446,12 @@
       ]
     },
     {
-      "key": "emd_amount",
+      "key": "escrow_case_number",
       "field_id": "186",
-      "field_name": "EMD Amount",
-      "category": "assets",
+      "field_name": "Escrow Case #",
+      "category": "file_contacts",
       "used_by_steps": [
-        "STEP_06"
+        "STEP_01"
       ]
     },
     {
@@ -485,7 +526,7 @@
         "STEP_02",
         "STEP_04",
         "STEP_09",
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -504,6 +545,15 @@
       "category": "assets",
       "used_by_steps": [
         "STEP_07"
+      ]
+    },
+    {
+      "key": "hoa_dues_monthly",
+      "field_id": "233",
+      "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
       ]
     },
     {
@@ -532,6 +582,33 @@
       "category": "credit",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "condo_project_id",
+      "field_id": "3050",
+      "field_name": "CPM Project ID",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_10"
+      ]
+    },
+    {
+      "key": "caivrs_date_updated",
+      "field_id": "3067",
+      "field_name": "CAIVRS Date Updated",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "caivrs_updated_by",
+      "field_id": "3068",
+      "field_name": "CAIVRS Updated By",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -754,6 +831,24 @@
       ]
     },
     {
+      "key": "borr_p1_work_phone",
+      "field_id": "4533",
+      "field_name": "Borrower Work Phone (1003 URLA Page 1)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_p1_work_phone",
+      "field_id": "4534",
+      "field_name": "Co-Borrower Work Phone (1003 URLA Page 1)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borrower_sex",
       "field_id": "471",
       "field_name": "Borrower Sex",
@@ -806,6 +901,42 @@
       "field_id": "5",
       "field_name": "Monthly Payment (P&I)",
       "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_gov_id",
+      "field_id": "5053",
+      "field_name": "Borrower Government ID",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_gov_id",
+      "field_id": "5054",
+      "field_name": "Co-Borrower Government ID",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "borrower_gov_id_type",
+      "field_id": "5055",
+      "field_name": "Borrower Government ID Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "coborrower_gov_id_type",
+      "field_id": "5056",
+      "field_name": "Co-Borrower Government ID Type",
+      "category": "borrower_info",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -948,7 +1079,7 @@
       "field_name": "Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1489,7 +1620,7 @@
       "field_name": "Signing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1527,24 +1658,7 @@
       "category": "property",
       "used_by_steps": [
         "STEP_03",
-        "STEP_07"
-      ]
-    },
-    {
-      "key": "condo_project_id",
-      "field_id": "CX.CONDO.PROJECT.ID",
-      "field_name": "Condo Project ID",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_10"
-      ]
-    },
-    {
-      "key": "condo_project_name",
-      "field_id": "CX.CONDO.PROJECT.NAME",
-      "field_name": "Condo Project Name",
-      "category": "property",
-      "used_by_steps": [
+        "STEP_07",
         "STEP_10"
       ]
     },
@@ -1554,7 +1668,7 @@
       "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1628,7 +1742,7 @@
       "field_name": "Non-Del Inv. Approval",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1637,7 +1751,7 @@
       "field_name": "Product Type",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1646,7 +1760,7 @@
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -1665,6 +1779,15 @@
       "category": "income",
       "used_by_steps": [
         "STEP_05"
+      ]
+    },
+    {
+      "key": "borr_part2_phone",
+      "field_id": "FE0117",
+      "field_name": "Borrower Phone (1003 URLA Part 2)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -1692,6 +1815,15 @@
       "category": "income",
       "used_by_steps": [
         "STEP_05"
+      ]
+    },
+    {
+      "key": "coborr_part2_phone",
+      "field_id": "FE0217",
+      "field_name": "Co-Borrower Phone (1003 URLA Part 2)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
       ]
     },
     {
@@ -1941,12 +2073,30 @@
       ]
     },
     {
+      "key": "borr_present_unit_type",
+      "field_id": "FR0125",
+      "field_name": "Borrower Present Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_present_addr",
       "field_id": "FR0126",
       "field_name": "Borrower Present Street Address",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_present_unit_number",
+      "field_id": "FR0127",
+      "field_name": "Borrower Present Address Unit",
+      "category": "borrower_info",
+      "used_by_steps": [
         "STEP_04"
       ]
     },
@@ -1963,6 +2113,24 @@
       "key": "coborr_present_mos",
       "field_id": "FR0224",
       "field_name": "Co-Borrower Months at Current Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_present_unit_type",
+      "field_id": "FR0225",
+      "field_name": "Co-Borrower Present Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_present_unit_number",
+      "field_id": "FR0227",
+      "field_name": "Co-Borrower Present Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -2014,9 +2182,27 @@
       ]
     },
     {
+      "key": "borr_former_unit_type",
+      "field_id": "FR0325",
+      "field_name": "Borrower Former Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "borr_former_addr",
       "field_id": "FR0326",
       "field_name": "Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "borr_former_unit_number",
+      "field_id": "FR0327",
+      "field_name": "Borrower Former Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -2068,9 +2254,27 @@
       ]
     },
     {
+      "key": "coborr_former_unit_type",
+      "field_id": "FR0425",
+      "field_name": "Co-Borrower Former Address Unit Type",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
       "key": "coborr_former_addr",
       "field_id": "FR0426",
       "field_name": "Co-Borrower Former Street Address",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_04"
+      ]
+    },
+    {
+      "key": "coborr_former_unit_number",
+      "field_id": "FR0427",
+      "field_name": "Co-Borrower Former Address Unit",
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
@@ -2311,6 +2515,15 @@
       ]
     },
     {
+      "key": "emd_amount",
+      "field_id": "URLAROA0103",
+      "field_name": "EMD Amount",
+      "category": "assets",
+      "used_by_steps": [
+        "STEP_06"
+      ]
+    },
+    {
       "key": "credit_score_decision",
       "field_id": "VASUMM.X23",
       "field_name": "Credit Score for Decision Making",
@@ -2400,6 +2613,15 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "authorization_date",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -2502,12 +2724,57 @@
       ]
     },
     {
+      "key": "borrower_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "borrower_name",
       "source_documents": [
         "VOE"
       ],
       "used_by_steps": [
         "STEP_05"
+      ]
+    },
+    {
+      "key": "caivrs_status",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower2_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower3_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "coborrower_authorization_number",
+      "source_documents": [
+        "CAIVRS"
+      ],
+      "used_by_steps": [
+        "STEP_11"
       ]
     },
     {
@@ -2755,6 +3022,42 @@
       ]
     },
     {
+      "key": "fha_adp_code",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_assigned_case_number",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_case_assignment_date",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "fha_section_of_act",
+      "source_documents": [
+        "FHA Government Documents"
+      ],
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "flood_cert_present",
       "source_documents": [
         "Flood Certificate"
@@ -2797,6 +3100,15 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "hoa_dues",
+      "source_documents": [
+        "HOA Statement"
+      ],
+      "used_by_steps": [
+        "STEP_12"
       ]
     },
     {
@@ -3088,6 +3400,15 @@
       ]
     },
     {
+      "key": "title_company",
+      "source_documents": [
+        "Title Report"
+      ],
+      "used_by_steps": [
+        "STEP_12"
+      ]
+    },
+    {
       "key": "title_legal_description",
       "source_documents": [
         "Title Report"
@@ -3161,10 +3482,10 @@
     }
   ],
   "stats": {
-    "total_los_fields": 252,
-    "total_doc_fields": 93,
-    "total_document_types": 29,
-    "total_steps": 11,
+    "total_los_fields": 275,
+    "total_doc_fields": 105,
+    "total_document_types": 31,
+    "total_steps": 12,
     "categories": [
       "assets",
       "borrower_info",
@@ -3174,6 +3495,7 @@
       "credit",
       "declarations",
       "employment",
+      "file_contacts",
       "grant_program",
       "income",
       "liabilities",
@@ -3188,10 +3510,12 @@
       "Assets",
       "Bank Statement",
       "Borrower's Certification & Authorization",
+      "CAIVRS",
       "Credit Report",
       "Driver's License",
       "Estimated Settlement Statement",
       "Evidence of Hazard Insurance",
+      "FHA Government Documents",
       "Flood Certificate",
       "General Letter of Explanation",
       "Gift Letter",

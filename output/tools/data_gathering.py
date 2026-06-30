@@ -13,6 +13,7 @@ To regenerate from scratch, delete this file first, then run `generate --all`.
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Annotated, Optional
 
@@ -156,6 +157,12 @@ def _derive_loan_characteristics(state: dict) -> tuple[str, str, int]:
 # ── Field mapping: field_id -> {key, field_name, category} ──
 FIELD_MAP = {
     "1041": {"key": "property_type", "field_name": "Property Type", "category": "property"},
+    "1040": {"key": "fha_case_number", "field_name": "FHA/VA Agency Case Number", "category": "loan_info"},
+    "1018": {"key": "borrower_caivrs_number", "field_name": "Borrower CAIVRS Number", "category": "loan_info"},
+    "1144": {"key": "coborrower_caivrs_number", "field_name": "Co-Borrower CAIVRS Number", "category": "loan_info"},
+    "3067": {"key": "caivrs_date_updated", "field_name": "CAIVRS Date Updated", "category": "loan_info"},
+    "3068": {"key": "caivrs_updated_by", "field_name": "CAIVRS Updated By", "category": "loan_info"},
+    "233": {"key": "hoa_dues_monthly", "field_name": "Proposed Homeowner Assoc. Dues (Monthly)", "category": "property"},
     "52": {"key": "borrower_marital_status", "field_name": "Borrower Marital Status", "category": "borrower_info"},
     "53": {"key": "borrower_dependents_count", "field_name": "Borrower Dependents Count", "category": "borrower_info"},
     "54": {"key": "borrower_dependent_ages", "field_name": "Borrower Dependent Ages", "category": "borrower_info"},
@@ -180,7 +187,14 @@ FIELD_MAP = {
     "172": {"key": "other_income_type", "field_name": "Other Income Type", "category": "income"},
     "173": {"key": "other_income_amount", "field_name": "Other Income Amount (Monthly)", "category": "income"},
     "1811": {"key": "occupancy", "field_name": "Occupancy", "category": "loan_info"},
-    "186": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
+    # EMD amount is the URLA Other Assets Cash/Market Value (NOT field 186, which is
+    # the Escrow Company's Escrow Case #). The authoritative dollar value is synced
+    # from the otherAssets API by review_urla_emd; this flat read is the initial value.
+    "URLAROA0103": {"key": "emd_amount", "field_name": "EMD Amount", "category": "assets"},
+    # Field 186 = Escrow Company "Escrow Case #" (same data as the contacts API
+    # referenceNumber — verified in the Test instance). Written from the settlement
+    # statement File # by review_file_contacts.
+    "186": {"key": "escrow_case_number", "field_name": "Escrow Case #", "category": "file_contacts"},
     "19": {"key": "loan_purpose", "field_name": "Loan Purpose", "category": "loan_info"},
     # "218": invalid field ID in Encompass batch API — removed 2026-05-14
     "231": {"key": "gift_amount", "field_name": "Gift Amount", "category": "assets"},
@@ -217,8 +231,8 @@ FIELD_MAP = {
     "CX.APPRAISAL.WAIVER": {"key": "appraisal_waiver", "field_name": "Appraisal Waiver", "category": "collateral"},
     "CX.ATTACHMENT.TYPE": {"key": "attachment_type", "field_name": "Attachment Type (Attached/Detached)", "category": "property"},
     "CX.AUS.COLLATERAL.RELIEF": {"key": "aus_collateral_relief", "field_name": "AUS Collateral Relief", "category": "aus"},
-    "CX.CONDO.PROJECT.ID": {"key": "condo_project_id", "field_name": "Condo Project ID", "category": "property"},
-    "CX.CONDO.PROJECT.NAME": {"key": "condo_project_name", "field_name": "Condo Project Name", "category": "property"},
+    "3050": {"key": "condo_project_id", "field_name": "CPM Project ID", "category": "property"},
+    "1298": {"key": "condo_project_name", "field_name": "Condo Project Name (Transmittal Summary)", "category": "property"},
     "CX.CONDO.PROJECT.TYPE": {"key": "condo_project_type", "field_name": "Condo Project Type", "category": "property"},
     "CX.DOC.TYPE": {"key": "doc_type", "field_name": "Doc Type (Wet / E-sign / Hybrid)", "category": "processor_workflow"},
     "CX.FINAL.VESTING": {"key": "final_vesting", "field_name": "Final Vesting", "category": "title"},
@@ -245,6 +259,10 @@ FIELD_MAP = {
     "1179": {"key": "coborrower_email", "field_name": "Co-Borrower Email", "category": "borrower_info"},
     "1715": {"key": "borrower_work_phone", "field_name": "Borrower Business/Work Phone", "category": "borrower_info"},
     "1716": {"key": "coborrower_work_phone", "field_name": "Co-Borrower Business/Work Phone", "category": "borrower_info"},
+    "4533": {"key": "borr_p1_work_phone", "field_name": "Borrower Work Phone (1003 URLA Page 1)", "category": "borrower_info"},
+    "4534": {"key": "coborr_p1_work_phone", "field_name": "Co-Borrower Work Phone (1003 URLA Page 1)", "category": "borrower_info"},
+    "FE0117": {"key": "borr_part2_phone", "field_name": "Borrower Phone (1003 URLA Part 2)", "category": "borrower_info"},
+    "FE0217": {"key": "coborr_part2_phone", "field_name": "Co-Borrower Phone (1003 URLA Part 2)", "category": "borrower_info"},
     "98": {"key": "coborrower_home_phone", "field_name": "Co-Borrower Home Phone", "category": "borrower_info"},
     "4920": {"key": "borrower_accept_sms", "field_name": "Borrower Accept Text/SMS", "category": "borrower_info"},
     "4935": {"key": "coborrower_accept_sms", "field_name": "Co-Borrower Accept Text/SMS", "category": "borrower_info"},
@@ -349,6 +367,20 @@ FIELD_MAP = {
     "FR0408": {"key": "coborr_former_zip", "field_name": "Co-Borrower Former Zip", "category": "borrower_info"},
     "1819": {"key": "borr_mailing_same_as_present", "field_name": "Borrower Mailing Address Same as Present", "category": "borrower_info"},
     "1820": {"key": "coborr_mailing_same_as_present", "field_name": "Co-Borrower Mailing Address Same as Present", "category": "borrower_info"},
+    # ── Residence Address Unit Type / Unit # (normalized in review_urla_page1) ──
+    "FR0125": {"key": "borr_present_unit_type", "field_name": "Borrower Present Address Unit Type", "category": "borrower_info"},
+    "FR0127": {"key": "borr_present_unit_number", "field_name": "Borrower Present Address Unit #", "category": "borrower_info"},
+    "FR0225": {"key": "coborr_present_unit_type", "field_name": "Co-Borrower Present Address Unit Type", "category": "borrower_info"},
+    "FR0227": {"key": "coborr_present_unit_number", "field_name": "Co-Borrower Present Address Unit #", "category": "borrower_info"},
+    "FR0325": {"key": "borr_former_unit_type", "field_name": "Borrower Former Address Unit Type", "category": "borrower_info"},
+    "FR0327": {"key": "borr_former_unit_number", "field_name": "Borrower Former Address Unit #", "category": "borrower_info"},
+    "FR0425": {"key": "coborr_former_unit_type", "field_name": "Co-Borrower Former Address Unit Type", "category": "borrower_info"},
+    "FR0427": {"key": "coborr_former_unit_number", "field_name": "Co-Borrower Former Address Unit #", "category": "borrower_info"},
+    # ── Government ID + Type (populated from Driver's License doc content) ──
+    "5053": {"key": "borrower_gov_id", "field_name": "Borrower Government ID", "category": "borrower_info"},
+    "5055": {"key": "borrower_gov_id_type", "field_name": "Borrower Government ID Type", "category": "borrower_info"},
+    "5054": {"key": "coborrower_gov_id", "field_name": "Co-Borrower Government ID", "category": "borrower_info"},
+    "5056": {"key": "coborrower_gov_id_type", "field_name": "Co-Borrower Government ID Type", "category": "borrower_info"},
     # ── Step 04 — Employment / Income ──
     # ── Section 1b: Employee/Employer Income ──────────────────────────────────
     "FE0119": {"key": "borr_base_monthly_income", "field_name": "Borrower — Base Monthly Income (Section 1b)", "category": "income"},
@@ -514,6 +546,71 @@ ALL_DOC_FIELD_KEYS = set()
 for _keys in DOC_FIELD_MAP.values():
     ALL_DOC_FIELD_KEYS.update(_keys)
 
+# ── ID document content-blob fallback ───────────────────────────────────────
+# The extraction service sometimes returns only a raw OCR/markdown blob under
+# the key ``document_content`` instead of the structured Driver's License schema
+# fields (dl_expiry, dl_name, …). When that happens, parse the blob here so the
+# downstream workflow still sees the expiry / name. Applies to the Driver's
+# License and its identity fallbacks.
+_ID_DOC_TYPES = {"Driver's License", "Passport", "Permanent Resident Card"}
+_ID_DATE_RE = r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"
+# Encompass "Government ID Type" (field 5055/5056) codes keyed by doc type.
+_ID_TYPE_CODE = {
+    "Driver's License": "DL",
+    "Passport": "PPT",
+    "Permanent Resident Card": "AID",
+}
+
+
+def _parse_id_document_content(text: str, doc_type: str = "Driver's License") -> dict[str, str]:
+    """Best-effort parse of an ID's raw OCR text into structured fields.
+
+    Used only as a fallback when extraction returns a ``document_content`` blob
+    with no structured fields. Returns whatever it can find (dl_expiry,
+    borrower_dob, dl_name, dl_borrower_name, dl_gov_id, dl_gov_id_type) plus
+    dl_present='Y'.
+    """
+    out: dict[str, str] = {}
+    if not text:
+        return out
+    t = str(text)
+
+    def _find(pattern: str) -> str | None:
+        m = re.search(pattern, t, re.IGNORECASE)
+        return m.group(1).strip() if m else None
+
+    expiry = _find(r"(?:date\s+of\s+exp\w*|exp(?:iration|iry)?\s*date)\s*[:#\-]?\s*" + _ID_DATE_RE)
+    if expiry:
+        out["dl_expiry"] = expiry
+
+    dob = _find(r"date\s+of\s+birth\s*[:#\-]?\s*" + _ID_DATE_RE)
+    if dob:
+        out["borrower_dob"] = dob
+
+    family = _find(r"family\s+name\s*[:#\-]?\s*([A-Za-z][A-Za-z'\-]+)")
+    given = _find(r"given\s+names?\s*[:#\-]?\s*([A-Za-z][A-Za-z'\- ]+?)\s*(?:\n|address\b|date\s+of\b|sex\b|$)")
+    full_name = " ".join(p for p in (given, family) if p).strip()
+    if full_name:
+        out["dl_name"] = full_name
+        out["dl_borrower_name"] = full_name
+
+    # Government ID number — the "Customer identifier" (e.g. "MD-10272427156");
+    # fall back to a license-number label. Strip a leading state prefix ("MD-").
+    gov_id = _find(r"customer\s+identifier\s*[:#\-]?\s*([A-Za-z0-9][A-Za-z0-9\-]*)")
+    if not gov_id:
+        gov_id = _find(r"(?:dln|license|id)\s*(?:no\.?|number|#)?\s*[:#\-]?\s*([A-Za-z0-9][A-Za-z0-9\-]{4,})")
+    if gov_id:
+        gov_id = re.sub(r"^[A-Za-z]{2}-", "", gov_id).strip()
+        if gov_id:
+            out["dl_gov_id"] = gov_id
+
+    if out:
+        type_code = _ID_TYPE_CODE.get(doc_type)
+        if type_code:
+            out["dl_gov_id_type"] = type_code
+        out["dl_present"] = "Y"
+    return out
+
 
 def _normalize_efolder_output(
     documents: list[dict],
@@ -624,6 +721,26 @@ def _normalize_efolder_output(
         for raw_key, raw_val in extracted.items():
             norm_key = raw_key.strip().lower().replace(" ", "_").replace("-", "_")
             normalized_extracted[norm_key] = (raw_key, raw_val)
+
+        # Fallback: the service returned only a content blob (no structured ID
+        # fields) — parse the blob for the missing fields. Lower confidence so a
+        # real schema extraction always wins if both are present.
+        if doc_type in _ID_DOC_TYPES and "document_content" in normalized_extracted:
+            _dc_raw = normalized_extracted["document_content"][1]
+            _dc_text = _dc_raw.get("value") if isinstance(_dc_raw, dict) else _dc_raw
+            for _pk, _pv in _parse_id_document_content(_dc_text, doc_type).items():
+                if _pv in (None, "", "null"):
+                    continue
+                # Fill missing keys AND replace structured fields that came back
+                # empty/unreadable (e.g. blank dl_expiry / dl_gov_id) — keep the
+                # lower confidence so a real schema value still wins on conflict.
+                _existing = normalized_extracted.get(_pk)
+                _existing_val = None
+                if _existing is not None:
+                    _ev = _existing[1]
+                    _existing_val = _ev.get("value") if isinstance(_ev, dict) else _ev
+                if _existing is None or _existing_val in (None, "", "null"):
+                    normalized_extracted[_pk] = (_pk, {"value": _pv, "confidence": 0.6})
 
         for expected_key in expected_keys:
             if expected_key in normalized_extracted:
@@ -1849,19 +1966,26 @@ def build_loan_summary(
         except (ValueError, TypeError):
             ltv = None
 
+    # Mortgage type / purpose: the preflight summary fields are often blank, so
+    # fall back to the authoritative LOS fields (1172 Mortgage Type, loan_purpose)
+    # before defaulting. Defaulting straight to "Conventional" silently mis-gates
+    # FHA-specific logic on FHA loans where the preflight field never populated.
+    _mortgage_type = _get("preflight_mortgage_type") or _get("loan_type")
+    _loan_purpose = _get("preflight_loan_purpose") or _get("loan_purpose")
+
     derived = {
         "has_coborrower": has_coborrower,
         "is_note_llc": is_note_llc,
         "is_trust": is_trust,
-        "loan_type": _get("preflight_mortgage_type"),
-        "loan_purpose": _get("preflight_loan_purpose"),
+        "loan_type": _mortgage_type,
+        "loan_purpose": _loan_purpose,
         "ltv": ltv,
     }
 
     # ── Loan Profile (5 discriminators for rule modifiers) ──
     loan_profile = {
-        "loan_type": _get("preflight_mortgage_type") or "Conventional",
-        "purpose": _get("preflight_loan_purpose") or "Purchase",
+        "loan_type": _mortgage_type or "Conventional",
+        "purpose": _loan_purpose or "Purchase",
         "state": prop_state,
         "trust": is_trust,
         "note_llc": is_note_llc,

@@ -259,6 +259,11 @@ substeps:
     field_name: Seller 1 Name
     category: transaction
     purpose: Seller 1 full name — cross-check against SELLER contact type
+  - key: escrow_case_number
+    field_id: '186'
+    field_name: 'Escrow Case #'
+    category: file_contacts
+    purpose: Escrow Company Escrow Case # — current value before writing the settlement File #
   rules:
   - name: Required Contacts Present
     type: existence_check
