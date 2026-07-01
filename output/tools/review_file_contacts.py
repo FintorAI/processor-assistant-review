@@ -987,6 +987,111 @@ def review_file_contacts(
                 suggestion="Verify and correct the Seller 1 name in Encompass.",
             ))
 
+    # ── §9.1: Purchase Contract seller name vs Encompass (doc-grounded) ──
+    # Complements the internal LOS-vs-contact check above by grounding the seller
+    # name against the extracted Purchase Agreement. Purchase loans only; loose
+    # both-way containment so middle names / ordering don't false-flag.
+    pa_seller_name = _doc(state, "pa_seller_name")
+    if pa_seller_name and "purchase" in str(loan_purpose).lower():
+        _enc_seller = (seller_1_name_los or seller_contact_name or "").strip()
+        _pa = pa_seller_name.strip()
+        if _enc_seller:
+            if _pa.lower() not in _enc_seller.lower() and _enc_seller.lower() not in _pa.lower():
+                flags.append(_flag(
+                    title="Seller Name vs Purchase Contract",
+                    severity="warning",
+                    details=(
+                        f"Purchase Contract seller '{_pa}' does not match the Encompass seller "
+                        f"('{_enc_seller}')."
+                    ),
+                    suggestion="Confirm the seller name on the sales contract / title matches Encompass.",
+                ))
+        else:
+            flags.append(_flag(
+                title="Seller Name Missing in Encompass",
+                severity="warning",
+                details=(
+                    f"Purchase Contract shows seller '{_pa}' but no Seller 1 name / SELLER contact "
+                    f"is set in Encompass."
+                ),
+                suggestion="Add the Seller 1 name / SELLER file contact in Encompass.",
+            ))
+
+    # ── §9.1: Applicant name on the Title Report vesting (final_vesting) ──
+    # The Tax Cert carries no borrower/seller name, but the Title Report's vested
+    # parties live in `final_vesting`. Confirm the applicant surname appears there;
+    # loose containment so vesting formatting / trustee wording never false-flags.
+    final_vesting = _doc(state, "final_vesting")
+    borr_last = (_los(state, "borrower_last_name") or "").strip()
+    if final_vesting and borr_last:
+        if borr_last.lower() not in final_vesting.lower():
+            flags.append(_flag(
+                title="Applicant Not Found in Title Vesting",
+                severity="warning",
+                details=(
+                    f"Borrower surname '{borr_last}' was not found in the Title Report final "
+                    f"vesting ('{final_vesting}')."
+                ),
+                suggestion="Confirm the applicant name on the title commitment matches Encompass.",
+            ))
+        else:
+            flags.append(_flag(
+                title="Applicant Confirmed on Title Vesting",
+                severity="info",
+                details=f"Borrower '{borr_last}' appears in the Title Report vesting.",
+                suggestion="No action needed — applicant matches the title vesting.",
+            ))
+
+    # ── §9.1: Owner of record on the Tax Certificate / Tax Summary ──
+    # The tax roll lists the current assessed owner: on a purchase that is the
+    # SELLER, on a refi it is the BORROWER. Loose both-way containment so middle
+    # names / ordering / trustee wording don't false-flag.
+    tax_owner = _doc(state, "tax_owner_name")
+    if tax_owner and tax_owner.strip():
+        _to = tax_owner.strip()
+        _to_l = _to.lower()
+        if "purchase" in str(loan_purpose).lower():
+            _enc_seller = (seller_1_name_los or seller_contact_name or "").strip()
+            if _enc_seller:
+                if _enc_seller.lower() not in _to_l and _to_l not in _enc_seller.lower():
+                    flags.append(_flag(
+                        title="Tax Cert Owner vs Seller",
+                        severity="warning",
+                        details=(
+                            f"Tax certificate owner of record ('{_to}') does not match the "
+                            f"Encompass seller ('{_enc_seller}'). On a purchase the tax-roll "
+                            f"owner should be the seller."
+                        ),
+                        suggestion="Confirm the seller is the current owner of record on the tax cert / title.",
+                    ))
+                else:
+                    flags.append(_flag(
+                        title="Tax Cert Owner Confirmed (Seller)",
+                        severity="info",
+                        details=f"Tax certificate owner ('{_to}') matches the Encompass seller.",
+                        suggestion="No action needed — tax-roll owner matches the seller.",
+                    ))
+        else:
+            borr_last = (_los(state, "borrower_last_name") or "").strip()
+            if borr_last and borr_last.lower() not in _to_l:
+                flags.append(_flag(
+                    title="Tax Cert Owner vs Borrower",
+                    severity="warning",
+                    details=(
+                        f"Tax certificate owner of record ('{_to}') does not include the borrower "
+                        f"surname ('{borr_last}'). On a refinance the tax-roll owner should be the "
+                        f"borrower."
+                    ),
+                    suggestion="Confirm the borrower is the current owner of record on the tax cert / title.",
+                ))
+            elif borr_last:
+                flags.append(_flag(
+                    title="Tax Cert Owner Confirmed (Borrower)",
+                    severity="info",
+                    details=f"Tax certificate owner ('{_to}') includes the borrower surname.",
+                    suggestion="No action needed — tax-roll owner matches the borrower.",
+                ))
+
     # ── Info summary of all present contacts ──
     if present:
         flags.append(_flag(

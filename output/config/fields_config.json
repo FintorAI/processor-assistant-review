@@ -473,6 +473,15 @@
       ]
     },
     {
+      "key": "borrower_aka",
+      "field_id": "1869",
+      "field_name": "Borrower Alias / AKA (URLA)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "borrower_vesting_type",
       "field_id": "1871",
       "field_name": "Borrower Vesting Type",
@@ -497,6 +506,15 @@
       "category": "title",
       "used_by_steps": [
         "STEP_09"
+      ]
+    },
+    {
+      "key": "coborrower_aka",
+      "field_id": "1874",
+      "field_name": "Co-Borrower Alias / AKA (URLA)",
+      "category": "borrower_info",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -3482,7 +3500,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 275,
+    "total_los_fields": 277,
     "total_doc_fields": 105,
     "total_document_types": 31,
     "total_steps": 12,

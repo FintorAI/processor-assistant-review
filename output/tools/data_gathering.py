@@ -212,6 +212,8 @@ FIELD_MAP = {
     "4000": {"key": "borrower_first_name", "field_name": "Borrower First Name", "category": "borrower_info"},
     "4001": {"key": "borrower_middle_name", "field_name": "Borrower Middle Name", "category": "borrower_info"},
     "4002": {"key": "borrower_last_name", "field_name": "Borrower Last Name", "category": "borrower_info"},
+    "1869": {"key": "borrower_aka", "field_name": "Borrower Alias / AKA (URLA)", "category": "borrower_info"},
+    "1874": {"key": "coborrower_aka", "field_name": "Co-Borrower Alias / AKA (URLA)", "category": "borrower_info"},
     "4004": {"key": "coborrower_first_name", "field_name": "Co-Borrower First Name", "category": "borrower_info"},
     "558": {"key": "owned_properties_count", "field_name": "Number of Owned Properties (REO)", "category": "assets"},
     "65": {"key": "borrower_ssn", "field_name": "Borrower SSN", "category": "borrower_info"},

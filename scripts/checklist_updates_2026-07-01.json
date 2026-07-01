@@ -1,0 +1,9 @@
+[
+ {"section":1,"item":"4","Status":"Implemented","Code Artifact":"review_borrower_summary.py","Notes":"Borrower name vs Purchase Contract buyer name (pa_buyer_name, surname containment); purchase loans","Update Log":"2026-07-01 built buyer-name check"},
+ {"section":1,"item":"5","Status":"Implemented","Code Artifact":"review_borrower_summary.py","Notes":"Purchase: property vs contract/USPS; Refi: cash-out + owner-occupied rate/term current-address vs subject","Update Log":"2026-07-01 built refi current-address vs subject"},
+ {"section":3,"item":"1","Status":"Partial","Code Artifact":"review_borrower_summary.py","Notes":"Name checks + borrower legal name vs Driver's License cross-check added; AKA update from credit report still pending","Update Log":"2026-07-01 added name-vs-ID check"},
+ {"section":9,"item":"1","Status":"Partial","Code Artifact":"review_file_contacts.py","Notes":"Seller name: LOS vs SELLER contact + Purchase Contract pa_seller_name vs Encompass; Title/Tax Cert extraction still pending","Update Log":"2026-07-01 built seller-name doc cross-check"},
+ {"section":9,"item":"2","Status":"Implemented","Code Artifact":"review_borrower_summary.py","Notes":"Property vs Encompass/USPS + explicit confirmation flag","Update Log":"2026-07-01 explicit confirm flag"},
+ {"section":9,"item":"3","Status":"Partial","Code Artifact":"review_borrower_summary.py","Notes":"Purchase price + closing date vs contract done; EMD/credits/contingencies deferred (not extracted)","Update Log":"2026-07-01 built closing-date check"},
+ {"section":11,"item":"5","Status":"Partial","Code Artifact":"update_borrower_vesting.py / update_transmittal_summary.py / review_borrower_summary.py","Notes":"Occupancy intent computed (vesting) + presence/recognized-value validation (review_borrower_summary); appraisal-stated occupancy cross-ref pending","Update Log":"2026-07-01 added occupancy value validation"}
+]
