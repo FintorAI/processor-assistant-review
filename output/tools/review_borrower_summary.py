@@ -105,15 +105,19 @@ def _parse_date(val):
 
 
 def _surname_on(surname, text) -> bool:
-    """True when the borrower surname appears in a name string (loose containment).
+    """True when the borrower surname appears in a name string as whole token(s).
 
     Conservative on purpose: only used to raise a *mismatch* flag when the
-    borrower's last name is entirely absent from a document name, so we never
-    false-flag on middle names / suffixes / vesting formatting differences.
+    borrower's last name is entirely absent from a document name. Compares
+    tokenized name parts rather than a raw substring so a short surname does not
+    match inside an unrelated name (e.g. 'Le' inside 'Leonard'); a multi-token
+    surname must have every token present as a whole token.
     """
-    s = (surname or "").strip().lower()
-    t = (text or "").strip().lower()
-    return bool(s) and bool(t) and s in t
+    s_tokens = [tok for tok in re.split(r"[^a-z0-9]+", (surname or "").lower()) if tok]
+    t_tokens = {tok for tok in re.split(r"[^a-z0-9]+", (text or "").lower()) if tok}
+    if not s_tokens or not t_tokens:
+        return False
+    return all(tok in t_tokens for tok in s_tokens)
 
 
 def _digits(val) -> str:
@@ -129,6 +133,23 @@ def _norm_addr(val) -> str:
 def _norm_name(val) -> str:
     """Lowercase, punctuation-stripped, single-spaced name for loose compare."""
     return re.sub(r"[^a-z0-9]+", " ", str(val or "").lower()).strip()
+
+
+def _occ_is_investment(occ) -> bool:
+    """True for investment / non-owner-occupied LOS occupancy values."""
+    o = str(occ or "").lower()
+    return any(k in o for k in ("investment", "investor", "non-owner", "nonowner", "non owner"))
+
+
+def _occ_is_primary(occ) -> bool:
+    """True only for an unambiguous owner-occupied / primary occupancy.
+
+    Mutually exclusive with :func:`_occ_is_investment` — a value like
+    'Non-Owner Occupied' contains 'owner' but must NOT count as primary."""
+    o = str(occ or "").lower()
+    if not o or _occ_is_investment(o) or any(k in o for k in ("second", "vacation")):
+        return False
+    return "primary" in o or "owner" in o
 
 
 def _split_akas(raw) -> list:
@@ -716,14 +737,22 @@ def review_borrower_summary(
                       "in Encompass (same person — maiden / former name, spelling).",
                       docs=_relevant_docs(state, aka_key, doc_types=["Credit Report"]))
             return
-        # Alias field blank → write-if-blank from the credit report.
+        # Alias field blank → write-if-blank from the credit report. _write_fields
+        # appends its own audit flag: an "info-overwrite" on success or a warning on
+        # a skipped/rejected write. Only emit the success flag when the write landed.
+        _n = len(flags)
         _write_fields(loan_id, {field_id: "; ".join(extras)}, "2.1", flags, state,
                       labels={field_id: f"{who} Alias / AKA (URLA)"})
-        _flag(flags, "2.1", f"Applicant AKA — Added to URLA Aliases ({who})", "info",
-              f"Credit-report alternate name(s) for the {who} not reflected in the legal name "
-              f"('{_legal_disp}') were written to the blank URLA alias field: {', '.join(extras)}.",
-              "Verify the also-known-as name(s) belong to the same person.",
-              docs=_relevant_docs(state, aka_key, doc_types=["Credit Report"]))
+        _wrote = any(
+            f.get("severity") == "info-overwrite" and f"Field {field_id} set to" in f.get("details", "")
+            for f in flags[_n:]
+        )
+        if _wrote:
+            _flag(flags, "2.1", f"Applicant AKA — Added to URLA Aliases ({who})", "info",
+                  f"Credit-report alternate name(s) for the {who} not reflected in the legal name "
+                  f"('{_legal_disp}') were written to the blank URLA alias field: {', '.join(extras)}.",
+                  "Verify the also-known-as name(s) belong to the same person.",
+                  docs=_relevant_docs(state, aka_key, doc_types=["Credit Report"]))
 
     _aka_reconcile("borrower_aka", "1869", borrower_first_name, borrower_last_name, "Borrower")
     if has_coborrower:
@@ -735,7 +764,7 @@ def review_borrower_summary(
     _purpose_norm = (loan_purpose or "").lower().replace("-", "").replace(" ", "")
     _is_refi = "refi" in _purpose_norm
     _is_cashout_p = "cashout" in _purpose_norm
-    _occ_primary = bool(occupancy) and any(k in str(occupancy).lower() for k in ("primary", "owner"))
+    _occ_primary = _occ_is_primary(occupancy)
     if _is_refi and not _is_cashout_p and _occ_primary and borr_present_addr:
         _subj_street = (property_address_urla or property_address or "").strip().lower()
         _subj_num = _subj_street.split()[0] if _subj_street else ""
@@ -828,9 +857,8 @@ def review_borrower_summary(
     _appr_occ = _doc(state, "appraisal_occupancy")
     if _appr_occ and occupancy:
         _ao = str(_appr_occ).strip().lower()
-        _lo = str(occupancy).strip().lower()
-        _los_primary = any(k in _lo for k in ("primary", "owner"))
-        _los_investment = any(k in _lo for k in ("investment", "investor", "non-owner", "nonowner"))
+        _los_primary = _occ_is_primary(occupancy)
+        _los_investment = _occ_is_investment(occupancy)
         _appr_owner = True if "owner" in _ao else (False if "tenant" in _ao else None)
         _appr_docs = _relevant_docs(state, "appraisal_occupancy",
                                     doc_types=["Appraisal (URAR / 1004)"])

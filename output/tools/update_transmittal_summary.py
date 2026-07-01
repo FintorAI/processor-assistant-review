@@ -246,8 +246,13 @@ def update_transmittal_summary(
 
     if not _is_condo(property_type):
         if _appraisal_says_pud:
-            _appr_src = _appraisal_pud_flag or _appraisal_property_type or appraisal_project_type
-            pud_signals.append(f"Appraisal indicates PUD ({_appr_src!r})")
+            if _truthy(_appraisal_pud_flag):
+                _appr_src = f"appraisal_pud={_appraisal_pud_flag!r}"
+            elif any(t in str(_appraisal_property_type or "").lower() for t in ("pud", "planned unit")):
+                _appr_src = f"property_type={_appraisal_property_type!r}"
+            else:
+                _appr_src = f"appraisal_project_type={appraisal_project_type!r}"
+            pud_signals.append(f"Appraisal indicates PUD ({_appr_src})")
         if _hoa_present:
             pud_signals.append(f"HOA dues present (field 233 = {hoa_dues})")
         if _attached:
