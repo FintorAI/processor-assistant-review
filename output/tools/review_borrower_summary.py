@@ -126,6 +126,21 @@ def _norm_addr(val) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(val or "").lower()).strip()
 
 
+def _norm_name(val) -> str:
+    """Lowercase, punctuation-stripped, single-spaced name for loose compare."""
+    return re.sub(r"[^a-z0-9]+", " ", str(val or "").lower()).strip()
+
+
+def _split_akas(raw) -> list:
+    """Split a credit-report AKA blob into individual alternate names.
+
+    Handles common delimiters and the 'AKA' / 'A/K/A' / 'FKA' markers; drops
+    empty fragments."""
+    parts = re.split(r"\s*(?:;|,|/|\||\band\b|\ba/?k/?a\b|\bf/?k/?a\b|\baka\b|\bfka\b)\s*",
+                     str(raw or ""), flags=re.IGNORECASE)
+    return [p.strip() for p in parts if p and p.strip()]
+
+
 def _addr_match(a, b) -> bool:
     """Loose address equality: same house number AND street-name token overlap.
 
@@ -669,6 +684,51 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Borrower DOB Confirmed", "info",
                   f"Borrower DOB matches the ID / credit report ({borrower_dob}).",
                   "No action needed — DOB matches.")
+
+    # §3.1 — Applicant AKAs from the Credit Report vs the URLA alias field.
+    #   The credit report lists also-known-as / former names. Compare them to the
+    #   applicant's legal name and the current URLA alias field (borrower 1869 /
+    #   co-borrower 1874): write-if-blank, otherwise flag the missing name(s) for
+    #   manual reconciliation (never overwrite a populated alias field).
+    def _aka_reconcile(aka_key, field_id, first, last, who):
+        aka_raw = _doc(state, aka_key)
+        if not aka_raw:
+            return
+        legal = _norm_name(f"{first or ''} {last or ''}")
+        extras = []
+        for cand in _split_akas(aka_raw):
+            nc = _norm_name(cand)
+            if not nc or nc == legal or nc in legal or legal in nc:
+                continue
+            extras.append(cand.strip())
+        if not extras:
+            return
+        _legal_disp = f"{(first or '').strip()} {(last or '').strip()}".strip()
+        cur_alias = _los(state, aka_key)
+        if cur_alias and str(cur_alias).strip():
+            missing = [e for e in extras if _norm_name(e) not in _norm_name(cur_alias)]
+            if missing:
+                _flag(flags, "2.1", f"Applicant AKA — Reconcile URLA Aliases ({who})", "warning",
+                      f"The credit report lists alternate name(s) for the {who} "
+                      f"({', '.join(missing)}) not present in the existing URLA alias field "
+                      f"('{cur_alias}').",
+                      "Confirm and add the missing also-known-as name(s) to the URLA aliases "
+                      "in Encompass (same person — maiden / former name, spelling).",
+                      docs=_relevant_docs(state, aka_key, doc_types=["Credit Report"]))
+            return
+        # Alias field blank → write-if-blank from the credit report.
+        _write_fields(loan_id, {field_id: "; ".join(extras)}, "2.1", flags, state,
+                      labels={field_id: f"{who} Alias / AKA (URLA)"})
+        _flag(flags, "2.1", f"Applicant AKA — Added to URLA Aliases ({who})", "info",
+              f"Credit-report alternate name(s) for the {who} not reflected in the legal name "
+              f"('{_legal_disp}') were written to the blank URLA alias field: {', '.join(extras)}.",
+              "Verify the also-known-as name(s) belong to the same person.",
+              docs=_relevant_docs(state, aka_key, doc_types=["Credit Report"]))
+
+    _aka_reconcile("borrower_aka", "1869", borrower_first_name, borrower_last_name, "Borrower")
+    if has_coborrower:
+        _aka_reconcile("coborrower_aka", "1874",
+                       coborrower_first_name, coborrower_last_name, "Co-Borrower")
 
     # §1.5 (refi) — Owner-occupied rate/term refi: borrower should reside at subject.
     # (Cash-out refis are already handled by the dedicated rule above.)

@@ -59,6 +59,11 @@ substeps:
     field_name: Borrower Name Suffix
     category: borrower_info
     purpose: Completeness check
+  - key: borrower_aka
+    field_id: '1869'
+    field_name: Borrower Alias / AKA (URLA)
+    category: borrower_info
+    purpose: §3.1 URLA alias reconciliation — write-if-blank from Credit Report AKAs
   - key: borrower_ssn
     field_id: '65'
     field_name: Borrower SSN
@@ -120,6 +125,11 @@ substeps:
     field_name: Co-Borrower Last Name
     category: borrower_info
     purpose: Completeness check if coborrower present
+  - key: coborrower_aka
+    field_id: '1874'
+    field_name: Co-Borrower Alias / AKA (URLA)
+    category: borrower_info
+    purpose: §3.1 URLA alias reconciliation — write-if-blank from Credit Report AKAs
   - key: coborrower_ssn
     field_id: '97'
     field_name: Co-Borrower SSN
