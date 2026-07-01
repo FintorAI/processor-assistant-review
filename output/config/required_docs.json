@@ -48,6 +48,7 @@
         "is_condominium",
         "is_cooperative",
         "property_type",
+        "appraisal_occupancy",
         "property_address",
         "appraisal_property_address",
         "property_state",

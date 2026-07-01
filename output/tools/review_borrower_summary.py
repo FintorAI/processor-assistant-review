@@ -819,6 +819,41 @@ def review_borrower_summary(
                   f"Occupancy (1811) = '{occupancy}' is not a recognized occupancy type.",
                   "Set occupancy to Primary Residence / Second Home / Investment as appropriate.")
 
+    # §11.5 (appraisal cross-ref) — appraisal-stated occupancy (URAR 'Occupant'
+    #   line: Owner / Tenant / Vacant) vs LOS occupancy (1811). Owner ↔ primary,
+    #   Tenant ↔ investment/non-owner; Vacant is inconclusive.
+    _appr_occ = _doc(state, "appraisal_occupancy")
+    if _appr_occ and occupancy:
+        _ao = str(_appr_occ).strip().lower()
+        _lo = str(occupancy).strip().lower()
+        _los_primary = any(k in _lo for k in ("primary", "owner"))
+        _los_investment = any(k in _lo for k in ("investment", "investor", "non-owner", "nonowner"))
+        _appr_owner = True if "owner" in _ao else (False if "tenant" in _ao else None)
+        _appr_docs = _relevant_docs(state, "appraisal_occupancy",
+                                    doc_types=["Appraisal (URAR / 1004)"])
+        if _appr_owner is True and _los_investment:
+            _flag(flags, "2.1", "Occupancy vs Appraisal Mismatch", "warning",
+                  f"LOS occupancy (1811) is investment / non-owner ('{occupancy}') but the "
+                  f"appraisal reports the subject as Owner-occupied.",
+                  "Reconcile occupancy — confirm whether the subject is owner-occupied or an "
+                  "investment property.", docs=_appr_docs)
+        elif _appr_owner is False and _los_primary:
+            _flag(flags, "2.1", "Occupancy vs Appraisal Mismatch", "warning",
+                  f"LOS occupancy (1811) is primary / owner-occupied ('{occupancy}') but the "
+                  f"appraisal reports the subject as Tenant-occupied.",
+                  "Reconcile occupancy — a primary residence should not be tenant-occupied per "
+                  "the appraisal.", docs=_appr_docs)
+        elif _appr_owner is None:
+            _flag(flags, "2.1", "Appraisal Occupancy Inconclusive", "info",
+                  f"Appraisal occupancy = '{_appr_occ}' (not Owner/Tenant); confirm against LOS "
+                  f"occupancy ('{occupancy}').",
+                  "Verify occupancy manually against the appraisal.", docs=_appr_docs)
+        else:
+            _flag(flags, "2.1", "Occupancy Confirmed vs Appraisal", "info",
+                  f"Appraisal occupancy ('{_appr_occ}') is consistent with LOS occupancy "
+                  f"('{occupancy}').",
+                  "No action needed — occupancy matches the appraisal.", docs=_appr_docs)
+
     # §11.3 — Appraisal subject address vs the USPS-validated subject address.
     _appr_addr = _appraisal_address(state)
     if _appr_addr:
