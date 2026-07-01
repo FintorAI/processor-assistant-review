@@ -1,0 +1,5 @@
+# Dev-only deps for scripts/sheet_sync.py (checklist Google Sheet sync).
+# Not part of the agent runtime - install into the venv separately:
+#   ./venv/bin/pip install -r scripts/requirements-sheet-sync.txt
+google-api-python-client>=2.100.0
+google-auth>=2.23.0

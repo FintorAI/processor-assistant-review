@@ -987,6 +987,36 @@ def review_file_contacts(
                 suggestion="Verify and correct the Seller 1 name in Encompass.",
             ))
 
+    # ── §9.1: Purchase Contract seller name vs Encompass (doc-grounded) ──
+    # Complements the internal LOS-vs-contact check above by grounding the seller
+    # name against the extracted Purchase Agreement. Purchase loans only; loose
+    # both-way containment so middle names / ordering don't false-flag.
+    pa_seller_name = _doc(state, "pa_seller_name")
+    if pa_seller_name and "purchase" in str(loan_purpose).lower():
+        _enc_seller = (seller_1_name_los or seller_contact_name or "").strip()
+        _pa = pa_seller_name.strip()
+        if _enc_seller:
+            if _pa.lower() not in _enc_seller.lower() and _enc_seller.lower() not in _pa.lower():
+                flags.append(_flag(
+                    title="Seller Name vs Purchase Contract",
+                    severity="warning",
+                    details=(
+                        f"Purchase Contract seller '{_pa}' does not match the Encompass seller "
+                        f"('{_enc_seller}')."
+                    ),
+                    suggestion="Confirm the seller name on the sales contract / title matches Encompass.",
+                ))
+        else:
+            flags.append(_flag(
+                title="Seller Name Missing in Encompass",
+                severity="warning",
+                details=(
+                    f"Purchase Contract shows seller '{_pa}' but no Seller 1 name / SELLER contact "
+                    f"is set in Encompass."
+                ),
+                suggestion="Add the Seller 1 name / SELLER file contact in Encompass.",
+            ))
+
     # ── Info summary of all present contacts ──
     if present:
         flags.append(_flag(

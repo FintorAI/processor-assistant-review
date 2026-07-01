@@ -91,6 +91,30 @@ def _blank(val) -> bool:
     return not (val and str(val).strip())
 
 
+def _parse_date(val):
+    """Best-effort parse of a date string to a date, or None."""
+    if not val:
+        return None
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(str(val).strip(), fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _surname_on(surname, text) -> bool:
+    """True when the borrower surname appears in a name string (loose containment).
+
+    Conservative on purpose: only used to raise a *mismatch* flag when the
+    borrower's last name is entirely absent from a document name, so we never
+    false-flag on middle names / suffixes / vesting formatting differences.
+    """
+    s = (surname or "").strip().lower()
+    t = (text or "").strip().lower()
+    return bool(s) and bool(t) and s in t
+
+
 def _norm_gov_id_type(raw) -> Optional[str]:
     """Normalize an OCR'd Government ID type to a canonical Encompass value.
 
@@ -271,9 +295,11 @@ def review_borrower_summary(
 
     # ── Read Doc Fields ───────────────────────────────────────────────────
     dl_expiry_doc            = _doc(state, "dl_expiry")
-    _doc(state, "dl_name")  # reserved — not currently used in rules
+    dl_borrower_name_doc     = _doc(state, "dl_borrower_name") or _doc(state, "dl_name")
     purchase_price_doc       = _doc(state, "purchase_price")
     purchase_property_address_doc = _doc(state, "purchase_property_address")
+    pa_buyer_name_doc        = _doc(state, "pa_buyer_name")
+    purchase_closing_date_doc = _doc(state, "purchase_closing_date") or _doc(state, "pa_closing_date")
 
     # ── Rule: Required Fields Populated ───────────────────────────────────
     required_fields = {
@@ -540,6 +566,87 @@ def review_borrower_summary(
                   f"Borrower current address matches subject property ({_subj_full}). "
                   "Consistent with primary residence cash-out refinance.",
                   "No action needed — occupancy consistent with loan purpose.")
+
+    # ── Checklist cross-checks (AWM Loan Processor Checklist §1 / §9 / §11) ──
+    # These reuse data already gathered (Purchase Agreement, Driver's License,
+    # occupancy, USPS address_validation) — no new extraction. Flags stay under
+    # this tool's substep (2.1); the checklist item mapping lives in the CSV.
+    _is_purchase = "purchase" in (loan_purpose or "").lower()
+    _borr_name_full = " ".join(p for p in (borrower_first_name, borrower_last_name) if p).strip()
+
+    # §1.4 — Borrower name vs Sales Contract (purchase only)
+    if _is_purchase and pa_buyer_name_doc and borrower_last_name:
+        if not _surname_on(borrower_last_name, pa_buyer_name_doc):
+            _flag(flags, "2.1", "Borrower Name vs Sales Contract", "warning",
+                  f"Borrower '{_borr_name_full}' was not found on the Purchase Contract buyer name "
+                  f"('{pa_buyer_name_doc}').",
+                  "Confirm the borrower name in Encompass matches the sales contract "
+                  "(check spelling, middle name, and vesting).",
+                  docs=_relevant_docs(state, "pa_buyer_name"))
+
+    # §3.1 — Borrower legal name vs Government ID (name verification; the SSN/DOB
+    # match for checklist §1.6 is deferred — needs dl_dob registration / credit SSN).
+    if dl_borrower_name_doc and borrower_last_name:
+        if not _surname_on(borrower_last_name, dl_borrower_name_doc):
+            _flag(flags, "2.1", "Borrower Name vs ID", "warning",
+                  f"Borrower surname '{borrower_last_name}' was not found on the Driver's License "
+                  f"name ('{dl_borrower_name_doc}').",
+                  "Confirm the borrower's legal name matches the government ID.",
+                  docs=_relevant_docs(state, "dl_borrower_name", doc_types=["Driver's License"]))
+
+    # §1.5 (refi) — Owner-occupied rate/term refi: borrower should reside at subject.
+    # (Cash-out refis are already handled by the dedicated rule above.)
+    _purpose_norm = (loan_purpose or "").lower().replace("-", "").replace(" ", "")
+    _is_refi = "refi" in _purpose_norm
+    _is_cashout_p = "cashout" in _purpose_norm
+    _occ_primary = bool(occupancy) and any(k in str(occupancy).lower() for k in ("primary", "owner"))
+    if _is_refi and not _is_cashout_p and _occ_primary and borr_present_addr:
+        _subj_street = (property_address_urla or property_address or "").strip().lower()
+        _subj_num = _subj_street.split()[0] if _subj_street else ""
+        _borr_num = str(borr_present_addr).strip().lower().split()[0] if borr_present_addr else ""
+        if _subj_num and _borr_num and _subj_num != _borr_num:
+            _subj_full = f"{property_address_urla or property_address}, {property_city}, {property_state} {property_zip}".strip(", ")
+            _borr_full_addr = f"{borr_present_addr}, {borr_present_city}, {borr_present_state} {borr_present_zip}".strip(", ")
+            _flag(flags, "2.1", "Refinance — Borrower Not at Subject Property", "warning",
+                  f"Owner-occupied refinance: borrower current address ({_borr_full_addr}) does not "
+                  f"match the subject property ({_subj_full}).",
+                  "For a primary-residence refi the borrower should reside at the subject — confirm "
+                  "occupancy or update the current address in Encompass.")
+
+    # §9.2 — Property address confirmed vs Encompass (explicit positive result)
+    if addr_val and addr_val.get("valid") and not addr_val.get("mismatch_with_purchase_contract"):
+        _flag(flags, "2.1", "Property Address Confirmed", "info",
+              f"Subject property address confirmed via USPS: "
+              f"{addr_val.get('normalized') or property_address}.",
+              "No action needed — address matches Encompass / USPS.")
+
+    # §9.3 — Purchase closing date vs Encompass estimated closing date
+    if _is_purchase and purchase_closing_date_doc:
+        _los_close = est_closing_date_val or borrower_est_closing_date_val
+        _pd = _parse_date(purchase_closing_date_doc)
+        _ld = _parse_date(_los_close)
+        if _pd and _ld and _pd != _ld:
+            _flag(flags, "2.1", "Closing Date vs Purchase Contract", "warning",
+                  f"Encompass estimated closing date ({_los_close}) differs from the Purchase "
+                  f"Contract closing date ({purchase_closing_date_doc}).",
+                  "Verify the estimated closing date matches the sales contract.",
+                  docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
+        elif not _los_close:
+            _flag(flags, "2.1", "Closing Date Missing in LOS", "warning",
+                  f"Purchase Contract shows a closing date ({purchase_closing_date_doc}) but the "
+                  f"Encompass estimated closing date (763/4114) is blank.",
+                  "Enter the estimated closing date in Encompass.",
+                  docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
+
+    # §11.5 — Occupancy type is a recognized value (presence is checked in Loan Info below)
+    if occupancy:
+        _occ_norm = str(occupancy).strip().lower()
+        _known = ("primary", "owner", "second", "vacation", "investment", "investor",
+                  "non-owner", "nonowner")
+        if not any(k in _occ_norm for k in _known):
+            _flag(flags, "2.1", "Occupancy Type Unrecognized", "warning",
+                  f"Occupancy (1811) = '{occupancy}' is not a recognized occupancy type.",
+                  "Set occupancy to Primary Residence / Second Home / Investment as appropriate.")
 
     # ── Rule: ID Not Expired ──────────────────────────────────────────────
     if dl_expiry_doc:
