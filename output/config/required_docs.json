@@ -472,6 +472,7 @@
         "escrow_fees_paid_by",
         "title_insurance_paid_by",
         "hoa_transfer_fee_paid_by",
+        "personal_property_included",
         "buyer_agent_company",
         "buyer_agent_name",
         "buyer_agent_license",

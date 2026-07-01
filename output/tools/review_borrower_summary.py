@@ -800,6 +800,9 @@ def review_borrower_summary(
             _v = _doc(state, _k)
             if _v:
                 _terms.append(f"{_lbl}: {_v}")
+        _pp = _doc(state, "personal_property_included")
+        if _pp:
+            _terms.append(f"Personal property included in sale: {_pp}")
         if _terms:
             _flag(flags, "2.1", "Purchase Terms — Confirm", "info",
                   "Purchase Contract terms to confirm against the fee worksheet / Loan Estimate:\n"
