@@ -11,6 +11,7 @@ but do NOT modify the tool signature or state access patterns.
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
@@ -113,6 +114,48 @@ def _surname_on(surname, text) -> bool:
     s = (surname or "").strip().lower()
     t = (text or "").strip().lower()
     return bool(s) and bool(t) and s in t
+
+
+def _digits(val) -> str:
+    """Digits-only string (used to compare SSNs without formatting noise)."""
+    return re.sub(r"\D", "", str(val or ""))
+
+
+def _norm_addr(val) -> str:
+    """Lowercase, punctuation-stripped, single-spaced address for loose compare."""
+    return re.sub(r"[^a-z0-9]+", " ", str(val or "").lower()).strip()
+
+
+def _addr_match(a, b) -> bool:
+    """Loose address equality: same house number AND street-name token overlap.
+
+    Returns True when we cannot meaningfully compare (missing data) so a
+    mismatch is only raised on a genuine house-number/street disagreement."""
+    na, nb = _norm_addr(a), _norm_addr(b)
+    if not na or not nb:
+        return True
+    ta, tb = na.split(), nb.split()
+    an = ta[0] if ta else ""
+    bn = tb[0] if tb else ""
+    if an.isdigit() and bn.isdigit() and an != bn:
+        return False
+    return len(set(ta) & set(tb)) >= 2
+
+
+def _appraisal_address(state: dict) -> Optional[str]:
+    """Appraisal-specific subject address.
+
+    Prefers the collision-free ``appraisal_property_address`` (lowercase
+    ``appraisal_report`` schema). Falls back to a ``property_address`` copy whose
+    provenance is the appraisal — that key is shared with the Title Report, so we
+    only accept it when ``source_document`` names the appraisal."""
+    v = _doc(state, "appraisal_property_address")
+    if v:
+        return v
+    for c in _doc_all(state, "property_address"):
+        if "appraisal" in (c.get("source_document") or "").lower() and c.get("value"):
+            return c.get("value")
+    return None
 
 
 def _norm_gov_id_type(raw) -> Optional[str]:
@@ -584,8 +627,8 @@ def review_borrower_summary(
                   "(check spelling, middle name, and vesting).",
                   docs=_relevant_docs(state, "pa_buyer_name"))
 
-    # §3.1 — Borrower legal name vs Government ID (name verification; the SSN/DOB
-    # match for checklist §1.6 is deferred — needs dl_dob registration / credit SSN).
+    # §3.1 — Borrower legal name vs Government ID (name verification; SSN/DOB
+    # cross-checks for §1.6 follow below).
     if dl_borrower_name_doc and borrower_last_name:
         if not _surname_on(borrower_last_name, dl_borrower_name_doc):
             _flag(flags, "2.1", "Borrower Name vs ID", "warning",
@@ -593,6 +636,39 @@ def review_borrower_summary(
                   f"name ('{dl_borrower_name_doc}').",
                   "Confirm the borrower's legal name matches the government ID.",
                   docs=_relevant_docs(state, "dl_borrower_name", doc_types=["Driver's License"]))
+
+    # §1.6 — Borrower SSN & DOB vs ID / docs.
+    #   SSN is not printed on a Driver's License, so compare the LOS SSN against
+    #   the Credit Report SSN (masked to last-4 in the flag). DOB is compared to
+    #   the value recovered from the Credit Report / Driver's License OCR.
+    _ssn_doc = _doc(state, "borrower_ssn")             # Credit Report
+    _los_ssn4, _doc_ssn4 = _digits(borrower_ssn)[-4:], _digits(_ssn_doc)[-4:]
+    if _los_ssn4 and _doc_ssn4:
+        if _digits(borrower_ssn) != _digits(_ssn_doc):
+            _flag(flags, "2.1", "Borrower SSN vs Credit Report", "warning",
+                  f"Encompass borrower SSN (ending {_los_ssn4}) does not match the Credit "
+                  f"Report SSN (ending {_doc_ssn4}).",
+                  "Verify the borrower SSN in Encompass against the credit report / ID.",
+                  docs=_relevant_docs(state, "borrower_ssn", doc_types=["Credit Report"]))
+        else:
+            _flag(flags, "2.1", "Borrower SSN Confirmed", "info",
+                  f"Borrower SSN (ending {_los_ssn4}) matches the Credit Report.",
+                  "No action needed — SSN matches the credit report.")
+
+    _dob_doc = _doc(state, "borrower_dob")             # Credit Report / DL OCR
+    _los_dob_d, _doc_dob_d = _parse_date(borrower_dob), _parse_date(_dob_doc)
+    if _los_dob_d and _doc_dob_d:
+        if _los_dob_d != _doc_dob_d:
+            _flag(flags, "2.1", "Borrower DOB vs ID / Credit Report", "warning",
+                  f"Encompass borrower DOB ({borrower_dob}) does not match the DOB on the "
+                  f"ID / credit report ({_dob_doc}).",
+                  "Verify the borrower date of birth in Encompass against the ID / credit report.",
+                  docs=_relevant_docs(state, "borrower_dob",
+                                      doc_types=["Credit Report", "Driver's License"]))
+        else:
+            _flag(flags, "2.1", "Borrower DOB Confirmed", "info",
+                  f"Borrower DOB matches the ID / credit report ({borrower_dob}).",
+                  "No action needed — DOB matches.")
 
     # §1.5 (refi) — Owner-occupied rate/term refi: borrower should reside at subject.
     # (Cash-out refis are already handled by the dedicated rule above.)
@@ -638,6 +714,41 @@ def review_borrower_summary(
                   "Enter the estimated closing date in Encompass.",
                   docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
 
+    # §9.3 — Purchase terms beyond price/closing date: seller credits, financing
+    #   contingency, repairs, warranty, and fee allocation. There is no single LOS
+    #   field to diff against, so these are surfaced for the processor to confirm
+    #   against the fee worksheet / Loan Estimate. Purchase only.
+    if _is_purchase:
+        _terms = []
+        _sc = (_doc(state, "pa_seller_concessions") or _doc(state, "seller_concessions")
+               or _doc(state, "seller_credit_amount"))
+        if _sc:
+            _terms.append(f"Seller credits / concessions: {_sc}")
+        _fin = _doc(state, "payment_terms")
+        if _fin:
+            _terms.append(f"Financing / contingency terms: {_fin}")
+        _rep = _doc(state, "seller_repairs")
+        if _rep:
+            _terms.append(f"Seller repairs: {_rep}")
+        _hw = _doc(state, "home_warranty_included") or _doc(state, "home_warranty_amount")
+        if _hw:
+            _hw_by = _doc(state, "home_warranty_paid_by")
+            _terms.append(f"Home warranty: {_hw}" + (f" (paid by {_hw_by})" if _hw_by else ""))
+        for _k, _lbl in (("escrow_fees_paid_by", "Escrow / settlement fees paid by"),
+                         ("title_insurance_paid_by", "Title insurance paid by"),
+                         ("hoa_transfer_fee_paid_by", "HOA transfer fee paid by")):
+            _v = _doc(state, _k)
+            if _v:
+                _terms.append(f"{_lbl}: {_v}")
+        if _terms:
+            _flag(flags, "2.1", "Purchase Terms — Confirm", "info",
+                  "Purchase Contract terms to confirm against the fee worksheet / Loan Estimate:\n"
+                  + "\n".join(f"  • {t}" for t in _terms),
+                  "Confirm seller credits, contingencies, repairs, warranty, and fee "
+                  "allocation are reflected in Encompass / the fee worksheet.",
+                  docs=_relevant_docs(state, "pa_seller_concessions", "payment_terms",
+                                      doc_types=["Purchase Agreement"]))
+
     # §11.5 — Occupancy type is a recognized value (presence is checked in Loan Info below)
     if occupancy:
         _occ_norm = str(occupancy).strip().lower()
@@ -647,6 +758,23 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Occupancy Type Unrecognized", "warning",
                   f"Occupancy (1811) = '{occupancy}' is not a recognized occupancy type.",
                   "Set occupancy to Primary Residence / Second Home / Investment as appropriate.")
+
+    # §11.3 — Appraisal subject address vs the USPS-validated subject address.
+    _appr_addr = _appraisal_address(state)
+    if _appr_addr:
+        _usps = (addr_val.get("normalized") if addr_val else None) or ", ".join(
+            p for p in (property_address, property_city, property_state, property_zip) if p)
+        if _usps and not _addr_match(_appr_addr, _usps):
+            _flag(flags, "2.1", "Appraisal Address vs USPS", "warning",
+                  f"Appraisal subject address ('{_appr_addr}') does not match the USPS-validated "
+                  f"subject address ('{_usps}').",
+                  "Verify the appraisal was completed on the correct subject property.",
+                  docs=_relevant_docs(state, "appraisal_property_address", "property_address",
+                                      doc_types=["Appraisal (URAR / 1004)"]))
+        elif _usps:
+            _flag(flags, "2.1", "Appraisal Address Confirmed", "info",
+                  f"Appraisal subject address matches the subject property ('{_appr_addr}').",
+                  "No action needed — appraisal is on the subject property.")
 
     # ── Rule: ID Not Expired ──────────────────────────────────────────────
     if dl_expiry_doc:

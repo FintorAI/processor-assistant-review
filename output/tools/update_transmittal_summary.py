@@ -143,7 +143,7 @@ def update_transmittal_summary(
     Reads LOS: note_rate, qualifying_rate, transmittal_project_type, property_type,
                condo_project_name, condo_project_id, hoa_dues_monthly,
                attachment_type, property_address/city/state/zip
-    Reads DOC: appraisal_project_type
+    Reads DOC: appraisal_pud, property_type, appraisal_project_type (legacy fallback)
     Flags: Note Rate vs Qualifying Rate Mismatch (warning), Project Type (info),
            Condo Project Fields Pending (info), Possible PUD — Verify (warning/info)
     """
@@ -171,6 +171,12 @@ def update_transmittal_summary(
     hoa_dues             = _los(state, "hoa_dues_monthly")      # field 233
     attachment_type      = _los(state, "attachment_type")       # CX.ATTACHMENT.TYPE
     # Authoritative PUD signal when the appraisal (URAR/1004) has been extracted.
+    # The live server 'Appraisal Report' schema exposes these under real field
+    # names (appraisal_pud / is_condominium / is_cooperative / property_type);
+    # the legacy appraisal_project_type key returned null and is kept only as a
+    # last-resort fallback.
+    _appraisal_pud_flag = _doc(state, "appraisal_pud")
+    _appraisal_property_type = _doc(state, "property_type")   # DOC (appraisal), not LOS
     appraisal_project_type = _doc(state, "appraisal_project_type")
 
     ts = datetime.now(timezone.utc).isoformat()
@@ -223,9 +229,13 @@ def update_transmittal_summary(
 
     # ── PUD detection (path c: document-backed + heuristic + external Zillow) ─
     # (a) document-backed: appraisal "Project Type" checkbox == PUD (authoritative)
-    _appraisal_says_pud = any(
-        t in (appraisal_project_type or "").lower()
-        for t in ("pud", "planned unit")
+    def _truthy(v) -> bool:
+        return str(v).strip().lower() in ("true", "yes", "1", "y")
+
+    _appraisal_says_pud = (
+        _truthy(_appraisal_pud_flag)
+        or any(t in str(_appraisal_property_type or "").lower() for t in ("pud", "planned unit"))
+        or any(t in (appraisal_project_type or "").lower() for t in ("pud", "planned unit"))
     )
     # (b) heuristic: HOA dues present on a non-condo property + Attached dwelling
     _hoa_amt = _parse_money(hoa_dues)
@@ -236,7 +246,8 @@ def update_transmittal_summary(
 
     if not _is_condo(property_type):
         if _appraisal_says_pud:
-            pud_signals.append(f"Appraisal Project Type indicates PUD ({appraisal_project_type!r})")
+            _appr_src = _appraisal_pud_flag or _appraisal_property_type or appraisal_project_type
+            pud_signals.append(f"Appraisal indicates PUD ({_appr_src!r})")
         if _hoa_present:
             pud_signals.append(f"HOA dues present (field 233 = {hoa_dues})")
         if _attached:

@@ -1017,6 +1017,31 @@ def review_file_contacts(
                 suggestion="Add the Seller 1 name / SELLER file contact in Encompass.",
             ))
 
+    # ── §9.1: Applicant name on the Title Report vesting (final_vesting) ──
+    # The Tax Cert carries no borrower/seller name, but the Title Report's vested
+    # parties live in `final_vesting`. Confirm the applicant surname appears there;
+    # loose containment so vesting formatting / trustee wording never false-flags.
+    final_vesting = _doc(state, "final_vesting")
+    borr_last = (_los(state, "borrower_last_name") or "").strip()
+    if final_vesting and borr_last:
+        if borr_last.lower() not in final_vesting.lower():
+            flags.append(_flag(
+                title="Applicant Not Found in Title Vesting",
+                severity="warning",
+                details=(
+                    f"Borrower surname '{borr_last}' was not found in the Title Report final "
+                    f"vesting ('{final_vesting}')."
+                ),
+                suggestion="Confirm the applicant name on the title commitment matches Encompass.",
+            ))
+        else:
+            flags.append(_flag(
+                title="Applicant Confirmed on Title Vesting",
+                severity="info",
+                details=f"Borrower '{borr_last}' appears in the Title Report vesting.",
+                suggestion="No action needed — applicant matches the title vesting.",
+            ))
+
     # ── Info summary of all present contacts ──
     if present:
         flags.append(_flag(

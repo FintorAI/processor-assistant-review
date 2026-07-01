@@ -31,7 +31,7 @@
     },
     "appraisal": {
       "name": "Appraisal (URAR / 1004)",
-      "efolder_doc_type": "Appraisal",
+      "efolder_doc_type": "Appraisal Report",
       "category": "collateral",
       "optional": true,
       "aliases": [
@@ -41,11 +41,18 @@
         "1004",
         "Appraisal Report"
       ],
-      "_note": "appraisal_project_type is the authoritative PUD signal (URAR 'Project Type' checkbox: PUD / Condominium / Cooperative). Requires the server-side catchingDoc Appraisal schema to extract this field; read-side support lives in update_transmittal_summary (PUD detection).",
+      "_note": "PUD/condo signals from the appraisal come from appraisal_pud (bool), is_condominium, is_cooperative, and property_type (URAR). Read-side support lives in update_transmittal_summary (PUD detection); 11.3 address compare lives in review_borrower_summary.",
+      "_note_field_mismatch": "RECONCILED 2026-07-01: the prior appraisal_project_type / appraisal_attachment_type / appraisal_hoa_indicator keys do NOT exist on the server schema and returned null. Replaced with the real server fields (appraisal_pud / is_condominium / is_cooperative / property_type) and the address fields for 11.3 (property_address / appraisal_property_address / property_state / property_zip / parcel_number). efolder_doc_type corrected to the server name 'Appraisal Report'.",
       "fields_extracted": [
-        "appraisal_project_type",
-        "appraisal_attachment_type",
-        "appraisal_hoa_indicator"
+        "appraisal_pud",
+        "is_condominium",
+        "is_cooperative",
+        "property_type",
+        "property_address",
+        "appraisal_property_address",
+        "property_state",
+        "property_zip",
+        "parcel_number"
       ]
     },
     "du_findings": {
@@ -454,6 +461,15 @@
         "emd_amount_pa",
         "emd_payable_to",
         "payment_terms",
+        "seller_concessions",
+        "seller_credit_amount",
+        "seller_repairs",
+        "home_warranty_included",
+        "home_warranty_amount",
+        "home_warranty_paid_by",
+        "escrow_fees_paid_by",
+        "title_insurance_paid_by",
+        "hoa_transfer_fee_paid_by",
         "buyer_agent_company",
         "buyer_agent_name",
         "buyer_agent_license",
@@ -476,6 +492,9 @@
       "fields_extracted": [
         "credit_score",
         "borrower_ssn",
+        "borrower_dob",
+        "coborrower_ssn",
+        "coborrower_dob",
         "borrower_aka",
         "coborrower_aka",
         "credit_score_factors",
