@@ -1042,6 +1042,56 @@ def review_file_contacts(
                 suggestion="No action needed — applicant matches the title vesting.",
             ))
 
+    # ── §9.1: Owner of record on the Tax Certificate / Tax Summary ──
+    # The tax roll lists the current assessed owner: on a purchase that is the
+    # SELLER, on a refi it is the BORROWER. Loose both-way containment so middle
+    # names / ordering / trustee wording don't false-flag.
+    tax_owner = _doc(state, "tax_owner_name")
+    if tax_owner and tax_owner.strip():
+        _to = tax_owner.strip()
+        _to_l = _to.lower()
+        if "purchase" in str(loan_purpose).lower():
+            _enc_seller = (seller_1_name_los or seller_contact_name or "").strip()
+            if _enc_seller:
+                if _enc_seller.lower() not in _to_l and _to_l not in _enc_seller.lower():
+                    flags.append(_flag(
+                        title="Tax Cert Owner vs Seller",
+                        severity="warning",
+                        details=(
+                            f"Tax certificate owner of record ('{_to}') does not match the "
+                            f"Encompass seller ('{_enc_seller}'). On a purchase the tax-roll "
+                            f"owner should be the seller."
+                        ),
+                        suggestion="Confirm the seller is the current owner of record on the tax cert / title.",
+                    ))
+                else:
+                    flags.append(_flag(
+                        title="Tax Cert Owner Confirmed (Seller)",
+                        severity="info",
+                        details=f"Tax certificate owner ('{_to}') matches the Encompass seller.",
+                        suggestion="No action needed — tax-roll owner matches the seller.",
+                    ))
+        else:
+            borr_last = (_los(state, "borrower_last_name") or "").strip()
+            if borr_last and borr_last.lower() not in _to_l:
+                flags.append(_flag(
+                    title="Tax Cert Owner vs Borrower",
+                    severity="warning",
+                    details=(
+                        f"Tax certificate owner of record ('{_to}') does not include the borrower "
+                        f"surname ('{borr_last}'). On a refinance the tax-roll owner should be the "
+                        f"borrower."
+                    ),
+                    suggestion="Confirm the borrower is the current owner of record on the tax cert / title.",
+                ))
+            elif borr_last:
+                flags.append(_flag(
+                    title="Tax Cert Owner Confirmed (Borrower)",
+                    severity="info",
+                    details=f"Tax certificate owner ('{_to}') includes the borrower surname.",
+                    suggestion="No action needed — tax-roll owner matches the borrower.",
+                ))
+
     # ── Info summary of all present contacts ──
     if present:
         flags.append(_flag(
