@@ -372,7 +372,8 @@
         "nsf_overdraft_fees",
         "returned_items",
         "payroll_deposits",
-        "recurring_income_source"
+        "recurring_income_source",
+        "recurring_deposits"
       ]
     },
     "assets": {
