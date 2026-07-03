@@ -60,13 +60,13 @@ Employment:
 04 Credit Report Review,9,Open accounts that should be closed — supplement ordered,none,—,Not Implemented,No tool,,"June 30, 2026",
 04 Credit Report Review,10,Disputed accounts noted and addressed,none,—,Not Implemented,No tool,,"June 30, 2026",
 05 Income — W-2 Employees,1,Third-party verification of employer (VVOE),integrations,— (Work Number/Xactus),Not Implemented,No VVOE order,,"June 30, 2026",
-05 Income — W-2 Employees,2,"Verify pay stubs per AUS, dated within 30 days",review,review_urla_employment.py,Partial,Paystub fields referenced; 30-day recency not enforced,,"June 30, 2026",
-05 Income — W-2 Employees,3,Verify name/address/employer on stubs,review,review_urla_employment.py,Partial,Employer cross-ref done; stub identity not yet done,,"June 30, 2026",
+05 Income — W-2 Employees,2,"Verify pay stubs per AUS, dated within 30 days",review,review_urla_employment.py,Implemented,Paystub recency enforced: most recent pay_date must be within 30 days (AUS); flags stale or unverifiable when no readable pay date.,,"July 3, 2026",2026-07-03: Added paystub 30-day recency check (review_urla_employment 5.2/5.3).
+05 Income — W-2 Employees,3,Verify name/address/employer on stubs,review,review_urla_employment.py,Implemented,Paystub identity: borrower name + employer on each stub reconciled against 1003/VOE (token match); flags name or employer mismatch.,,"July 3, 2026",2026-07-03: Added paystub name/employer identity cross-check (review_urla_employment).
 05 Income — W-2 Employees,4,Review paystub variances base/OT/bonus/holiday,review,review_urla_employment.py,Partial,Base pay diff done; OT/bonus/holiday not yet done,,"June 30, 2026",
 05 Income — W-2 Employees,5,Review out-of-ordinary deductions; explanations,none,—,Not Implemented,No tool,,"June 30, 2026",
 05 Income — W-2 Employees,6,Verify last 2yr W-2/1099 per AUS,review,—,Not Implemented,No W-2 parsing,,"June 30, 2026",
 05 Income — W-2 Employees,7,Obtain gap of employment letters,review / communications,review_urla_employment.py:407-420,Partial,Gap flags done; LOE request email not auto-fired,,"June 30, 2026",
-05 Income — W-2 Employees,8,VOE consistency with paystubs and W-2,review,review_urla_employment.py,Partial,VOE vs VOE-doc cross-ref done; W-2 consistency not yet done,,"June 30, 2026",
+05 Income — W-2 Employees,8,VOE consistency with paystubs and W-2,review,review_urla_employment.py,Implemented,W-2 employer + name consistency cross-checked against VOE/1003; surfaces tax year(s) on file.,,"July 3, 2026",2026-07-03: Added W-2 vs VOE/1003 consistency + tax-year surfacing (review_urla_employment).
 05 Income — W-2 Employees,9,Verify for teachers (9 or 12 months),none,—,Not Implemented,No tool,,"June 30, 2026",
 05 Income — W-2 Employees,10,Complete income worksheet per program,integrations,— (Ocrolus),Not Implemented,Ocrolus income calc not wired,,"June 30, 2026",
 06 Income — SS/Pension/Retirement,1,Obtain/review awards letters and 1099s per AUS,review,review_urla_other_income.py,Partial,Other income surfaced; doc validation not yet done,,"June 30, 2026",
@@ -84,7 +84,7 @@ Employment:
 07 Income — Self-Employed,9,Verified self-employment via 3rd-party source,none,—,Not Implemented,No tool,,"June 30, 2026",
 07 Income — Self-Employed,10,Complete income worksheet per program,integrations,— (Ocrolus),"Not Implemented, Ordering blocked by unavailable credentials",,,"June 30, 2026",
 08 Assets Review,1,60 consecutive days statements w/ name/address/account,review,review_urla_assets.py:236-393,Implemented,Recency check (Conv 60d / FHA 30d) + field extraction,,"June 30, 2026",
-08 Assets Review,2,Transaction history if needed to current,review,review_urla_assets.py,Partial,Statement extraction present; gap-to-current not enforced,,"June 30, 2026",
+08 Assets Review,2,Transaction history if needed to current,review,review_urla_assets.py,Implemented,Recency-to-current (60d Conv/30d FHA) + coverage continuity: flags gap >35d between consecutive statement periods (missing month).,,"July 3, 2026",2026-07-03: Added bank-statement coverage-continuity gap check (review_urla_assets 6.1).
 08 Assets Review,3,Joint Access letter (Gov't) if needed,none,—,Not Implemented,No tool,,"June 30, 2026",
 08 Assets Review,4,Review large deposits and document source,review,review_urla_assets.py:317-372,Implemented,Large/green deposit + ZEL/Zelle flags; VOD cross-ref,,"June 30, 2026",
 08 Assets Review,5,Review transfers between accounts; all statements in file,review,review_urla_assets.py,Partial,VOD cross-ref done; transfer tracing not yet done,,"June 30, 2026",

@@ -368,7 +368,8 @@ def review_urla_assets(
     """Review Section 3a (Assets / VOD).
 
     Checks:
-      1. Bank statement presence and recency (60 days Conv / 30 days FHA).
+      1. Bank statement presence and recency (60 days Conv / 30 days FHA), plus
+         coverage continuity (no missing month between consecutive statements).
       2. ZEL / Zelle / Klarna / unusual deposits → borrower LOE required.
       3. Large / green deposits → sourcing required.
       4. Cross-reference extracted bank-statement balances + account numbers
@@ -492,6 +493,39 @@ def review_urla_assets(
                 "(possible doc-type/schema name mismatch — see docs/EFOLDER_EXTRACTION.md).",
                 docs=_relevant_docs(state, doc_types=["Bank Statement"]),
             ))
+
+        # 4b-ii. Coverage continuity — flag gaps BETWEEN consecutive statements.
+        # Recency (4b) confirms the newest statement is current; this confirms the
+        # transaction history is continuous to current with no missing month
+        # (checklist 08 #2 "transaction history to current"). Only runs when ≥2
+        # statements expose a parseable start+end period.
+        _periods = []
+        for copy in bank_stmt_full_copies:
+            s = _parse_date(_copy_field(copy, "statement_period_start"))
+            e = _parse_date(_copy_field(copy, "statement_period_end"))
+            if s and e:
+                _periods.append((s, e))
+        if len(_periods) >= 2:
+            _periods.sort(key=lambda p: p[0])
+            for (prev_s, prev_e), (next_s, next_e) in zip(_periods, _periods[1:]):
+                # Gap = days between the end of one statement and the start of the
+                # next. Allow ~5 days slack for month-boundary/statement-cut drift;
+                # a gap beyond ~1 month means a statement is missing.
+                gap_days = (next_s - prev_e).days
+                if gap_days > 35:
+                    flags.append(_flag(
+                        "6.1",
+                        "Bank Statement Gap in Coverage",
+                        "warning",
+                        (
+                            f"Missing coverage of ~{gap_days} days between statement ending "
+                            f"{prev_e.isoformat()} and the next statement starting "
+                            f"{next_s.isoformat()}. Transaction history must be continuous "
+                            f"to current."
+                        ),
+                        "Request the missing bank statement(s) to close the gap in coverage.",
+                        docs=_relevant_docs(state, doc_types=["Bank Statement"]),
+                    ))
 
         # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
         # Kept inside the else block so these only fire when a Bank Statement is
