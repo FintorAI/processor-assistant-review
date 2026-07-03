@@ -11,34 +11,44 @@ extraction schema and no external integration (email / dashboard / browser / eFo
 
 ---
 
-## Tier 1 — Easy (data already extracted, rule-only)
+## Tier 1 — Easy (data already extracted, rule-only) — ✅ SHIPPED
 
-These are implemented in this batch. All inputs already exist in `required_docs.json`
-and are read into agent state.
+All four implemented and pushed (commit `f8d6d42`, branch
+`feat/checklist-partial-gaps-integration`); sheet + CSV synced to **Implemented**.
+All inputs already existed in `required_docs.json` and are read into agent state —
+no new schema, no `factory-reset` (both tools `FACTORY-LOCK: true`).
 
-| Item | Gap being closed | Data already available | Home |
+| Item | Gap closed | What shipped | Home |
 |---|---|---|---|
-| **05 W-2 #2** — Pay stubs dated within 30 days | 30-day recency not enforced | `paystubs.pay_date` | `review_urla_employment.py` (5.1) |
-| **05 W-2 #3** — Verify name/employer on stubs | stub identity not done (employer VOE-ref done) | `paystubs.borrower_name`, `paystubs.employer_name` | `review_urla_employment.py` (5.1) |
-| **05 W-2 #8** — VOE consistency with W-2 | W-2 consistency not done (VOE-doc done) | `w2.employer_name`, `w2.tax_year`, `w2.borrower_name` + VOE `current_employer_name` | `review_urla_employment.py` (5.1) |
-| **08 #2** — Transaction history to current | recency-to-current already done; **continuity between statements** not enforced | `bank_statements.statement_period_start` / `statement_period_end` | `review_urla_assets.py` (6.1) |
+| **05 W-2 #2** — Pay stubs dated within 30 days | 30-day recency not enforced | Most-recent `pay_date` recency (AUS 30d); stale / unverifiable flags | `review_urla_employment.py` |
+| **05 W-2 #3** — Verify name/employer on stubs | stub identity not done (employer VOE-ref done) | Per-stub `borrower_name` + `employer_name` reconciled vs 1003/VOE (token match) | `review_urla_employment.py` |
+| **05 W-2 #8** — VOE consistency with W-2 | W-2 consistency not done (VOE-doc done) | W-2 `employer_name`/`borrower_name` consistency vs VOE/1003 + tax-year surfacing | `review_urla_employment.py` |
+| **08 #2** — Transaction history to current | recency-to-current already done; **continuity between statements** not enforced | Coverage-continuity: gap > 35d between consecutive `statement_period_start/end` | `review_urla_assets.py` |
 
 Notes:
 - Paystub / bank-statement **presence** is already flagged in `run_pre_checks` (1.1), so the
   new rules only add recency / identity / continuity checks and never re-flag "missing".
 - Bank-statement **recency-to-current** (stale > 60d Conv / 30d FHA) already exists in
-  `review_urla_assets`; 08 #2's remaining piece is **gap-in-coverage between statements**.
+  `review_urla_assets`; 08 #2's remaining piece (now shipped) is **gap-in-coverage between statements**.
 
 ---
 
-## Tier 2 — Medium (wiring or partially-extracted data)
+## Resolved by earlier steps — marked Implemented on the sheet (2026-07-03)
 
-| Item | Why not trivial |
+These were flagged Partial but are already covered by rules shipped in an earlier step;
+no new code — status corrected on the sheet to reflect existing coverage.
+
+| Item | Covered by |
 |---|---|
-| **19 #4** — File Contacts / AKAs | AKA reconcile already built in borrower summary (3.1); this is surfacing the same into the file-contacts context — low effort but overlaps existing logic |
-| **02 #2** — Title Insurance Company (license + order #) | `title_report.title_company` / `issuing_agent` exist (company writable), but **license + order #** are not extracted → only a partial write |
-| **06 #3** — Receipt of income on bank statements | `bank.payroll_deposits`, `recurring_income_source` exist; matching deposits to income is fuzzy |
-| **07 #2** — Self-employed name/address/SSN | SSN vs credit already done (1.6); largely overlaps existing identity checks |
+| **19 #4** — File Contacts / AKAs | Applicant AKA reconcile (§3.1) already parses Credit Report AKAs and writes-if-blank to URLA aliases 1869/1874 (`review_borrower_summary.py`); file contacts reviewed in `review_file_contacts.py` |
+| **07 #2** — Self-employed name/address/SSN | Same identity checks as every borrower: name vs Driver's License + SSN vs Credit Report (§1.6/§3.1) in `review_borrower_summary.py`; property address via USPS `address_validation`. Self-employed uses the same reads — no SE-specific gap |
+
+## Tier 2 — Medium (wiring — data IS extracted)
+
+| Item | Status |
+|---|---|
+| **02 #2** — Title Insurance Company (license + order #) | ✅ **SHIPPED** — `_sync_title_company` in `review_file_contacts.py` writes the `TITLE_INSURANCE_COMPANY` file contact from the Title Report: company name, company license (`bizLicenseNumber`), commitment/order # (`referenceNumber`), issuing agent/contact (`personalLicenseNumber`), phone/email/address. Create-or-overwrite-differing with `info-overwrite` flags; no-op when no title data. Reference doc = **Title Report / commitment**. |
+| **06 #3** — Receipt of income on bank statements | Verify non-employment income (SS / pension / retirement / child support) is actually **received** by matching the stated award/other-income amount to recurring deposits on the bank statement. Data exists (`bank.payroll_deposits`, `recurring_income_source`, `total_deposits`) but deposit-to-income amount matching is fuzzy (frequency + partial descriptions). |
 
 ---
 
@@ -69,7 +79,7 @@ Notes:
 | Section | # | Item | Tier |
 |---|---|---|---|
 | 01 Loan Received | 11 | Order title docs (Processor Workflow) | 4 |
-| 02 File Contacts & Vesting | 2 | Update Title Insurance Company (license + order #) | 2 |
+| 02 File Contacts & Vesting | 2 | Update Title Insurance Company (license + order #) | ✅ 2 |
 | 03 URLA / 1003 | 8 | Liabilities match credit report; paid/omitted | 3 |
 | 03 URLA / 1003 | 9 | Child support / Alimony noted | 3 |
 | 03 URLA / 1003 | 10 | Schedule of real estate; debts tied to properties | 3 |
@@ -79,16 +89,16 @@ Notes:
 | 03 URLA / 1003 | 17 | US Citizen / Green card for Resident Alien | 4 |
 | 03 URLA / 1003 | 18 | Government screen (CAIVRS, Housing Act, LAPP) | 3 |
 | 04 Credit Report | 6 | Compare Liabilities/Debts vs Encompass | 3 |
-| 05 Income W-2 | 2 | Pay stubs per AUS, dated within 30 days | **1** |
-| 05 Income W-2 | 3 | Verify name/address/employer on stubs | **1** |
+| 05 Income W-2 | 2 | Pay stubs per AUS, dated within 30 days | **1 ✅** |
+| 05 Income W-2 | 3 | Verify name/address/employer on stubs | **1 ✅** |
 | 05 Income W-2 | 4 | Paystub variances base/OT/bonus/holiday | 3 |
 | 05 Income W-2 | 7 | Obtain gap of employment letters | 4 |
-| 05 Income W-2 | 8 | VOE consistency with paystubs and W-2 | **1** |
+| 05 Income W-2 | 8 | VOE consistency with paystubs and W-2 | **1 ✅** |
 | 06 Income SS/Pension | 1 | Awards letters and 1099s per AUS | 3 |
 | 06 Income SS/Pension | 3 | Verify receipt on bank statements | 2 |
-| 07 Self-Employed | 2 | Verify borrower name, address, SSN | 2 |
+| 07 Self-Employed | 2 | Verify borrower name, address, SSN | ✅ (via §1.6/§3.1) |
 | 07 Self-Employed | 4 | Schedule E properties / rental income | 3 |
-| 08 Assets | 2 | Transaction history to current | **1** |
+| 08 Assets | 2 | Transaction history to current | **1 ✅** |
 | 08 Assets | 5 | Transfers between accounts | 3 |
 | 08 Assets | 10 | Complete asset screen (Page 3) | 2 |
 | 09 Purchase Contract | 5 | Update Loan Stakeholders | 2 |
@@ -104,7 +114,7 @@ Notes:
 | 17 Submit to UW | 8 | FHA/VA/USDA/Fannie/Freddie data screens | 3 |
 | 17 Submit to UW | 10 | Upload final 1003 + HUD Addendum | 4 |
 | 19 Loan Approval | 2 | Lock Confirmation; qualifying rate vs Transmittal | (near-done) |
-| 19 Loan Approval | 4 | File Contacts / AKAs | 2 |
+| 19 Loan Approval | 4 | File Contacts / AKAs | ✅ (via §3.1) |
 | 20 CD Request | 3 | Verify 2015 Itemization screen | 3 |
 | 21 Condition Handling | 1 | Upload conditions to eFolder; mark Ready | 4 |
 | 21 Condition Handling | 4 | Enter signing date and wire request | (near-done) |
