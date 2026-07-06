@@ -62,10 +62,7 @@ no new code — status corrected on the sheet to reflect existing coverage.
 | Item | Missing extraction |
 |---|---|
 | **05 W-2 #4** — OT/bonus/holiday variances | paystub has `gross_pay_this_period` only, no OT/bonus/holiday line items |
-| **03 #8 / 04 #6** — Liabilities vs credit report | credit_report extracts scores/SSN/DOB/AKA only, **no liability lines** |
-| **03 #9** — Alimony/child-support isolation | needs liability-type detail |
-| **03 #10** — REO debts tied to properties | needs credit-report mortgage lines (same cluster as #8) to link each REO to its mortgage |
-| **03 #11** — Correct mortgage on Financial Info | needs credit-report mortgage lines / mortgage-statement extraction |
+| ~~**03 #8 / 04 #6 / #9 / #10 / #11**~~ — Liabilities vs credit report | ✅ **SHIPPED** — reconciliation + VOL write path landed; only the catchingDoc `liabilities[]` server-schema push remains (see spec below) |
 | **07 #4** — Schedule E properties / rental income | no Schedule E extraction |
 | **08 #5** — Transfers between accounts | needs transaction-level data |
 | **12 #2** — Applicant/property vs flood cert | flood cert extracts company/policy/zone only (no address/name) |
@@ -73,11 +70,26 @@ no new code — status corrected on the sheet to reflect existing coverage.
 
 ---
 
-## Spec — Credit-report liabilities cluster (03 #8 / #9 / #10 / #11, 04 #6)
+## Spec — Credit-report liabilities cluster (03 #8 / #9 / #10 / #11, 04 #6) — ✅ SHIPPED
 
-These four items share **one unblock**: the credit-report doc currently extracts no
-tradeline lines. Grounded in the EC screenshots of loan 2605968111 (2c Liabilities grid
-+ VOL detail):
+**Shipped** (reconciliation + write path):
+- `credit_report.fields_extracted` now registers `liabilities` (an array of tradeline
+  objects) in `output/config/required_docs.json`. The catchingDoc **server schema push**
+  for `liabilities[]` is the one remaining step and follows the exact 06 #3 pattern (the
+  `LG-docsOrch` devTool lives outside this repo); the consumer below is a **no-op until the
+  array is populated**, so shipping it early is safe.
+- `review_urla_liabilities.py` reconciles each extracted tradeline against the VOL rows via
+  `_reconcile_credit_liabilities()` implementing the full write/flag policy below, plus
+  duplicate clustering, alimony/child-support routing (#9), and mortgage→REO linkage (#10/#11).
+- New **VOL write path** for blank-only completion: `encompass_client.update_vol_accounts`
+  (PATCH `/vols/{volId}`) + `shared/encompass_io.update_vols`. Only the safe scalar sub-fields
+  (unpaid balance, monthly payment, credit limit, account number) are filled when blank;
+  `liabilityType` is never auto-written (enum-mismatch risk → warning instead). Honors DEV_MODE
+  dry-run.
+- Covered by `scripts/test_liabilities_reconcile.py` (15 assertions across all policy branches).
+
+These four items shared **one unblock**: the credit-report doc extracted no tradeline lines.
+Grounded in the EC screenshots of loan 2605968111 (2c Liabilities grid + VOL detail):
 
 **Schema (add to the credit-report extraction, catchingDoc — same schema-first approach as 06 #3):**
 `liabilities[]`, one object per tradeline:
@@ -90,9 +102,22 @@ tradeline lines. Grounded in the EC screenshots of loan 2605968111 (2c Liabiliti
 - `is_mortgage` + `secured_property_address` (for #10/#11 REO linkage)
 
 **Reconciliation rule (new, in `review_urla_liabilities.py`):** match each extracted tradeline
-to a VOL row **by account-number last-4 (+ creditor + balance)** and flag:
-- tradeline with a balance **missing** from the VOL (liability not entered),
-- **authorized-user** tradelines that are still counted in DTI (should typically be Omit),
+to a VOL row **by account-number last-4 (+ creditor + balance)**.
+
+**Write / flag policy** (mirrors the 08 #10 "write-blank-only" pattern, but a *whole* missing
+liability is never auto-added):
+1. **Field mismatch** — the doc value and a **populated** VOL field disagree (e.g. balance,
+   payment, type) → **warning**; never overwrite the VOL value.
+2. **Field missing** — the account matches an existing VOL row but a specific **sub-field is
+   blank** and the doc has it → **write only that sub-field** from the doc (info-overwrite),
+   never touching populated fields. (Same guard as `update_vod_accounts`.)
+3. **Whole liability missing** — the tradeline has **no matching VOL row** at all → **do NOT
+   write it to LOS**; raise a **warning** for the processor to add/verify (adding a liability
+   affects DTI, so unlike the asset screen we do not auto-create it).
+4. **Match, all fields agree** → pass (info/confirm, no action).
+
+Additional flags layered on top:
+- **authorized-user** tradelines still counted in DTI (should typically be Omit),
 - **duplicates** only when account numbers match (never by creditor name),
 - **deferred student loans** with no payment (needs a qualifying payment),
 - VOL rows **Excluded / Payoff** without a matching documented reason (extends today's checks).
@@ -121,15 +146,15 @@ labeling alimony vs child support when a 2d row exists — low value, no extract
 |---|---|---|---|
 | 01 Loan Received | 11 | Order title docs (Processor Workflow) | 4 |
 | 02 File Contacts & Vesting | 2 | Update Title Insurance Company (license + order #) | ✅ 2 |
-| 03 URLA / 1003 | 8 | Liabilities match credit report; paid/omitted | 3 |
-| 03 URLA / 1003 | 9 | Child support / Alimony noted | 3 |
-| 03 URLA / 1003 | 10 | Schedule of real estate; debts tied to properties | 3 |
-| 03 URLA / 1003 | 11 | Correct mortgage on Financial Info screen | 3 |
+| 03 URLA / 1003 | 8 | Liabilities match credit report; paid/omitted | ✅ 3→2 (schema push pending) |
+| 03 URLA / 1003 | 9 | Child support / Alimony noted | ✅ 3→2 (schema push pending) |
+| 03 URLA / 1003 | 10 | Schedule of real estate; debts tied to properties | ✅ 3→2 (schema push pending) |
+| 03 URLA / 1003 | 11 | Correct mortgage on Financial Info screen | ✅ 3→2 (schema push pending) |
 | 03 URLA / 1003 | 12 | USPS Address Verification multi-doc cross-ref | ✅ 2 (Flood leg → 3) |
 | 03 URLA / 1003 | 13 | Confirm Name and Vesting for Title Commitment | ✅ 2 |
 | 03 URLA / 1003 | 17 | US Citizen / Green card for Resident Alien | ✅ 2 (flag); request workflow → 4 |
 | 03 URLA / 1003 | 18 | Government screen (CAIVRS, Housing Act, LAPP) | 3 |
-| 04 Credit Report | 6 | Compare Liabilities/Debts vs Encompass | 3 |
+| 04 Credit Report | 6 | Compare Liabilities/Debts vs Encompass | ✅ 3→2 (schema push pending) |
 | 05 Income W-2 | 2 | Pay stubs per AUS, dated within 30 days | **1 ✅** |
 | 05 Income W-2 | 3 | Verify name/address/employer on stubs | **1 ✅** |
 | 05 Income W-2 | 4 | Paystub variances base/OT/bonus/holiday | 3 |

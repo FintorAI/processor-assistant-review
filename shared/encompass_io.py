@@ -924,6 +924,39 @@ def update_vods(
     return result
 
 
+def update_vols(
+    loan_id: str,
+    completions: List[Dict[str, Any]],
+    state: dict = None,
+) -> Dict[str, Any]:
+    """Complete blank sub-fields on existing VOL (2c liability) rows (checklist 03 #8).
+
+    Thin wrapper over ``encompass_client.update_vol_accounts``. Only fills empty
+    scalar fields on an existing liability (unpaid balance, monthly payment,
+    credit limit, account number) from a matched credit-report tradeline — never
+    overwrites a populated value and never creates a missing liability. Each
+    ``completions`` dict carries ``vol_id`` and an ``updates`` map using the
+    normalised ``read_vols`` keys.
+
+    Returns ``{"success": bool, "updated": [...], "skipped": [...], "error"?: str}``.
+    """
+    try:
+        from encompass_client import update_vol_accounts
+    except ImportError:
+        logger.warning("encompass_client not available — update_vols will fail at runtime")
+        return {"success": False, "error": "encompass_client not available", "updated": [], "skipped": []}
+
+    if not completions:
+        return {"success": True, "updated": [], "skipped": []}
+
+    result = update_vol_accounts(loan_id, completions, state=state)
+    logger.info(
+        f"[ENCOMPASS] update_vols: requested {len(completions)} → updated "
+        f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
+    )
+    return result
+
+
 def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     """Fetch all VOL (Verification of Liabilities) records from the Encompass v3 API.
 

@@ -2174,3 +2174,152 @@ def update_vod_accounts(
 
     return {"success": True, "updated": updated, "skipped": skipped}
 
+
+# Safe VOL sub-fields to auto-complete when blank (checklist 03 #8). Scalar
+# numeric/string fields only — liabilityType is intentionally excluded because a
+# wrong enum value would fail the whole PATCH (mismatches are warned instead).
+_VOL_COMPLETABLE_FIELDS = {
+    "balance":        "unpaidBalanceAmount",
+    "payment":        "monthlyPaymentAmount",
+    "credit_limit":   "creditLimit",
+    "account_number": "accountIdentifier",
+}
+
+
+def update_vol_accounts(
+    loan_id: str,
+    completions: list[dict[str, any]],
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Complete BLANK sub-fields on existing VOL (2c liability) rows (checklist 03 #8).
+
+    Fills only empty scalar fields on an EXISTING liability from a matched
+    credit-report tradeline — unpaid balance, monthly payment, credit limit, or
+    account number — without ever overwriting a value the server already has.
+    An entirely missing liability is never created here (the caller warns
+    instead), and ``liabilityType`` is never auto-written (enum-mismatch risk).
+
+    Endpoint::
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vols/{volId}
+
+    Args:
+        loan_id: Encompass loan GUID
+        completions: list of dicts, each::
+            {
+              "vol_id":  str,                 # target VOL object id
+              "updates": {                    # normalised read_vols keys; blanks only
+                "balance":        float,      # → unpaidBalanceAmount
+                "payment":        float,      # → monthlyPaymentAmount
+                "credit_limit":   float,      # → creditLimit
+                "account_number": str,        # → accountIdentifier
+              },
+            }
+        application_id: Application ID (auto-resolved if omitted)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": bool, "updated": [{"vol_id","fields":[...]}], "skipped": [...], "error"?: str}``
+    """
+    import requests
+
+    if not completions:
+        return {"success": True, "updated": [], "skipped": []}
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    # Fetch current VOLs so we can read the server's existing values and only
+    # fill genuine blanks.
+    try:
+        raw_vols = get_vols(loan_id, application_id=application_id, state=state)
+    except Exception as e:
+        return {"success": False, "error": f"could not fetch VOLs: {e}", "updated": [], "skipped": []}
+    by_id = {v.get("id", ""): v for v in raw_vols}
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    updated: list[dict] = []
+    skipped: list[dict] = []
+
+    def _blank_num(v) -> bool:
+        try:
+            return v in (None, "") or float(v) == 0.0
+        except (TypeError, ValueError):
+            return True
+
+    for comp in completions:
+        vol_id = comp.get("vol_id", "")
+        raw = by_id.get(vol_id)
+        if not raw:
+            skipped.append({"vol_id": vol_id, "reason": "VOL not found on loan"})
+            continue
+
+        updates = comp.get("updates") or {}
+        body: dict[str, any] = {}
+        changed_fields: list[str] = []
+
+        for norm_key, api_field in _VOL_COMPLETABLE_FIELDS.items():
+            if norm_key not in updates or updates[norm_key] in (None, ""):
+                continue
+            server_val = raw.get(api_field)
+            if norm_key == "account_number":
+                if (server_val or "").strip():
+                    continue  # already populated
+                body[api_field] = str(updates[norm_key]).strip()
+                changed_fields.append("account number")
+            else:
+                if not _blank_num(server_val):
+                    continue  # already populated
+                try:
+                    num = float(updates[norm_key])
+                except (TypeError, ValueError):
+                    continue
+                if num <= 0:
+                    continue
+                body[api_field] = num
+                changed_fields.append(
+                    {"balance": "unpaid balance", "payment": "monthly payment",
+                     "credit_limit": "credit limit"}[norm_key]
+                )
+
+        if not body:
+            continue  # nothing blank to fill on this VOL
+
+        url = (
+            f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+            f"/applications/{application_id}/vols/{vol_id}"
+        )
+        try:
+            resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code == 401:
+                client.refresh_token()
+                headers["Authorization"] = f"Bearer {client.access_token}"
+                resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code in (200, 201, 204):
+                logger.info(
+                    f"[ENCOMPASS] Completed VOL {vol_id[:8]} fields={changed_fields} for loan {loan_id[:8]}"
+                )
+                updated.append({"vol_id": vol_id, "fields": changed_fields})
+            else:
+                error_msg = (
+                    f"VOL PATCH failed for {vol_id} (status {resp.status_code}): {resp.text[:300]}"
+                )
+                logger.error(f"[ENCOMPASS] {error_msg}")
+                return {"success": False, "error": error_msg, "updated": updated, "skipped": skipped}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[ENCOMPASS] Network error updating VOL {vol_id}: {e}")
+            return {"success": False, "error": str(e), "updated": updated, "skipped": skipped}
+
+    return {"success": True, "updated": updated, "skipped": skipped}
+

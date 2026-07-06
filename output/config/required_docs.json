@@ -504,7 +504,8 @@
         "credit_score_factors",
         "credit_report_order_date",
         "credit_report_present",
-        "fact_act_present"
+        "fact_act_present",
+        "liabilities"
       ]
     },
     "caivrs": {
