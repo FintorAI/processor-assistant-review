@@ -61,10 +61,10 @@ no new code — status corrected on the sheet to reflect existing coverage.
 
 | Item | Missing extraction |
 |---|---|
-| **05 W-2 #4** — OT/bonus/holiday variances | paystub has `gross_pay_this_period` only, no OT/bonus/holiday line items |
+| ~~**05 W-2 #4**~~ — OT/bonus/holiday variances | ✅ **SHIPPED** — earnings-variance rule landed (`_analyze_paystub_earnings`); only the catchingDoc `earnings[]` server-schema push remains (see spec below) |
 | ~~**03 #8 / 04 #6 / #9 / #10 / #11**~~ — Liabilities vs credit report | ✅ **SHIPPED** — reconciliation + VOL write path landed; only the catchingDoc `liabilities[]` server-schema push remains (see spec below) |
 | **07 #4** — Schedule E properties / rental income | no Schedule E extraction |
-| **08 #5** — Transfers between accounts | needs transaction-level data |
+| ~~**08 #5**~~ — Transfers between accounts | ✅ **SHIPPED** — transfer-tracing rule landed (`_check_account_transfers`); only the catchingDoc `transactions[]` server-schema push remains (see spec below) |
 | **12 #2** — Applicant/property vs flood cert | flood cert extracts company/policy/zone only (no address/name) |
 | **06 #1** — Awards letters / 1099s | no 1099 doc type |
 
@@ -132,11 +132,76 @@ labeling alimony vs child support when a 2d row exists — low value, no extract
 
 ---
 
+## Spec — Paystub earnings line items (05 W-2 #4) — ✅ SHIPPED (rule; schema push pending)
+
+**Shipped:** `review_urla_employment.py` now consumes an extracted `earnings[]` array on the
+Paystub doc (`_analyze_paystub_earnings`), classifies each line into base / overtime / bonus /
+commission / holiday / pto / other, and per applicant (most complete stub = highest YTD):
+- emits an **info** "Paystub Earnings Breakdown (YTD)" composition summary, and
+- **warns** "Variable Income Material — 2-Year Averaging Required" when OT+bonus+commission ≥ 25%
+  of YTD gross (else an info nudge to confirm averaging when any variable pay is present).
+`earnings` is registered in `required_docs.json`; the consumer is a **no-op until the schema is
+pushed**. Grounded in the ARK LINE INC sample stub (Earnings grid: PTO / Additional Pay /
+Piecework, columns Rate / Hours-Pieces / Current / YTD).
+
+**Schema (add to the Paystub extraction, catchingDoc — same schema-first approach as 06 #3 / liabilities):**
+`earnings[]`, one object per Earnings-grid line item:
+- `description` — verbatim label ("Regular", "Overtime", "O/T", "Bonus", "Holiday", "PTO", "Piecework", "Commission", …)
+- `rate` — the Rate column
+- `hours` — the Hours/Pieces column
+- `current_amount` — the Current column
+- `ytd_amount` — the Year To Date column
+
+The rule buckets by `description` (regex, word-boundary so "O/T" matches but not substrings), so
+the extractor does not need to pre-classify; verbatim labels are enough.
+
+---
+
+## Spec — Bank-statement transactions / transfers (08 #5) — ✅ SHIPPED (rule; schema push pending)
+
+**Shipped:** `review_urla_assets.py` now consumes an extracted `transactions[]` ledger on the
+Bank Statement doc (`_check_account_transfers`). It classifies each row (regex + extractor hints)
+into internal transfer in/out vs card-payment vs none, extracts the counterparty account last-4,
+and checks it against the file's **account inventory** (every account last-4 across VODs + bank +
+asset docs):
+- incoming transfer, counterparty statement **in file** → info-confirm "Account Transfer Traced";
+- incoming transfer, counterparty statement **missing** → **warning** (source that account);
+- outgoing transfer → info (confirm destination if used for reserves);
+- card payments / payroll / P2P Zelle from a person are **excluded** (handled by other rules).
+`transactions` registered in `required_docs.json`; consumer is a **no-op until the schema is
+pushed**. Grounded in the two sample statements (BoA-style signed ledger + a Category=Credit/Debit
+ledger): "Deposit from 360 Performance Savings XXXXXX2307" (traced), "Deposit from House Down
+Payment XXXXXX9484" (unsourced), "Payment To Chase Card Ending IN 4004" (card payment, excluded).
+
+**Schema (add to the Bank Statement extraction, catchingDoc — same schema-first approach as 06 #3):**
+`transactions[]`, one object per TRANSACTION DETAIL row:
+- `date`
+- `description` — verbatim ("Deposit from 360 Performance Savings XXXXXX2307", "Zelle Payment To …", "Payment To Chase Card Ending IN 4004")
+- `amount` — signed (credit +, debit −) OR pair with `direction`
+- `direction` / `category` — "Credit" | "Debit" when the statement prints it
+- `balance` — running balance
+- `is_transfer` (bool, best-effort) + `transfer_type` — internal_in | internal_out | card_payment | p2p
+- `counterparty_account_last4` (best-effort) — the rule also parses trailing masked digits ("XXXXXX2307", "Ending IN 4004", "(...5462)") from the description as a fallback
+
+The rule already infers type + counterparty from `description` alone, so the extractor can ship the
+raw ledger first and add `is_transfer`/`transfer_type`/`counterparty_account_last4` as refinements.
+
+---
+
 ## Tier 4 — Blocked: external integration, not a rule
 
 01 #11 (title order email), 10 #2 / #3 (title package / tax-cert via dashboard),
 11 #9 / 13 #11 / 21 #5 (eFolder upload — dry-run), 17 #2 (doc re-order),
 17 #10 (HUD Addendum upload), 21 #1 (upload conditions), 03 #17 (green-card request workflow).
+
+**05 #7 — Employment-gap LOE — ✅ review side SHIPPED (comms template is external).**
+The gap is already flagged by `_check_employment_gap`. New `_rule_employment_gap_loe` in
+`build_action_items.py` bridges the unresolved gap flag into a `comms_actions` item
+(`action_type: employment_gap_loe`, `graph_id: processor_employment_gap_loe`,
+`resume_contract: "email"`), carrying `applicants_with_gaps` + `gap_details` in the payload. One
+item per loan covering all applicants; excludes the "no prior employer / <2yr" data-entry flag.
+The email template/graph itself is the comms-owned seam (flip `resume_contract` to `"blend_loe"`
+if the LOE should be sent for e-sign instead).
 
 ---
 
@@ -157,15 +222,15 @@ labeling alimony vs child support when a 2d row exists — low value, no extract
 | 04 Credit Report | 6 | Compare Liabilities/Debts vs Encompass | ✅ 3→2 (schema push pending) |
 | 05 Income W-2 | 2 | Pay stubs per AUS, dated within 30 days | **1 ✅** |
 | 05 Income W-2 | 3 | Verify name/address/employer on stubs | **1 ✅** |
-| 05 Income W-2 | 4 | Paystub variances base/OT/bonus/holiday | 3 |
-| 05 Income W-2 | 7 | Obtain gap of employment letters | 4 |
+| 05 Income W-2 | 4 | Paystub variances base/OT/bonus/holiday | ✅ 3→2 (schema push pending) |
+| 05 Income W-2 | 7 | Obtain gap of employment letters | ✅ 4 (review side; comms template external) |
 | 05 Income W-2 | 8 | VOE consistency with paystubs and W-2 | **1 ✅** |
 | 06 Income SS/Pension | 1 | Awards letters and 1099s per AUS | 3 |
 | 06 Income SS/Pension | 3 | Verify receipt on bank statements | 2 |
 | 07 Self-Employed | 2 | Verify borrower name, address, SSN | ✅ (via §1.6/§3.1) |
 | 07 Self-Employed | 4 | Schedule E properties / rental income | 3 |
 | 08 Assets | 2 | Transaction history to current | **1 ✅** |
-| 08 Assets | 5 | Transfers between accounts | 3 |
+| 08 Assets | 5 | Transfers between accounts | ✅ 3→2 (schema push pending) |
 | 08 Assets | 10 | Complete asset screen (Page 3) | ✅ 2 |
 | 09 Purchase Contract | 5 | Update Loan Stakeholders | ✅ 2 |
 | 10 Title Order | 2 | Confirm completeness (CPL, chain, wire, tax cert) | 4 |

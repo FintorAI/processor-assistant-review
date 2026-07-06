@@ -281,6 +281,71 @@ def _rule_emd_request(state: dict) -> Optional[dict]:
     )
 
 
+def _unresolved_flags(state: dict, *keywords: str) -> List[dict]:
+    """All unresolved flags whose title/details contain any keyword (lowercased)."""
+    kws = [k.lower() for k in keywords]
+    out: List[dict] = []
+    for f in state.get("flags") or []:
+        if not isinstance(f, dict) or f.get("resolved"):
+            continue
+        hay = f"{f.get('title', '')} {f.get('details', '')}".lower()
+        if any(k in hay for k in kws):
+            out.append(f)
+    return out
+
+
+def _rule_employment_gap_loe(state: dict) -> Optional[dict]:
+    """Request an employment-gap Letter of Explanation when review flagged a gap.
+
+    Fires only when ``review_urla_employment`` raised an unresolved employment-gap
+    flag (``_check_employment_gap`` → "FHA Employment Gap …" / "Employment Gap >
+    6 Months …"). One item per loan covering every applicant with a gap; the
+    ``payload`` carries the applicant(s) and the flag detail(s) so the comms
+    template can reference the specific gap. Never fires from the "no prior
+    employer / < 2 years" flag (title "Employment History Gap"), which is an
+    Encompass data-entry fix, not a borrower LOE.
+
+    NOTE: ``graph_id`` / ``resume_contract`` below are the comms-owned seam. It is
+    modelled as an email request to the borrower; switch ``resume_contract`` to
+    "blend_loe" if the letter should instead be sent for e-sign via Blend.
+    """
+    gap_flags = [
+        f for f in _unresolved_flags(state, "employment gap")
+        if "employment gap" in (f.get("title", "").lower())
+    ]
+    if not gap_flags:
+        return None
+
+    def _applicant(title: str) -> str:
+        t = title.lower()
+        if "co-borrower" in t or "coborrower" in t:
+            return "Co-Borrower"
+        return "Borrower"
+
+    applicants = sorted({_applicant(f.get("title", "")) for f in gap_flags})
+    gap_details = [f.get("details", "") for f in gap_flags if f.get("details")]
+
+    payload = {**_base_payload(state), "inputs": {
+        "loe_type": "employment_gap",
+        "borrower_name": _borrower_name(state),
+        "coborrower_name": _coborrower_name(state),
+        "property_address": _property_address(state),
+        "loan_number": _loan_number(state),
+        "applicants_with_gaps": applicants,
+        "gap_details": gap_details,
+        "test_mode": _test_mode(state),
+    }}
+    return _item(
+        "employment_gap_loe",
+        "Request Employment-Gap Letter of Explanation",
+        (
+            f"{len(gap_flags)} employment-gap flag(s) require a written explanation "
+            f"({', '.join(applicants)}). Request an employment-gap LOE from the borrower."
+        ),
+        "processor_employment_gap_loe", "email", payload,
+    )
+
+
 def _rule_hoa_loe(state: dict) -> Optional[dict]:
     """Send a 'no-HOA' LOE for borrower signature (Blend) when HOA status is unconfirmed.
 
@@ -319,6 +384,7 @@ RULES: List[Callable[[dict], Optional[dict]]] = [
     _rule_title_order,
     _rule_lock_desk,
     _rule_emd_request,
+    _rule_employment_gap_loe,
 ]
 
 

@@ -292,7 +292,8 @@
         "pay_frequency",
         "hourly_rate",
         "hours_worked",
-        "paystubs_present"
+        "paystubs_present",
+        "earnings"
       ]
     },
     "w2": {
@@ -373,7 +374,8 @@
         "returned_items",
         "payroll_deposits",
         "recurring_income_source",
-        "recurring_deposits"
+        "recurring_deposits",
+        "transactions"
       ]
     },
     "assets": {

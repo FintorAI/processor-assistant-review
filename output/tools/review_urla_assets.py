@@ -210,6 +210,175 @@ def _match_retirement_vod(rec: dict, vod_rows: list) -> Optional[dict]:
     return None
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Account-transfer tracing (checklist 08 #5 — transfers between accounts)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_TRANSFER_IN_RE = re.compile(
+    r"\b(deposit\s+from|transfer\s+from|xfer\s+from|from\s+(checking|savings|share|money\s*market)"
+    r"|incoming\s+transfer|internal\s+transfer)\b", re.I)
+_TRANSFER_OUT_RE = re.compile(
+    r"\b(transfer\s+to|deposit\s+to|xfer\s+to|to\s+(checking|savings|share|money\s*market)"
+    r"|outgoing\s+transfer|payment\s+to\b.*\bcard|online\s+transfer\s+to)\b", re.I)
+_CARD_PAYMENT_RE = re.compile(r"\bpayment\s+to\b.*\bcard\b|\bcard\s+ending\b", re.I)
+# A trailing masked account number: "XXXXXX2307", "x2307", "...5462",
+# "ending in 4004", "acct 9484".
+_COUNTERPARTY_ACCT_RE = re.compile(
+    r"(?:ending\s*in|acct\.?|account|x{2,}|\*{2,}|\.{3,})\s*#?\s*(\d{3,})", re.I)
+
+
+def _txn_direction(txn: dict) -> Optional[str]:
+    """Return 'credit' | 'debit' | None for one transaction row."""
+    cat = str(txn.get("direction") or txn.get("category") or txn.get("type") or "").lower()
+    if "credit" in cat or "deposit" in cat:
+        return "credit"
+    if "debit" in cat or "withdraw" in cat:
+        return "debit"
+    amt = _parse_float(txn.get("amount"))
+    if amt is None:
+        return None
+    return "credit" if amt >= 0 else "debit"
+
+
+def _counterparty_last4(desc: str, txn: dict) -> str:
+    """Best-effort last-4 of the account on the other side of a transfer."""
+    for k in ("counterparty_account_last4", "counterparty_account", "counterparty"):
+        v = txn.get(k)
+        if v:
+            l4 = _last_four(v)
+            if l4:
+                return l4
+    m = _COUNTERPARTY_ACCT_RE.search(str(desc or ""))
+    return m.group(1)[-4:] if m else ""
+
+
+def _transfer_kind(desc: str, txn: dict) -> Optional[str]:
+    """Classify a transaction as an account transfer.
+
+    Returns 'internal_in' | 'internal_out' | 'card_payment' | None. Prefers the
+    extractor's ``is_transfer`` / ``transfer_type`` hints, falling back to
+    description regex. Card payments are separated (they are debt payments, not
+    asset-sourcing transfers).
+    """
+    tt = str(txn.get("transfer_type") or "").lower()
+    if tt in ("internal_in", "internal_out", "card_payment"):
+        return tt
+    d = str(desc or "")
+    if _CARD_PAYMENT_RE.search(d):
+        return "card_payment"
+    direction = _txn_direction(txn)
+    if _TRANSFER_IN_RE.search(d):
+        return "internal_in"
+    if _TRANSFER_OUT_RE.search(d):
+        return "internal_out"
+    # Generic "transfer"/"xfer" with no direction word — infer from credit/debit.
+    if re.search(r"\b(transfer|xfer)\b", d, re.I) and txn.get("is_transfer") is not False:
+        return "internal_in" if direction == "credit" else "internal_out"
+    if txn.get("is_transfer") is True:
+        return "internal_in" if direction == "credit" else "internal_out"
+    return None
+
+
+def _account_inventory_last4(*sources) -> set:
+    """Collect the last-4 of every account represented in the file.
+
+    ``sources`` are iterables of account-number-ish strings (VOD account numbers,
+    bank-statement / asset account numbers). Used to decide whether the other
+    side of a transfer already has a statement in the file.
+    """
+    inv: set = set()
+    for src in sources:
+        for val in src or []:
+            l4 = _last_four(val)
+            if l4:
+                inv.add(l4)
+    return inv
+
+
+def _check_account_transfers(copies: list, inventory_last4: set, refs: list, flags: list) -> int:
+    """Trace inter-account transfers and flag any whose source statement is missing.
+
+    Checklist 08 #5: for each bank-statement transaction that is an account
+    transfer, confirm the counterparty account has a statement in the file.
+      • incoming transfer, counterparty statement present → info-confirm
+      • incoming transfer, counterparty statement missing → warning (source it)
+      • outgoing transfer → info (traced or note)
+    No-op until the Bank Statement schema extracts ``transactions[]``.
+    Returns the number of transfers seen.
+    """
+    total = 0
+    for copy in copies:
+        txns = _copy_field(copy, "transactions")
+        if not isinstance(txns, list) or not txns:
+            continue
+        own = _last_four(
+            _copy_field(copy, "bank_account_number", "account_number", "account_number_last4")
+        )
+        inst = (_copy_field(copy, "institution_name") or "the account").strip() or "the account"
+        for t in txns:
+            if not isinstance(t, dict):
+                continue
+            desc = t.get("description") or ""
+            kind = _transfer_kind(desc, t)
+            if kind not in ("internal_in", "internal_out"):
+                continue
+            total += 1
+            cp = _counterparty_last4(desc, t)
+            amt = _parse_float(t.get("amount"))
+            amt_txt = f"${abs(amt):,.2f}" if amt is not None else "an amount"
+            if cp and own and cp == own:
+                continue  # self-reference, not a second account
+            sourced = bool(cp) and cp in inventory_last4
+
+            if kind == "internal_in":
+                if sourced:
+                    flags.append(_flag(
+                        "6.1",
+                        f"Account Transfer Traced — …{cp}",
+                        "info",
+                        (
+                            f"Incoming transfer of {amt_txt} into {inst} from account …{cp}; "
+                            f"that account's statement is in the file (\"{str(desc)[:80]}\")."
+                        ),
+                        "Funds traced — no action needed.",
+                        docs=refs,
+                    ))
+                else:
+                    flags.append(_flag(
+                        "6.1",
+                        f"Account Transfer Not Sourced — Statement Missing"
+                        + (f" (…{cp})" if cp else ""),
+                        "warning",
+                        (
+                            f"Incoming transfer of {amt_txt} into {inst} appears to come from "
+                            + (f"account …{cp}" if cp else "another account")
+                            + f", but that account's statement is not in the file (\"{str(desc)[:80]}\"). "
+                            "Transfers between accounts must be fully sourced."
+                        ),
+                        (
+                            "Obtain the most recent statement for "
+                            + (f"account …{cp}" if cp else "the source account")
+                            + " so the transferred funds can be traced."
+                        ),
+                        docs=refs,
+                    ))
+            else:  # internal_out
+                flags.append(_flag(
+                    "6.1",
+                    f"Outgoing Account Transfer" + (f" — …{cp}" if cp else ""),
+                    "info",
+                    (
+                        f"Outgoing transfer of {amt_txt} from {inst}"
+                        + (f" to account …{cp}" if cp else "")
+                        + f" (\"{str(desc)[:80]}\"). Confirm the destination account is documented "
+                        "if it is a source of funds/reserves."
+                    ),
+                    "Verify the destination account is in the file when it is used for reserves.",
+                    docs=refs,
+                ))
+    return total
+
+
 def _compare_with_vod(
     doc_copies: list,            # normalised bank-statement or asset copies
     vod_rows: list,              # from state['vod_data']
@@ -788,6 +957,25 @@ def review_urla_assets(
             loan_id, _asset_to_complete, _asset_refs, "Assets", state, flags,
             dry_run=_vod_dry_run,
         )
+
+    # ── 5a-ii. Transfers between accounts (08 #5) ────────────────────────────
+    # Trace inter-account transfers in the bank-statement transaction ledger and
+    # flag any whose source account has no statement in the file. Account
+    # inventory = every account last-4 represented across VODs + bank + asset docs.
+    _bank_txn_copies = bank_stmt_full_copies or bank_statement_copies
+    if _bank_txn_copies:
+        _inventory = _account_inventory_last4(
+            (v.get("account_number") for v in vod_rows),
+            (_copy_field(c, "bank_account_number", "account_number", "account_number_last4")
+             for c in bank_stmt_full_copies),
+            (c.get("value") for c in bank_statement_copies),
+            (_copy_field(c, "account_number_last4", "account_number") for c in asset_full_copies),
+            (c.get("value") for c in asset_acct_copies),
+        )
+        _transfer_refs = _relevant_docs(state, doc_types=["Bank Statement"])
+        _n_transfers = _check_account_transfers(_bank_txn_copies, _inventory, _transfer_refs, flags)
+        if _n_transfers:
+            logger.info(f"[REVIEW_URLA_ASSETS] Traced {_n_transfers} inter-account transfer(s)")
 
     # ── 5b. FHA retirement 60% haircut ───────────────────────────────────────
     # FHA counts only 60% of a retirement account's vested balance (net of any

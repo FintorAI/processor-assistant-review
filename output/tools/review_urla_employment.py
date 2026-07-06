@@ -147,6 +147,95 @@ def _name_matches_any(doc_name: Optional[str], applicant_token_sets: list) -> bo
     return False
 
 
+# ── Paystub earnings-variance (checklist 05 W-2 #4) ──────────────────────────
+# Classify each paystub earnings line item into a pay bucket. Regex so short
+# abbreviations (OT, O/T) match on word boundaries only.
+_EARNING_BUCKET_PATTERNS = [
+    ("overtime",   re.compile(r"\b(over\s*time|o/?t|dbl\s*time|double\s*time)\b")),
+    ("bonus",      re.compile(r"\b(bonus|incentive|spiff|award)\b")),
+    ("commission", re.compile(r"\b(commission|comm)\b")),
+    ("holiday",    re.compile(r"\b(holiday|hol)\b")),
+    ("pto",        re.compile(r"\b(pto|vacation|vac|sick|personal|paid\s*time\s*off|leave)\b")),
+    ("base",       re.compile(r"\b(regular|reg|salary|hourly|base|piece\s*work|piecework|"
+                              r"additional\s*pay|straight\s*time)\b")),
+]
+
+
+def _classify_earning(description: Optional[str]) -> str:
+    """Map an earnings line-item description to a pay bucket."""
+    d = str(description or "").lower()
+    for bucket, pat in _EARNING_BUCKET_PATTERNS:
+        if pat.search(d):
+            return bucket
+    return "other"
+
+
+def _analyze_paystub_earnings(copies: list, refs: list, flags: list) -> None:
+    """Surface base vs variable (OT/bonus/commission) income from paystub earnings[].
+
+    Consumes the extracted ``earnings[]`` line items (checklist 05 W-2 #4). For
+    each distinct employee (most complete stub per name = highest YTD), emits a
+    YTD composition summary and warns when variable income (overtime / bonus /
+    commission) is material and therefore requires a documented 2-year average.
+    No-op until the Paystub schema extracts ``earnings[]``.
+    """
+    by_emp: dict = {}
+    for c in copies:
+        earnings = _copy_val(c, "earnings")
+        if not isinstance(earnings, list) or not earnings:
+            continue
+        emp = _normalize_name(_copy_val(c, "borrower_name")) or "borrower"
+        ytd_total = sum((_parse_amount(e.get("ytd_amount")) or 0.0)
+                        for e in earnings if isinstance(e, dict))
+        if emp not in by_emp or ytd_total > by_emp[emp][0]:
+            by_emp[emp] = (ytd_total, earnings)
+
+    for emp, (ytd_total, earnings) in by_emp.items():
+        buckets: dict = {}
+        for e in earnings:
+            if not isinstance(e, dict):
+                continue
+            amt = _parse_amount(e.get("ytd_amount"))
+            if amt is None:
+                amt = _parse_amount(e.get("current_amount")) or 0.0
+            buckets[_classify_earning(e.get("description"))] = (
+                buckets.get(_classify_earning(e.get("description")), 0.0) + amt
+            )
+        gross = ytd_total or sum(buckets.values())
+        variable = buckets.get("overtime", 0.0) + buckets.get("bonus", 0.0) + buckets.get("commission", 0.0)
+
+        parts = [f"{k}: ${v:,.2f}" for k, v in sorted(buckets.items(), key=lambda x: -x[1]) if v]
+        flags.append(_flag("5.1",
+            "Paystub Earnings Breakdown (YTD)",
+            "info",
+            "YTD earnings composition — " + "; ".join(parts) + f". Total YTD gross ${gross:,.2f}.",
+            "Confirm base vs variable (OT/bonus/commission) income is split correctly and that "
+            "variable income is averaged for qualifying.",
+            docs=refs,
+        ))
+
+        if gross > 0 and variable > 0 and (variable / gross) >= 0.25:
+            flags.append(_flag("5.1",
+                "Variable Income Material — 2-Year Averaging Required",
+                "warning",
+                f"Overtime/bonus/commission is ${variable:,.2f} YTD "
+                f"({variable / gross * 100:.0f}% of ${gross:,.2f} gross). Variable income must be "
+                "averaged over 24 months and shown to be stable and likely to continue.",
+                "Obtain a 2-year history (W-2s / VOE) and average the variable income; confirm "
+                "continuance per AUS before using it to qualify.",
+                docs=refs,
+            ))
+        elif variable > 0:
+            flags.append(_flag("5.1",
+                "Overtime/Bonus Present — Confirm Averaging",
+                "info",
+                f"Paystub includes overtime/bonus/commission (${variable:,.2f} YTD). Even when "
+                "immaterial, it should be averaged and documented for the qualifying income.",
+                "Confirm the variable-income treatment matches the AUS findings and the 2-year average.",
+                docs=refs,
+            ))
+
+
 def _get_voe_copy_for_employer(state: dict, los_employer_name: str):
     """Return (extracted_fields, copy_index) from the VOE copy whose employer name
     best matches the given LOS employer name. Falls back to copy 0 if no match.
@@ -999,6 +1088,9 @@ def review_urla_employment(
                     "the employer in Encompass if needed.",
                     docs=_ps_refs,
                 ))
+
+        # Earnings variance — base vs OT/bonus/holiday/commission (05 W-2 #4).
+        _analyze_paystub_earnings(_paystub_copies, _ps_refs, flags)
 
     # ── W-2: employer consistency with VOE/LOS + surface tax year ──────────────
     _w2_copies = _efolder_docs.get("W-2", {}).get("copies", []) or []
