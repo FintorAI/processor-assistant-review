@@ -194,6 +194,18 @@ def _appraisal_address(state: dict) -> Optional[str]:
     return None
 
 
+def _sourced_property_address(state: dict, source_hint: str) -> Optional[str]:
+    """A ``property_address`` copy whose provenance matches ``source_hint``.
+
+    The ``property_address`` key is shared across the Title Report, Lock
+    Confirmation, CPL, etc., so we only accept the copy whose ``source_document``
+    names the document we want (e.g. 'title')."""
+    for c in _doc_all(state, "property_address"):
+        if source_hint in (c.get("source_document") or "").lower() and c.get("value"):
+            return c.get("value")
+    return None
+
+
 def _norm_gov_id_type(raw) -> Optional[str]:
     """Normalize an OCR'd Government ID type to a canonical Encompass value.
 
@@ -901,6 +913,38 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Appraisal Address Confirmed", "info",
                   f"Appraisal subject address matches the subject property ('{_appr_addr}').",
                   "No action needed — appraisal is on the subject property.")
+
+    # §3.12 — Multi-doc subject-address cross-reference (checklist 03 #12).
+    # Beyond the Purchase Contract (above) and Appraisal (§11.3), confirm the
+    # subject address on the Tax cert, Evidence of Insurance (HOI), and Title
+    # Report each agree with the USPS-validated subject address. Flood is
+    # excluded — the flood-cert schema extracts no address. Warn-only; the
+    # subject address is never auto-corrected from these docs.
+    _usps_subject = (addr_val.get("normalized") if addr_val else None) or ", ".join(
+        p for p in (property_address, property_city, property_state, property_zip) if p)
+    if _usps_subject:
+        _addr_sources = [
+            ("Tax Certificate", _doc(state, "tax_property_address"),
+             ["Tax Summary"], ("tax_property_address",)),
+            ("Evidence of Insurance",
+             _doc(state, "insured_location") or _doc(state, "hazard_insurance_address"),
+             ["Evidence of Insurance"], ("insured_location", "hazard_insurance_address")),
+            ("Title Report", _sourced_property_address(state, "title"),
+             ["Title Report"], ("property_address",)),
+        ]
+        for _label, _addr, _dtypes, _keys in _addr_sources:
+            if not _addr:
+                continue
+            if not _addr_match(_addr, _usps_subject):
+                _flag(flags, "2.1", f"{_label} Address vs USPS", "warning",
+                      f"{_label} subject address ('{_addr}') does not match the USPS-validated "
+                      f"subject address ('{_usps_subject}').",
+                      f"Verify the {_label.lower()} was issued for the correct subject property.",
+                      docs=_relevant_docs(state, *_keys, doc_types=_dtypes))
+            else:
+                _flag(flags, "2.1", f"{_label} Address Confirmed", "info",
+                      f"{_label} subject address matches the subject property ('{_addr}').",
+                      "No action needed — address matches the subject property.")
 
     # ── Rule: ID Not Expired ──────────────────────────────────────────────
     if dl_expiry_doc:
