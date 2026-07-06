@@ -42,6 +42,7 @@ no new code — status corrected on the sheet to reflect existing coverage.
 |---|---|
 | **19 #4** — File Contacts / AKAs | Applicant AKA reconcile (§3.1) already parses Credit Report AKAs and writes-if-blank to URLA aliases 1869/1874 (`review_borrower_summary.py`); file contacts reviewed in `review_file_contacts.py` |
 | **07 #2** — Self-employed name/address/SSN | Same identity checks as every borrower: name vs Driver's License + SSN vs Credit Report (§1.6/§3.1) in `review_borrower_summary.py`; property address via USPS `address_validation`. Self-employed uses the same reads — no SE-specific gap |
+| **09 #5** — Update Loan Stakeholders | Buyer's/seller's real estate agents are synced from the Purchase Contract OCR by `_sync_contacts` in `review_file_contacts.py` (`BUYERS_AGENT` / `SELLERS_AGENT` from `buyer_agent_*` / `seller_agent_*`, also fed by ESS broker columns). Same purchase-contract source as the listing/selling company block — no new code, status corrected on the sheet |
 
 ## Tier 2 — Medium (wiring — data IS extracted)
 
@@ -49,6 +50,8 @@ no new code — status corrected on the sheet to reflect existing coverage.
 |---|---|
 | **02 #2** — Title Insurance Company (license + order #) | ✅ **SHIPPED** — `_sync_title_company` in `review_file_contacts.py` writes the `TITLE_INSURANCE_COMPANY` file contact from the Title Report: company name, company license (`bizLicenseNumber`), commitment/order # (`referenceNumber`), issuing agent/contact (`personalLicenseNumber`), phone/email/address. Create-or-overwrite-differing with `info-overwrite` flags; no-op when no title data. Reference doc = **Title Report / commitment**. |
 | **06 #3** — Receipt of income on bank statements | ✅ **SHIPPED (Tier 3 extraction + rule)** — Added a structured `recurring_deposits[]` field (source, income_type, amount, date, frequency) to the **Bank Statement** server schema (catchingDoc), targeting non-payroll recurring income and explicitly excluding payroll (→ `payroll_deposits`) and one-time deposits (→ `bank_large_deposits`). Registered in `required_docs.json`. `review_urla_other_income.py` now cross-checks the stated other-income type (Field 172) against `recurring_deposits[]`: confirms receipt (info), reconciles a monthly deposit vs stated $/mo (Field 173) and warns on >10% variance, or flags "not evidenced" (info). Runs only when a bank statement is in the file. **Extraction validated** on 2604964148 (negative/exclusion case clean); positive path unit-tested — no test loan in the sample has both other-income and bank statements (SS/pension borrowers verified via award letters, no statements uploaded). |
+| **03 #13** — Confirm Name & Vesting for Title Commitment | ✅ **SHIPPED** — `update_urla_lender.py` reconciles field 33 against the Title Report extracted `final_vesting`. The tenancy phrase is normalized to a standard Encompass manner-held value (`_title_manner_from_vesting`); when it differs from LOS, field 33 + URLA.X138 are **overwritten with the normalized standard** (e.g. "tenancy in the common" → "Tenancy in Common"; `info-overwrite`, no warning). A title value that does **not** map to a recognized standard is **left unchanged + warned** (never write a non-standard value). Agreement → confirm; Title Report takes precedence over the profile computation. Applicant surnames are also confirmed against the vesting string (warn only). |
+| **08 #10** — Complete asset screen (Page 3) | ✅ **SHIPPED (write-blank-only)** — Existing 2a/VOD entries matched to a bank statement / asset doc but with **blank subfields** are completed via new `encompass_client.update_vod_accounts` (PATCH `/vods/{id}`, URLA-2020 items schema) + `encompass_io.update_vods`: account type, cash/market value, account number, account holder are filled from the extracted doc. **Only blank fields are written — a populated value is never overwritten** (balance discrepancies still warn). Legacy `accountInformation` VODs are surfaced for manual completion. Honors `DEV_MODE.dry_run`. Complements the existing `add_vods` path for entirely-missing accounts. Also fixed `_parse_float` to tolerate currency strings so balances parse. |
 
 ---
 
@@ -85,7 +88,7 @@ no new code — status corrected on the sheet to reflect existing coverage.
 | 03 URLA / 1003 | 10 | Schedule of real estate; debts tied to properties | 3 |
 | 03 URLA / 1003 | 11 | Correct mortgage on Financial Info screen | 3 |
 | 03 URLA / 1003 | 12 | USPS Address Verification multi-doc cross-ref | 3 |
-| 03 URLA / 1003 | 13 | Confirm Name and Vesting for Title Commitment | 2 |
+| 03 URLA / 1003 | 13 | Confirm Name and Vesting for Title Commitment | ✅ 2 |
 | 03 URLA / 1003 | 17 | US Citizen / Green card for Resident Alien | 4 |
 | 03 URLA / 1003 | 18 | Government screen (CAIVRS, Housing Act, LAPP) | 3 |
 | 04 Credit Report | 6 | Compare Liabilities/Debts vs Encompass | 3 |
@@ -100,8 +103,8 @@ no new code — status corrected on the sheet to reflect existing coverage.
 | 07 Self-Employed | 4 | Schedule E properties / rental income | 3 |
 | 08 Assets | 2 | Transaction history to current | **1 ✅** |
 | 08 Assets | 5 | Transfers between accounts | 3 |
-| 08 Assets | 10 | Complete asset screen (Page 3) | 2 |
-| 09 Purchase Contract | 5 | Update Loan Stakeholders | 2 |
+| 08 Assets | 10 | Complete asset screen (Page 3) | ✅ 2 |
+| 09 Purchase Contract | 5 | Update Loan Stakeholders | ✅ 2 |
 | 10 Title Order | 2 | Confirm completeness (CPL, chain, wire, tax cert) | 4 |
 | 10 Title Order | 3 | Update Encompass w/ Tax Cert | 4 |
 | 11 Appraisal | 9 | Upload appraisal, 442, condo invoices | 4 |

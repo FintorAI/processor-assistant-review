@@ -6,10 +6,13 @@ Phase: DATA_REVIEW
 Owns the 1003 URLA Lender "how title will be held" fields:
   - Manner in Which Title Will Be Held (field 33) + URLA.X138 (Lender-form enum):
     computed from property state, marital status, co-borrower/NBS presence, and
-    borrower sex. Written ONLY when empty. Exception: NV forces "As Joint
-    Tenants" for married couples on title. This is the single owner of the
-    manner-held value — Borrower Vesting (later step) reads field 33 and never
-    recomputes it.
+    borrower sex. Written when empty. Exception: NV forces "As Joint Tenants"
+    for married couples on title. This is the single owner of the manner-held
+    value — Borrower Vesting (later step) reads field 33 and never recomputes it.
+    Title reconciliation (3 #13): when the Title Report / commitment extracted
+    vesting maps to a standard manner-held value that differs from LOS, field 33
+    (+ URLA.X138) is overwritten with that normalized standard value; a title
+    value that is not a recognized standard is left to the processor (warning).
   - Estate Will Be Held In (field 1066): set to FeeSimple for standard
     residential loans (blank or Leasehold).
 
@@ -20,6 +23,7 @@ Manner-held computation ported from update_borrower_vesting.py (sections D & E).
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -28,7 +32,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _write_fields, _enrich_flag_docs
+from ._helpers import _los, _doc, _write_fields, _enrich_flag_docs
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +204,57 @@ def _manner_held_compatible(los_value: str, computed: str) -> bool:
     return False
 
 
+# ── Title-commitment vesting reconciliation (checklist 3 #13) ─────────────────
+# Map the tenancy phrase found in a Title Report's extracted vesting string to the
+# canonical field-33 display value Encompass expects. Only well-defined manners are
+# auto-written; anything else (e.g. bare "community property") is treated as
+# unrecognized so we warn instead of overwriting with a non-standard value.
+# Order = priority (most specific tenancy first); each canonical value carries the
+# normalized trigger phrases we accept from the doc (tolerant of filler words).
+_DOC_MANNER_RULES = [
+    ("As Joint Tenants", (
+        "joint tenants", "joint tenancy with right survivorship",
+        "joint tenants with right survivorship", "joint tenancy with rights survivorship",
+        "joint tenants with rights survivorship", "joint tenancy",
+    )),
+    ("Tenancy By The Entirety", (
+        "tenants by entirety", "tenancy by entirety", "tenants by entireties",
+    )),
+    ("Tenancy in Common", (
+        "tenants in common", "tenancy in common",
+    )),
+    ("Life Estate", ("life estate",)),
+    ("Sole Ownership", (
+        "sole ownership", "sole separate property",
+        "his sole separate property", "her sole separate property",
+        "single man", "single woman", "unmarried man", "unmarried woman",
+    )),
+]
+
+# Filler words dropped before matching so "tenancy in the common" == "tenancy in
+# common" and "joint tenants with right of survivorship" matches its trigger.
+_VESTING_FILLER_RE = re.compile(r"\b(the|of|all|as|an|a|to)\b")
+
+
+def _normalize_vesting_phrase(s: str) -> str:
+    """Lowercase, strip punctuation, and drop filler words for phrase matching."""
+    s = (s or "").lower()
+    s = re.sub(r"[^a-z ]+", " ", s)
+    s = _VESTING_FILLER_RE.sub(" ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _title_manner_from_vesting(vesting: str) -> str:
+    """Return the canonical field-33 manner from a title vesting string, or ""."""
+    norm = _normalize_vesting_phrase(vesting)
+    if not norm:
+        return ""
+    for canonical, triggers in _DOC_MANNER_RULES:
+        if any(t in norm for t in triggers):
+            return canonical
+    return ""
+
+
 # ── Main tool ─────────────────────────────────────────────────────────────────
 
 @tool
@@ -212,6 +267,15 @@ def update_urla_lender(
     Computes Manner in Which Title Will Be Held (field 33) + URLA.X138 from
     property state, marital status, co-borrower/NBS presence, and borrower sex,
     writing them when empty (NV forces As Joint Tenants for married couples).
+
+    Reconciles field 33 against the Title Report / commitment (checklist 3 #13):
+    the extracted final vesting is normalized to a standard Encompass manner-held
+    value and, when it differs from LOS, field 33 (+ URLA.X138) is overwritten
+    with that standard value (info-overwrite, no warning). When the title vesting
+    does not map to a recognized standard, LOS is left unchanged and a warning is
+    raised. The Title Report takes precedence over the profile computation.
+    Applicant surnames are also confirmed against the vesting string (warn only).
+
     Auto-sets Estate Will Be Held In (field 1066) to FeeSimple for standard
     residential loans. Surfaces Attachment Type / Property Type for verification.
 
@@ -282,8 +346,119 @@ def update_urla_lender(
     manner_compatible = _manner_held_compatible(current_manner, computed_manner)
     manner_exact = current_manner.upper() == computed_manner.upper() if current_manner else False
 
+    # ── A0. Title Commitment reconciliation (checklist 3 #13) ──────────────────
+    # The Title Report / commitment is authoritative for how title is actually
+    # held. Read its extracted final vesting, normalize the tenancy phrase to a
+    # standard Encompass manner-held value, and reconcile field 33 against it:
+    #   - overwrite when LOS differs AND the title value maps to a known EC
+    #     standard — we write the NORMALIZED standard value ("tenancy in the
+    #     common" -> "Tenancy in Common"), never the raw doc text, and emit an
+    #     info-overwrite (no warning);
+    #   - confirm (no write) when they already agree (same URLA.X138 bucket);
+    #   - when the title value is NOT a recognized EC standard, leave LOS
+    #     unchanged and raise a warning for manual review.
+    # Field 33 and URLA.X138 are always written together (same underlying data).
+    title_vesting = (_doc(state, "final_vesting") or "").strip()
+    title_manner = _title_manner_from_vesting(title_vesting)
+    manner_done = False
+
+    if title_manner:
+        target_x138 = _manner_to_urla_x138(title_manner)
+        if not current_manner:
+            manner_done = True
+            field_updates["33"] = title_manner
+            field_updates["URLA.X138"] = target_x138
+            actions.append(
+                f"SET 33 = '{title_manner}' / URLA.X138 = '{target_x138}' "
+                f"(populated from Title Report vesting '{title_vesting}')"
+            )
+            flags.append(_flag("3.1",
+                "Manner Held Populated from Title Report",
+                "info-overwrite",
+                (
+                    f"Manner Held (field 33) was empty. Title Report vesting "
+                    f"'{title_vesting}' normalized to the standard value '{title_manner}' "
+                    f"and written to field 33 (URLA.X138='{target_x138}')."
+                ),
+                f"Verify Manner Held (33) = '{title_manner}' against the title commitment.",
+                resolved=True, docs=["Title Report"],
+            ))
+        elif _manner_to_urla_x138(current_manner) == target_x138:
+            manner_done = True
+            flags.append(_flag("3.1",
+                "Manner Held Confirmed vs Title Report",
+                "info",
+                (
+                    f"Manner Held (field 33) '{current_manner}' agrees with the Title Report "
+                    f"vesting '{title_vesting}' (both '{target_x138}'). No change."
+                ),
+                "No action needed.",
+                resolved=True, docs=["Title Report"],
+            ))
+        else:
+            manner_done = True
+            _prev = current_manner
+            field_updates["33"] = title_manner
+            field_updates["URLA.X138"] = target_x138
+            actions.append(
+                f"SET 33 = '{title_manner}' / URLA.X138 = '{target_x138}' "
+                f"(corrected from '{_prev}' to match Title Report vesting '{title_vesting}')"
+            )
+            flags.append(_flag("3.1",
+                "Manner Held Corrected to Title Report",
+                "info-overwrite",
+                (
+                    f"Manner Held (field 33) was '{_prev}' but the Title Report vesting is "
+                    f"'{title_vesting}'. Overwrote field 33 with the standard Encompass value "
+                    f"'{title_manner}' (URLA.X138='{target_x138}')."
+                ),
+                f"Verify Manner Held (33) = '{title_manner}' against the title commitment.",
+                resolved=True, docs=["Title Report"],
+            ))
+    elif title_vesting and current_manner:
+        # Title has a vesting string but it does not map to a recognized standard
+        # manner-held value — never overwrite LOS with a non-standard value.
+        manner_done = True
+        flags.append(_flag("3.1",
+            "Title Vesting Not a Standard Manner-Held Value",
+            "warning",
+            (
+                f"The Title Report vesting is '{title_vesting}', which does not map to a "
+                f"standard Encompass manner-held value. Field 33 '{current_manner}' was "
+                f"left unchanged."
+            ),
+            "Review the title commitment and set/confirm Manner Held (33) manually.",
+            docs=["Title Report"],
+        ))
+
+    # ── A1. Borrower name(s) vs Title Commitment (checklist 3 #13) ─────────────
+    # Confirm the applicant surname(s) appear in the title vesting string. Names
+    # are never auto-corrected (the 1003 is the source of truth) — we only warn.
+    if title_vesting:
+        _tv_up = title_vesting.upper()
+        _missing = []
+        for _fn, _ln, _label in (
+            (_los(state, "borrower_first_name"), _los(state, "borrower_last_name"), "borrower"),
+            (_los(state, "coborrower_first_name"), _los(state, "coborrower_last_name"), "co-borrower"),
+        ):
+            _ln_up = (_ln or "").strip().upper()
+            if _ln_up and _ln_up not in _tv_up:
+                _full = f"{(_fn or '').strip()} {(_ln or '').strip()}".strip()
+                _missing.append(f"{_label} '{_full}'")
+        if _missing:
+            flags.append(_flag("3.1",
+                "Name Not Found on Title Commitment",
+                "warning",
+                (
+                    f"These borrower name(s) do not appear in the Title Report vesting "
+                    f"'{title_vesting}': {', '.join(_missing)}."
+                ),
+                "Confirm the borrower name(s) match the title commitment (names are not auto-corrected).",
+                docs=["Title Report"],
+            ))
+
     # Backfill URLA.X138 if empty (even when field 33 is not being updated)
-    if not current_urla_x138:
+    if not current_urla_x138 and "URLA.X138" not in field_updates:
         # Use current_manner if present, otherwise use computed_manner
         manner_for_x138 = current_manner if current_manner else computed_manner
         field_updates["URLA.X138"] = _manner_to_urla_x138(manner_for_x138)
@@ -291,7 +466,12 @@ def update_urla_lender(
             f"SET URLA.X138 = '{field_updates['URLA.X138']}' (backfill from manner='{manner_for_x138}')"
         )
 
-    if not current_manner:
+    # ── A2. Profile-based manner held (fallback when title did not decide it) ───
+    # Runs only when the Title Report did not already set/confirm field 33 above,
+    # so the title commitment always takes precedence over the profile computation.
+    if manner_done:
+        pass
+    elif not current_manner:
         field_updates["33"] = computed_manner
         field_updates["URLA.X138"] = _manner_to_urla_x138(computed_manner)
         actions.append(

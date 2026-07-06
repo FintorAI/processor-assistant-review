@@ -892,6 +892,38 @@ def add_vods(
     return result
 
 
+def update_vods(
+    loan_id: str,
+    completions: List[Dict[str, Any]],
+    state: dict = None,
+) -> Dict[str, Any]:
+    """Complete blank subfields on existing VOD entries (checklist 08 #10).
+
+    Thin wrapper over ``encompass_client.update_vod_accounts``. Only fills empty
+    fields on an existing depository item (account type, cash/market value,
+    account number, account holder) — never overwrites a populated value. Each
+    ``completions`` dict carries ``vod_id``, ``account_number`` (to locate the
+    item), and an ``updates`` map using the normalised ``read_vods`` keys.
+
+    Returns ``{"success": bool, "updated": [...], "skipped": [...], "error"?: str}``.
+    """
+    try:
+        from encompass_client import update_vod_accounts
+    except ImportError:
+        logger.warning("encompass_client not available — update_vods will fail at runtime")
+        return {"success": False, "error": "encompass_client not available", "updated": [], "skipped": []}
+
+    if not completions:
+        return {"success": True, "updated": [], "skipped": []}
+
+    result = update_vod_accounts(loan_id, completions, state=state)
+    logger.info(
+        f"[ENCOMPASS] update_vods: requested {len(completions)} → updated "
+        f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
+    )
+    return result
+
+
 def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     """Fetch all VOL (Verification of Liabilities) records from the Encompass v3 API.
 

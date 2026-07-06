@@ -8,6 +8,7 @@ Phase: DATA_REVIEW
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
@@ -29,12 +30,21 @@ _ZELLE_KEYWORDS = ("zel", "zelle", "klarna", "firm")
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _parse_float(val) -> Optional[float]:
-    """Return float from a value, or None if unparseable."""
+    """Return float from a value, or None if unparseable.
+
+    Tolerant of currency formatting (``$``, thousands commas, stray text like
+    "CR"), so extracted balances such as "$4,279.51" parse correctly.
+    """
     if val is None:
         return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    cleaned = re.sub(r"[^0-9.\-]", "", str(val))
+    if cleaned in ("", "-", ".", "-.", "-"):
+        return None
     try:
-        return float(str(val).replace(",", "").strip())
-    except (TypeError, ValueError):
+        return float(cleaned)
+    except ValueError:
         return None
 
 
@@ -222,14 +232,20 @@ def _compare_with_vod(
         the account is queued for creation in the 2a/VOD (returned in the second
         element); otherwise a ``warning`` flag is raised.
 
-    Returns a tuple ``(flags, accounts_to_add)`` where ``accounts_to_add`` is a
-    list of normalised account dicts the caller should create via ``add_vods``.
+    Returns a tuple ``(flags, accounts_to_add, entries_to_complete)`` where
+    ``accounts_to_add`` is a list of normalised account dicts the caller should
+    create via ``add_vods`` (entirely-missing accounts), and
+    ``entries_to_complete`` is a list of ``{vod_id, account_number, label,
+    updates}`` dicts the caller should pass to ``update_vods`` to fill BLANK
+    subfields on an existing matched entry (checklist 08 #10). Populated VOD
+    values are never queued for overwrite.
     """
     flags: list = []
     to_add: list = []
+    to_complete: list = []
 
     if not vod_rows:
-        return flags, to_add  # VOD not loaded — skip comparison
+        return flags, to_add, to_complete  # VOD not loaded — skip comparison
 
     for copy in doc_copies:
         # Extract fields from this copy dict
@@ -289,12 +305,34 @@ def _compare_with_vod(
                 ))
             continue
 
-        # ── Matched — compare balance ───────────────────────────────────────
+        # ── Matched ─────────────────────────────────────────────────────────
         vod_balance = matched_vod.get("balance")
         vod_inst_name = matched_vod.get("institution_name") or doc_institution_raw
         acct_label = doc_acct_raw or matched_vod.get("account_number") or vod_inst_name
+        # read_vods coerces a missing cash/market value to 0.0, so a 0/None
+        # balance is treated as an unset (blank) field for completion purposes.
+        vod_bal_blank = vod_balance in (None, 0, 0.0)
 
-        if doc_balance is not None and vod_balance is not None:
+        # ── Completion (08 #10): queue BLANK subfields to fill on this entry ──
+        completion_updates: dict = {}
+        if doc_acct_type and not (matched_vod.get("account_type") or "").strip():
+            completion_updates["account_type"] = doc_acct_type
+        if doc_balance is not None and doc_balance > 0 and vod_bal_blank:
+            completion_updates["balance"] = doc_balance
+        if doc_acct_raw and not (matched_vod.get("account_number") or "").strip():
+            completion_updates["account_number"] = str(doc_acct_raw)
+        if doc_holder and not (matched_vod.get("account_holder") or "").strip():
+            completion_updates["account_holder"] = doc_holder
+        if completion_updates and matched_vod.get("vod_id"):
+            to_complete.append({
+                "vod_id": matched_vod.get("vod_id"),
+                "account_number": matched_vod.get("account_number") or (str(doc_acct_raw) if doc_acct_raw else ""),
+                "label": vod_inst_name,
+                "updates": completion_updates,
+            })
+
+        # ── Balance comparison — only when the VOD already carries a balance ──
+        if doc_balance is not None and not vod_bal_blank:
             diff = abs(doc_balance - vod_balance)
             if diff > 1.00:
                 # Value mismatch → warn only, never overwrite the VOD.
@@ -323,8 +361,10 @@ def _compare_with_vod(
                     ),
                     "",
                 ))
-        else:
-            # Account found but balance unavailable to compare — confirm presence.
+        elif not vod_bal_blank or "balance" not in completion_updates:
+            # VOD balance present but doc balance missing, OR VOD balance blank
+            # with nothing to complete — confirm presence (a queued balance
+            # completion is reported by the caller's info-overwrite flag instead).
             flags.append(_flag(
                 substep,
                 f"{doc_type_label} — Found in 2a/VOD ({vod_inst_name})",
@@ -353,7 +393,100 @@ def _compare_with_vod(
                 "Confirm account type with borrower and update VOD in Encompass if needed.",
             ))
 
-    return flags, to_add
+    return flags, to_add, to_complete
+
+
+_COMPLETION_FIELD_LABELS = {
+    "account_type": "account type",
+    "balance": "cash/market value",
+    "account_number": "account number",
+    "account_holder": "account holder",
+}
+
+
+def _completion_field_names(updates: dict) -> list:
+    return [_COMPLETION_FIELD_LABELS.get(k, k) for k in updates]
+
+
+def _apply_vod_completions(
+    loan_id: str,
+    to_complete: list,
+    refs: list,
+    source_label: str,
+    state: dict,
+    flags: list,
+    dry_run: bool = False,
+) -> None:
+    """Fill blank subfields on existing 2a/VOD entries and emit audit flags.
+
+    Only blank fields are written (detection already filtered populated values),
+    and one ``info-overwrite`` flag is emitted per completed entry. A write
+    failure or an unsupported (legacy-schema) entry produces a single readable
+    flag so the processor can finish it manually. Honors ``dry_run``.
+    """
+    if not to_complete:
+        return
+
+    if dry_run:
+        for c in to_complete:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Completion (dry-run) ({c.get('label')})",
+                "info",
+                (
+                    f"[DRY-RUN] Would complete "
+                    f"{', '.join(_completion_field_names(c.get('updates', {})))} on the existing "
+                    f"2a/VOD entry for {c.get('label')} from the {source_label.lower()}."
+                ),
+                "",
+                docs=refs,
+            ))
+        return
+
+    from shared.encompass_io import update_vods
+    res = update_vods(loan_id, to_complete, state=state)
+    updated_by_id = {u.get("vod_id"): u.get("fields", []) for u in res.get("updated", [])}
+    skipped_by_id = {s.get("vod_id"): s.get("reason", "") for s in res.get("skipped", [])}
+
+    for c in to_complete:
+        vid = c.get("vod_id")
+        label = c.get("label")
+        if vid in updated_by_id:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Completed ({label})",
+                "info-overwrite",
+                (
+                    f"Filled blank field(s) on the existing 2a/VOD entry for {label} from the "
+                    f"{source_label.lower()}: {', '.join(updated_by_id[vid])}."
+                ),
+                "Verify the completed 2a/VOD entry in Encompass.",
+                docs=refs,
+            ))
+        elif not res.get("success"):
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Completion Failed ({label})",
+                "warning",
+                (
+                    f"Could not complete blank field(s) on the 2a/VOD entry for {label}: "
+                    f"{res.get('error')}"
+                ),
+                "Complete the 2a/VOD entry manually in Encompass.",
+                docs=refs,
+            ))
+        elif vid in skipped_by_id:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Not Auto-Completed ({label})",
+                "info",
+                (
+                    f"Blank field(s) on the 2a/VOD entry for {label} were not auto-completed: "
+                    f"{skipped_by_id[vid]}."
+                ),
+                "Complete the 2a/VOD entry manually in Encompass.",
+                docs=refs,
+            ))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -377,7 +510,11 @@ def review_urla_assets(
            • match (balance within $1)  → info flag confirming the match
            • value mismatch (> $1)      → warning (VOD left untouched)
            • account missing from VOD   → populated into the 2a/VOD via add_vods
-      5. Cross-reference asset doc balances against VOD data (warn-only).
+           • existing entry incomplete  → BLANK subfields (account type, cash/
+             market value, account number, holder) are filled in on the entry
+             via update_vods (08 #10); populated values are never overwritten.
+      5. Cross-reference asset doc balances against VOD data; existing entries
+         with blank subfields are completed the same way (warn-only otherwise).
       5b. FHA retirement 60% haircut: for FHA loans, compares the Encompass
           2a/VOD retirement amount against vested × 0.6 (net of any 401(k)
           loan). Match → info; mismatch → warning. When terms of withdrawal
@@ -428,6 +565,14 @@ def review_urla_assets(
             logger.warning(f"[REVIEW_URLA_ASSETS] direct VOD read failed: {exc}")
             vod_rows = []
     logger.info(f"[REVIEW_URLA_ASSETS] VOD rows available: {len(vod_rows)}")
+
+    # Dry-run gate for 2a/VOD entry completion writes (checklist 08 #10).
+    _vod_dry_run = False
+    try:
+        from output.registry import DEV_MODE
+        _vod_dry_run = getattr(DEV_MODE, "dry_run", False)
+    except Exception:
+        _vod_dry_run = False
 
     # ── 4. Bank Statement copies ─────────────────────────────────────────────
     # Each copy dict from _doc_all has: {value, source_document, confidence, copy_index}
@@ -565,12 +710,13 @@ def review_urla_assets(
         _bank_refs = _relevant_docs(state, doc_types=["Bank Statement"])
         _bs_vod_flags: list = []
         _bs_to_add: list = []
+        _bs_to_complete: list = []
         if bank_stmt_full_copies:
-            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+            _bs_vod_flags, _bs_to_add, _bs_to_complete = _compare_with_vod(
                 bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         elif bank_statement_copies:
-            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+            _bs_vod_flags, _bs_to_add, _bs_to_complete = _compare_with_vod(
                 bank_statement_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         if _bank_refs:
@@ -614,6 +760,12 @@ def review_urla_assets(
                         docs=_bank_refs,
                     ))
 
+        # Complete BLANK subfields on existing 2a/VOD entries (08 #10).
+        _apply_vod_completions(
+            loan_id, _bs_to_complete, _bank_refs, "Bank Statement", state, flags,
+            dry_run=_vod_dry_run,
+        )
+
     # ── 5. Asset copies ──────────────────────────────────────────────────────
     asset_full_copies = efolder_docs.get("Assets", {}).get("copies", [])
     asset_acct_copies = _doc_all(state, "asset_account_number")
@@ -621,14 +773,21 @@ def review_urla_assets(
     if vod_rows:
         _asset_refs = _relevant_docs(state, doc_types=["Assets"])
         _asset_vod_flags: list = []
+        _asset_to_complete: list = []
         if asset_full_copies:
-            _asset_vod_flags, _ = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _, _asset_to_complete = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
         elif asset_acct_copies:
-            _asset_vod_flags, _ = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _, _asset_to_complete = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
         if _asset_refs:
             for _f in _asset_vod_flags:
                 _f["relevant_documents"] = _asset_refs
         flags += _asset_vod_flags
+
+        # Complete BLANK subfields on existing 2a/VOD entries from asset docs (08 #10).
+        _apply_vod_completions(
+            loan_id, _asset_to_complete, _asset_refs, "Assets", state, flags,
+            dry_run=_vod_dry_run,
+        )
 
     # ── 5b. FHA retirement 60% haircut ───────────────────────────────────────
     # FHA counts only 60% of a retirement account's vested balance (net of any
