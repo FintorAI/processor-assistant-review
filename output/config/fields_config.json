@@ -446,15 +446,6 @@
       ]
     },
     {
-      "key": "los_flood_zone",
-      "field_id": "1846",
-      "field_name": "Flood Zone",
-      "category": "property",
-      "used_by_steps": [
-        "STEP_02"
-      ]
-    },
-    {
       "key": "escrow_case_number",
       "field_id": "186",
       "field_name": "Escrow Case #",
@@ -581,6 +572,15 @@
       "category": "property",
       "used_by_steps": [
         "STEP_10"
+      ]
+    },
+    {
+      "key": "los_flood_cert_number",
+      "field_id": "2363",
+      "field_name": "Flood Certification Number (Cert",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -997,6 +997,15 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04"
+      ]
+    },
+    {
+      "key": "los_flood_zone",
+      "field_id": "541",
+      "field_name": "Flood Zone (Flood Information form)",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -3509,7 +3518,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 278,
+    "total_los_fields": 279,
     "total_doc_fields": 105,
     "total_document_types": 31,
     "total_steps": 12,

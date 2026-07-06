@@ -206,6 +206,38 @@ def _sourced_property_address(state: dict, source_hint: str) -> Optional[str]:
     return None
 
 
+# Exact dropdown values accepted by Encompass Flood Zone (field 541, Flood
+# Information form). Numbered A/V zones collapse to the "A1-A30" / "V1-V30"
+# range options the dropdown offers (there are no per-number entries).
+_FLOOD_ZONE_ENUM = {
+    "A", "A99", "AE", "AH", "AO", "AR", "AR/A", "AR/AE", "AR/AH", "AR/AO",
+    "B", "C", "D", "V", "VE", "V0", "X", "X500", "XS", "XU",
+    "A1-A30", "V1-V30",
+}
+
+
+def _valid_flood_zone(zone) -> Optional[str]:
+    """Map an extracted flood zone to the exact value Encompass field 541 accepts.
+
+    Field 541 is a dropdown (Flood Information form). Returns the matching
+    dropdown value (e.g. "AE", "X", "A1-A30", "AR/AE") or None when the extracted
+    value is not a recognized designation. Mirrors the §3.13 policy: only a value
+    that maps to an Encompass-acceptable standard is ever written; anything else
+    keeps the warning and is left for manual entry."""
+    s = str(zone or "").strip().upper()
+    if not s:
+        return None
+    s = s.split()[0].strip().rstrip(".,").replace(" ", "")
+    # Numbered A/V zones (A1-A30, V1-V30) collapse to the dropdown range option.
+    m = re.match(r"^A0*([1-9]|[12]\d|30)$", s)
+    if m:
+        return "A1-A30"
+    m = re.match(r"^V0*([1-9]|[12]\d|30)$", s)
+    if m:
+        return "V1-V30"
+    return s if s in _FLOOD_ZONE_ENUM else None
+
+
 def _norm_gov_id_type(raw) -> Optional[str]:
     """Normalize an OCR'd Government ID type to a canonical Encompass value.
 
@@ -987,24 +1019,53 @@ def review_borrower_summary(
         _zone_norm = str(_flood_zone_doc or "").strip().upper()
         _in_sfha = _is_checked(_in_sfha_doc) or _zone_norm.startswith(("A", "V"))
 
-        # Doc-vs-LOS flood zone comparison (field 1846).
+        # Doc-vs-LOS flood zone comparison (field 541, Flood Information form).
+        # The flood determination is authoritative: when the extracted zone maps
+        # to a value Encompass field 541 accepts, auto-correct on blank OR
+        # mismatch (the write emits its own info-overwrite audit flag — no
+        # warning). A zone that does not map to a standard is left unwritten and
+        # warned (§3.13 policy). Compared against the normalized dropdown value so
+        # e.g. cert "A7" ↔ LOS "A1-A30" is treated as a match.
+        _valid_zone = _valid_flood_zone(_zone_norm)
+        _los_zone_cmp = str(_los_flood_zone or "").strip().upper()
         if _zone_norm and _los_flood_zone:
-            if _zone_norm != str(_los_flood_zone).strip().upper():
-                _flag(flags, "2.1", "Flood Zone Mismatch", "warning",
-                      f"Flood certificate zone ('{_zone_norm}') does not match the Encompass "
-                      f"Flood Zone (1846) = '{_los_flood_zone}'.",
-                      "Verify the correct flood zone and update Encompass field 1846 if needed.",
-                      docs=_flood_docs)
+            if (_valid_zone or _zone_norm) != _los_zone_cmp:
+                if _valid_zone:
+                    _write_fields(loan_id=loan_id, updates={"541": _valid_zone},
+                                  substep="2.1", flags=flags, state=state,
+                                  labels={"541": "Flood Zone"})
+                    _flag(flags, "2.1", "Flood Zone Corrected", "info",
+                          f"Encompass Flood Zone (541) = '{_los_flood_zone}' did not match the "
+                          f"flood certificate ('{_valid_zone}'); field 541 updated to '{_valid_zone}'.",
+                          "No action needed — flood zone set from the flood determination.",
+                          docs=_flood_docs)
+                else:
+                    _flag(flags, "2.1", "Flood Zone Mismatch", "warning",
+                          f"Flood certificate zone ('{_zone_norm}') does not match Encompass Flood "
+                          f"Zone (541) = '{_los_flood_zone}' and is not a recognized FEMA "
+                          f"designation — not auto-corrected.",
+                          "Verify the correct flood zone and update Encompass field 541 manually.",
+                          docs=_flood_docs)
             else:
                 _flag(flags, "2.1", "Flood Zone Confirmed", "info",
-                      f"Flood zone ('{_zone_norm}') matches Encompass Flood Zone (1846).",
+                      f"Flood zone ('{_zone_norm}') matches Encompass Flood Zone (541).",
                       "No action needed — flood zone designation confirmed.")
         elif _zone_norm and not _los_flood_zone:
-            _flag(flags, "2.1", "Flood Zone Not in Encompass", "warning",
-                  f"Flood certificate shows zone '{_zone_norm}' but Encompass Flood Zone "
-                  f"(1846) is blank.",
-                  "Enter the flood zone into Encompass field 1846.",
-                  docs=_flood_docs)
+            if _valid_zone:
+                _write_fields(loan_id=loan_id, updates={"541": _valid_zone},
+                              substep="2.1", flags=flags, state=state,
+                              labels={"541": "Flood Zone"})
+                _flag(flags, "2.1", "Flood Zone Populated", "info",
+                      f"Encompass Flood Zone (541) was blank; set to '{_valid_zone}' from the "
+                      f"flood determination.",
+                      "No action needed — flood zone populated from the flood determination.",
+                      docs=_flood_docs)
+            else:
+                _flag(flags, "2.1", "Flood Zone Not in Encompass", "warning",
+                      f"Flood certificate shows zone '{_zone_norm}' (not a recognized FEMA "
+                      f"designation) and Encompass Flood Zone (541) is blank — not auto-populated.",
+                      "Enter the correct flood zone into Encompass field 541 manually.",
+                      docs=_flood_docs)
 
         # SFHA → flood insurance required; confirm a flood policy is on file.
         if _in_sfha:
