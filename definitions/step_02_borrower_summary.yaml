@@ -270,6 +270,13 @@ substeps:
     field_name: Property ZIP
     category: property
     purpose: Address verification
+  - key: los_flood_zone
+    field_id: '1846'
+    field_name: Flood Zone
+    category: property
+    purpose: >
+      Checklist 12 #4 — compare the Encompass Flood Zone against the flood
+      certificate's extracted zone; flag mismatch, never auto-corrected.
   # ── Loan info ──────────────────────────────────────────────────────
   - key: loan_purpose
     field_id: '19'

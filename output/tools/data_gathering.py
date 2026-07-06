@@ -183,6 +183,7 @@ FIELD_MAP = {
     "1490": {"key": "borrower_cell_phone", "field_name": "Borrower Cell Phone", "category": "borrower_info"},
     # "1491": invalid field ID in Encompass batch API — removed 2026-05-14
     "15": {"key": "property_zip", "field_name": "Property ZIP", "category": "property"},
+    "1846": {"key": "los_flood_zone", "field_name": "Flood Zone", "category": "property"},
     "1544": {"key": "borrower_ethnicity", "field_name": "Borrower Ethnicity", "category": "borrower_info"},
     "172": {"key": "other_income_type", "field_name": "Other Income Type", "category": "income"},
     "173": {"key": "other_income_amount", "field_name": "Other Income Amount (Monthly)", "category": "income"},

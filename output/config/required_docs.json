@@ -617,7 +617,11 @@
         "flood_policy_number",
         "flood_zone",
         "flood_annual_premium",
-        "flood_cert_present"
+        "flood_cert_present",
+        "in_sfha",
+        "property_address",
+        "borrower_name",
+        "county"
       ]
     },
     "evidence_of_insurance": {

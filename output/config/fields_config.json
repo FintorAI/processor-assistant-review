@@ -446,6 +446,15 @@
       ]
     },
     {
+      "key": "los_flood_zone",
+      "field_id": "1846",
+      "field_name": "Flood Zone",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "escrow_case_number",
       "field_id": "186",
       "field_name": "Escrow Case #",
@@ -3500,7 +3509,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 277,
+    "total_los_fields": 278,
     "total_doc_fields": 105,
     "total_document_types": 31,
     "total_steps": 12,

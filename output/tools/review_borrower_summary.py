@@ -20,7 +20,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs
+from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs, _efolder_present
 
 logger = logging.getLogger(__name__)
 
@@ -914,12 +914,12 @@ def review_borrower_summary(
                   f"Appraisal subject address matches the subject property ('{_appr_addr}').",
                   "No action needed — appraisal is on the subject property.")
 
-    # §3.12 — Multi-doc subject-address cross-reference (checklist 03 #12).
+    # §3.12 — Multi-doc subject-address cross-reference (checklist 03 #12 + 12 #2).
     # Beyond the Purchase Contract (above) and Appraisal (§11.3), confirm the
-    # subject address on the Tax cert, Evidence of Insurance (HOI), and Title
-    # Report each agree with the USPS-validated subject address. Flood is
-    # excluded — the flood-cert schema extracts no address. Warn-only; the
-    # subject address is never auto-corrected from these docs.
+    # subject address on the Tax cert, Evidence of Insurance (HOI), Title Report,
+    # and Flood Certificate each agree with the USPS-validated subject address.
+    # The flood leg also covers checklist 12 #2 (flood cert applicant/property vs
+    # Encompass). Warn-only; the subject address is never auto-corrected here.
     _usps_subject = (addr_val.get("normalized") if addr_val else None) or ", ".join(
         p for p in (property_address, property_city, property_state, property_zip) if p)
     if _usps_subject:
@@ -931,6 +931,8 @@ def review_borrower_summary(
              ["Evidence of Insurance"], ("insured_location", "hazard_insurance_address")),
             ("Title Report", _sourced_property_address(state, "title"),
              ["Title Report"], ("property_address",)),
+            ("Flood Certificate", _sourced_property_address(state, "flood"),
+             ["Flood Certificate"], ("property_address",)),
         ]
         for _label, _addr, _dtypes, _keys in _addr_sources:
             if not _addr:
@@ -945,6 +947,90 @@ def review_borrower_summary(
                 _flag(flags, "2.1", f"{_label} Address Confirmed", "info",
                       f"{_label} subject address matches the subject property ('{_addr}').",
                       "No action needed — address matches the subject property.")
+
+    # §3.12b — Flood certificate applicant match (checklist 12 #2). Confirm the
+    # borrower name(s) on the flood cert overlap the Encompass applicant(s). The
+    # flood cert lists borrower_name generically, so accept only the copy whose
+    # source is the flood cert. Warn-only; never auto-corrected.
+    _flood_borr = None
+    for _c in _doc_all(state, "borrower_name"):
+        if "flood" in (_c.get("source_document") or "").lower() and _c.get("value"):
+            _flood_borr = _c.get("value")
+            break
+    if _flood_borr:
+        _applicant_last = {
+            (borrower_last_name or "").strip().lower(),
+            (coborrower_last_name or "").strip().lower(),
+        } - {""}
+        _flood_low = str(_flood_borr).lower()
+        if _applicant_last and not any(ln in _flood_low for ln in _applicant_last):
+            _flag(flags, "2.1", "Flood Cert Applicant Mismatch", "warning",
+                  f"Flood certificate borrower name ('{_flood_borr}') does not match the "
+                  f"Encompass applicant(s) ({', '.join(sorted(_applicant_last))}).",
+                  "Verify the flood certificate was ordered for the correct borrower / loan.",
+                  docs=_relevant_docs(state, "borrower_name", doc_types=["Flood Certificate"]))
+        else:
+            _flag(flags, "2.1", "Flood Cert Applicant Confirmed", "info",
+                  f"Flood certificate borrower name ('{_flood_borr}') matches the Encompass applicant(s).",
+                  "No action needed — flood cert names the correct borrower.")
+
+    # §3.12c — Flood zone designation (checklist 12 #4). Classify the flood-cert
+    # zone (SFHA A/V vs non-hazard X), confirm flood insurance is on file when in
+    # an SFHA, and compare the extracted zone against the Encompass Flood Zone
+    # (field 1846). Warn-only; the LOS flood zone is never auto-corrected.
+    _flood_zone_doc = _doc(state, "flood_zone")
+    _in_sfha_doc = _doc(state, "in_sfha")
+    _los_flood_zone = _los(state, "los_flood_zone")
+    _flood_docs = _relevant_docs(state, "flood_zone", "in_sfha",
+                                 doc_types=["Flood Certificate"])
+    if _flood_zone_doc or _in_sfha_doc is not None:
+        _zone_norm = str(_flood_zone_doc or "").strip().upper()
+        _in_sfha = _is_checked(_in_sfha_doc) or _zone_norm.startswith(("A", "V"))
+
+        # Doc-vs-LOS flood zone comparison (field 1846).
+        if _zone_norm and _los_flood_zone:
+            if _zone_norm != str(_los_flood_zone).strip().upper():
+                _flag(flags, "2.1", "Flood Zone Mismatch", "warning",
+                      f"Flood certificate zone ('{_zone_norm}') does not match the Encompass "
+                      f"Flood Zone (1846) = '{_los_flood_zone}'.",
+                      "Verify the correct flood zone and update Encompass field 1846 if needed.",
+                      docs=_flood_docs)
+            else:
+                _flag(flags, "2.1", "Flood Zone Confirmed", "info",
+                      f"Flood zone ('{_zone_norm}') matches Encompass Flood Zone (1846).",
+                      "No action needed — flood zone designation confirmed.")
+        elif _zone_norm and not _los_flood_zone:
+            _flag(flags, "2.1", "Flood Zone Not in Encompass", "warning",
+                  f"Flood certificate shows zone '{_zone_norm}' but Encompass Flood Zone "
+                  f"(1846) is blank.",
+                  "Enter the flood zone into Encompass field 1846.",
+                  docs=_flood_docs)
+
+        # SFHA → flood insurance required; confirm a flood policy is on file.
+        if _in_sfha:
+            _flood_ins_present = (
+                _efolder_present(state, "Flood Insurance")
+                or bool(_doc(state, "flood_policy_number"))
+                or bool(_doc(state, "flood_annual_premium"))
+            )
+            if not _flood_ins_present:
+                _flag(flags, "2.1", "Flood Insurance Required (SFHA)", "warning",
+                      f"Property is in a Special Flood Hazard Area (zone '{_zone_norm or 'A/V'}') "
+                      f"but no flood insurance policy is on file.",
+                      "Obtain a flood insurance policy meeting NFIP coverage requirements.",
+                      docs=_flood_docs)
+            else:
+                _flag(flags, "2.1", "Flood Insurance on File", "info",
+                      f"Property is in an SFHA (zone '{_zone_norm or 'A/V'}') and a flood "
+                      f"insurance policy is on file.",
+                      "Verify coverage amount meets NFIP / lender requirements.",
+                      docs=_flood_docs)
+        elif _zone_norm:
+            _flag(flags, "2.1", "Flood Zone Non-Hazard", "info",
+                  f"Flood zone '{_zone_norm}' is not a Special Flood Hazard Area — flood "
+                  f"insurance is not required.",
+                  "No action needed — confirm the zone matches the appraisal / determination.",
+                  docs=_flood_docs)
 
     # ── Rule: ID Not Expired ──────────────────────────────────────────────
     if dl_expiry_doc:
