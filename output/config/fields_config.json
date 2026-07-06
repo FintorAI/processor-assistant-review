@@ -6,7 +6,7 @@
       "field_name": "Project Type dropdown (Transmittal Summary)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -16,7 +16,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -25,7 +25,7 @@
       "field_name": "Borrower CAIVRS Number",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -34,7 +34,7 @@
       "field_name": "FHA/VA Agency Case Number",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -46,7 +46,7 @@
         "STEP_03",
         "STEP_04",
         "STEP_07",
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -85,7 +85,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_10"
+        "STEP_08",
+        "STEP_11"
       ]
     },
     {
@@ -112,7 +113,7 @@
       "field_name": "Co-Borrower CAIVRS Number",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -123,9 +124,9 @@
       "used_by_steps": [
         "STEP_01",
         "STEP_02",
-        "STEP_08",
-        "STEP_11",
-        "STEP_12"
+        "STEP_09",
+        "STEP_12",
+        "STEP_13"
       ]
     },
     {
@@ -144,7 +145,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02",
-        "STEP_10"
+        "STEP_08",
+        "STEP_11"
       ]
     },
     {
@@ -171,7 +173,7 @@
       "field_name": "Condo Project Name (Transmittal Summary)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -210,8 +212,9 @@
         "STEP_01",
         "STEP_02",
         "STEP_03",
-        "STEP_09",
-        "STEP_10"
+        "STEP_08",
+        "STEP_10",
+        "STEP_11"
       ]
     },
     {
@@ -231,7 +234,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -241,7 +244,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -305,7 +308,8 @@
       "category": "property",
       "used_by_steps": [
         "STEP_02",
-        "STEP_10"
+        "STEP_08",
+        "STEP_11"
       ]
     },
     {
@@ -314,7 +318,7 @@
       "field_name": "Level of Property Review (Exterior/Interior)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -323,7 +327,7 @@
       "field_name": "Appraisal Form Number",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -341,7 +345,7 @@
       "field_name": "Project Type (Transmittal Summary)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -415,7 +419,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -460,7 +464,7 @@
       "field_name": "Final Vesting",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -469,7 +473,7 @@
       "field_name": "Borrower Vesting Name",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -487,7 +491,7 @@
       "field_name": "Borrower Vesting Type",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -496,7 +500,7 @@
       "field_name": "Borrower Vesting Description",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -505,7 +509,7 @@
       "field_name": "Co-Borrower Vesting Name",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -523,7 +527,7 @@
       "field_name": "Co-Borrower Vesting Type",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -532,7 +536,7 @@
       "field_name": "Co-Borrower Vesting Description",
       "category": "title",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -543,8 +547,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09",
-        "STEP_12"
+        "STEP_10",
+        "STEP_13"
       ]
     },
     {
@@ -571,16 +575,16 @@
       "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
       "key": "los_flood_cert_number",
       "field_id": "2363",
-      "field_name": "Flood Certification Number (Cert",
+      "field_name": "Flood Certification Number (Cert #)",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_08"
       ]
     },
     {
@@ -599,7 +603,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -617,7 +621,7 @@
       "field_name": "CPM Project ID",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -626,7 +630,7 @@
       "field_name": "CAIVRS Date Updated",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -635,7 +639,7 @@
       "field_name": "CAIVRS Updated By",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -682,7 +686,7 @@
       "used_by_steps": [
         "STEP_03",
         "STEP_07",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -747,7 +751,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -758,7 +762,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -769,7 +773,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_08",
+        "STEP_10"
       ]
     },
     {
@@ -789,7 +794,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -798,7 +803,7 @@
       "field_name": "Co-Borrower Middle Name",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -809,7 +814,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03",
-        "STEP_09"
+        "STEP_08",
+        "STEP_10"
       ]
     },
     {
@@ -882,7 +888,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -892,7 +898,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -902,7 +908,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -976,7 +982,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1005,7 +1011,7 @@
       "field_name": "Flood Zone (Flood Information form)",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_08"
       ]
     },
     {
@@ -1052,7 +1058,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1115,7 +1121,7 @@
       "field_name": "Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1188,7 +1194,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1647,7 +1653,7 @@
       "field_name": "Borrower Occupancy Intent",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1656,7 +1662,7 @@
       "field_name": "Signing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1675,7 +1681,7 @@
       "category": "grant_program",
       "used_by_steps": [
         "STEP_07",
-        "STEP_08"
+        "STEP_09"
       ]
     },
     {
@@ -1695,7 +1701,7 @@
       "used_by_steps": [
         "STEP_03",
         "STEP_07",
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -1704,7 +1710,7 @@
       "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1722,7 +1728,7 @@
       "field_name": "Cover Letter - Additional Notes (pre-populated)",
       "category": "cover_letter",
       "used_by_steps": [
-        "STEP_08"
+        "STEP_09"
       ]
     },
     {
@@ -1731,7 +1737,7 @@
       "field_name": "Cover Letter - Appraisal (pre-populated)",
       "category": "cover_letter",
       "used_by_steps": [
-        "STEP_08"
+        "STEP_09"
       ]
     },
     {
@@ -1740,7 +1746,7 @@
       "field_name": "Cover Letter - Title Company (pre-populated)",
       "category": "cover_letter",
       "used_by_steps": [
-        "STEP_08"
+        "STEP_09"
       ]
     },
     {
@@ -1749,7 +1755,7 @@
       "field_name": "Submission Notes (Cover Letter)",
       "category": "cover_letter",
       "used_by_steps": [
-        "STEP_08"
+        "STEP_09"
       ]
     },
     {
@@ -1759,7 +1765,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1769,7 +1775,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_03",
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -1778,7 +1784,7 @@
       "field_name": "Non-Del Inv. Approval",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1787,7 +1793,7 @@
       "field_name": "Product Type",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1796,7 +1802,7 @@
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -1805,7 +1811,7 @@
       "field_name": "Co-Borrower Occupancy Intent",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_09"
+        "STEP_10"
       ]
     },
     {
@@ -2322,7 +2328,7 @@
       "field_name": "Property Form Type (Transmittal Summary)",
       "category": "property",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_11"
       ]
     },
     {
@@ -2547,7 +2553,8 @@
       "field_name": "Property Street Address (URLA Lender \u2014 editable)",
       "category": "property",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -2657,7 +2664,7 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -2765,16 +2772,18 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
       "key": "borrower_name",
       "source_documents": [
-        "VOE"
+        "VOE",
+        "Flood Certificate"
       ],
       "used_by_steps": [
-        "STEP_05"
+        "STEP_05",
+        "STEP_08"
       ]
     },
     {
@@ -2783,7 +2792,7 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -2792,7 +2801,7 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -2801,7 +2810,7 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -2810,7 +2819,7 @@
         "CAIVRS"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -3063,7 +3072,7 @@
         "FHA Government Documents"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -3072,7 +3081,7 @@
         "FHA Government Documents"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -3081,7 +3090,7 @@
         "FHA Government Documents"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
       ]
     },
     {
@@ -3090,7 +3099,16 @@
         "FHA Government Documents"
       ],
       "used_by_steps": [
-        "STEP_11"
+        "STEP_12"
+      ]
+    },
+    {
+      "key": "flood_annual_premium",
+      "source_documents": [
+        "Flood Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -3103,12 +3121,22 @@
       ]
     },
     {
+      "key": "flood_policy_number",
+      "source_documents": [
+        "Flood Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "flood_zone",
       "source_documents": [
         "Flood Certificate"
       ],
       "used_by_steps": [
-        "STEP_01"
+        "STEP_01",
+        "STEP_08"
       ]
     },
     {
@@ -3144,7 +3172,7 @@
         "HOA Statement"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -3154,6 +3182,24 @@
       ],
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "in_sfha",
+      "source_documents": [
+        "Flood Certificate"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "insured_location",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -3391,6 +3437,15 @@
       ]
     },
     {
+      "key": "property_address",
+      "source_documents": [
+        "Flood Certificate"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "property_tax_bill_present",
       "source_documents": [
         "Property Tax Bill"
@@ -3441,7 +3496,7 @@
         "Title Report"
       ],
       "used_by_steps": [
-        "STEP_12"
+        "STEP_13"
       ]
     },
     {
@@ -3519,9 +3574,9 @@
   ],
   "stats": {
     "total_los_fields": 279,
-    "total_doc_fields": 105,
-    "total_document_types": 31,
-    "total_steps": 12,
+    "total_doc_fields": 110,
+    "total_document_types": 33,
+    "total_steps": 13,
     "categories": [
       "assets",
       "borrower_info",
@@ -3551,8 +3606,10 @@
       "Driver's License",
       "Estimated Settlement Statement",
       "Evidence of Hazard Insurance",
+      "Evidence of Insurance",
       "FHA Government Documents",
       "Flood Certificate",
+      "Flood Insurance",
       "General Letter of Explanation",
       "Gift Letter",
       "HOA Statement",

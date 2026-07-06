@@ -1,6 +1,6 @@
 """build_action_items — Final substep: derive communications action items.
 
-Step 12 (STEP_12): Processor Workflow and Closing
+Step 13 (STEP_13): Processor Workflow and Closing
 Substep 12.3 — run last, after all reviews/updates complete.
 
 Component-agnostic RULE REGISTRY. Each rule inspects the review state and emits
@@ -52,7 +52,7 @@ from ._helpers import _efolder_present, _los, _profile
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "12.3"
+SUBSTEP = "13.3"
 COMMS_AGENT = "processor_communications"
 
 

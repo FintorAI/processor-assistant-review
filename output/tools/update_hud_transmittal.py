@@ -1,6 +1,6 @@
-"""update_hud_transmittal — Tool for substep 11.2: HUD Transmittal
+"""update_hud_transmittal — Tool for substep 12.2: HUD Transmittal
 
-Step 11 (STEP_11): FHA-Specific Forms
+Step 12 (STEP_12): FHA-Specific Forms
 Phase: FORM_UPDATES
 
 Reviews the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed
@@ -49,7 +49,7 @@ def update_hud_transmittal(
 
     Flag-only — the underwriter completes this form. Confirms Source/EIN =
     MMP/52 (Government) and that the FHA Case Number + ADP code are present.
-    No-op when loan_type != FHA. Call as STEP_11 substep 11.2.
+    No-op when loan_type != FHA. Call as STEP_12 substep 12.2.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -62,7 +62,7 @@ def update_hud_transmittal(
     if not _is_fha(state):
         result = {
             "success": True,
-            "substep": "11.2",
+            "substep": "12.2",
             "tool": "update_hud_transmittal",
             "skipped": True,
             "message": "Not an FHA loan — HUD Transmittal skipped.",
@@ -85,7 +85,7 @@ def update_hud_transmittal(
     )
 
     flags.append({
-        "substep": "11.2",
+        "substep": "12.2",
         "title": "HUD-92900-LT Review Required",
         "severity": "info",
         "details": (
@@ -100,7 +100,7 @@ def update_hud_transmittal(
 
     if not case_present:
         flags.append({
-            "substep": "11.2",
+            "substep": "12.2",
             "title": "HUD-92900-LT Case Number Missing",
             "severity": "warning",
             "details": "FHA Case Number (field 1040) is blank — the HUD-92900-LT cannot be completed.",
@@ -111,7 +111,7 @@ def update_hud_transmittal(
 
     result = {
         "success": True,
-        "substep": "11.2",
+        "substep": "12.2",
         "tool": "update_hud_transmittal",
         "fha_case_number_present": case_present,
         "flags_count": len(flags),

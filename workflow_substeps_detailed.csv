@@ -44,6 +44,7 @@ Step 2: Borrower Summary - Origination,2.1,Review Borrower Summary - Origination
 4001: Borrower Middle Name
 4002: Borrower Last Name
 4003: Borrower Name Suffix
+1869: Borrower Alias / AKA (URLA)
 65: Borrower SSN
 1402: Borrower Date of Birth
 66: Borrower Home Phone
@@ -56,6 +57,7 @@ Step 2: Borrower Summary - Origination,2.1,Review Borrower Summary - Origination
 54: Borrower Dependent Ages
 4004: Co-Borrower First Name
 4006: Co-Borrower Last Name
+1874: Co-Borrower Alias / AKA (URLA)
 97: Co-Borrower SSN
 1403: Co-Borrower Date of Birth
 98: Co-Borrower Home Phone
@@ -344,7 +346,20 @@ CX.ATTACHMENT.TYPE: Attachment Type (Attached/Detached)
 33: Manner in Which Title Will Be Held",Driver's License,—,"Ethnicity Mismatch with ID (warning)
 Attachment Type Mismatch with Listing (warning)
 Estate Held Not Fee Simple (warning)"
-Step 8: Cover Letter,8.1,Draft Cover Letter / Submission Notes,"Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state[""almas_notes""] and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with the draft text so the processor can review and edit it in the UI. Do NOT interrupt here.","CX.KM.SUBMISSION.NOTES: Submission Notes (Cover Letter)
+Step 8: Flood & Hazard Insurance,8.1,Review Flood & Hazard Insurance,"Cross-reference the Flood Certificate against Encompass: applicant name and property address vs the subject (12 #2), and the flood zone designation vs Encompass field 541 with SFHA insurance-required checks (12 #4). Auto-correct field 541 from the cert only when the extracted zone maps to a value the field-541 dropdown accepts; otherwise warn and leave for manual entry.","11: Property Street Address
+URLA.X73: Property Street Address (URLA Lender — editable)
+12: Property City
+14: Property State
+15: Property ZIP
+4002: Borrower Last Name
+4006: Co-Borrower Last Name
+541: Flood Zone (Flood Information form)
+2363: Flood Certification Number (Cert","Flood Certificate
+Flood Insurance
+Evidence of Insurance",541: Flood Zone (Flood Information form) -> {flood_zone} [if Flood cert zone maps to a recognized FEMA designation and 541 is blank or mismatched],"Flood Cert Applicant Mismatch (warning)
+Flood Zone Mismatch (warning)
+Flood Insurance Required (SFHA) (warning)"
+Step 9: Cover Letter,9.1,Draft Cover Letter / Submission Notes,"Populate CX.KM.SUBMISSION.NOTES using Almas' notes from state[""almas_notes""] and loan profile data (AMI eligibility, missing docs, etc.). Clear pre-populated Title Company, Appraisal, and Additional Notes sub-fields. Raise a flag with the draft text so the processor can review and edit it in the UI. Do NOT interrupt here.","CX.KM.SUBMISSION.NOTES: Submission Notes (Cover Letter)
 CX.KM.CL.TITLE.COMPANY: Cover Letter - Title Company (pre-populated)
 CX.KM.CL.APPRAISAL: Cover Letter - Appraisal (pre-populated)
 CX.KM.CL.ADDITIONAL.NOTES: Cover Letter - Additional Notes (pre-populated)
@@ -354,7 +369,7 @@ CX.KM.CL.TITLE.COMPANY: Cover Letter - Title Company (pre-populated) ->
 CX.KM.CL.APPRAISAL: Cover Letter - Appraisal (pre-populated) -> 
 CX.KM.CL.ADDITIONAL.NOTES: Cover Letter - Additional Notes (pre-populated) -> ","Cover Letter Draft for Processor Review (info)
 Almas Notes Missing (warning)"
-Step 9: Borrower Info - Vesting,9.1,Update Borrower Vesting,"Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent) and borrower vesting name/type (1868/1871, 1873/1876). Read Manner Held (field 33) — set by the 1003 URLA Lender step (STEP_03), not computed here — and read final vesting (field 1867). Final vesting is NEVER overwritten except for single/unmarried borrowers missing the required suffix (e.g. ""AN UNMARRIED WOMAN""). Click Build Final Vesting in Encompass to set 1867.","14: Property State
+Step 10: Borrower Info - Vesting,10.1,Update Borrower Vesting,"Verify and write occupancy intent (Borr/CoBorr.OccupancyIntent) and borrower vesting name/type (1868/1871, 1873/1876). Read Manner Held (field 33) — set by the 1003 URLA Lender step (STEP_03), not computed here — and read final vesting (field 1867). Final vesting is NEVER overwritten except for single/unmarried borrowers missing the required suffix (e.g. ""AN UNMARRIED WOMAN""). Click Build Final Vesting in Encompass to set 1867.","14: Property State
 19: Loan Purpose
 1811: Occupancy Status
 4000: Borrower First Name
@@ -391,7 +406,7 @@ Borrower Vesting Description Missing (1872) (warning)
 Manner Held Empty (warning)
 Final Vesting Empty (warning)
 Vesting Suffix Missing (Single/Unmarried) (warning)"
-Step 10: Transmittal Summary,10.1,Update Transmittal Summary,"Review the 1008 Transmittal Summary. Checks this agent can do now: 1. Rate check — compare Note Rate (field 3) vs Qualifying Rate (field 1014). Flag warning if they differ (fixed-rate loans: they should match). 2. Project Type info — read field 1553 and flag info showing current value. Condo-specific fields (Project Name, CPM Project ID#) are populated by the computer-use agent after Freddie Mac Condo Project Advisor browser lookup. See ARCHITECTURE.md ""Transmittal Summary — Condo Split"" for details.","3: Note Rate
+Step 11: Transmittal Summary,11.1,Update Transmittal Summary,"Review the 1008 Transmittal Summary. Checks this agent can do now: 1. Rate check — compare Note Rate (field 3) vs Qualifying Rate (field 1014). Flag warning if they differ (fixed-rate loans: they should match). 2. Project Type info — read field 1553 and flag info showing current value. Condo-specific fields (Project Name, CPM Project ID#) are populated by the computer-use agent after Freddie Mac Condo Project Advisor browser lookup. See ARCHITECTURE.md ""Transmittal Summary — Condo Split"" for details.","3: Note Rate
 1014: Qualifying Rate (Transmittal Summary)
 1012: Project Type dropdown (Transmittal Summary)
 1541: Level of Property Review (Exterior/Interior)
@@ -405,12 +420,12 @@ CX.ATTACHMENT.TYPE: Attachment Type (Attached/Detached)
 12: Property City
 14: Property State
 15: Property ZIP
-CX.CONDO.PROJECT.NAME: Condo Project Name
-CX.CONDO.PROJECT.ID: Condo Project ID",—,—,"Note Rate vs Qualifying Rate Mismatch (warning)
+1298: Condo Project Name (Transmittal Summary)
+3050: CPM Project ID",—,—,"Note Rate vs Qualifying Rate Mismatch (warning)
 Project Type (info)
 Condo Project Fields Pending — CUA Required (info)
 Possible PUD — Verify Property / Project Type (warning)"
-Step 11: FHA-Specific Forms,11.1,FHA Management,"Populate the FHA Management screen (Tracking tab). Two parts: 1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from the CAIVRS document (borrower + co-borrowers) into the Encompass CAIVRS fields. Write-only-if-blank; emits an info flag listing what was written and a warning if the document has a number Encompass is missing. 2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code (703 for a standard 1-unit property) are present. Flag if missing; the case number itself is assigned via FHA Connection, not written here. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
+Step 12: FHA-Specific Forms,12.1,FHA Management,"Populate the FHA Management screen (Tracking tab). Two parts: 1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from the CAIVRS document (borrower + co-borrowers) into the Encompass CAIVRS fields. Write-only-if-blank; emits an info flag listing what was written and a warning if the document has a number Encompass is missing. 2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code (703 for a standard 1-unit property) are present. Flag if missing; the case number itself is assigned via FHA Connection, not written here. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
 1040: FHA/VA Agency Case Number
 1018: Borrower CAIVRS Number
 1144: Co-Borrower CAIVRS Number
@@ -421,10 +436,10 @@ CAIVRS Numbers Pending Manual Entry (warning)
 CAIVRS Document Missing (warning)
 FHA Case Number Written (info)
 FHA Case Number Missing (warning)"
-Step 11: FHA-Specific Forms,11.2,HUD Transmittal,"Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed by the underwriter, so the agent verifies/flags rather than writes: Source/EIN should be MMP / 52 (Government), and the FHA Case Number + ADP code must be present. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
+Step 12: FHA-Specific Forms,12.2,HUD Transmittal,"Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed by the underwriter, so the agent flags rather than writes. The only programmatic check is FHA Case Number presence (field 1040 / fha_assigned_case_number); Source/EIN (MMP / 52, Government) and the ADP code live on the underwriter-completed form and are NOT read into state, so they are surfaced as manual-verification reminders only. FHA-only: no-op when loan_type != FHA.","1172: Mortgage Type
 1040: FHA/VA Agency Case Number",FHA Government Documents,—,"HUD-92900-LT Review Required (info)
 HUD-92900-LT Case Number Missing (warning)"
-Step 12: Processor Workflow and Closing,12.1,Processor Workflow Update,"Fill out the Processor Workflow screen: set Product Type (derived from loan type), Non-Del Inv. Approval (usually No), and Documentation Type (Full Doc for conventional loans).","1172: Mortgage Type
+Step 13: Processor Workflow and Closing,13.1,Processor Workflow Update,"Fill out the Processor Workflow screen: set Product Type (derived from loan type), Non-Del Inv. Approval (usually No), and Documentation Type (Full Doc for conventional loans).","1172: Mortgage Type
 CX.PRODUCTTYPE: Product Type
 CX.DOCUMENTATIONTYPE: Documentation Type (NON-QM Submission)
 CX.NONDEL.INV.APPROVAL: Non-Del Inv. Approval",—,"CX.PRODUCTTYPE: Product Type -> {derived_product_type}
@@ -432,11 +447,11 @@ CX.DOCUMENTATIONTYPE: Documentation Type (NON-QM Submission) -> Full Doc
 CX.NONDEL.INV.APPROVAL: Non-Del Inv. Approval -> No","Product Type Not Set (warning)
 Documentation Type Not Set (warning)
 Unknown Loan Type — Product Type Not Mapped (warning)"
-Step 12: Processor Workflow and Closing,12.2,Processor Closing Update,"Fill out the Processor Closing screen. For purchase loans, signing date, wire requested date, and closing date all match — write the closing date value to both CUST50FV (Signing Date) and CX.WIREDATELO (Wire Requested Date).","748: Closing Date
+Step 13: Processor Workflow and Closing,13.2,Processor Closing Update,"Fill out the Processor Closing screen. For purchase loans, signing date, wire requested date, and closing date all match — write the closing date value to both CUST50FV (Signing Date) and CX.WIREDATELO (Wire Requested Date).","748: Closing Date
 CUST50FV: Signing Date
 CX.WIREDATELO: Wire Requested Date
 19: Loan Purpose",—,"CUST50FV: Signing Date -> {closing_date} [if loan_purpose == Purchase]
 CX.WIREDATELO: Wire Requested Date -> {closing_date} [if loan_purpose == Purchase]","Closing Date Not Set (warning)
 Signing Date Not Set (warning)"
-Step 12: Processor Workflow and Closing,12.3,Build Action Items,"Final substep — run last, after all reviews and form updates are complete. Derives component-agnostic communications action items from the review state (unresolved flags + loan facts) and writes them to state['comms_actions'] for the dashboard to trigger downstream agents (email / Blend follow-up). Each rule emits at most one item, carrying a component + trigger block so new components can be added without changing the schema. Items are merged/deduped by id across re-runs (runtime status preserved). No Encompass writes.",—,"Title Report
+Step 13: Processor Workflow and Closing,13.3,Build Action Items,"Final substep — run last, after all reviews and form updates are complete. Derives component-agnostic communications action items from the review state (unresolved flags + loan facts) and writes them to state['comms_actions'] for the dashboard to trigger downstream agents (email / Blend follow-up). Each rule emits at most one item, carrying a component + trigger block so new components can be added without changing the schema. Items are merged/deduped by id across re-runs (runtime status preserved). No Encompass writes.",—,"Title Report
 HOA Statement",—,—

@@ -515,6 +515,7 @@ def review_urla_liabilities(
     flags: List[Dict[str, Any]] = []
 
     # ── Fetch VOL rows from Encompass v3 API ──
+    vol_fetch_ok = True
     try:
         from shared.encompass_io import read_vols
         vols = read_vols(loan_id, state=state)
@@ -529,6 +530,7 @@ def review_urla_liabilities(
                        "liabilities before reviewing.",
         ))
         vols = []
+        vol_fetch_ok = False
     except Exception as exc:
         logger.warning(f"[REVIEW_URLA_LIABILITIES] Failed to fetch VOLs: {exc}")
         flags.append(_flag(
@@ -538,6 +540,7 @@ def review_urla_liabilities(
             suggestion="Manually review Section 3c in Encompass.",
         ))
         vols = []
+        vol_fetch_ok = False
 
     # ── Column 1: Excluded Monthly Payment ──
     # excludedFromTotalMonthlyPaymentIndicator = true → payment excluded from DTI
@@ -614,12 +617,14 @@ def review_urla_liabilities(
 
     # ── Credit-report reconciliation (03 #8 / #9 / #10 / #11) ──
     # Consumes the extracted `liabilities[]` tradelines; no-op (backward
-    # compatible) when the credit report has not been extracted.
+    # compatible) when the credit report has not been extracted. Skipped when the
+    # VOL fetch failed — otherwise every tradeline would be falsely flagged as
+    # "missing from VOL" against an empty list.
     recon_count = 0
     completion_count = 0
     raw_tradelines = _doc(state, "liabilities")
     tradelines = raw_tradelines if isinstance(raw_tradelines, list) else []
-    if tradelines:
+    if tradelines and vol_fetch_ok:
         try:
             from shared.encompass_io import read_reo_properties
             reo = read_reo_properties(loan_id, state=state)

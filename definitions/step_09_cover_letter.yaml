@@ -1,5 +1,5 @@
 step:
-  id: STEP_08
+  id: STEP_09
   name: Cover Letter
   phase: FORM_UPDATES
   description: >
@@ -9,7 +9,7 @@ step:
     No interrupt here — raise a flag with the draft text for processor review in the UI.
 
 substeps:
-- id: '8.1'
+- id: '9.1'
   name: Draft Cover Letter / Submission Notes
   tool: draft_cover_letter
   description: >

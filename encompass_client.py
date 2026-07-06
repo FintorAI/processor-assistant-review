@@ -2114,7 +2114,9 @@ def update_vod_accounts(
                     if _digits_last4(it.get("accountIdentifier")) == want_last4:
                         target = it
                         break
-            if target is None and len(items) == 1:
+            # Single-item fallback ONLY when that sole item has no identifier of
+            # its own — otherwise we'd risk writing to a different account.
+            if target is None and len(items) == 1 and not _digits_last4(items[0].get("accountIdentifier")):
                 target = items[0]
             if target is None:
                 skipped.append({"vod_id": vod_id, "reason": "could not locate matching item"})
@@ -2133,9 +2135,14 @@ def update_vod_accounts(
                 _bal_f = float(_bal) if _bal not in (None, "") else 0.0
             except (TypeError, ValueError):
                 _bal_f = 0.0
-            if updates.get("balance") not in (None, "") and _bal_f == 0.0 and float(updates["balance"]) > 0:
-                target["urla2020CashOrMarketValueAmount"] = updates["balance"]
-                changed_fields.append("cash/market value")
+            if updates.get("balance") not in (None, "") and _bal_f == 0.0:
+                try:
+                    _new_bal = float(updates["balance"])
+                except (TypeError, ValueError):
+                    _new_bal = 0.0
+                if _new_bal > 0:
+                    target["urla2020CashOrMarketValueAmount"] = updates["balance"]
+                    changed_fields.append("cash/market value")
             if updates.get("account_number") and not (target.get("accountIdentifier") or "").strip():
                 target["accountIdentifier"] = str(updates["account_number"]).strip()
                 changed_fields.append("account number")

@@ -61,14 +61,15 @@
       "STEP_04",
       "STEP_05",
       "STEP_06",
-      "STEP_07"
+      "STEP_07",
+      "STEP_08"
     ],
     "FORM_UPDATES": [
-      "STEP_08",
       "STEP_09",
       "STEP_10",
       "STEP_11",
-      "STEP_12"
+      "STEP_12",
+      "STEP_13"
     ]
   },
   "step_order": [
@@ -84,7 +85,8 @@
     "STEP_09",
     "STEP_10",
     "STEP_11",
-    "STEP_12"
+    "STEP_12",
+    "STEP_13"
   ],
   "steps": {
     "STEP_00": {
@@ -113,7 +115,7 @@
           ]
         },
         "3": {
-          "name": "Fetch Doc Fields (31 document types)",
+          "name": "Fetch Doc Fields (33 document types)",
           "tools": [
             "fetch_doc_fields"
           ]
@@ -333,6 +335,22 @@
       }
     },
     "STEP_08": {
+      "name": "Flood & Hazard Insurance",
+      "phase": "DATA_REVIEW",
+      "plan_file": "flood_&_hazard_insurance.md",
+      "tools": [
+        "review_flood_hazard_insurance"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review Flood & Hazard Insurance",
+          "tools": [
+            "review_flood_hazard_insurance"
+          ]
+        }
+      }
+    },
+    "STEP_09": {
       "name": "Cover Letter",
       "phase": "FORM_UPDATES",
       "plan_file": "cover_letter.md",
@@ -348,7 +366,7 @@
         }
       }
     },
-    "STEP_09": {
+    "STEP_10": {
       "name": "Borrower Info - Vesting",
       "phase": "FORM_UPDATES",
       "plan_file": "borrower_info___vesting.md",
@@ -364,7 +382,7 @@
         }
       }
     },
-    "STEP_10": {
+    "STEP_11": {
       "name": "Transmittal Summary",
       "phase": "FORM_UPDATES",
       "plan_file": "transmittal_summary.md",
@@ -380,7 +398,7 @@
         }
       }
     },
-    "STEP_11": {
+    "STEP_12": {
       "name": "FHA-Specific Forms",
       "phase": "FORM_UPDATES",
       "plan_file": "fha_specific_forms.md",
@@ -403,7 +421,7 @@
         }
       }
     },
-    "STEP_12": {
+    "STEP_13": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",

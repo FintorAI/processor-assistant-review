@@ -1,6 +1,6 @@
-"""update_borrower_vesting — Tool for substep 9.1: Update Borrower Vesting
+"""update_borrower_vesting — Tool for substep 10.1: Update Borrower Vesting
 
-Step 9 (STEP_09): Borrower Info - Vesting
+Step 10 (STEP_10): Borrower Info - Vesting
 Phase: FORM_UPDATES
 
 Ported from LG-docsOrch verify_vesting.py + write_borrower_vesting_info.py.
@@ -185,7 +185,7 @@ def update_borrower_vesting(
 
     Ported from LG-docsOrch verify_vesting + write_borrower_vesting_info.
 
-    Call this tool during STEP_09 (Borrower Info - Vesting) as substep 9.1.
+    Call this tool during STEP_10 (Borrower Info - Vesting) as substep 10.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -261,7 +261,7 @@ def update_borrower_vesting(
     )
 
     if summary_marital and vesting_marital and summary_marital.upper() != vesting_marital.upper():
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Marital Status Source Divergence",
             "info",
             (
@@ -282,7 +282,7 @@ def update_borrower_vesting(
             f"(was '{prev_borr_occ or '(empty)'}', "
             f"occupancy={occupancy_status or 'Primary'}, purpose={loan_purpose or 'Purchase'})"
         )
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Occupancy Intent Updated",
             "info-overwrite",
             f"Borrower occupancy intent was '{prev_borr_occ or '(empty)'}'. Set to '{occ_intent}'.",
@@ -296,7 +296,7 @@ def update_borrower_vesting(
         field_updates["CoBorr.OccupancyIntent"] = occ_intent
         if prev_cobr_occ != occ_intent:
             actions.append(f"SET CoBorr.OccupancyIntent = '{occ_intent}' (was '{prev_cobr_occ or '(empty)'}')")
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Co-Borrower Occupancy Intent Updated",
                 "info-overwrite",
                 f"Co-borrower occupancy intent was '{prev_cobr_occ or '(empty)'}'. Set to '{occ_intent}'.",
@@ -319,14 +319,14 @@ def update_borrower_vesting(
             field_updates["1868"] = slot_1868_name
             actions.append(f"SET 1868 (Vesting Name 1 — {slot_1868_label}) = '{slot_1868_name}'")
         elif prev_borr_name.upper() != slot_1868_name.upper():
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Vesting Name 1 (1868) Mismatch",
                 "warning",
                 f"Field 1868 has '{prev_borr_name}' but expected '{slot_1868_name}' ({slot_1868_label}).",
                 f"Correct field 1868 to '{slot_1868_name}' — {'wife goes first per URLA order' if wife_first else 'borrower name from 4000/4001/4002'}",
             ))
     if wife_first:
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Vesting Order — Wife Listed First",
             "info",
             f"Co-borrower ({cobr_full_for_order}) is female and borrower ({borr_full}) is male. "
@@ -349,7 +349,7 @@ def update_borrower_vesting(
         vesting_desc_patches["borrower"] = computed_vdesc
         actions.append(f"SET 1872 (Borrower Vesting Desc) = '{computed_vdesc}' (was empty)")
     elif prev_borr_vdesc.upper() != computed_vdesc.upper():
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Borrower Vesting Description Mismatch (1872)",
             "warning",
             f"Field 1872 is '{prev_borr_vdesc}' but expected '{computed_vdesc}' (marital={marital_status}, co-borrower={has_coborrower}).",
@@ -376,7 +376,7 @@ def update_borrower_vesting(
                 field_updates["1873"] = slot_1873_name
                 actions.append(f"SET 1873 (Vesting Name 2 — {slot_1873_label}) = '{slot_1873_name}'")
             elif prev_cobr_name.upper() != slot_1873_name.upper():
-                flags.append(_flag("9.1",
+                flags.append(_flag("10.1",
                     "Vesting Name 2 (1873) Mismatch",
                     "warning",
                     f"Field 1873 has '{prev_cobr_name}' but expected '{slot_1873_name}' ({slot_1873_label}).",
@@ -396,7 +396,7 @@ def update_borrower_vesting(
             vesting_desc_patches["coborrower"] = cobr_vdesc  # written via PATCH (read-only in fieldWriter)
             actions.append(f"SET 1877 (Co-Borrower Vesting Desc) = '{cobr_vdesc}' (was empty)")
         elif prev_cobr_vdesc.upper() != cobr_vdesc.upper():
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Co-Borrower Vesting Description Mismatch (1877)",
                 "warning",
                 f"Field 1877 is '{prev_cobr_vdesc}' but expected '{cobr_vdesc}'.",
@@ -414,7 +414,7 @@ def update_borrower_vesting(
     # field 33, URLA.X138, and 1066. Here we only READ field 33 for context and
     # to confirm Build Final Vesting has its required input.
     if current_manner:
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Manner Held (from 1003 URLA Lender)",
             "info",
             f"Manner Held (field 33) = '{current_manner}' (set in the 1003 URLA Lender step).",
@@ -422,7 +422,7 @@ def update_borrower_vesting(
             resolved=True, docs=["Title Report"],
         ))
     else:
-        flags.append(_flag("9.1",
+        flags.append(_flag("10.1",
             "Manner Held Empty",
             "warning",
             "Manner Held (field 33) is empty — it should have been set in the 1003 URLA Lender step (3.1). Build Final Vesting needs it.",
@@ -447,7 +447,7 @@ def update_borrower_vesting(
         if built_vesting:
             field_updates["1867"] = built_vesting
             actions.append(f"SET 1867 (Final Vesting) = '{built_vesting}' (built from vesting descs + Manner Held)")
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Final Vesting Built",
                 "info-overwrite",
                 (
@@ -459,7 +459,7 @@ def update_borrower_vesting(
                 resolved=True, docs=["Title Report"],
             ))
         else:
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Final Vesting Empty",
                 "warning",
                 (
@@ -472,7 +472,7 @@ def update_borrower_vesting(
     else:
         # Check for placeholder text
         if any(p in current_vesting.lower() for p in _VESTING_PLACEHOLDER_PATTERNS):
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Final Vesting Contains Placeholder",
                 "info",
                 f"Final Vesting (1867) appears to contain placeholder text: '{current_vesting}'.",
@@ -488,7 +488,7 @@ def update_borrower_vesting(
         ) if borr_first and borr_last else True
 
         if not borr_in_vest:
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Final Vesting Name Mismatch",
                 "warning",
                 f"Final Vesting (1867): '{current_vesting}' does not contain borrower name '{borr_full}'.",
@@ -496,7 +496,7 @@ def update_borrower_vesting(
                 docs=["Title Report"],
             ))
         else:
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Final Vesting Confirmed",
                 "info",
                 f"Final Vesting (1867): '{current_vesting}' — contains borrower name, read-only.",
@@ -516,7 +516,7 @@ def update_borrower_vesting(
                 correct_vesting = f"{borr_full.upper()}, AN UNMARRIED {gender_word}"
                 field_updates["1867"] = correct_vesting
                 actions.append(f"SET 1867 (Final Vesting) = '{correct_vesting}' (missing unmarried suffix)")
-                flags.append(_flag("9.1",
+                flags.append(_flag("10.1",
                     "Vesting Suffix Auto-Corrected",
                     "info-overwrite",
                     (
@@ -527,7 +527,7 @@ def update_borrower_vesting(
                     resolved=True, docs=["Title Report"],
                 ))
             else:
-                flags.append(_flag("9.1",
+                flags.append(_flag("10.1",
                     "Vesting Suffix Correct",
                     "info",
                     f"Final Vesting format is correct for {marital_status} borrower (contains unmarried/single suffix).",
@@ -535,7 +535,7 @@ def update_borrower_vesting(
                     resolved=True, docs=["Title Report"],
                 ))
         elif is_refinance and not prop_st == "TX":
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "Vesting As-Seen (Refinance)",
                 "info",
                 "Refinance loan — vesting taken 'as seen' from title report. Marital suffix check skipped (only TX mandates this).",
@@ -547,7 +547,7 @@ def update_borrower_vesting(
     if has_nbs:
         nbs_name = (nbs_info or "").strip()
         if nbs_name:
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "NBS Detected — Set Title Only in Encompass",
                 "info",
                 f"Non-Borrowing Spouse '{nbs_name}' detected (CX.NBSFLAG=YES). Vesting type for NBS must be 'Title only' (TR0104). Set manually in the Vesting Entities screen.",
@@ -555,7 +555,7 @@ def update_borrower_vesting(
                 docs=["Title Report"],
             ))
         else:
-            flags.append(_flag("9.1",
+            flags.append(_flag("10.1",
                 "NBS Flag Set But Name Missing",
                 "warning",
                 "CX.NBSFLAG is YES but CX.NBSINFO is empty — cannot identify NBS name.",
@@ -580,7 +580,7 @@ def update_borrower_vesting(
         "CoBorr.OccupancyIntent": "Co-Borrower Occupancy Intent",
     }
     if field_updates:
-        _write_fields(loan_id, field_updates, substep="9.1", flags=flags, state=state, labels=_FIELD_LABELS)
+        _write_fields(loan_id, field_updates, substep="10.1", flags=flags, state=state, labels=_FIELD_LABELS)
         wrote_count = len(field_updates)
         logger.info(f"[UPDATE_BORROWER_VESTING] Submitted {wrote_count} field updates")
 
@@ -607,7 +607,7 @@ def update_borrower_vesting(
             if _res.get("success"):
                 patched_vdesc.append(_fid)
                 actions.append(f"PATCHed {_fid} ({_applicant} vesting desc) = '{_desc}' via loan-entity API")
-                flags.append(_flag("9.1",
+                flags.append(_flag("10.1",
                     f"{'Co-Borrower ' if _applicant == 'coborrower' else 'Borrower '}Vesting Description Set ({_fid})",
                     "info-overwrite",
                     f"Field {_fid} was empty. Set to '{_desc}' via loan-entity PATCH "
@@ -617,7 +617,7 @@ def update_borrower_vesting(
                 ))
             else:
                 from shared.encompass_io import humanize_write_error
-                flags.append(_flag("9.1",
+                flags.append(_flag("10.1",
                     f"Vesting Description Write Failed ({_fid})",
                     "warning",
                     f"Could not write {_applicant} vesting description (field {_fid}) = '{_desc}': "
@@ -628,7 +628,7 @@ def update_borrower_vesting(
     # ── Result ────────────────────────────────────────────────────────────────
     result = {
         "success": True,
-        "substep": "9.1",
+        "substep": "10.1",
         "tool": "update_borrower_vesting",
         "los_manner_held": current_manner or "",
         "final_vesting": current_vesting or "",

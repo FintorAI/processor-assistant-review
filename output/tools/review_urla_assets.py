@@ -346,7 +346,7 @@ def _check_account_transfers(copies: list, inventory_last4: set, refs: list, fla
                 else:
                     flags.append(_flag(
                         "6.1",
-                        f"Account Transfer Not Sourced — Statement Missing"
+                        "Account Transfer Not Sourced — Statement Missing"
                         + (f" (…{cp})" if cp else ""),
                         "warning",
                         (
@@ -365,7 +365,7 @@ def _check_account_transfers(copies: list, inventory_last4: set, refs: list, fla
             else:  # internal_out
                 flags.append(_flag(
                     "6.1",
-                    f"Outgoing Account Transfer" + (f" — …{cp}" if cp else ""),
+                    "Outgoing Account Transfer" + (f" — …{cp}" if cp else ""),
                     "info",
                     (
                         f"Outgoing transfer of {amt_txt} from {inst}"

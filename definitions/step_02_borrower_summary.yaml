@@ -270,21 +270,6 @@ substeps:
     field_name: Property ZIP
     category: property
     purpose: Address verification
-  - key: los_flood_zone
-    field_id: '541'
-    field_name: Flood Zone (Flood Information form)
-    category: property
-    purpose: >
-      Checklist 12 #4 — compare the Encompass Flood Zone (Flood Information form)
-      against the flood certificate's extracted zone; auto-correct on
-      mismatch/blank when the zone maps to a recognized FEMA designation.
-  - key: los_flood_cert_number
-    field_id: '2363'
-    field_name: Flood Certification Number (Cert #)
-    category: property
-    purpose: >
-      Flood Information form Cert # — reference for the flood determination
-      certificate number.
   # ── Loan info ──────────────────────────────────────────────────────
   - key: loan_purpose
     field_id: '19'

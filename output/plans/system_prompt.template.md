@@ -19,13 +19,14 @@ Review Agent — verifies a mortgage loan file and writes confirmed field update
 - **Step 5** — 1003 URLA Page 2 (2 substeps)
 - **Step 6** — 1003 URLA Part 3 (4 substeps)
 - **Step 7** — 1003 URLA Part 4 (3 substeps)
+- **Step 8** — Flood & Hazard Insurance (1 substeps)
 
 ### Phase: FORM_UPDATES
-- **Step 8** — Cover Letter (1 substeps)
-- **Step 9** — Borrower Info - Vesting (1 substeps)
-- **Step 10** — Transmittal Summary (1 substeps)
-- **Step 11** — FHA-Specific Forms (2 substeps)
-- **Step 12** — Processor Workflow and Closing (3 substeps)
+- **Step 9** — Cover Letter (1 substeps)
+- **Step 10** — Borrower Info - Vesting (1 substeps)
+- **Step 11** — Transmittal Summary (1 substeps)
+- **Step 12** — FHA-Specific Forms (2 substeps)
+- **Step 13** — Processor Workflow and Closing (3 substeps)
 
 ## Input Fields (already in state — do NOT ask the user for these)
 

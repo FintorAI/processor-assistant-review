@@ -1,6 +1,6 @@
-"""update_fha_management — Tool for substep 11.1: FHA Management
+"""update_fha_management — Tool for substep 12.1: FHA Management
 
-Step 11 (STEP_11): FHA-Specific Forms
+Step 12 (STEP_12): FHA-Specific Forms
 Phase: FORM_UPDATES
 
 FHA-only. Two parts:
@@ -94,7 +94,7 @@ def update_fha_management(
        Government Documents extraction when 1040 is blank (same field as the
        HUD-92900-LT); flag a warning if blank with nothing to write.
 
-    No-op when loan_type != FHA. Call as STEP_11 substep 11.1.
+    No-op when loan_type != FHA. Call as STEP_12 substep 12.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -107,7 +107,7 @@ def update_fha_management(
     if not _is_fha(state):
         result = {
             "success": True,
-            "substep": "11.1",
+            "substep": "12.1",
             "tool": "update_fha_management",
             "skipped": True,
             "message": "Not an FHA loan — FHA Management skipped.",
@@ -140,7 +140,7 @@ def update_fha_management(
 
     if not present:
         flags.append({
-            "substep": "11.1",
+            "substep": "12.1",
             "title": "CAIVRS Document Missing",
             "severity": "warning",
             "details": "No CAIVRS Authorization Number was extracted for any applicant on this FHA loan.",
@@ -153,7 +153,7 @@ def update_fha_management(
         # IDs unverified — surface the numbers for manual entry, never write.
         listed = "\n".join(f"  • {label}: {num}" for label, num in present)
         flags.append({
-            "substep": "11.1",
+            "substep": "12.1",
             "title": "CAIVRS Numbers Pending Manual Entry",
             "severity": "warning",
             "details": (
@@ -183,7 +183,7 @@ def update_fha_management(
             # write-only-if-blank. Abort the write path rather than risk
             # overwriting a manually-entered number with stale doc data.
             flags.append({
-                "substep": "11.1",
+                "substep": "12.1",
                 "title": "CAIVRS Read-Back Failed — Not Written",
                 "severity": "warning",
                 "details": (
@@ -220,9 +220,9 @@ def update_fha_management(
                 labels[CAIVRS_DATE_FIELD] = "CAIVRS Date Updated"
                 labels[CAIVRS_BY_FIELD] = "CAIVRS Updated By"
 
-                _write_fields(loan_id, writes, substep="11.1", flags=flags, state=state, labels=labels)
+                _write_fields(loan_id, writes, substep="12.1", flags=flags, state=state, labels=labels)
                 flags.append({
-                    "substep": "11.1",
+                    "substep": "12.1",
                     "title": "CAIVRS Numbers Written",
                     "severity": "info",
                     "details": (
@@ -240,7 +240,7 @@ def update_fha_management(
     if extras:
         listed = "\n".join(f"  • {label}: {num}" for label, num in extras)
         flags.append({
-            "substep": "11.1",
+            "substep": "12.1",
             "title": "Additional CAIVRS Numbers — Manual Entry",
             "severity": "warning",
             "details": (
@@ -262,13 +262,13 @@ def update_fha_management(
         adp_doc = _clean(_doc(state, "fha_adp_code"))
         if case_doc:
             _write_fields(
-                loan_id, {"1040": case_doc}, substep="11.1", flags=flags,
+                loan_id, {"1040": case_doc}, substep="12.1", flags=flags,
                 state=state, labels={"1040": "FHA Case Number"},
             )
             case_present = True
             adp_note = f" (ADP code {adp_doc})" if adp_doc else ""
             flags.append({
-                "substep": "11.1",
+                "substep": "12.1",
                 "title": "FHA Case Number Written",
                 "severity": "info",
                 "details": (
@@ -283,7 +283,7 @@ def update_fha_management(
             })
         else:
             flags.append({
-                "substep": "11.1",
+                "substep": "12.1",
                 "title": "FHA Case Number Missing",
                 "severity": "warning",
                 "details": "FHA Case Number (field 1040) is blank and none was extracted from FHA Government Documents.",
@@ -295,7 +295,7 @@ def update_fha_management(
 
     result = {
         "success": True,
-        "substep": "11.1",
+        "substep": "12.1",
         "tool": "update_fha_management",
         "fha_case_number_present": case_present,
         "caivrs_numbers_found": len(present),
