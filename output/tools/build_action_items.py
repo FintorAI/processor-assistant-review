@@ -342,7 +342,7 @@ def _rule_employment_gap_loe(state: dict) -> Optional[dict]:
             f"{len(gap_flags)} employment-gap flag(s) require a written explanation "
             f"({', '.join(applicants)}). Request an employment-gap LOE from the borrower."
         ),
-        "processor_employment_gap_loe", "email", payload,
+        "processor_employment_gap", "email", payload,
     )
 
 

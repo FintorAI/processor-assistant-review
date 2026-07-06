@@ -197,7 +197,7 @@ raw ledger first and add `is_transfer`/`transfer_type`/`counterparty_account_las
 **05 #7 — Employment-gap LOE — ✅ review side SHIPPED (comms template is external).**
 The gap is already flagged by `_check_employment_gap`. New `_rule_employment_gap_loe` in
 `build_action_items.py` bridges the unresolved gap flag into a `comms_actions` item
-(`action_type: employment_gap_loe`, `graph_id: processor_employment_gap_loe`,
+(`action_type: employment_gap_loe`, `graph_id: processor_employment_gap`,
 `resume_contract: "email"`), carrying `applicants_with_gaps` + `gap_details` in the payload. One
 item per loan covering all applicants; excludes the "no prior employer / <2yr" data-entry flag.
 The email template/graph itself is the comms-owned seam (flip `resume_contract` to `"blend_loe"`
