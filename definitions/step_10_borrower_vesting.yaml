@@ -1,5 +1,5 @@
 step:
-  id: STEP_09
+  id: STEP_10
   name: Borrower Info - Vesting
   phase: FORM_UPDATES
   description: >
@@ -11,7 +11,7 @@ step:
     when complete. NBS (non-borrowing spouse) vesting handled separately.
 
 substeps:
-- id: '9.1'
+- id: '10.1'
   name: Update Borrower Vesting
   tool: update_borrower_vesting
   description: >

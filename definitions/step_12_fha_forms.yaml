@@ -1,5 +1,5 @@
 step:
-  id: STEP_11
+  id: STEP_12
   name: FHA-Specific Forms
   phase: FORM_UPDATES
   description: >
@@ -10,7 +10,7 @@ step:
     before Processor Workflow and Closing (STEP_12).
 
 substeps:
-- id: '11.1'
+- id: '12.1'
   name: FHA Management
   tool: update_fha_management
   condition:
@@ -127,7 +127,7 @@ substeps:
     condition: FHA loan with blank FHA Case Number (field 1040) and none extracted from FHA Government Documents
     suggestion: Assign the FHA Case Number via FHA Connection (ADP code 703 for standard 1-unit)
 
-- id: '11.2'
+- id: '12.2'
   name: HUD Transmittal
   tool: update_hud_transmittal
   condition:

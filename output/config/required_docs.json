@@ -292,7 +292,8 @@
         "pay_frequency",
         "hourly_rate",
         "hours_worked",
-        "paystubs_present"
+        "paystubs_present",
+        "earnings"
       ]
     },
     "w2": {
@@ -372,7 +373,9 @@
         "nsf_overdraft_fees",
         "returned_items",
         "payroll_deposits",
-        "recurring_income_source"
+        "recurring_income_source",
+        "recurring_deposits",
+        "transactions"
       ]
     },
     "assets": {
@@ -503,7 +506,8 @@
         "credit_score_factors",
         "credit_report_order_date",
         "credit_report_present",
-        "fact_act_present"
+        "fact_act_present",
+        "liabilities"
       ]
     },
     "caivrs": {
@@ -613,7 +617,11 @@
         "flood_policy_number",
         "flood_zone",
         "flood_annual_premium",
-        "flood_cert_present"
+        "flood_cert_present",
+        "in_sfha",
+        "property_address",
+        "borrower_name",
+        "county"
       ]
     },
     "evidence_of_insurance": {

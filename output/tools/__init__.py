@@ -38,21 +38,23 @@ from .review_urla_downpayment import review_urla_downpayment
 from .review_urla_declarations import review_urla_declarations
 # STEP_07 / 7.3: Ethnicity and ID Cross-Check
 from .review_urla_ethnicity import review_urla_ethnicity
-# STEP_08 / 8.1: Draft Cover Letter / Submission Notes
+# STEP_08 / 8.1: Review Flood & Hazard Insurance
+from .review_flood_hazard_insurance import review_flood_hazard_insurance
+# STEP_09 / 9.1: Draft Cover Letter / Submission Notes
 from .draft_cover_letter import draft_cover_letter
-# STEP_09 / 9.1: Update Borrower Vesting
+# STEP_10 / 10.1: Update Borrower Vesting
 from .update_borrower_vesting import update_borrower_vesting
-# STEP_10 / 10.1: Update Transmittal Summary
+# STEP_11 / 11.1: Update Transmittal Summary
 from .update_transmittal_summary import update_transmittal_summary
-# STEP_11 / 11.1: FHA Management
+# STEP_12 / 12.1: FHA Management
 from .update_fha_management import update_fha_management
-# STEP_11 / 11.2: HUD Transmittal
+# STEP_12 / 12.2: HUD Transmittal
 from .update_hud_transmittal import update_hud_transmittal
-# STEP_12 / 12.1: Processor Workflow Update
+# STEP_13 / 13.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
-# STEP_12 / 12.2: Processor Closing Update
+# STEP_13 / 13.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
-# STEP_12 / 12.3: Build Action Items
+# STEP_13 / 13.3: Build Action Items
 from .build_action_items import build_action_items
 
 def get_all_tools() -> list:
@@ -84,6 +86,7 @@ def get_all_tools() -> list:
     tools.append(review_urla_downpayment)
     tools.append(review_urla_declarations)
     tools.append(review_urla_ethnicity)
+    tools.append(review_flood_hazard_insurance)
     tools.append(draft_cover_letter)
     tools.append(update_borrower_vesting)
     tools.append(update_transmittal_summary)
@@ -120,6 +123,7 @@ __all__ = [
     "review_urla_downpayment",
     "review_urla_declarations",
     "review_urla_ethnicity",
+    "review_flood_hazard_insurance",
     "draft_cover_letter",
     "update_borrower_vesting",
     "update_transmittal_summary",

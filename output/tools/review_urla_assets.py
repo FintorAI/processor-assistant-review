@@ -8,6 +8,7 @@ Phase: DATA_REVIEW
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
@@ -29,12 +30,21 @@ _ZELLE_KEYWORDS = ("zel", "zelle", "klarna", "firm")
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _parse_float(val) -> Optional[float]:
-    """Return float from a value, or None if unparseable."""
+    """Return float from a value, or None if unparseable.
+
+    Tolerant of currency formatting (``$``, thousands commas, stray text like
+    "CR"), so extracted balances such as "$4,279.51" parse correctly.
+    """
     if val is None:
         return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    cleaned = re.sub(r"[^0-9.\-]", "", str(val))
+    if cleaned in ("", "-", ".", "-.", "-"):
+        return None
     try:
-        return float(str(val).replace(",", "").strip())
-    except (TypeError, ValueError):
+        return float(cleaned)
+    except ValueError:
         return None
 
 
@@ -200,6 +210,175 @@ def _match_retirement_vod(rec: dict, vod_rows: list) -> Optional[dict]:
     return None
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Account-transfer tracing (checklist 08 #5 — transfers between accounts)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_TRANSFER_IN_RE = re.compile(
+    r"\b(deposit\s+from|transfer\s+from|xfer\s+from|from\s+(checking|savings|share|money\s*market)"
+    r"|incoming\s+transfer|internal\s+transfer)\b", re.I)
+_TRANSFER_OUT_RE = re.compile(
+    r"\b(transfer\s+to|deposit\s+to|xfer\s+to|to\s+(checking|savings|share|money\s*market)"
+    r"|outgoing\s+transfer|payment\s+to\b.*\bcard|online\s+transfer\s+to)\b", re.I)
+_CARD_PAYMENT_RE = re.compile(r"\bpayment\s+to\b.*\bcard\b|\bcard\s+ending\b", re.I)
+# A trailing masked account number: "XXXXXX2307", "x2307", "...5462",
+# "ending in 4004", "acct 9484".
+_COUNTERPARTY_ACCT_RE = re.compile(
+    r"(?:ending\s*in|acct\.?|account|x{2,}|\*{2,}|\.{3,})\s*#?\s*(\d{3,})", re.I)
+
+
+def _txn_direction(txn: dict) -> Optional[str]:
+    """Return 'credit' | 'debit' | None for one transaction row."""
+    cat = str(txn.get("direction") or txn.get("category") or txn.get("type") or "").lower()
+    if "credit" in cat or "deposit" in cat:
+        return "credit"
+    if "debit" in cat or "withdraw" in cat:
+        return "debit"
+    amt = _parse_float(txn.get("amount"))
+    if amt is None:
+        return None
+    return "credit" if amt >= 0 else "debit"
+
+
+def _counterparty_last4(desc: str, txn: dict) -> str:
+    """Best-effort last-4 of the account on the other side of a transfer."""
+    for k in ("counterparty_account_last4", "counterparty_account", "counterparty"):
+        v = txn.get(k)
+        if v:
+            l4 = _last_four(v)
+            if l4:
+                return l4
+    m = _COUNTERPARTY_ACCT_RE.search(str(desc or ""))
+    return m.group(1)[-4:] if m else ""
+
+
+def _transfer_kind(desc: str, txn: dict) -> Optional[str]:
+    """Classify a transaction as an account transfer.
+
+    Returns 'internal_in' | 'internal_out' | 'card_payment' | None. Prefers the
+    extractor's ``is_transfer`` / ``transfer_type`` hints, falling back to
+    description regex. Card payments are separated (they are debt payments, not
+    asset-sourcing transfers).
+    """
+    tt = str(txn.get("transfer_type") or "").lower()
+    if tt in ("internal_in", "internal_out", "card_payment"):
+        return tt
+    d = str(desc or "")
+    if _CARD_PAYMENT_RE.search(d):
+        return "card_payment"
+    direction = _txn_direction(txn)
+    if _TRANSFER_IN_RE.search(d):
+        return "internal_in"
+    if _TRANSFER_OUT_RE.search(d):
+        return "internal_out"
+    # Generic "transfer"/"xfer" with no direction word — infer from credit/debit.
+    if re.search(r"\b(transfer|xfer)\b", d, re.I) and txn.get("is_transfer") is not False:
+        return "internal_in" if direction == "credit" else "internal_out"
+    if txn.get("is_transfer") is True:
+        return "internal_in" if direction == "credit" else "internal_out"
+    return None
+
+
+def _account_inventory_last4(*sources) -> set:
+    """Collect the last-4 of every account represented in the file.
+
+    ``sources`` are iterables of account-number-ish strings (VOD account numbers,
+    bank-statement / asset account numbers). Used to decide whether the other
+    side of a transfer already has a statement in the file.
+    """
+    inv: set = set()
+    for src in sources:
+        for val in src or []:
+            l4 = _last_four(val)
+            if l4:
+                inv.add(l4)
+    return inv
+
+
+def _check_account_transfers(copies: list, inventory_last4: set, refs: list, flags: list) -> int:
+    """Trace inter-account transfers and flag any whose source statement is missing.
+
+    Checklist 08 #5: for each bank-statement transaction that is an account
+    transfer, confirm the counterparty account has a statement in the file.
+      • incoming transfer, counterparty statement present → info-confirm
+      • incoming transfer, counterparty statement missing → warning (source it)
+      • outgoing transfer → info (traced or note)
+    No-op until the Bank Statement schema extracts ``transactions[]``.
+    Returns the number of transfers seen.
+    """
+    total = 0
+    for copy in copies:
+        txns = _copy_field(copy, "transactions")
+        if not isinstance(txns, list) or not txns:
+            continue
+        own = _last_four(
+            _copy_field(copy, "bank_account_number", "account_number", "account_number_last4")
+        )
+        inst = (_copy_field(copy, "institution_name") or "the account").strip() or "the account"
+        for t in txns:
+            if not isinstance(t, dict):
+                continue
+            desc = t.get("description") or ""
+            kind = _transfer_kind(desc, t)
+            if kind not in ("internal_in", "internal_out"):
+                continue
+            total += 1
+            cp = _counterparty_last4(desc, t)
+            amt = _parse_float(t.get("amount"))
+            amt_txt = f"${abs(amt):,.2f}" if amt is not None else "an amount"
+            if cp and own and cp == own:
+                continue  # self-reference, not a second account
+            sourced = bool(cp) and cp in inventory_last4
+
+            if kind == "internal_in":
+                if sourced:
+                    flags.append(_flag(
+                        "6.1",
+                        f"Account Transfer Traced — …{cp}",
+                        "info",
+                        (
+                            f"Incoming transfer of {amt_txt} into {inst} from account …{cp}; "
+                            f"that account's statement is in the file (\"{str(desc)[:80]}\")."
+                        ),
+                        "Funds traced — no action needed.",
+                        docs=refs,
+                    ))
+                else:
+                    flags.append(_flag(
+                        "6.1",
+                        "Account Transfer Not Sourced — Statement Missing"
+                        + (f" (…{cp})" if cp else ""),
+                        "warning",
+                        (
+                            f"Incoming transfer of {amt_txt} into {inst} appears to come from "
+                            + (f"account …{cp}" if cp else "another account")
+                            + f", but that account's statement is not in the file (\"{str(desc)[:80]}\"). "
+                            "Transfers between accounts must be fully sourced."
+                        ),
+                        (
+                            "Obtain the most recent statement for "
+                            + (f"account …{cp}" if cp else "the source account")
+                            + " so the transferred funds can be traced."
+                        ),
+                        docs=refs,
+                    ))
+            else:  # internal_out
+                flags.append(_flag(
+                    "6.1",
+                    "Outgoing Account Transfer" + (f" — …{cp}" if cp else ""),
+                    "info",
+                    (
+                        f"Outgoing transfer of {amt_txt} from {inst}"
+                        + (f" to account …{cp}" if cp else "")
+                        + f" (\"{str(desc)[:80]}\"). Confirm the destination account is documented "
+                        "if it is a source of funds/reserves."
+                    ),
+                    "Verify the destination account is in the file when it is used for reserves.",
+                    docs=refs,
+                ))
+    return total
+
+
 def _compare_with_vod(
     doc_copies: list,            # normalised bank-statement or asset copies
     vod_rows: list,              # from state['vod_data']
@@ -222,14 +401,20 @@ def _compare_with_vod(
         the account is queued for creation in the 2a/VOD (returned in the second
         element); otherwise a ``warning`` flag is raised.
 
-    Returns a tuple ``(flags, accounts_to_add)`` where ``accounts_to_add`` is a
-    list of normalised account dicts the caller should create via ``add_vods``.
+    Returns a tuple ``(flags, accounts_to_add, entries_to_complete)`` where
+    ``accounts_to_add`` is a list of normalised account dicts the caller should
+    create via ``add_vods`` (entirely-missing accounts), and
+    ``entries_to_complete`` is a list of ``{vod_id, account_number, label,
+    updates}`` dicts the caller should pass to ``update_vods`` to fill BLANK
+    subfields on an existing matched entry (checklist 08 #10). Populated VOD
+    values are never queued for overwrite.
     """
     flags: list = []
     to_add: list = []
+    to_complete: list = []
 
     if not vod_rows:
-        return flags, to_add  # VOD not loaded — skip comparison
+        return flags, to_add, to_complete  # VOD not loaded — skip comparison
 
     for copy in doc_copies:
         # Extract fields from this copy dict
@@ -289,12 +474,34 @@ def _compare_with_vod(
                 ))
             continue
 
-        # ── Matched — compare balance ───────────────────────────────────────
+        # ── Matched ─────────────────────────────────────────────────────────
         vod_balance = matched_vod.get("balance")
         vod_inst_name = matched_vod.get("institution_name") or doc_institution_raw
         acct_label = doc_acct_raw or matched_vod.get("account_number") or vod_inst_name
+        # read_vods coerces a missing cash/market value to 0.0, so a 0/None
+        # balance is treated as an unset (blank) field for completion purposes.
+        vod_bal_blank = vod_balance in (None, 0, 0.0)
 
-        if doc_balance is not None and vod_balance is not None:
+        # ── Completion (08 #10): queue BLANK subfields to fill on this entry ──
+        completion_updates: dict = {}
+        if doc_acct_type and not (matched_vod.get("account_type") or "").strip():
+            completion_updates["account_type"] = doc_acct_type
+        if doc_balance is not None and doc_balance > 0 and vod_bal_blank:
+            completion_updates["balance"] = doc_balance
+        if doc_acct_raw and not (matched_vod.get("account_number") or "").strip():
+            completion_updates["account_number"] = str(doc_acct_raw)
+        if doc_holder and not (matched_vod.get("account_holder") or "").strip():
+            completion_updates["account_holder"] = doc_holder
+        if completion_updates and matched_vod.get("vod_id"):
+            to_complete.append({
+                "vod_id": matched_vod.get("vod_id"),
+                "account_number": matched_vod.get("account_number") or (str(doc_acct_raw) if doc_acct_raw else ""),
+                "label": vod_inst_name,
+                "updates": completion_updates,
+            })
+
+        # ── Balance comparison — only when the VOD already carries a balance ──
+        if doc_balance is not None and not vod_bal_blank:
             diff = abs(doc_balance - vod_balance)
             if diff > 1.00:
                 # Value mismatch → warn only, never overwrite the VOD.
@@ -323,8 +530,10 @@ def _compare_with_vod(
                     ),
                     "",
                 ))
-        else:
-            # Account found but balance unavailable to compare — confirm presence.
+        elif not vod_bal_blank or "balance" not in completion_updates:
+            # VOD balance present but doc balance missing, OR VOD balance blank
+            # with nothing to complete — confirm presence (a queued balance
+            # completion is reported by the caller's info-overwrite flag instead).
             flags.append(_flag(
                 substep,
                 f"{doc_type_label} — Found in 2a/VOD ({vod_inst_name})",
@@ -353,7 +562,100 @@ def _compare_with_vod(
                 "Confirm account type with borrower and update VOD in Encompass if needed.",
             ))
 
-    return flags, to_add
+    return flags, to_add, to_complete
+
+
+_COMPLETION_FIELD_LABELS = {
+    "account_type": "account type",
+    "balance": "cash/market value",
+    "account_number": "account number",
+    "account_holder": "account holder",
+}
+
+
+def _completion_field_names(updates: dict) -> list:
+    return [_COMPLETION_FIELD_LABELS.get(k, k) for k in updates]
+
+
+def _apply_vod_completions(
+    loan_id: str,
+    to_complete: list,
+    refs: list,
+    source_label: str,
+    state: dict,
+    flags: list,
+    dry_run: bool = False,
+) -> None:
+    """Fill blank subfields on existing 2a/VOD entries and emit audit flags.
+
+    Only blank fields are written (detection already filtered populated values),
+    and one ``info-overwrite`` flag is emitted per completed entry. A write
+    failure or an unsupported (legacy-schema) entry produces a single readable
+    flag so the processor can finish it manually. Honors ``dry_run``.
+    """
+    if not to_complete:
+        return
+
+    if dry_run:
+        for c in to_complete:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Completion (dry-run) ({c.get('label')})",
+                "info",
+                (
+                    f"[DRY-RUN] Would complete "
+                    f"{', '.join(_completion_field_names(c.get('updates', {})))} on the existing "
+                    f"2a/VOD entry for {c.get('label')} from the {source_label.lower()}."
+                ),
+                "",
+                docs=refs,
+            ))
+        return
+
+    from shared.encompass_io import update_vods
+    res = update_vods(loan_id, to_complete, state=state)
+    updated_by_id = {u.get("vod_id"): u.get("fields", []) for u in res.get("updated", [])}
+    skipped_by_id = {s.get("vod_id"): s.get("reason", "") for s in res.get("skipped", [])}
+
+    for c in to_complete:
+        vid = c.get("vod_id")
+        label = c.get("label")
+        if vid in updated_by_id:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Completed ({label})",
+                "info-overwrite",
+                (
+                    f"Filled blank field(s) on the existing 2a/VOD entry for {label} from the "
+                    f"{source_label.lower()}: {', '.join(updated_by_id[vid])}."
+                ),
+                "Verify the completed 2a/VOD entry in Encompass.",
+                docs=refs,
+            ))
+        elif not res.get("success"):
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Completion Failed ({label})",
+                "warning",
+                (
+                    f"Could not complete blank field(s) on the 2a/VOD entry for {label}: "
+                    f"{res.get('error')}"
+                ),
+                "Complete the 2a/VOD entry manually in Encompass.",
+                docs=refs,
+            ))
+        elif vid in skipped_by_id:
+            flags.append(_flag(
+                "6.1",
+                f"2a/VOD Entry Not Auto-Completed ({label})",
+                "info",
+                (
+                    f"Blank field(s) on the 2a/VOD entry for {label} were not auto-completed: "
+                    f"{skipped_by_id[vid]}."
+                ),
+                "Complete the 2a/VOD entry manually in Encompass.",
+                docs=refs,
+            ))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -368,7 +670,8 @@ def review_urla_assets(
     """Review Section 3a (Assets / VOD).
 
     Checks:
-      1. Bank statement presence and recency (60 days Conv / 30 days FHA).
+      1. Bank statement presence and recency (60 days Conv / 30 days FHA), plus
+         coverage continuity (no missing month between consecutive statements).
       2. ZEL / Zelle / Klarna / unusual deposits → borrower LOE required.
       3. Large / green deposits → sourcing required.
       4. Cross-reference extracted bank-statement balances + account numbers
@@ -376,7 +679,11 @@ def review_urla_assets(
            • match (balance within $1)  → info flag confirming the match
            • value mismatch (> $1)      → warning (VOD left untouched)
            • account missing from VOD   → populated into the 2a/VOD via add_vods
-      5. Cross-reference asset doc balances against VOD data (warn-only).
+           • existing entry incomplete  → BLANK subfields (account type, cash/
+             market value, account number, holder) are filled in on the entry
+             via update_vods (08 #10); populated values are never overwritten.
+      5. Cross-reference asset doc balances against VOD data; existing entries
+         with blank subfields are completed the same way (warn-only otherwise).
       5b. FHA retirement 60% haircut: for FHA loans, compares the Encompass
           2a/VOD retirement amount against vested × 0.6 (net of any 401(k)
           loan). Match → info; mismatch → warning. When terms of withdrawal
@@ -427,6 +734,14 @@ def review_urla_assets(
             logger.warning(f"[REVIEW_URLA_ASSETS] direct VOD read failed: {exc}")
             vod_rows = []
     logger.info(f"[REVIEW_URLA_ASSETS] VOD rows available: {len(vod_rows)}")
+
+    # Dry-run gate for 2a/VOD entry completion writes (checklist 08 #10).
+    _vod_dry_run = False
+    try:
+        from output.registry import DEV_MODE
+        _vod_dry_run = getattr(DEV_MODE, "dry_run", False)
+    except Exception:
+        _vod_dry_run = False
 
     # ── 4. Bank Statement copies ─────────────────────────────────────────────
     # Each copy dict from _doc_all has: {value, source_document, confidence, copy_index}
@@ -493,6 +808,39 @@ def review_urla_assets(
                 docs=_relevant_docs(state, doc_types=["Bank Statement"]),
             ))
 
+        # 4b-ii. Coverage continuity — flag gaps BETWEEN consecutive statements.
+        # Recency (4b) confirms the newest statement is current; this confirms the
+        # transaction history is continuous to current with no missing month
+        # (checklist 08 #2 "transaction history to current"). Only runs when ≥2
+        # statements expose a parseable start+end period.
+        _periods = []
+        for copy in bank_stmt_full_copies:
+            s = _parse_date(_copy_field(copy, "statement_period_start"))
+            e = _parse_date(_copy_field(copy, "statement_period_end"))
+            if s and e:
+                _periods.append((s, e))
+        if len(_periods) >= 2:
+            _periods.sort(key=lambda p: p[0])
+            for (prev_s, prev_e), (next_s, next_e) in zip(_periods, _periods[1:]):
+                # Gap = days between the end of one statement and the start of the
+                # next. Allow ~5 days slack for month-boundary/statement-cut drift;
+                # a gap beyond ~1 month means a statement is missing.
+                gap_days = (next_s - prev_e).days
+                if gap_days > 35:
+                    flags.append(_flag(
+                        "6.1",
+                        "Bank Statement Gap in Coverage",
+                        "warning",
+                        (
+                            f"Missing coverage of ~{gap_days} days between statement ending "
+                            f"{prev_e.isoformat()} and the next statement starting "
+                            f"{next_s.isoformat()}. Transaction history must be continuous "
+                            f"to current."
+                        ),
+                        "Request the missing bank statement(s) to close the gap in coverage.",
+                        docs=_relevant_docs(state, doc_types=["Bank Statement"]),
+                    ))
+
         # 4c. ZEL / Zelle / Klarna / unusual deposit keyword check
         # Kept inside the else block so these only fire when a Bank Statement is
         # actually present — prevents doc_fields contamination from other statement-
@@ -531,12 +879,13 @@ def review_urla_assets(
         _bank_refs = _relevant_docs(state, doc_types=["Bank Statement"])
         _bs_vod_flags: list = []
         _bs_to_add: list = []
+        _bs_to_complete: list = []
         if bank_stmt_full_copies:
-            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+            _bs_vod_flags, _bs_to_add, _bs_to_complete = _compare_with_vod(
                 bank_stmt_full_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         elif bank_statement_copies:
-            _bs_vod_flags, _bs_to_add = _compare_with_vod(
+            _bs_vod_flags, _bs_to_add, _bs_to_complete = _compare_with_vod(
                 bank_statement_copies, vod_rows, "Bank Statement", "6.1", allow_populate=True
             )
         if _bank_refs:
@@ -580,6 +929,12 @@ def review_urla_assets(
                         docs=_bank_refs,
                     ))
 
+        # Complete BLANK subfields on existing 2a/VOD entries (08 #10).
+        _apply_vod_completions(
+            loan_id, _bs_to_complete, _bank_refs, "Bank Statement", state, flags,
+            dry_run=_vod_dry_run,
+        )
+
     # ── 5. Asset copies ──────────────────────────────────────────────────────
     asset_full_copies = efolder_docs.get("Assets", {}).get("copies", [])
     asset_acct_copies = _doc_all(state, "asset_account_number")
@@ -587,14 +942,40 @@ def review_urla_assets(
     if vod_rows:
         _asset_refs = _relevant_docs(state, doc_types=["Assets"])
         _asset_vod_flags: list = []
+        _asset_to_complete: list = []
         if asset_full_copies:
-            _asset_vod_flags, _ = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _, _asset_to_complete = _compare_with_vod(asset_full_copies, vod_rows, "Assets", "6.1")
         elif asset_acct_copies:
-            _asset_vod_flags, _ = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
+            _asset_vod_flags, _, _asset_to_complete = _compare_with_vod(asset_acct_copies, vod_rows, "Assets", "6.1")
         if _asset_refs:
             for _f in _asset_vod_flags:
                 _f["relevant_documents"] = _asset_refs
         flags += _asset_vod_flags
+
+        # Complete BLANK subfields on existing 2a/VOD entries from asset docs (08 #10).
+        _apply_vod_completions(
+            loan_id, _asset_to_complete, _asset_refs, "Assets", state, flags,
+            dry_run=_vod_dry_run,
+        )
+
+    # ── 5a-ii. Transfers between accounts (08 #5) ────────────────────────────
+    # Trace inter-account transfers in the bank-statement transaction ledger and
+    # flag any whose source account has no statement in the file. Account
+    # inventory = every account last-4 represented across VODs + bank + asset docs.
+    _bank_txn_copies = bank_stmt_full_copies or bank_statement_copies
+    if _bank_txn_copies:
+        _inventory = _account_inventory_last4(
+            (v.get("account_number") for v in vod_rows),
+            (_copy_field(c, "bank_account_number", "account_number", "account_number_last4")
+             for c in bank_stmt_full_copies),
+            (c.get("value") for c in bank_statement_copies),
+            (_copy_field(c, "account_number_last4", "account_number") for c in asset_full_copies),
+            (c.get("value") for c in asset_acct_copies),
+        )
+        _transfer_refs = _relevant_docs(state, doc_types=["Bank Statement"])
+        _n_transfers = _check_account_transfers(_bank_txn_copies, _inventory, _transfer_refs, flags)
+        if _n_transfers:
+            logger.info(f"[REVIEW_URLA_ASSETS] Traced {_n_transfers} inter-account transfer(s)")
 
     # ── 5b. FHA retirement 60% haircut ───────────────────────────────────────
     # FHA counts only 60% of a retirement account's vested balance (net of any

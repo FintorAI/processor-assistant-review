@@ -2008,3 +2008,325 @@ def add_vod_accounts(
 
     return {"success": True, "added": added}
 
+
+def _digits_last4(val) -> str:
+    """Last 4 digits of an account-number-ish string (ignores masking chars)."""
+    import re as _re
+    d = _re.sub(r"\D", "", str(val or ""))
+    return d[-4:] if len(d) >= 4 else d
+
+
+def update_vod_accounts(
+    loan_id: str,
+    completions: list[dict[str, any]],
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Complete BLANK subfields on existing URLA-2020 VOD items (checklist 08 #10).
+
+    Unlike ``add_vod_accounts`` (which only creates new depository rows), this
+    fills in empty fields on an EXISTING VOD item — account type, cash/market
+    value, account number, or account holder — without ever overwriting a value
+    the server already has. It fetches the current VOD (so the PATCH sends the
+    full ``items`` array), modifies only the matching item's blank fields, and
+    PATCHes the VOD resource.
+
+    Only the URLA-2020 ``items`` schema is supported; legacy
+    ``accountInformation`` VODs are reported as skipped so the caller can warn.
+
+    Endpoint::
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods/{vodId}
+
+    Args:
+        loan_id: Encompass loan GUID
+        completions: list of dicts, each::
+            {
+              "vod_id":         str,          # target VOD object id
+              "account_number": str,          # locates the item within the VOD
+              "updates": {                    # normalised keys; only blanks are filled
+                "account_type":   str,        # → items[].type (mapped to enum)
+                "balance":        float,      # → items[].urla2020CashOrMarketValueAmount
+                "account_number": str,        # → items[].accountIdentifier
+                "account_holder": str,        # → items[].depositoryAccountName
+              },
+            }
+        application_id: Application ID (auto-resolved if omitted)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": bool, "updated": [{"vod_id","fields":[...]}], "skipped": [...], "error"?: str}``
+    """
+    import requests
+
+    if not completions:
+        return {"success": True, "updated": [], "skipped": []}
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    # Fetch current VODs so each PATCH can resend the full items array (PATCH
+    # replaces arrays wholesale — we must not drop the sibling items).
+    try:
+        raw_vods = get_vods(loan_id, application_id=application_id, state=state)
+    except Exception as e:
+        return {"success": False, "error": f"could not fetch VODs: {e}", "updated": [], "skipped": []}
+    by_id = {v.get("id", ""): v for v in raw_vods}
+
+    # Group completions by VOD id.
+    by_vod: dict[str, list[dict]] = {}
+    for comp in completions:
+        by_vod.setdefault(comp.get("vod_id", ""), []).append(comp)
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    updated: list[dict] = []
+    skipped: list[dict] = []
+
+    for vod_id, comps in by_vod.items():
+        raw = by_id.get(vod_id)
+        if not raw:
+            skipped.append({"vod_id": vod_id, "reason": "VOD not found on loan"})
+            continue
+        items = raw.get("items")
+        if not items:
+            # Legacy accountInformation schema — not supported here.
+            skipped.append({"vod_id": vod_id, "reason": "legacy VOD schema (no items[]) — complete manually"})
+            continue
+
+        changed_fields: list[str] = []
+        for comp in comps:
+            updates = comp.get("updates") or {}
+            want_last4 = _digits_last4(comp.get("account_number"))
+            # Locate the target item: by account-number last4, else the sole item.
+            target = None
+            if want_last4:
+                for it in items:
+                    if _digits_last4(it.get("accountIdentifier")) == want_last4:
+                        target = it
+                        break
+            # Single-item fallback ONLY when that sole item has no identifier of
+            # its own — otherwise we'd risk writing to a different account.
+            if target is None and len(items) == 1 and not _digits_last4(items[0].get("accountIdentifier")):
+                target = items[0]
+            if target is None:
+                skipped.append({"vod_id": vod_id, "reason": "could not locate matching item"})
+                continue
+
+            # Fill ONLY blank server fields.
+            if updates.get("account_type") and not (target.get("type") or "").strip():
+                enum_type = _VOD_ACCOUNT_TYPE_ENUM.get(
+                    str(updates["account_type"]).replace(" ", "").lower()
+                ) or _VOD_ACCOUNT_TYPE_ENUM.get(str(updates["account_type"]).lower())
+                if enum_type:
+                    target["type"] = enum_type
+                    changed_fields.append("account type")
+            _bal = target.get("urla2020CashOrMarketValueAmount")
+            try:
+                _bal_f = float(_bal) if _bal not in (None, "") else 0.0
+            except (TypeError, ValueError):
+                _bal_f = 0.0
+            if updates.get("balance") not in (None, "") and _bal_f == 0.0:
+                try:
+                    _new_bal = float(updates["balance"])
+                except (TypeError, ValueError):
+                    _new_bal = 0.0
+                if _new_bal > 0:
+                    target["urla2020CashOrMarketValueAmount"] = updates["balance"]
+                    changed_fields.append("cash/market value")
+            if updates.get("account_number") and not (target.get("accountIdentifier") or "").strip():
+                target["accountIdentifier"] = str(updates["account_number"]).strip()
+                changed_fields.append("account number")
+            if updates.get("account_holder") and not (target.get("depositoryAccountName") or "").strip():
+                target["depositoryAccountName"] = str(updates["account_holder"]).strip()
+                changed_fields.append("account holder")
+
+        if not changed_fields:
+            continue  # nothing blank to fill on this VOD
+
+        url = (
+            f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+            f"/applications/{application_id}/vods/{vod_id}"
+        )
+        body = {"items": items}
+        try:
+            resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code == 401:
+                client.refresh_token()
+                headers["Authorization"] = f"Bearer {client.access_token}"
+                resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code in (200, 201, 204):
+                logger.info(
+                    f"[ENCOMPASS] Completed VOD {vod_id[:8]} fields={changed_fields} for loan {loan_id[:8]}"
+                )
+                updated.append({"vod_id": vod_id, "fields": changed_fields})
+            else:
+                error_msg = (
+                    f"VOD PATCH failed for {vod_id} (status {resp.status_code}): {resp.text[:300]}"
+                )
+                logger.error(f"[ENCOMPASS] {error_msg}")
+                return {"success": False, "error": error_msg, "updated": updated, "skipped": skipped}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[ENCOMPASS] Network error updating VOD {vod_id}: {e}")
+            return {"success": False, "error": str(e), "updated": updated, "skipped": skipped}
+
+    return {"success": True, "updated": updated, "skipped": skipped}
+
+
+# Safe VOL sub-fields to auto-complete when blank (checklist 03 #8). Scalar
+# numeric/string fields only — liabilityType is intentionally excluded because a
+# wrong enum value would fail the whole PATCH (mismatches are warned instead).
+_VOL_COMPLETABLE_FIELDS = {
+    "balance":        "unpaidBalanceAmount",
+    "payment":        "monthlyPaymentAmount",
+    "credit_limit":   "creditLimit",
+    "account_number": "accountIdentifier",
+}
+
+
+def update_vol_accounts(
+    loan_id: str,
+    completions: list[dict[str, any]],
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Complete BLANK sub-fields on existing VOL (2c liability) rows (checklist 03 #8).
+
+    Fills only empty scalar fields on an EXISTING liability from a matched
+    credit-report tradeline — unpaid balance, monthly payment, credit limit, or
+    account number — without ever overwriting a value the server already has.
+    An entirely missing liability is never created here (the caller warns
+    instead), and ``liabilityType`` is never auto-written (enum-mismatch risk).
+
+    Endpoint::
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vols/{volId}
+
+    Args:
+        loan_id: Encompass loan GUID
+        completions: list of dicts, each::
+            {
+              "vol_id":  str,                 # target VOL object id
+              "updates": {                    # normalised read_vols keys; blanks only
+                "balance":        float,      # → unpaidBalanceAmount
+                "payment":        float,      # → monthlyPaymentAmount
+                "credit_limit":   float,      # → creditLimit
+                "account_number": str,        # → accountIdentifier
+              },
+            }
+        application_id: Application ID (auto-resolved if omitted)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": bool, "updated": [{"vol_id","fields":[...]}], "skipped": [...], "error"?: str}``
+    """
+    import requests
+
+    if not completions:
+        return {"success": True, "updated": [], "skipped": []}
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    # Fetch current VOLs so we can read the server's existing values and only
+    # fill genuine blanks.
+    try:
+        raw_vols = get_vols(loan_id, application_id=application_id, state=state)
+    except Exception as e:
+        return {"success": False, "error": f"could not fetch VOLs: {e}", "updated": [], "skipped": []}
+    by_id = {v.get("id", ""): v for v in raw_vols}
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    updated: list[dict] = []
+    skipped: list[dict] = []
+
+    def _blank_num(v) -> bool:
+        try:
+            return v in (None, "") or float(v) == 0.0
+        except (TypeError, ValueError):
+            return True
+
+    for comp in completions:
+        vol_id = comp.get("vol_id", "")
+        raw = by_id.get(vol_id)
+        if not raw:
+            skipped.append({"vol_id": vol_id, "reason": "VOL not found on loan"})
+            continue
+
+        updates = comp.get("updates") or {}
+        body: dict[str, any] = {}
+        changed_fields: list[str] = []
+
+        for norm_key, api_field in _VOL_COMPLETABLE_FIELDS.items():
+            if norm_key not in updates or updates[norm_key] in (None, ""):
+                continue
+            server_val = raw.get(api_field)
+            if norm_key == "account_number":
+                if (server_val or "").strip():
+                    continue  # already populated
+                body[api_field] = str(updates[norm_key]).strip()
+                changed_fields.append("account number")
+            else:
+                if not _blank_num(server_val):
+                    continue  # already populated
+                try:
+                    num = float(updates[norm_key])
+                except (TypeError, ValueError):
+                    continue
+                if num <= 0:
+                    continue
+                body[api_field] = num
+                changed_fields.append(
+                    {"balance": "unpaid balance", "payment": "monthly payment",
+                     "credit_limit": "credit limit"}[norm_key]
+                )
+
+        if not body:
+            continue  # nothing blank to fill on this VOL
+
+        url = (
+            f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+            f"/applications/{application_id}/vols/{vol_id}"
+        )
+        try:
+            resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code == 401:
+                client.refresh_token()
+                headers["Authorization"] = f"Bearer {client.access_token}"
+                resp = requests.patch(url, json=body, headers=headers, timeout=30)
+            if resp.status_code in (200, 201, 204):
+                logger.info(
+                    f"[ENCOMPASS] Completed VOL {vol_id[:8]} fields={changed_fields} for loan {loan_id[:8]}"
+                )
+                updated.append({"vol_id": vol_id, "fields": changed_fields})
+            else:
+                error_msg = (
+                    f"VOL PATCH failed for {vol_id} (status {resp.status_code}): {resp.text[:300]}"
+                )
+                logger.error(f"[ENCOMPASS] {error_msg}")
+                return {"success": False, "error": error_msg, "updated": updated, "skipped": skipped}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[ENCOMPASS] Network error updating VOL {vol_id}: {e}")
+            return {"success": False, "error": str(e), "updated": updated, "skipped": skipped}
+
+    return {"success": True, "updated": updated, "skipped": skipped}
+

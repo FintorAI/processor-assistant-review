@@ -81,6 +81,161 @@ def _entry_populated(entry: dict) -> bool:
     return bool(entry.get("employer_name"))
 
 
+_DATE_FMTS = ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%Y/%m/%d", "%m/%d/%y")
+
+
+def _parse_date(val):
+    """Parse a date string in several common formats → date, or None."""
+    if not val:
+        return None
+    for fmt in _DATE_FMTS:
+        try:
+            return datetime.strptime(str(val).strip(), fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _days_old(val):
+    """Days between today and the given date string, or None if unparseable."""
+    d = _parse_date(val)
+    if not d:
+        return None
+    return (datetime.now(timezone.utc).date() - d).days
+
+
+def _copy_val(copy: dict, *keys):
+    """Read the first non-empty extracted value from an eFolder copy dict.
+
+    Tolerates both the live shape (``extracted_fields`` with nested
+    ``{"value": ...}``) and the older flat ``fields`` shape.
+    """
+    fields = copy.get("extracted_fields") or copy.get("fields") or {}
+    for k in keys:
+        if k in fields:
+            v = fields[k]
+            if isinstance(v, dict):
+                v = v.get("value")
+            if v not in (None, ""):
+                return v
+    return None
+
+
+def _name_tokens(v: Optional[str]) -> set:
+    """Normalized whole-word token set for a name (drops <2-char noise tokens)."""
+    norm = _normalize_name(v)
+    return {t for t in norm.split() if len(t) >= 2}
+
+
+def _name_matches_any(doc_name: Optional[str], applicant_token_sets: list) -> bool:
+    """True if the doc name shares ≥2 tokens (or all of a short name) with any applicant.
+
+    Requires at least two overlapping tokens (e.g., first + last) so a common
+    first name alone does not count as a match; for single-token applicant names
+    a single overlap suffices.
+    """
+    doc_tokens = _name_tokens(doc_name)
+    if not doc_tokens:
+        return False
+    for appl in applicant_token_sets:
+        if not appl:
+            continue
+        overlap = doc_tokens & appl
+        need = 1 if len(appl) < 2 else 2
+        if len(overlap) >= need:
+            return True
+    return False
+
+
+# ── Paystub earnings-variance (checklist 05 W-2 #4) ──────────────────────────
+# Classify each paystub earnings line item into a pay bucket. Regex so short
+# abbreviations (OT, O/T) match on word boundaries only.
+_EARNING_BUCKET_PATTERNS = [
+    ("overtime",   re.compile(r"\b(over\s*time|o/?t|dbl\s*time|double\s*time)\b")),
+    ("bonus",      re.compile(r"\b(bonus|incentive|spiff|award)\b")),
+    ("commission", re.compile(r"\b(commission|comm)\b")),
+    ("holiday",    re.compile(r"\b(holiday|hol)\b")),
+    ("pto",        re.compile(r"\b(pto|vacation|vac|sick|personal|paid\s*time\s*off|leave)\b")),
+    ("base",       re.compile(r"\b(regular|reg|salary|hourly|base|piece\s*work|piecework|"
+                              r"additional\s*pay|straight\s*time)\b")),
+]
+
+
+def _classify_earning(description: Optional[str]) -> str:
+    """Map an earnings line-item description to a pay bucket."""
+    d = str(description or "").lower()
+    for bucket, pat in _EARNING_BUCKET_PATTERNS:
+        if pat.search(d):
+            return bucket
+    return "other"
+
+
+def _analyze_paystub_earnings(copies: list, refs: list, flags: list) -> None:
+    """Surface base vs variable (OT/bonus/commission) income from paystub earnings[].
+
+    Consumes the extracted ``earnings[]`` line items (checklist 05 W-2 #4). For
+    each distinct employee (most complete stub per name = highest YTD), emits a
+    YTD composition summary and warns when variable income (overtime / bonus /
+    commission) is material and therefore requires a documented 2-year average.
+    No-op until the Paystub schema extracts ``earnings[]``.
+    """
+    by_emp: dict = {}
+    for c in copies:
+        earnings = _copy_val(c, "earnings")
+        if not isinstance(earnings, list) or not earnings:
+            continue
+        emp = _normalize_name(_copy_val(c, "borrower_name")) or "borrower"
+        ytd_total = sum((_parse_amount(e.get("ytd_amount")) or 0.0)
+                        for e in earnings if isinstance(e, dict))
+        if emp not in by_emp or ytd_total > by_emp[emp][0]:
+            by_emp[emp] = (ytd_total, earnings)
+
+    for emp, (ytd_total, earnings) in by_emp.items():
+        buckets: dict = {}
+        for e in earnings:
+            if not isinstance(e, dict):
+                continue
+            amt = _parse_amount(e.get("ytd_amount"))
+            if amt is None:
+                amt = _parse_amount(e.get("current_amount")) or 0.0
+            buckets[_classify_earning(e.get("description"))] = (
+                buckets.get(_classify_earning(e.get("description")), 0.0) + amt
+            )
+        gross = ytd_total or sum(buckets.values())
+        variable = buckets.get("overtime", 0.0) + buckets.get("bonus", 0.0) + buckets.get("commission", 0.0)
+
+        parts = [f"{k}: ${v:,.2f}" for k, v in sorted(buckets.items(), key=lambda x: -x[1]) if v]
+        flags.append(_flag("5.1",
+            "Paystub Earnings Breakdown (YTD)",
+            "info",
+            "YTD earnings composition — " + "; ".join(parts) + f". Total YTD gross ${gross:,.2f}.",
+            "Confirm base vs variable (OT/bonus/commission) income is split correctly and that "
+            "variable income is averaged for qualifying.",
+            docs=refs,
+        ))
+
+        if gross > 0 and variable > 0 and (variable / gross) >= 0.25:
+            flags.append(_flag("5.1",
+                "Variable Income Material — 2-Year Averaging Required",
+                "warning",
+                f"Overtime/bonus/commission is ${variable:,.2f} YTD "
+                f"({variable / gross * 100:.0f}% of ${gross:,.2f} gross). Variable income must be "
+                "averaged over 24 months and shown to be stable and likely to continue.",
+                "Obtain a 2-year history (W-2s / VOE) and average the variable income; confirm "
+                "continuance per AUS before using it to qualify.",
+                docs=refs,
+            ))
+        elif variable > 0:
+            flags.append(_flag("5.1",
+                "Overtime/Bonus Present — Confirm Averaging",
+                "info",
+                f"Paystub includes overtime/bonus/commission (${variable:,.2f} YTD). Even when "
+                "immaterial, it should be averaged and documented for the qualifying income.",
+                "Confirm the variable-income treatment matches the AUS findings and the 2-year average.",
+                docs=refs,
+            ))
+
+
 def _get_voe_copy_for_employer(state: dict, los_employer_name: str):
     """Return (extracted_fields, copy_index) from the VOE copy whose employer name
     best matches the given LOS employer name. Falls back to copy 0 if no match.
@@ -462,6 +617,13 @@ def review_urla_employment(
     - Checks authorization checkbox, date terminated logic, and employment gaps.
     All flag titles are person-tagged (Borrower / Co-Borrower) so dedup keeps both.
 
+    Also cross-checks the income source documents when present in the eFolder
+    (presence itself is flagged by run_pre_checks):
+    - Paystubs: most recent pay_date within 30 days (AUS), and borrower name +
+      employer on each stub reconciled against the 1003 / VOE (05 W-2 #2, #3).
+    - W-2: employer + name consistency against the VOE / 1003 and surfaces the
+      tax year(s) on file (05 W-2 #8).
+
     Call this tool during STEP_05 (1003 URLA Page 2) as substep 5.1.
 
     Writes: URLA.X201/X202 (Section 2c Does Not Apply, borr/co-borr) and
@@ -827,6 +989,147 @@ def review_urla_employment(
                         "Enter borrower hire date, years in job, and years in line of work "
                         "in the VOE form first.",
                     ))
+
+    # ── Paystub & W-2 cross-checks (5.2 / 5.3) ───────────────────────────────
+    # Covers checklist 05 W-2 #2 (paystubs dated within 30 days), #3 (name/employer
+    # on stubs) and #8 (VOE consistency with W-2). Presence of the docs is already
+    # flagged in run_pre_checks (1.1); these rules only validate recency, identity
+    # and consistency when the doc is actually on file.
+    _efolder_docs = state.get("efolder_documents", {})
+
+    # Known applicant name token sets (borrower + co-borrower).
+    _applicant_names = [
+        _name_tokens(
+            " ".join(x for x in [_los(state, "borrower_first_name"),
+                                 _los(state, "borrower_last_name")] if x)
+        ),
+        _name_tokens(
+            " ".join(x for x in [_los(state, "coborrower_first_name"),
+                                 _los(state, "coborrower_last_name")] if x)
+        ),
+    ]
+    _applicant_names = [s for s in _applicant_names if s]
+
+    # Known current-employer names (from LOS employment entries + matched VOE copies).
+    _known_employers = set()
+    for _src in (
+        current_entry.get("employer_name") if current_entry else None,
+        coborr_current.get("employer_name") if coborr_current else None,
+        borr_voe.get("cur_name"),
+        coborr_voe.get("cur_name"),
+        borr_1c_employer, coborr_1c_employer,
+    ):
+        _n = _normalize_name(_src)
+        if _n:
+            _known_employers.add(_n)
+
+    def _employer_matches_known(doc_employer: Optional[str]) -> bool:
+        """True if the doc employer shares a meaningful token with any known employer."""
+        doc_tok = {t for t in _normalize_name(doc_employer).split() if len(t) >= 3}
+        if not doc_tok:
+            return False
+        for known in _known_employers:
+            known_tok = {t for t in known.split() if len(t) >= 3}
+            if doc_tok & known_tok:
+                return True
+        return False
+
+    # ── Paystubs: recency (≤30 days) + name/employer identity ──────────────────
+    _paystub_copies = _efolder_docs.get("Paystubs", {}).get("copies", []) or []
+    if _paystub_copies:
+        _ps_refs = _relevant_docs(state, doc_types=["Paystubs"])
+
+        # Recency — most recent pay_date must be within 30 days (AUS standard).
+        _pay_dates = [(_copy_val(c, "pay_date"), c) for c in _paystub_copies]
+        _parsed = [(d, _days_old(d), c) for (d, c) in _pay_dates if _parse_date(d)]
+        if _parsed:
+            _newest = min(_parsed, key=lambda t: t[1])  # smallest days-old = most recent
+            _d_val, _d_age, _ = _newest
+            if _d_age is not None and _d_age > 30:
+                flags.append(_flag("5.1",
+                    "Paystub Stale — Older Than 30 Days",
+                    "warning",
+                    f"Most recent paystub is dated {_d_val} ({_d_age} days old). "
+                    "AUS requires paystubs dated within 30 days of the application.",
+                    "Request an updated paystub covering the most recent 30-day pay period.",
+                    docs=_ps_refs,
+                ))
+        else:
+            flags.append(_flag("5.1",
+                "Paystub Date Unverifiable",
+                "warning",
+                "Paystub(s) present in the eFolder but no readable pay date was extracted, "
+                "so the 30-day recency requirement could not be verified.",
+                "Manually confirm the paystub is dated within 30 days, or re-run extraction.",
+                docs=_ps_refs,
+            ))
+
+        # Identity — borrower name + employer on each stub.
+        for c in _paystub_copies:
+            _ps_name = _copy_val(c, "borrower_name")
+            if _ps_name and _applicant_names and not _name_matches_any(_ps_name, _applicant_names):
+                flags.append(_flag("5.1",
+                    "Paystub Name Mismatch",
+                    "warning",
+                    f"Paystub shows employee name '{_ps_name}', which does not match the "
+                    "borrower or co-borrower name on the 1003.",
+                    "Confirm the paystub belongs to an applicant on this loan; correct the "
+                    "name in Encompass or obtain the correct paystub.",
+                    docs=_ps_refs,
+                ))
+            _ps_emp = _copy_val(c, "employer_name")
+            if _ps_emp and _known_employers and not _employer_matches_known(_ps_emp):
+                flags.append(_flag("5.1",
+                    "Paystub Employer Not Matched",
+                    "warning",
+                    f"Paystub employer '{_ps_emp}' does not match any current employer on the "
+                    "1003 / VOE.",
+                    "Verify the paystub employer against the employment record; add or correct "
+                    "the employer in Encompass if needed.",
+                    docs=_ps_refs,
+                ))
+
+        # Earnings variance — base vs OT/bonus/holiday/commission (05 W-2 #4).
+        _analyze_paystub_earnings(_paystub_copies, _ps_refs, flags)
+
+    # ── W-2: employer consistency with VOE/LOS + surface tax year ──────────────
+    _w2_copies = _efolder_docs.get("W-2", {}).get("copies", []) or []
+    if _w2_copies:
+        _w2_refs = _relevant_docs(state, doc_types=["W-2"])
+        _w2_years = []
+        for c in _w2_copies:
+            _w2_emp = _copy_val(c, "employer_name")
+            if _w2_emp and _known_employers and not _employer_matches_known(_w2_emp):
+                flags.append(_flag("5.1",
+                    "W-2 Employer Not Consistent with VOE/1003",
+                    "warning",
+                    f"W-2 employer '{_w2_emp}' does not match any current employer on the "
+                    "1003 / VOE.",
+                    "Reconcile the W-2 employer against the VOE and 1003 employment record.",
+                    docs=_w2_refs,
+                ))
+            _w2_name = _copy_val(c, "borrower_name")
+            if _w2_name and _applicant_names and not _name_matches_any(_w2_name, _applicant_names):
+                flags.append(_flag("5.1",
+                    "W-2 Name Mismatch",
+                    "warning",
+                    f"W-2 shows employee name '{_w2_name}', which does not match the borrower "
+                    "or co-borrower name on the 1003.",
+                    "Confirm the W-2 belongs to an applicant on this loan.",
+                    docs=_w2_refs,
+                ))
+            _ty = _copy_val(c, "tax_year")
+            if _ty:
+                _w2_years.append(str(_ty))
+        if _w2_years:
+            flags.append(_flag("5.1",
+                f"W-2 On File — Tax Year(s) {', '.join(sorted(set(_w2_years)))}",
+                "info",
+                f"W-2(s) present for tax year(s): {', '.join(sorted(set(_w2_years)))}. "
+                "Employer(s) cross-checked against the VOE / 1003.",
+                "Verify the W-2 tax years satisfy the AUS income documentation requirement.",
+                docs=_w2_refs,
+            ))
 
     # ── Build result ──────────────────────────────────────────────────────────
     populated_entries = len(api_entries)

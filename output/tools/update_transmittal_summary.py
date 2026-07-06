@@ -1,6 +1,6 @@
-"""update_transmittal_summary — Tool for substep 10.1: Update Transmittal Summary
+"""update_transmittal_summary — Tool for substep 11.1: Update Transmittal Summary
 
-Step 10 (STEP_10): Transmittal Summary
+Step 11 (STEP_11): Transmittal Summary
 Phase: FORM_UPDATES
 
 What this agent does:
@@ -139,7 +139,7 @@ def update_transmittal_summary(
     """Review the 1008 Transmittal Summary: compare note rate vs qualifying rate,
     surface project type for info, and flag condo project fields as pending CUA.
 
-    Call this tool during STEP_10 (Transmittal Summary) as substep 10.1.
+    Call this tool during STEP_11 (Transmittal Summary) as substep 11.1.
     Reads LOS: note_rate, qualifying_rate, transmittal_project_type, property_type,
                condo_project_name, condo_project_id, hoa_dues_monthly,
                attachment_type, property_address/city/state/zip
@@ -188,7 +188,7 @@ def update_transmittal_summary(
     if note_rate_f is not None and qual_rate_f is not None:
         if abs(note_rate_f - qual_rate_f) > 0.001:
             flags.append({
-                "substep": "10.1",
+                "substep": "11.1",
                 "title": "Note Rate vs Qualifying Rate Mismatch",
                 "severity": "warning",
                 "details": (
@@ -209,7 +209,7 @@ def update_transmittal_summary(
         if qual_rate_f is None:
             missing.append("Qualifying Rate (field 1014)")
         flags.append({
-            "substep": "10.1",
+            "substep": "11.1",
             "title": "Rate Fields Not Populated",
             "severity": "warning",
             "details": f"Cannot compare rates — {', '.join(missing)} is blank.",
@@ -288,7 +288,7 @@ def update_transmittal_summary(
             # indicators. Flag-to-verify only: misclassifying property/project type
             # affects pricing/eligibility, so leave the final call to the processor.
             flags.append({
-                "substep": "10.1",
+                "substep": "11.1",
                 "title": "Possible PUD — Verify Property / Project Type",
                 "severity": "warning",
                 "details": (
@@ -322,7 +322,7 @@ def update_transmittal_summary(
             if zillow_subdivision and not condo_project_name:
                 _before_pn = len(flags)
                 _write_fields(
-                    loan_id, {"1298": zillow_subdivision}, "10.1",
+                    loan_id, {"1298": zillow_subdivision}, "11.1",
                     flags, state=state, labels={"1298": "Project Name"},
                 )
                 if any(f.get("title") == "Auto-corrected: Project Name" for f in flags[_before_pn:]):
@@ -335,7 +335,7 @@ def update_transmittal_summary(
             # No strong PUD indicator → preserve the default non-PUD 1012 write.
             if pud_signals:
                 flags.append({
-                    "substep": "10.1",
+                    "substep": "11.1",
                     "title": "Possible PUD — Weak Indicators (Verify)",
                     "severity": "info",
                     "details": (
@@ -356,13 +356,13 @@ def update_transmittal_summary(
             current_1012 = (project_type_1012 or "").strip()
             if not current_1012:
                 # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
-                _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "10.1", flags, state=state)
+                _write_fields(loan_id, {"1012": _NOT_IN_PUD_VALUE}, "11.1", flags, state=state)
                 logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1012 = '{_NOT_IN_PUD_VALUE}'")
             elif _normalise_1012(current_1012) == _NOT_IN_PUD_NORM or _NOT_IN_PUD_VALUE.lower() in current_1012.lower():
                 logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Field 1012 already correct: {current_1012!r}")
             else:
                 flags.append({
-                    "substep": "10.1",
+                    "substep": "11.1",
                     "title": "Project Type (1012) — Unexpected Value",
                     "severity": "warning",
                     "details": (
@@ -400,10 +400,10 @@ def update_transmittal_summary(
 
     if _form_writes:
         # _write_fields emits its own audited "Auto-corrected" flag — no manual flag needed.
-        _write_fields(loan_id, _form_writes, "10.1", flags, state=state)
+        _write_fields(loan_id, _form_writes, "11.1", flags, state=state)
     elif _current_form and _current_form != _expected_form:
         flags.append({
-            "substep": "10.1",
+            "substep": "11.1",
             "title": "Appraisal Form Number — Unexpected Value",
             "severity": "warning",
             "details": (
@@ -418,7 +418,7 @@ def update_transmittal_summary(
     # Surface property review type (field 1541) as info
     if property_review_type:
         flags.append({
-            "substep": "10.1",
+            "substep": "11.1",
             "title": "Level of Property Review",
             "severity": "info",
             "details": f"Field 1541 (Level of Property Review) = {property_review_type!r}.",
@@ -429,7 +429,7 @@ def update_transmittal_summary(
 
     # ── Rule: Project Type info ─────────────────────────────────────────────
     flags.append({
-        "substep": "10.1",
+        "substep": "11.1",
         "title": "Project Type",
         "severity": "info",
         "details": (
@@ -454,7 +454,7 @@ def update_transmittal_summary(
             if _zsub:
                 _before = len(flags)
                 _write_fields(
-                    loan_id, {"1298": _zsub}, "10.1", flags,
+                    loan_id, {"1298": _zsub}, "11.1", flags,
                     state=state, labels={"1298": "Project Name"},
                 )
                 # Only treat the name as populated when Encompass actually accepted
@@ -481,7 +481,7 @@ def update_transmittal_summary(
                 if not condo_project_id:
                     missing_fields.append("CPM Project ID# (field 3050)")
                 flags.append({
-                    "substep": "10.1",
+                    "substep": "11.1",
                     "title": "Condo Project Fields Pending — CUA Required",
                     "severity": "info",
                     "details": (
@@ -503,7 +503,7 @@ def update_transmittal_summary(
 
     result = {
         "success": True,
-        "substep": "10.1",
+        "substep": "11.1",
         "tool": "update_transmittal_summary",
         "note_rate": note_rate,
         "qualifying_rate": qualifying_rate,

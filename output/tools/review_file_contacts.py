@@ -863,6 +863,192 @@ def _sync_seller_addresses(
     return written
 
 
+# ── Title Insurance Company File Contact (Title Report source) ───────────────
+# The Title Report server schema carries the title company (name + license),
+# the commitment/order number, and the issuing agent / contact. We write these
+# into the Encompass TITLE_INSURANCE_COMPANY file contact so the processor
+# doesn't have to key them by hand (checklist 02 #2 "Update Title Insurance
+# Company — license + order #"). The reference doc is the Title Report / commitment.
+_TITLE_CT = "TITLE_INSURANCE_COMPANY"
+
+
+def _doc_obj(state: dict, key: str) -> Dict[str, Any]:
+    """Read a nested doc_fields object (e.g. Title Report ``title_company``).
+
+    The extractor stores the object as the field's ``value`` (a dict), or
+    occasionally as a JSON string. Returns a plain dict, or {} if absent/unparseable.
+    """
+    entry = (state.get("doc_fields") or {}).get(key)
+    val = entry.get("value") if isinstance(entry, dict) else entry
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str) and val.strip().startswith("{"):
+        try:
+            parsed = json.loads(val)
+            return parsed if isinstance(parsed, dict) else {}
+        except (ValueError, TypeError):
+            return {}
+    return {}
+
+
+def _title_company_source(state: dict) -> Dict[str, str]:
+    """Build the Title Insurance Company contact fields from the Title Report.
+
+    Merges the nested ``title_company`` object with the top-level
+    ``commitment_number`` (order/commitment ref), ``issuing_agent``, and the
+    nested ``contact`` object. Returns only non-empty fields.
+    """
+    tc = _doc_obj(state, "title_company")
+    contact = _doc_obj(state, "contact")
+
+    def g(d: Dict[str, Any], *keys: str) -> str:
+        for k in keys:
+            v = str((d or {}).get(k) or "").strip()
+            if v:
+                return v
+        return ""
+
+    src: Dict[str, str] = {
+        "name": g(tc, "company_name"),
+        "bizLicenseNumber": g(tc, "license_number"),
+        "referenceNumber": _doc(state, "commitment_number"),
+        "contactName": g(contact, "contact_name") or _doc(state, "issuing_agent"),
+        "personalLicenseNumber": g(contact, "contact_license_number"),
+        "phone": g(tc, "phone_number") or g(contact, "phone"),
+        "email": g(tc, "email") or g(contact, "email"),
+        "address": g(tc, "address"),
+        "city": g(tc, "city"),
+        "state": g(tc, "state"),
+        "postalCode": g(tc, "postal_code", "postalCode", "zip"),
+    }
+    return {k: v for k, v in src.items() if v}
+
+
+def _sync_title_company(
+    loan_id: str,
+    state: dict,
+    contact_map: Dict[str, Dict[str, Any]],
+    flags: List[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Create/update the TITLE_INSURANCE_COMPANY file contact from the Title Report.
+
+    Behaviour mirrors ``_sync_contacts``: create when missing, overwrite only the
+    fields that genuinely differ (address compared as a whole so formatting-only
+    differences don't trigger a write), and emit one ``info-overwrite`` flag per
+    write. No-op when the Title Report supplies no usable title-company data, so a
+    file without a title report (e.g. early refi) never gets a spurious flag.
+    """
+    src = _title_company_source(state)
+    # Require at least a company name or a license/order number to act on.
+    if not (src.get("name") or src.get("bizLicenseNumber") or src.get("referenceNumber")):
+        return {}
+
+    # Validate phone/email the same way as the other contacts; drop bad values so
+    # the PATCH merge keeps whatever Encompass already has.
+    dropped: List[str] = []
+    obj: Dict[str, Any] = {"contactType": _TITLE_CT}
+    for k in ("name", "contactName", "bizLicenseNumber", "personalLicenseNumber",
+              "referenceNumber", "address", "city", "state", "postalCode"):
+        if src.get(k):
+            obj[k] = src[k]
+    if src.get("phone"):
+        if _looks_complete_phone(src["phone"]):
+            obj["phone"] = src["phone"]
+        else:
+            dropped.append("phone")
+    _email = re.sub(r"\s+", "", src.get("email", ""))
+    if _email:
+        if _EMAIL_RE.match(_email):
+            obj["email"] = _email
+        else:
+            dropped.append("email")
+    if len(obj) <= 1:  # nothing valid beyond contactType
+        return {}
+
+    existing = contact_map.get(_TITLE_CT)
+    mode = "created"
+    diffs: Dict[str, tuple] = {}
+    write_obj = obj
+    if existing:
+        mode = "updated"
+        for k, v in obj.items():
+            if k == "contactType" or k in _ADDRESS_FIELDS:
+                continue
+            old = (existing.get(k) or "").strip()
+            if old.lower() != str(v).strip().lower():
+                diffs[k] = (old, v)
+        if any(k in obj for k in _ADDRESS_FIELDS):
+            new_addr = {**existing, **{k: obj[k] for k in _ADDRESS_FIELDS if k in obj}}
+            if _norm_addr(_join_addr(existing)) != _norm_addr(_join_addr(new_addr)):
+                for k in _ADDRESS_FIELDS:
+                    if k in obj:
+                        old = (existing.get(k) or "").strip()
+                        new = str(obj[k]).strip()
+                        if old.lower() != new.lower():
+                            diffs[k] = (old, new)
+        if not diffs:
+            return {}
+        write_obj = {"contactType": _TITLE_CT}
+        write_obj.update({k: obj[k] for k in diffs if k in obj})
+
+    try:
+        from encompass_client import write_loan_contacts
+        res = write_loan_contacts(loan_id, [write_obj], state=state)
+    except Exception as exc:
+        logger.error(f"[REVIEW_FILE_CONTACTS] title company write raised: {exc}")
+        res = {"success": False, "error": str(exc)}
+
+    if not res.get("success"):
+        flags.append(_flag(
+            title="Title Insurance Company Auto-Sync Failed",
+            severity="warning",
+            details=(
+                "Attempted to write the Title Insurance Company file contact from the "
+                f"Title Report but the contacts write failed: {res.get('error')}"
+            ),
+            suggestion="Manually update the Title Insurance Company in Encompass File Contacts.",
+        ))
+        return {}
+
+    merged = dict(existing or {})
+    merged.update(write_obj)
+    contact_map[_TITLE_CT] = merged
+    note = (
+        f" Skipped {', '.join(dropped)} (incomplete/invalid on the Title Report — kept existing value)."
+        if dropped else ""
+    )
+    if mode == "created":
+        title = "File Contact Populated from Title Report: Title Insurance Company"
+        details = (
+            "The Title Insurance Company was missing and has been written to Encompass "
+            "File Contacts from the Title Report / commitment:\n"
+            f"{_field_bullets(write_obj)}\n"
+            f"{note + chr(10) if note else ''}"
+            "Verify accuracy against the title commitment."
+        )
+    else:
+        title = "File Contact Updated from Title Report: Title Insurance Company"
+        details = (
+            "The Title Insurance Company differed from the Title Report and the following "
+            "field(s) were overwritten:\n"
+            f"{_diff_bullets(diffs)}\n"
+            f"{note + chr(10) if note else ''}"
+            "Verify accuracy against the title commitment."
+        )
+    flags.append({
+        "substep": SUBSTEP,
+        "title": title,
+        "severity": "info-overwrite",
+        "details": details,
+        "suggestion": "Verify the Title Insurance Company details in Encompass File Contacts.",
+        "resolved": False,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    logger.info(f"[REVIEW_FILE_CONTACTS] [{_TITLE_CT}] {mode} from Title Report — "
+                f"{_contact_summary(merged)}")
+    return {_TITLE_CT: mode}
+
+
 @tool
 def review_file_contacts(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -888,6 +1074,11 @@ def review_file_contacts(
         Encompass loan field 186).
       - Seller 1 / Seller 2 — the subject property address (LOS fields 11/12/14/15)
         is written to each existing seller contact's address.
+      - Title Insurance Company — created/overwritten from the Title Report:
+        company name, company license (bizLicenseNumber), commitment/order #
+        (referenceNumber), and issuing agent / contact (contactName +
+        personalLicenseNumber) with phone/email/address. No-op when the Title
+        Report supplies no title-company data.
 
     Every auto-write flag enumerates the written field(s) as a bullet list.
 
@@ -944,6 +1135,12 @@ def review_file_contacts(
 
     # ── Populate Seller 1/2 addresses with the subject property (purchase) ──
     written.update(_sync_seller_addresses(loan_id, state, contact_map, flags))
+
+    # ── Populate Title Insurance Company from the Title Report (02 #2) ──
+    # Writes company name + company license (bizLicenseNumber) + commitment/order #
+    # (referenceNumber) + issuing agent/contact from the Title Report. No-op when
+    # no title-company data is extracted.
+    written.update(_sync_title_company(loan_id, state, contact_map, flags))
 
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []

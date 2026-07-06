@@ -1,5 +1,5 @@
 step:
-  id: STEP_10
+  id: STEP_11
   name: Transmittal Summary
   phase: FORM_UPDATES
   description: >
@@ -8,7 +8,7 @@ step:
     ID/name, note rate vs qualifying rate.
 
 substeps:
-- id: '10.1'
+- id: '11.1'
   name: Update Transmittal Summary
   tool: update_transmittal_summary
   description: >

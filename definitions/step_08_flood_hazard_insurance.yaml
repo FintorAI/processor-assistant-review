@@ -1,0 +1,135 @@
+step:
+  id: STEP_08
+  name: Flood & Hazard Insurance
+  phase: DATA_REVIEW
+  description: >
+    Review the Flood Certificate and insurance documents against Encompass.
+    Confirms the flood cert applicant/property match the loan (checklist 12 #2),
+    and confirms the flood zone designation — classifying SFHA (A/V) vs
+    non-hazard (X), checking that a flood policy is on file when in an SFHA, and
+    reconciling the extracted zone against the Encompass Flood Zone on the Flood
+    Information form (field 541) with auto-correct on mismatch/blank (12 #4).
+    Hazard-insurance verification (checklist section 13) is scaffolded here for
+    future build-out. Read-only against borrower data; the only write is the
+    flood zone (541) when the cert maps to a recognized FEMA designation.
+
+substeps:
+- id: '8.1'
+  name: Review Flood & Hazard Insurance
+  tool: review_flood_hazard_insurance
+  description: >
+    Cross-reference the Flood Certificate against Encompass: applicant name and
+    property address vs the subject (12 #2), and the flood zone designation vs
+    Encompass field 541 with SFHA insurance-required checks (12 #4). Auto-correct
+    field 541 from the cert only when the extracted zone maps to a value the
+    field-541 dropdown accepts; otherwise warn and leave for manual entry.
+  los_fields_read:
+  # ── Subject property (for flood cert address/zone cross-reference) ──
+  - key: property_address
+    field_id: '11'
+    field_name: Property Street Address
+    category: property
+    purpose: Subject address for flood cert property match (12 #2)
+  - key: property_address_urla
+    field_id: URLA.X73
+    field_name: Property Street Address (URLA Lender — editable)
+    category: property
+    purpose: Editable subject street address fallback
+  - key: property_city
+    field_id: '12'
+    field_name: Property City
+    category: property
+    purpose: Subject address component
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: Subject address component
+  - key: property_zip
+    field_id: '15'
+    field_name: Property ZIP
+    category: property
+    purpose: Subject address component
+  # ── Applicant identity (for flood cert borrower_name match) ──
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: Match against flood cert borrower name (12 #2)
+  - key: coborrower_last_name
+    field_id: '4006'
+    field_name: Co-Borrower Last Name
+    category: borrower_info
+    purpose: Match against flood cert borrower name (12 #2)
+  # ── Flood Information form ──
+  - key: los_flood_zone
+    field_id: '541'
+    field_name: Flood Zone (Flood Information form)
+    category: property
+    purpose: >
+      Checklist 12 #4 — compare/auto-correct against the flood certificate's
+      extracted zone; only written when the zone maps to a field-541 dropdown
+      value.
+  - key: los_flood_cert_number
+    field_id: '2363'
+    field_name: 'Flood Certification Number (Cert #)'
+    category: property
+    purpose: Flood Information form Cert # — reference for the determination number
+  doc_types:
+  - document_type: Flood Certificate
+    all_copies: false
+    fields:
+    - key: property_address
+      purpose: Flood cert property address vs subject (12 #2)
+    - key: borrower_name
+      purpose: Flood cert borrower name vs applicant surname(s) (12 #2)
+    - key: flood_zone
+      purpose: FEMA flood zone designation (12 #4)
+    - key: in_sfha
+      purpose: Whether the property is in a Special Flood Hazard Area (12 #4)
+  - document_type: Flood Insurance
+    all_copies: false
+    fields:
+    - key: flood_policy_number
+      purpose: Presence of a flood policy when property is in an SFHA
+    - key: flood_annual_premium
+      purpose: Presence of a flood policy premium when in an SFHA
+  - document_type: Evidence of Insurance
+    all_copies: false
+    fields:
+    - key: insured_location
+      purpose: Hazard policy insured location (section 13 build-out)
+  rules:
+  - name: Flood Cert Applicant/Property Match
+    type: field_comparison
+    logic: >
+      The flood certificate borrower name must overlap the Encompass applicant
+      surname(s), and the flood cert property address must match the
+      USPS-validated subject address. Warn on mismatch; never auto-correct.
+  - name: Flood Zone Designation
+    type: field_comparison
+    logic: >
+      Classify the flood cert zone (SFHA A/V vs non-hazard X). When in an SFHA,
+      a flood policy must be on file. Reconcile the extracted zone against
+      Encompass field 541 — auto-correct on mismatch/blank only when the zone
+      maps to a recognized FEMA designation.
+  flags:
+  - title: Flood Cert Applicant Mismatch
+    severity: warning
+    condition: Flood cert borrower name does not match the Encompass applicant(s)
+    suggestion: Verify the flood certificate was ordered for the correct borrower / loan
+  - title: Flood Zone Mismatch
+    severity: warning
+    condition: Flood cert zone does not match Encompass field 541 and is not a recognized designation
+    suggestion: Verify the correct flood zone and update Encompass field 541 manually
+  - title: Flood Insurance Required (SFHA)
+    severity: warning
+    condition: Property is in a Special Flood Hazard Area but no flood policy is on file
+    suggestion: Obtain a flood insurance policy meeting NFIP coverage requirements
+  field_updates:
+  - field_id: '541'
+    value: '{flood_zone}'
+    condition: Flood cert zone maps to a recognized FEMA designation and 541 is blank or mismatched
+
+dev:
+  skip: false

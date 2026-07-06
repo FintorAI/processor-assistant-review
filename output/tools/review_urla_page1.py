@@ -23,6 +23,16 @@ logger = logging.getLogger(__name__)
 
 _VALID_CITIZENSHIP = {"USCitizen", "PermanentResidentAlien", "NonPermanentResidentAlien"}
 _VALID_BOOL = {"Y", "YES", "TRUE", "X", "1"}
+
+# Residency / work-authorization documentation required for non-US-citizen
+# borrowers (checklist 03 #17). Keyed by the Encompass citizenship enum value.
+_RESIDENT_ALIEN_DOCS = {
+    "PermanentResidentAlien":
+        "a copy of the Permanent Resident Card (Green Card / Form I-551)",
+    "NonPermanentResidentAlien":
+        "a valid visa and/or Employment Authorization Document (EAD / Form I-766) "
+        "plus proof of continued eligibility",
+}
 _VALID_LANG = {
     "EnglishIndicator", "SpanishIndicator", "ChineseIndicator", "KoreanIndicator",
     "TagalogIndicator", "VietnameseIndicator", "OtherIndicator", "DoNotWishToRespondIndicator",
@@ -39,6 +49,24 @@ def _flag(flags: list, substep: str, title: str, severity: str, details: str, su
         "resolved": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+
+
+def _resident_alien_doc_flag(flags: list, who: str, field_label: str, citizenship: str) -> None:
+    """Flag a Resident Alien borrower for residency/work-authorization docs (03 #17).
+
+    Emits a warning for Permanent or Non-Permanent Resident Alien so the processor
+    obtains the Green Card / visa / EAD. Citizenship itself is never auto-populated.
+    """
+    doc = _RESIDENT_ALIEN_DOCS.get(citizenship)
+    if not doc:
+        return
+    kind = ("Permanent" if citizenship == "PermanentResidentAlien" else "Non-Permanent")
+    _flag(flags, "4.1",
+          f"{who} Is a Resident Alien — Documentation Required",
+          "warning",
+          f"{field_label} = '{citizenship}' ({kind} Resident Alien). A non-US-citizen "
+          f"borrower requires residency / work-authorization documentation in the file.",
+          f"Obtain {doc} for the {who.lower()} and confirm it is current / unexpired.")
 
 
 def _safe_int(val) -> int:
@@ -104,9 +132,10 @@ def review_urla_page1(
     state: Annotated[dict, InjectedState],
 ) -> Command:
     """Review 1003 URLA Page 1 for completeness. Skips mandatory personal info (owned by Borrower
-    Summary). Checks citizenship, current/former address (with 2-year rule), mailing address,
-    military service (VA-required), language preference, housing type/rent, dependents, and
-    subject property # units.
+    Summary). Checks citizenship (incl. a Resident-Alien documentation flag — Green Card / EAD —
+    for Permanent or Non-Permanent Resident Aliens, checklist 03 #17), current/former address
+    (with 2-year rule), mailing address, military service (VA-required), language preference,
+    housing type/rent, dependents, and subject property # units.
 
     Call this tool during STEP_04 (1003 URLA Page 1) as substep 4.1.
     Does NOT re-check borrower name / SSN / DOB / marital status — those are owned by STEP_02.
@@ -138,6 +167,7 @@ def review_urla_page1(
     if borr_citizenship in _VALID_CITIZENSHIP:
         _flag(flags, "4.1", "Borrower Citizenship", "info",
               f"URLA.X1 = '{borr_citizenship}'.", "Verify citizenship is correct.")
+        _resident_alien_doc_flag(flags, "Borrower", "URLA.X1", borr_citizenship)
     else:
         _flag(flags, "4.1", "Borrower Citizenship Empty or Invalid", "warning",
               f"URLA.X1 = '{borr_citizenship or '(blank)'}'. Must be one of: "
@@ -150,6 +180,7 @@ def review_urla_page1(
         if coborr_citizenship in _VALID_CITIZENSHIP:
             _flag(flags, "4.1", "Co-Borrower Citizenship", "info",
                   f"URLA.X2 = '{coborr_citizenship}'.", "Verify citizenship is correct.")
+            _resident_alien_doc_flag(flags, "Co-Borrower", "URLA.X2", coborr_citizenship)
         else:
             _flag(flags, "4.1", "Co-Borrower Citizenship Empty or Invalid", "warning",
                   f"URLA.X2 = '{coborr_citizenship or '(blank)'}'. Must be one of: "
