@@ -1,7 +1,7 @@
 """build_action_items — Final substep: derive communications action items.
 
-Step 13 (STEP_13): Processor Workflow and Closing
-Substep 12.3 — run last, after all reviews/updates complete.
+Step 14 (STEP_14): Processor Workflow and Closing
+Substep 14.3 — run last, after all reviews/updates complete.
 
 Component-agnostic RULE REGISTRY. Each rule inspects the review state and emits
 at most one "action item" describing a downstream action a processor can trigger
@@ -52,8 +52,9 @@ from ._helpers import _efolder_present, _los, _profile
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "13.3"
+SUBSTEP = "14.3"
 COMMS_AGENT = "processor_communications"
+REVIEW_AGENT = "processor_assistant_review"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -187,6 +188,39 @@ def _item(
         "trigger": {
             "agent": COMMS_AGENT,
             "graph_id": graph_id,
+            "resume_contract": resume_contract,
+            "payload": payload,
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _integration_item(
+    action_type: str,
+    title: str,
+    description: str,
+    tool: str,
+    payload: Dict[str, Any],
+    *,
+    resume_contract: str = "integration_rerun",
+    status: str = "actionable",
+    severity: str = "action",
+    blockers: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Action item that re-invokes a review-agent tool (not a comms graph)."""
+    return {
+        "id": action_type,
+        "component": "integrations",
+        "action_type": action_type,
+        "title": title,
+        "description": description,
+        "severity": severity,
+        "status": status,
+        "blockers": blockers or [],
+        "needs_input": [],
+        "trigger": {
+            "agent": REVIEW_AGENT,
+            "tool": tool,
             "resume_contract": resume_contract,
             "payload": payload,
         },
@@ -372,6 +406,93 @@ def _rule_hoa_loe(state: dict) -> Optional[dict]:
     )
 
 
+def _rule_inquiry_loe(state: dict) -> Optional[dict]:
+    """Request a credit-inquiry Letter of Explanation when §04 #7 flagged recent inquiries.
+
+    Fires only when ``review_borrower_summary`` raised an unresolved
+    ``§04 #7 Recent Credit Inquiries — LOX Required`` flag. The payload carries
+    the inquiry detail lines from the flag so the comms template can reference
+    each recent inquiry.
+    """
+    inq_flags = [
+        f for f in _unresolved_flags(state, "lox required")
+        if "§04 #7" in (f.get("title") or "")
+        and "lox required" in (f.get("title") or "").lower()
+        and "no recent credit inquiries" not in (f.get("title") or "").lower()
+    ]
+    if not inq_flags:
+        return None
+
+    inquiry_details = [f.get("details", "") for f in inq_flags if f.get("details")]
+
+    payload = {**_base_payload(state), "inputs": {
+        "loe_type": "credit_inquiry",
+        "borrower_name": _borrower_name(state),
+        "coborrower_name": _coborrower_name(state),
+        "property_address": _property_address(state),
+        "loan_number": _loan_number(state),
+        "inquiry_details": inquiry_details,
+        "test_mode": _test_mode(state),
+    }}
+    return _item(
+        "inquiry_loe",
+        "Request Credit-Inquiry Letter of Explanation",
+        (
+            f"{len(inq_flags)} recent credit-inquiry flag(s) require a written explanation "
+            f"from the borrower. Request a credit-inquiry LOE."
+        ),
+        "processor_inquiry_loe", "email", payload,
+    )
+
+
+def _rule_rerun_mavent(state: dict) -> Optional[dict]:
+    """Rerun Mavent when STEP_13.2 reported non-pass categories or overall status."""
+    mv = state.get("mavent_verification") or {}
+    mr = state.get("mavent_results") or {}
+
+    mavent_flags = [
+        f for f in (state.get("flags") or [])
+        if isinstance(f, dict)
+        and not f.get("resolved")
+        and (
+            str(f.get("check_id") or "").startswith("mavent_")
+            or str(f.get("title") or "").startswith("Mavent ")
+        )
+        and f.get("severity") in ("error", "warning")
+        and f.get("check_id") not in ("mavent_overall_pass",)
+    ]
+
+    report_status = str(mr.get("report_status") or mv.get("report_status") or "").upper()
+    non_pass = (
+        mavent_flags
+        or mv.get("fail_count", 0) > 0
+        or mv.get("warning_count", 0) > 0
+        or report_status not in ("", "PASS", "PASSED")
+    )
+    if not non_pass:
+        return None
+
+    fail_n = mv.get("fail_count") or sum(1 for f in mavent_flags if f.get("severity") == "error")
+    warn_n = mv.get("warning_count") or sum(1 for f in mavent_flags if f.get("severity") == "warning")
+
+    payload = {
+        "loan_number": _loan_number(state),
+        "loan_id": state.get("loan_id"),
+        "env": state.get("env") or "Prod",
+        "force_refresh": True,
+    }
+    return _integration_item(
+        "rerun_mavent",
+        "Rerun Mavent Compliance Check",
+        (
+            f"Mavent reported {fail_n} fail(s) and {warn_n} warning(s) "
+            f"(overall: {report_status or 'non-pass'}). Rerun after resolving issues in Encompass."
+        ),
+        "run_mavent_compliance",
+        payload,
+    )
+
+
 # Registry — append future rules (including other components) here.
 # NOTE: `_rule_hoa_loe` is intentionally OMITTED. Per processor feedback
 # (notes.txt:608-619), the "no-HOA" Blend follow-up is case-by-case, not
@@ -385,6 +506,8 @@ RULES: List[Callable[[dict], Optional[dict]]] = [
     _rule_lock_desk,
     _rule_emd_request,
     _rule_employment_gap_loe,
+    _rule_inquiry_loe,
+    _rule_rerun_mavent,
 ]
 
 

@@ -256,6 +256,10 @@ class ProcessorAgentState(AgentState):
     # ── Communications action items (component-agnostic; see build_action_items) ──
     comms_actions: Annotated[NotRequired[list[dict]], OmitFromInput, merge_comms_actions]
 
+    # ── Mavent ECS results (STEP_13.2; full messages for dashboard panel) ──
+    mavent_verification: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
+    mavent_results: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
+
     # ── Workflow progress ──
     current_step: Annotated[NotRequired[str | None], OmitFromInput, last_value_reducer]
     current_substep: Annotated[NotRequired[str | None], OmitFromInput, last_value_reducer]

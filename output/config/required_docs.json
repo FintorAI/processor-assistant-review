@@ -13,7 +13,11 @@
         "borrower_marital_status",
         "coborrower_marital_status",
         "borrower_first_name",
-        "urla_signed"
+        "urla_signed",
+        "borrower_signature_date",
+        "coborrower_signature_date",
+        "loan_officer_signed",
+        "loan_officer_signature_date"
       ]
     },
     "transmittal_summary": {
@@ -53,7 +57,11 @@
         "appraisal_property_address",
         "property_state",
         "property_zip",
-        "parcel_number"
+        "parcel_number",
+        "appraisal_made_as_is",
+        "appraisal_subject_to_completion",
+        "appraisal_subject_to_repairs",
+        "appraisal_subject_to_conditions"
       ]
     },
     "du_findings": {
@@ -463,6 +471,9 @@
         "pa_buyer_name",
         "pa_contract_date",
         "pa_signing_date",
+        "contract_date",
+        "buyer_signed",
+        "seller_signed",
         "emd_amount_pa",
         "emd_payable_to",
         "payment_terms",
@@ -492,6 +503,33 @@
         "seller_agent_email"
       ]
     },
+    "mi_certificate": {
+      "name": "MI Certificate",
+      "efolder_doc_type": "MI Certificate",
+      "category": "insurance",
+      "optional": true,
+      "aliases": [
+        "MI Quote",
+        "Mortgage Insurance",
+        "PMI Certificate",
+        "PMI"
+      ],
+      "fields_extracted": [
+        "certificate_number",
+        "premium_type",
+        "monthly_premium_amount",
+        "mi_company_name",
+        "mi_company_address",
+        "mi_file_number",
+        "first_renewal_percent",
+        "first_renewal_months",
+        "second_renewal_percent",
+        "second_renewal_months",
+        "cancel_at_percent",
+        "upfront_premium_amount",
+        "upfront_premium_percent"
+      ]
+    },
     "credit_report": {
       "name": "Credit Report",
       "category": "credit",
@@ -504,10 +542,38 @@
         "borrower_aka",
         "coborrower_aka",
         "credit_score_factors",
+        "credit_reference_number",
         "credit_report_order_date",
         "credit_report_present",
         "fact_act_present",
+        "employer_name",
+        "borrower_current_address",
+        "coborrower_current_address",
+        "inquiries",
         "liabilities"
+      ]
+    },
+    "fraud_report": {
+      "name": "Fraud Report",
+      "efolder_doc_type": "Fraud Report",
+      "category": "compliance",
+      "aliases": [
+        "Fraud",
+        "Fraud Guard",
+        "FraudGuard",
+        "LoanSafe",
+        "Identity Fraud"
+      ],
+      "fields_extracted": [
+        "fraud_alert_status",
+        "fraud_score",
+        "fraud_aka",
+        "fraud_coborrower_aka",
+        "borrower_name",
+        "borrower_ssn",
+        "coborrower_name",
+        "coborrower_ssn",
+        "address_history"
       ]
     },
     "caivrs": {
@@ -613,10 +679,17 @@
         "Standard Flood Hazard Determination"
       ],
       "fields_extracted": [
-        "flood_insurance_company",
-        "flood_policy_number",
+        "company_name",
+        "company_phone",
+        "company_fax",
+        "contact_name",
+        "contact_email",
+        "company_address",
         "flood_zone",
-        "flood_annual_premium",
+        "annual_premium",
+        "coverage_amount",
+        "effective_date",
+        "expiration_date",
         "flood_cert_present",
         "in_sfha",
         "property_address",

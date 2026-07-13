@@ -12,7 +12,7 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from langchain_core.messages import ToolMessage
@@ -20,9 +20,52 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs
+from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs, _efolder_present
 
 logger = logging.getLogger(__name__)
+
+CREDIT_REPORT_VALIDITY_DAYS = 120
+INQUIRY_LOOKBACK_DAYS = 120
+_APPRAISAL_DOC = "Appraisal (URAR / 1004)"
+_PURCHASE_AGREEMENT_DOC = "Purchase Agreement"
+
+
+def _truthy_doc(val) -> bool:
+    """True when an extracted doc boolean/checkbox field is affirmatively set."""
+    if val is None:
+        return False
+    if isinstance(val, bool):
+        return val
+    s = str(val).strip().upper()
+    if s in ("N", "NO", "FALSE", "0"):
+        return False
+    return s in ("Y", "YES", "TRUE", "1", "X", "CHECKED")
+
+
+def _falsy_doc(val) -> bool:
+    """True when an extracted doc boolean/checkbox field is explicitly negative."""
+    if val is None:
+        return False
+    if isinstance(val, bool):
+        return not val
+    return str(val).strip().upper() in ("N", "NO", "FALSE", "0")
+
+
+def _efolder_has_piw_doc(state: dict) -> bool:
+    """True when any eFolder bucket title contains 'PIW'."""
+    for dt in state.get("efolder_documents", {}) or {}:
+        if dt == "_meta":
+            continue
+        if "piw" in dt.lower() and _efolder_present(state, dt):
+            return True
+    return False
+
+
+def _collateral_relief_indicates_piw(text) -> bool:
+    t = str(text or "").lower()
+    return any(k in t for k in (
+        "piw", "property inspection waiver", "appraisal waiver", "ace", "collateral relief",
+    ))
 
 
 def _flag(flags, substep, title, severity, details, suggestion, docs=None):
@@ -102,6 +145,35 @@ def _parse_date(val):
         except ValueError:
             continue
     return None
+
+
+def _parse_number(val):
+    """Best-effort parse of a currency/percentage/number string."""
+    if val in (None, ""):
+        return None
+    try:
+        return float(re.sub(r"[^0-9.\-]", "", str(val)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _mi_compare_text(left, right) -> bool:
+    """Loose equality for AUS-vs-LOS loan attributes."""
+    a = _norm_name(left)
+    b = _norm_name(right)
+    if not a or not b:
+        return False
+    aliases = {
+        "conv": "conventional",
+        "owner occupied": "primary residence",
+        "primary": "primary residence",
+        "principal residence": "primary residence",
+        "investment": "investment property",
+        "investor": "investment property",
+    }
+    a = aliases.get(a, a)
+    b = aliases.get(b, b)
+    return a == b or a in b or b in a
 
 
 def _surname_on(surname, text) -> bool:
@@ -303,6 +375,7 @@ def review_borrower_summary(
     borrower_first_name      = _los(state, "borrower_first_name")
     borrower_last_name       = _los(state, "borrower_last_name")
     borrower_ssn             = _los(state, "borrower_ssn")
+    coborrower_ssn           = _los(state, "coborrower_ssn")
     borrower_dob             = _los(state, "borrower_dob")
     borrower_home_phone      = _los(state, "borrower_home_phone")
     borrower_cell_phone      = _los(state, "borrower_cell_phone")   # field 1490
@@ -331,6 +404,10 @@ def review_borrower_summary(
     estimated_value          = _los(state, "estimated_value")       # field 1821
     los_purchase_price       = _los(state, "los_purchase_price")    # field 136
     loan_purpose             = _los(state, "loan_purpose")          # field 19
+    ltv                      = _los(state, "ltv")                    # field 353
+    mi_cert_number           = _los(state, "mi_cert_number")         # field 1387
+    mi_monthly_premium       = _los(state, "mi_monthly_premium")     # field 232
+    mi_doc_expiration        = _los(state, "mi_doc_expiration")      # document tracking field
     property_address         = _los(state, "property_address")
     property_address_urla    = _los(state, "property_address_urla")  # URLA.X73 — editable
     property_city            = _los(state, "property_city")
@@ -345,12 +422,15 @@ def review_borrower_summary(
     # ── Transaction Details ───────────────────────────────────────────────
     lender                   = _los(state, "lender")               # field 1264
     loan_program             = _los(state, "loan_program")         # field 1401
+    subordinate_financing    = _los(state, "subordinate_financing")  # field 140
+    dpa_subordinate_amount   = _los(state, "dpa_subordinate_amount")  # URLA.X230
     closing_cost_program     = _los(state, "closing_cost_program") # field 1785
     loan_number              = _los(state, "loan_number")          # field 364
     mers_min                 = _los(state, "mers_min")             # field 1051
 
     # ── Loan Info ─────────────────────────────────────────────────────────
     occupancy                = _los(state, "occupancy")            # field 1811
+    property_type            = _los(state, "property_type")        # field 1041
     loan_type                = _los(state, "loan_type")            # field 1172
     lien_position            = _los(state, "lien_position")        # field 420
     amort_type               = _los(state, "amort_type")           # field 608
@@ -511,9 +591,9 @@ def review_borrower_summary(
                   f"present (median {_median}). Verify the representative/decision score is populated.",
                   "Populate the decision credit score field (VASUMM.X23).")
 
-    if not credit_reference_number:
+    if not credit_reference_number and not _doc(state, "credit_reference_number"):
         _flag(flags, "2.1", "Credit Reference Number Missing", "warning",
-              "Credit Reference Number (field 300) is blank.",
+              "Credit Reference Number (field 300) is blank and no report ID was extracted.",
               "Enter the credit reference number from the credit report.")
 
     if has_coborrower:
@@ -693,13 +773,13 @@ def review_borrower_summary(
     _los_ssn4, _doc_ssn4 = _digits(borrower_ssn)[-4:], _digits(_ssn_doc)[-4:]
     if _los_ssn4 and _doc_ssn4:
         if _digits(borrower_ssn) != _digits(_ssn_doc):
-            _flag(flags, "2.1", "Borrower SSN vs Credit Report", "warning",
+            _flag(flags, "2.1", "§04 #3 Borrower SSN Mismatch", "warning",
                   f"Encompass borrower SSN (ending {_los_ssn4}) does not match the Credit "
                   f"Report SSN (ending {_doc_ssn4}).",
                   "Verify the borrower SSN in Encompass against the credit report / ID.",
                   docs=_relevant_docs(state, "borrower_ssn", doc_types=["Credit Report"]))
         else:
-            _flag(flags, "2.1", "Borrower SSN Confirmed", "info",
+            _flag(flags, "2.1", "§04 #3 Borrower SSN Confirmed", "info",
                   f"Borrower SSN (ending {_los_ssn4}) matches the Credit Report.",
                   "No action needed — SSN matches the credit report.")
 
@@ -770,6 +850,162 @@ def review_borrower_summary(
     if has_coborrower:
         _aka_reconcile("coborrower_aka", "1874",
                        coborrower_first_name, coborrower_last_name, "Co-Borrower")
+
+    # ── §04 Credit Report Review (warn/info only, no writes) ──
+    _cr_docs = _relevant_docs(
+        state, "credit_reference_number", "credit_report_order_date", "borrower_ssn",
+        "coborrower_ssn", "borrower_current_address", "employer_name", "inquiries",
+        doc_types=["Credit Report"],
+    )
+
+    # 04 #1 — Credit Report ID + expiration
+    _cr_ref_doc = _doc(state, "credit_reference_number")
+    _cr_ref_los = credit_reference_number
+    if _cr_ref_doc or _cr_ref_los:
+        _dr = _digits(_cr_ref_doc)
+        _dl = _digits(_cr_ref_los)
+        if _dr and _dl and _dr != _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Mismatch", "warning",
+                  f"Credit report ID ('{_cr_ref_doc}') does not match Encompass "
+                  f"Credit Reference Number (300) = '{_cr_ref_los}'.",
+                  "Verify field 300 matches the report ID in the top-right of the credit report.",
+                  docs=_cr_docs)
+        elif _dr and not _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Not in Encompass", "warning",
+                  f"Credit report shows ID '{_cr_ref_doc}' but Encompass field 300 is blank.",
+                  "Enter the credit reference number from the credit report into field 300.",
+                  docs=_cr_docs)
+        elif _dr and _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Confirmed", "info",
+                  f"Credit report ID ('{_cr_ref_doc}') matches Encompass field 300.",
+                  "No action needed — credit report ID matches.")
+
+    _cr_order_raw = _doc(state, "credit_report_order_date")
+    _cr_order_dt = _parse_date(_cr_order_raw)
+    if _cr_order_dt:
+        _expiry = _cr_order_dt + timedelta(days=CREDIT_REPORT_VALIDITY_DAYS)
+        _close_dt = _parse_date(est_closing_date_val or borrower_est_closing_date_val)
+        _today = date.today()
+        if _expiry < _today:
+            _flag(flags, "2.1", "§04 #1 Credit Report Expired", "warning",
+                  f"Credit report ordered {_cr_order_raw} expires {_expiry:%m/%d/%Y} "
+                  f"({CREDIT_REPORT_VALIDITY_DAYS}-day validity) — already past today.",
+                  "Order a fresh credit report before proceeding.",
+                  docs=_cr_docs)
+        elif _close_dt and _expiry < _close_dt:
+            _flag(flags, "2.1", "§04 #1 Credit Report Expires Before Closing", "warning",
+                  f"Credit report ordered {_cr_order_raw} expires {_expiry:%m/%d/%Y}, "
+                  f"before the closing date ({_close_dt:%m/%d/%Y}).",
+                  "Order a fresh credit report or confirm the closing date.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #1 Credit Report Valid", "info",
+                  f"Credit report ordered {_cr_order_raw} is valid through {_expiry:%m/%d/%Y}"
+                  + (f" (closing {_close_dt:%m/%d/%Y})" if _close_dt else "") + ".",
+                  "No action needed — credit report is within the validity window.",
+                  docs=_cr_docs)
+
+    # 04 #3 — Co-borrower SSN (borrower handled above in §1.6)
+    if has_coborrower:
+        _co_ssn_doc = _doc(state, "coborrower_ssn")
+        _los_co4, _doc_co4 = _digits(coborrower_ssn)[-4:], _digits(_co_ssn_doc)[-4:]
+        if _los_co4 and _doc_co4:
+            if _digits(coborrower_ssn) != _digits(_co_ssn_doc):
+                _flag(flags, "2.1", "§04 #3 Co-Borrower SSN Mismatch", "warning",
+                      f"Encompass co-borrower SSN (ending {_los_co4}) does not match the "
+                      f"Credit Report SSN (ending {_doc_co4}).",
+                      "Verify the co-borrower SSN in Encompass against the credit report.",
+                      docs=_cr_docs)
+            else:
+                _flag(flags, "2.1", "§04 #3 Co-Borrower SSN Confirmed", "info",
+                      f"Co-borrower SSN (ending {_los_co4}) matches the Credit Report.",
+                      "No action needed — co-borrower SSN matches the credit report.")
+
+    # 04 #5 — Frozen bureau (score == 0)
+    _csf_raw = _doc(state, "credit_score_factors")
+    _csf = _csf_raw if isinstance(_csf_raw, list) else []
+    _frozen = []
+    for entry in _csf:
+        if not isinstance(entry, dict):
+            continue
+        repo = (entry.get("repository") or "").strip()
+        score = entry.get("score")
+        try:
+            if score is not None and float(score) == 0:
+                _frozen.append(repo or "Unknown bureau")
+        except (TypeError, ValueError):
+            continue
+    if _frozen:
+        _flag(flags, "2.1", "§04 #5 Frozen Credit Bureau", "warning",
+              f"Credit bureau(s) returned a score of 0 (frozen or unavailable): "
+              f"{', '.join(_frozen)}. The tri-merge may be incomplete.",
+              "Confirm whether the bureau is frozen and request an unfreeze or re-pull.",
+              docs=_cr_docs)
+    elif _csf:
+        _flag(flags, "2.1", "§04 #5 Credit Bureaus Active", "info",
+              "All reported bureau scores are non-zero — no frozen-bureau signal.",
+              "No action needed — tri-merge bureau scores are present.")
+
+    # 04 #4 — Residence address variance + employment discrepancy
+    _cr_addr = _doc(state, "borrower_current_address")
+    _los_addr = ", ".join(
+        p for p in (borr_present_addr, borr_present_city, borr_present_state, borr_present_zip) if p)
+    if _cr_addr and _los_addr:
+        if not _addr_match(_cr_addr, _los_addr):
+            _flag(flags, "2.1", "§04 #4 Credit Report Address Variance", "warning",
+                  f"Credit report residence ('{_cr_addr}') does not match the Encompass "
+                  f"borrower present address ('{_los_addr}').",
+                  "Verify the borrower's current address on the 1003 matches the credit report.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #4 Credit Report Address Confirmed", "info",
+                  "Credit report residence matches the Encompass borrower present address.",
+                  "No action needed — residence address matches.")
+
+    _cr_employer = (_doc(state, "employer_name") or "").strip()
+    _los_employer = (
+        (_los(state, "be01_employer_name") or _los(state, "employer_name") or "").strip()
+    )
+    if _cr_employer and _los_employer:
+        _ce, _le = _cr_employer.lower(), _los_employer.lower()
+        if _ce not in _le and _le not in _ce:
+            _flag(flags, "2.1", "§04 #4 Employment Name Mismatch", "warning",
+                  f"Credit report employer ('{_cr_employer}') does not match Encompass "
+                  f"employer ('{_los_employer}').",
+                  "Verify the borrower's current employer on the 1003 matches the credit report.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #4 Employment Name Confirmed", "info",
+                  f"Credit report employer ('{_cr_employer}') matches Encompass.",
+                  "No action needed — employer matches the credit report.")
+
+    # 04 #7 — Recent inquiries → LOX required
+    _inq_raw = _doc(state, "inquiries")
+    _inquiries = _inq_raw if isinstance(_inq_raw, list) else []
+    _anchor = _cr_order_dt or date.today()
+    _cutoff = _anchor - timedelta(days=INQUIRY_LOOKBACK_DAYS)
+    _recent = []
+    for inq in _inquiries:
+        if not isinstance(inq, dict):
+            continue
+        _idt = _parse_date(inq.get("date"))
+        if _idt and _idt >= _cutoff:
+            _company = (inq.get("company") or inq.get("name") or "").strip()
+            _itype = (inq.get("type") or "").strip()
+            _recent.append(
+                f"{inq.get('date')}: {_company}" + (f" ({_itype})" if _itype else "")
+            )
+    if _recent:
+        _flag(flags, "2.1", "§04 #7 Recent Credit Inquiries — LOX Required", "warning",
+              f"{len(_recent)} credit inquir{'y' if len(_recent) == 1 else 'ies'} within the "
+              f"last {INQUIRY_LOOKBACK_DAYS} days — borrower LOX required:\n"
+              + "\n".join(f"  • {r}" for r in _recent),
+              "Request a Letter of Explanation from the borrower for each recent inquiry.",
+              docs=_cr_docs)
+    elif _inquiries:
+        _flag(flags, "2.1", "§04 #7 No Recent Credit Inquiries", "info",
+              f"No credit inquiries within the last {INQUIRY_LOOKBACK_DAYS} days of the report.",
+              "No action needed — no recent inquiries requiring LOX.")
 
     # §1.5 (refi) — Owner-occupied rate/term refi: borrower should reside at subject.
     # (Cash-out refis are already handled by the dedicated rule above.)
@@ -853,6 +1089,60 @@ def review_borrower_summary(
                   docs=_relevant_docs(state, "pa_seller_concessions", "payment_terms",
                                       doc_types=["Purchase Agreement"]))
 
+    # §09 #4 — Fully executed Purchase Contract on file (purchase only).
+    if _is_purchase:
+        _pa_doc_refs = _relevant_docs(state, "pa_contract_date", "contract_date", "pa_signing_date",
+                                      "buyer_signed", "seller_signed", "pa_buyer_name", "pa_seller_name",
+                                      doc_types=[_PURCHASE_AGREEMENT_DOC])
+        if not _efolder_present(state, _PURCHASE_AGREEMENT_DOC):
+            _flag(flags, "2.1", "§09 #4 Purchase Contract Missing", "warning",
+                  "No Purchase Agreement found in the eFolder.",
+                  "Upload the fully executed purchase contract before proceeding.",
+                  docs=_pa_doc_refs)
+        else:
+            _exec_date = (
+                _doc(state, "pa_contract_date")
+                or _doc(state, "contract_date")
+                or _doc(state, "pa_signing_date")
+            )
+            _buyer_signed = _doc(state, "buyer_signed")
+            _seller_signed = _doc(state, "seller_signed")
+            _pa_seller_name_doc = _doc(state, "pa_seller_name")
+            _sig_issues = []
+
+            if not _exec_date:
+                _sig_issues.append("contract execution / signing date not extracted")
+
+            if _buyer_signed is not None:
+                if not _truthy_doc(_buyer_signed):
+                    _sig_issues.append("buyer signature not confirmed on the contract")
+            elif not _exec_date or not pa_buyer_name_doc:
+                _sig_issues.append("buyer signature status unknown (add buyer_signed extraction or confirm manually)")
+
+            if _seller_signed is not None:
+                if not _truthy_doc(_seller_signed):
+                    _sig_issues.append("seller signature not confirmed on the contract")
+            elif not _exec_date or not _pa_seller_name_doc:
+                _sig_issues.append("seller signature status unknown (add seller_signed extraction or confirm manually)")
+
+            if _sig_issues:
+                _flag(flags, "2.1", "§09 #4 Purchase Contract — Execution Review", "warning",
+                      "Purchase Agreement is on file but execution is not fully confirmed:\n"
+                      + "\n".join(f"  • {i}" for i in _sig_issues),
+                      "Confirm the contract is fully executed by all buyers and sellers. "
+                      "Agent blocks are synced separately in File Contacts (§09 #5).",
+                      docs=_pa_doc_refs)
+            else:
+                _sig_detail = f"Executed {_exec_date}." if _exec_date else "Buyer and seller signatures confirmed."
+                if _buyer_signed is None or _seller_signed is None:
+                    _sig_detail += (
+                        " Signature booleans were not extracted — confirm ink/e-signatures manually."
+                    )
+                _flag(flags, "2.1", "§09 #4 Purchase Contract — Fully Executed", "info",
+                      f"Purchase Agreement on file. {_sig_detail}",
+                      "No action needed — contract execution confirmed.",
+                      docs=_pa_doc_refs)
+
     # §11.5 — Occupancy type is a recognized value (presence is checked in Loan Info below)
     if occupancy:
         _occ_norm = str(occupancy).strip().lower()
@@ -913,6 +1203,181 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Appraisal Address Confirmed", "info",
                   f"Appraisal subject address matches the subject property ('{_appr_addr}').",
                   "No action needed — appraisal is on the subject property.")
+
+    # §11 #2 — PIW / appraisal waiver (AUS + LOS + eFolder).
+    _piw_eligible = _doc(state, "appraisal_waiver_eligible")
+    _collateral_relief = _doc(state, "collateral_rw_relief")
+    _piw_expiration = _doc(state, "appraisal_waiver_expiration")
+    _los_waiver = (_los(state, "appraisal_waiver") or "").strip().lower()
+    _has_los_waiver = _los_waiver in ("y", "yes", "true", "1", "waived", "x")
+    _piw_in_aus = _truthy_doc(_piw_eligible) or _collateral_relief_indicates_piw(_collateral_relief)
+    _piw_in_efolder = _efolder_has_piw_doc(state)
+    _piw_active = _piw_in_aus or _has_los_waiver or _piw_in_efolder
+    _appr_on_file = _efolder_present(state, _APPRAISAL_DOC)
+    _piw_sources = []
+    if _piw_in_aus:
+        _piw_sources.append("AUS appraisal waiver / collateral relief")
+    if _has_los_waiver:
+        _piw_sources.append(f"CX.APPRAISAL.WAIVER = '{_los_waiver}'")
+    if _piw_in_efolder:
+        _piw_sources.append("PIW document in eFolder")
+    _aus_docs = _relevant_docs(state, "appraisal_waiver_eligible", "collateral_rw_relief",
+                               "appraisal_waiver_expiration", doc_types=["DU Findings / AUS Certificate"])
+
+    if _piw_active:
+        if _piw_in_aus and not (_piw_in_efolder or _has_los_waiver):
+            _flag(flags, "2.1", "§11 #2 PIW — Certificate/Disclosure Missing", "warning",
+                  "AUS indicates an appraisal waiver (PIW) is eligible, but no PIW disclosure/certificate "
+                  "was found in the eFolder and CX.APPRAISAL.WAIVER is not set.",
+                  "Obtain and upload the executed PIW disclosure/certificate, or set CX.APPRAISAL.WAIVER "
+                  "when the waiver is confirmed.",
+                  docs=_aus_docs)
+        else:
+            _exp_txt = f" Expiration: {_piw_expiration}." if _piw_expiration else ""
+            _flag(flags, "2.1", "§11 #2 PIW — Appraisal Waiver Active", "info",
+                  f"Property Inspection Waiver (PIW) / appraisal waiver is active "
+                  f"({'; '.join(_piw_sources)}).{_exp_txt}",
+                  "Appraisal may not be required — confirm fees and collateral requirements reflect the waiver.",
+                  docs=_aus_docs)
+        if _appr_on_file:
+            _flag(flags, "2.1", "§11 #2 PIW — Appraisal Also on File", "info",
+                  "An appraisal report is in the eFolder despite a PIW / appraisal-waiver signal.",
+                  "Confirm whether the appraisal is still required or was ordered before the waiver.",
+                  docs=_relevant_docs(state, "appraisal_property_address",
+                                      doc_types=[_APPRAISAL_DOC]))
+    elif _piw_eligible is not None and not _truthy_doc(_piw_eligible) and not _appr_on_file:
+        _flag(flags, "2.1", "§11 #2 Appraisal Required — No Waiver", "info",
+              "AUS does not indicate an appraisal waiver and no appraisal report is in the eFolder.",
+              "Order or obtain the appraisal per AUS findings.",
+              docs=_aus_docs)
+
+    # §11 #4 — Legal description, applicant, seller (purchase; appraisal collateral review).
+    if _is_purchase and (_appr_on_file or _appr_addr):
+        _legal_desc = _doc(state, "legal_description")
+        _appr_parcel = _doc(state, "parcel_number")
+        _tax_parcel = _doc(state, "tax_parcel_number")
+        _tax_owner = _doc(state, "tax_owner_name")
+        _pa_seller = _doc(state, "pa_seller_name")
+        _title_docs = _relevant_docs(state, "legal_description", doc_types=["Title Report"])
+        _appr_id_docs = _relevant_docs(state, "parcel_number", "pa_buyer_name", "pa_seller_name",
+                                        doc_types=[_APPRAISAL_DOC, _PURCHASE_AGREEMENT_DOC, "Title Report",
+                                                   "Tax Summary"])
+
+        if _legal_desc:
+            _legal_preview = str(_legal_desc).strip()
+            if len(_legal_preview) > 160:
+                _legal_preview = _legal_preview[:157] + "..."
+            _parcel_ref = _appr_parcel or _tax_parcel
+            if _parcel_ref:
+                _pn = re.sub(r"\D", "", str(_parcel_ref))
+                _ld = re.sub(r"\D", "", str(_legal_desc))
+                if _pn and _pn in _ld:
+                    _flag(flags, "2.1", "§11 #4 Legal Description — Parcel Confirmed", "info",
+                          f"Appraisal/tax parcel '{_parcel_ref}' appears in the Title Report legal "
+                          f"description ('{_legal_preview}').",
+                          "No action needed — parcel is consistent with title.",
+                          docs=_appr_id_docs)
+                elif _pn:
+                    _flag(flags, "2.1", "§11 #4 Legal Description — Parcel Mismatch", "warning",
+                          f"Appraisal/tax parcel '{_parcel_ref}' was not found in the Title Report "
+                          f"legal description ('{_legal_preview}').",
+                          "Verify the appraisal and title commitment reference the same parcel / legal.",
+                          docs=_appr_id_docs)
+            else:
+                _flag(flags, "2.1", "§11 #4 Legal Description Present", "info",
+                      f"Title Report legal description extracted ('{_legal_preview}'). "
+                      "No appraisal parcel extracted to cross-check.",
+                      "Confirm the appraisal legal / parcel matches the title commitment.",
+                      docs=_title_docs)
+        else:
+            _flag(flags, "2.1", "§11 #4 Legal Description Missing", "warning",
+                  "Title Report legal description was not extracted.",
+                  "Confirm the appraisal legal description matches the title commitment Schedule A.",
+                  docs=_title_docs)
+
+        if pa_buyer_name_doc and borrower_last_name:
+            if _surname_on(borrower_last_name, pa_buyer_name_doc):
+                _flag(flags, "2.1", "§11 #4 Applicant vs Purchase Contract", "info",
+                      f"Borrower/applicant surname '{borrower_last_name}' appears on the Purchase "
+                      f"Contract buyer line ('{pa_buyer_name_doc}').",
+                      "No action needed — applicant matches the sales contract.",
+                      docs=_appr_id_docs)
+            else:
+                _flag(flags, "2.1", "§11 #4 Applicant vs Purchase Contract", "warning",
+                      f"Borrower/applicant '{_borr_name_full}' was not found on the Purchase Contract "
+                      f"buyer line ('{pa_buyer_name_doc}').",
+                      "Confirm applicant names on the appraisal match the sales contract / Encompass.",
+                      docs=_appr_id_docs)
+
+        if _pa_seller and _tax_owner:
+            _seller_tokens = [t for t in re.split(r"[^a-z0-9]+", _pa_seller.lower()) if len(t) > 2]
+            _owner_l = _tax_owner.lower()
+            if _seller_tokens and any(t in _owner_l for t in _seller_tokens):
+                _flag(flags, "2.1", "§11 #4 Seller vs Tax Owner of Record", "info",
+                      f"Purchase Contract seller ('{_pa_seller}') is consistent with the tax "
+                      f"owner of record ('{_tax_owner}').",
+                      "No action needed — seller matches tax cert owner.",
+                      docs=_appr_id_docs)
+            else:
+                _flag(flags, "2.1", "§11 #4 Seller vs Tax Owner of Record", "warning",
+                      f"Purchase Contract seller ('{_pa_seller}') does not match the tax owner of "
+                      f"record ('{_tax_owner}').",
+                      "Confirm seller / grantor names on the appraisal and title match the contract.",
+                      docs=_appr_id_docs)
+
+    # §11 #7 — Appraisal as-is vs subject-to (URAR RECONCILIATION section).
+    if _appr_on_file or _appr_addr:
+        _st_completion = _doc(state, "appraisal_subject_to_completion")
+        _st_repairs = _doc(state, "appraisal_subject_to_repairs")
+        _st_conditions = _doc(state, "appraisal_subject_to_conditions")
+        _made_as_is = _doc(state, "appraisal_made_as_is")
+        _as_is_docs = _relevant_docs(
+            state,
+            "appraisal_made_as_is",
+            "appraisal_subject_to_completion",
+            "appraisal_subject_to_repairs",
+            "appraisal_subject_to_conditions",
+            doc_types=[_APPRAISAL_DOC],
+        )
+        _is_subject_to = any(
+            _truthy_doc(v) for v in (_st_completion, _st_repairs, _st_conditions)
+        )
+        _is_as_is = _truthy_doc(_made_as_is)
+        _any_extracted = any(v is not None for v in (
+            _st_completion, _st_repairs, _st_conditions, _made_as_is,
+        ))
+
+        if not _any_extracted:
+            _flag(flags, "2.1", "§11 #7 Appraisal Condition — Not Extracted", "info",
+                  "Appraisal as-is / subject-to checkboxes were not extracted from the URAR.",
+                  "Manually review the RECONCILIATION section (as-is vs subject-to completion/repairs).",
+                  docs=_as_is_docs)
+        elif _is_subject_to:
+            _flag(flags, "2.1", "§11 #7 Appraisal — Subject To", "warning",
+                  "Appraisal is marked subject-to "
+                  f"(completion={_st_completion!r}, repairs={_st_repairs!r}, "
+                  f"conditions={_st_conditions!r}).",
+                  "Confirm required repairs/completion are tracked; a 1004D / final inspection "
+                  "may be needed before closing.",
+                  docs=_as_is_docs)
+        elif _is_as_is:
+            _flag(flags, "2.1", "§11 #7 Appraisal — As-Is", "info",
+                  "Appraisal is marked as-is (no subject-to completion/repairs/conditions).",
+                  "No action needed — value is as-is.",
+                  docs=_as_is_docs)
+        elif _falsy_doc(_made_as_is):
+            _flag(flags, "2.1", "§11 #7 Appraisal — Not As-Is", "warning",
+                  f"Appraisal is explicitly not as-is (appraisal_made_as_is={_made_as_is!r}) but "
+                  "individual subject-to flags were not extracted.",
+                  "Review the URAR RECONCILIATION section for subject-to repairs or completion.",
+                  docs=_as_is_docs)
+        else:
+            _flag(flags, "2.1", "§11 #7 Appraisal Condition — Unclear", "info",
+                  f"As-is / subject-to extraction is inconclusive "
+                  f"(as_is={_made_as_is!r}, completion={_st_completion!r}, "
+                  f"repairs={_st_repairs!r}, conditions={_st_conditions!r}).",
+                  "Manually confirm the appraisal RECONCILIATION section.",
+                  docs=_as_is_docs)
 
     # §3.12 — Multi-doc subject-address cross-reference (checklist 03 #12).
     # Beyond the Purchase Contract (above) and Appraisal (§11.3), confirm the
@@ -990,6 +1455,35 @@ def review_borrower_summary(
         _flag(flags, "2.1", "Loan Program", "info",
               f"Loan Program (1401) = '{loan_program}'.",
               "Verify Loan Program is correct.")
+
+    # ── §01 #3 DPA / secondary financing presence ─────────────────────────
+    def _dpa_money(val) -> float:
+        try:
+            return float(str(val or "0").replace(",", "").replace("$", "").strip())
+        except (ValueError, TypeError):
+            return 0.0
+
+    _sub_fin = _dpa_money(subordinate_financing)
+    _dpa_urla = _dpa_money(dpa_subordinate_amount)
+    _dpa_amount = _dpa_urla if _dpa_urla > 0 else _sub_fin
+    _is_dpa_program = bool(loan_program and "DPA" in str(loan_program).upper())
+    _has_dpa_amount = _dpa_amount > 0
+
+    if _is_dpa_program and not _has_dpa_amount:
+        _flag(flags, "2.1", "§01 #3 DPA Amount Missing", "warning",
+              f"Loan Program (1401) indicates DPA ('{loan_program}') but Subordinate "
+              "Financing (140) and DPA Subordinate Amount (URLA.X230) are both empty/zero.",
+              "Enter DPA / subordinate financing amount or confirm this is not a DPA loan.")
+    elif _has_dpa_amount:
+        _dpa_type = "dual (linked 2nd lien)" if _sub_fin > 0 else "URLA.X230 only"
+        _flag(flags, "2.1", "§01 #3 DPA / Secondary Financing Present", "info",
+              f"DPA or subordinate financing on file: ${_dpa_amount:,.2f} "
+              f"(field 140=${_sub_fin:,.2f}, URLA.X230=${_dpa_urla:,.2f}, type={_dpa_type})."
+              + (f" Loan Program: '{loan_program}'." if loan_program else ""),
+              "Review secondary financing / DPA terms against lock and program guidelines.")
+    elif _is_dpa_program:
+        pass  # handled above (program + no amount)
+    # Non-DPA loans: no flag (avoid noise)
 
     # Closing Cost Program — cross-check against Loan Purpose
     if closing_cost_program:
@@ -1168,6 +1662,148 @@ def review_borrower_summary(
     else:
         _flag(flags, "2.1", "Secondary Registration Empty", "warning",
               "Secondary Registration (3941) is blank.", "Enter secondary registration if applicable.")
+
+    # ── §14 MI Quote Review — quick checks from LOS + AUS + eFolder ───────
+    # Full quote-vs-LOS review still requires a dedicated MI Quote extraction
+    # schema. These checks establish applicability, document presence, expiration,
+    # and current AUS-vs-LOS consistency without fabricating quote data.
+    _los_ltv = _parse_number(ltv)
+    _aus_ltv_raw = _doc(state, "ltv")
+    _aus_ltv = _parse_number(_aus_ltv_raw)
+    _effective_ltv = _los_ltv if _los_ltv is not None else _aus_ltv
+    _loan_type_norm = _norm_name(loan_type)
+    _is_conventional = "conventional" in _loan_type_norm or _loan_type_norm == "conv"
+    _is_government = any(t in _loan_type_norm for t in ("fha", "va", "usda", "rural"))
+    _pmi_required = _is_conventional and _effective_ltv is not None and _effective_ltv > 80.0
+    _mi_docs = _relevant_docs(
+        state,
+        "certificate_number",
+        "premium_type",
+        "monthly_premium_amount",
+        "first_renewal_percent",
+        doc_types=["MI Certificate"],
+    )
+    _mi_paperwork_present = (
+        _efolder_present(state, "MI Certificate")
+        or any(_doc(state, key) for key in (
+            "certificate_number", "premium_type", "monthly_premium_amount",
+            "first_renewal_percent", "mi_company_name",
+        ))
+    )
+
+    if _is_government:
+        _flag(flags, "2.1", "§14 MI Quote Review — Private MI Not Applicable", "info",
+              f"Loan type is '{loan_type}'. FHA/VA/USDA insurance or funding-fee rules apply "
+              "instead of the conventional private-MI quote workflow.",
+              "Review the applicable MIP, funding-fee, or guarantee-fee screen.")
+    elif _is_conventional and _effective_ltv is not None and _effective_ltv <= 80.0:
+        _flag(flags, "2.1", "§14 MI Quote Review — MI Not Required", "info",
+              f"Conventional loan LTV is {_effective_ltv:.3g}% (≤ 80%); private MI is not required.",
+              "No MI Quote review is needed unless loan terms or LTV change.")
+    elif _pmi_required:
+        if not _mi_paperwork_present:
+            _flag(flags, "2.1", "§14 MI Quote / Certificate Missing", "warning",
+                  f"Conventional loan LTV is {_effective_ltv:.3g}% (> 80%), but no MI Quote / "
+                  "MI Certificate was found in the eFolder.",
+                  "Obtain the MI quote/certificate and verify it against Mortgage Terms.")
+        elif not (mi_cert_number or _doc(state, "certificate_number")):
+            _flag(flags, "2.1", "§14 MI Certificate Number Missing", "warning",
+                  "MI paperwork is present, but neither Encompass field 1387 nor the extracted "
+                  "document contains a certificate number.",
+                  "Confirm the MI certificate/quote number and enter it in Encompass.",
+                  docs=_mi_docs)
+
+        if (_parse_number(mi_monthly_premium) or 0) <= 0:
+            _flag(flags, "2.1", "§14 Monthly MI Missing", "warning",
+                  f"Conventional loan LTV is {_effective_ltv:.3g}% (> 80%), but proposed monthly "
+                  "mortgage insurance (field 232) is blank or zero.",
+                  "Populate and verify the monthly MI payment from the quote.",
+                  docs=_mi_docs)
+
+        # §14 #1 partial — Encompass document-tracking expiration vs closing.
+        _mi_exp = _parse_date(mi_doc_expiration)
+        _closing = _parse_date(est_closing_date_val or borrower_est_closing_date_val)
+        if _mi_exp and _closing:
+            if _mi_exp < _closing:
+                _flag(flags, "2.1", "§14 #1 MI Expiration Before Closing", "warning",
+                      f"Mortgage Insurance document expiration ({mi_doc_expiration}) is before "
+                      f"the estimated closing date ({est_closing_date_val or borrower_est_closing_date_val}).",
+                      "Obtain an updated MI quote/certificate that remains valid through closing.",
+                      docs=_mi_docs)
+            else:
+                _flag(flags, "2.1", "§14 #1 MI Expiration Covers Closing", "info",
+                      f"Mortgage Insurance document expiration ({mi_doc_expiration}) is on or after "
+                      f"the estimated closing date ({est_closing_date_val or borrower_est_closing_date_val}).",
+                      "No action needed — MI expiration covers closing.",
+                      docs=_mi_docs)
+        elif _mi_paperwork_present:
+            _flag(flags, "2.1", "§14 #1 MI Expiration — Manual Confirmation", "info",
+                  "MI paperwork is present, but the Mortgage Insurance document expiration date "
+                  "or estimated closing date is unavailable for comparison.",
+                  "Confirm the MI quote remains valid through closing.",
+                  docs=_mi_docs)
+
+        # §14 #7 partial — compare current LOS LTV to AUS and surface AUS ratios.
+        _aus_dti = _doc(state, "debt_ratio")
+        _aus_housing = _doc(state, "housing_ratio")
+        if _los_ltv is not None and _aus_ltv is not None:
+            _ltv_delta = abs(_los_ltv - _aus_ltv)
+            if _ltv_delta > 0.5:
+                _flag(flags, "2.1", "§14 #7 LTV Mismatch — LOS vs AUS", "warning",
+                      f"LOS LTV (field 353) is {_los_ltv:.3g}% while AUS LTV is "
+                      f"{_aus_ltv:.3g}% (difference {_ltv_delta:.3g} points).",
+                      "Reconcile LTV and obtain an updated MI quote if the quoted LTV changed.",
+                      docs=_relevant_docs(state, "ltv", doc_types=["DU Findings / AUS Certificate"]))
+            else:
+                _flag(flags, "2.1", "§14 #7 LTV Confirmed — LOS vs AUS", "info",
+                      f"LOS LTV ({_los_ltv:.3g}%) matches AUS LTV ({_aus_ltv:.3g}%) within "
+                      "0.5 percentage points.",
+                      "Confirm the same LTV appears on the MI quote.",
+                      docs=_relevant_docs(state, "ltv", doc_types=["DU Findings / AUS Certificate"]))
+        if _aus_dti is not None or _aus_housing is not None:
+            _flag(flags, "2.1", "§14 #7 AUS Ratios — Confirm on MI Quote", "info",
+                  f"AUS ratios: housing ratio {_aus_housing if _aus_housing is not None else 'N/A'}%; "
+                  f"DTI {_aus_dti if _aus_dti is not None else 'N/A'}%.",
+                  "Confirm the MI quote uses these current ratios.",
+                  docs=_relevant_docs(state, "housing_ratio", "debt_ratio",
+                                      doc_types=["DU Findings / AUS Certificate"]))
+
+        # §14 #6 partial — current AUS-vs-LOS transaction attributes.
+        _mi_attr_diffs = []
+        _du_amount_raw = _doc(state, "du_loan_amount")
+        _du_amount = _parse_number(_du_amount_raw)
+        _los_amount = _parse_number(loan_amount)
+        if _du_amount is not None and _los_amount is not None and abs(_du_amount - _los_amount) > 1:
+            _mi_attr_diffs.append(f"loan amount: LOS ${_los_amount:,.2f} vs AUS ${_du_amount:,.2f}")
+        for _label, _los_val, _aus_val in (
+            ("purpose", loan_purpose, _doc(state, "loan_purpose")),
+            ("loan type", loan_type, _doc(state, "mortgage_type")),
+            ("property type", property_type, _doc(state, "du_property_type")),
+            ("occupancy", occupancy, _doc(state, "occupancy_status")),
+        ):
+            if _los_val and _aus_val and not _mi_compare_text(_los_val, _aus_val):
+                _mi_attr_diffs.append(f"{_label}: LOS '{_los_val}' vs AUS '{_aus_val}'")
+        if _mi_attr_diffs:
+            _flag(flags, "2.1", "§14 #6 MI Inputs Mismatch — LOS vs AUS", "warning",
+                  "Current MI inputs differ between Encompass and AUS:\n"
+                  + "\n".join(f"  • {d}" for d in _mi_attr_diffs),
+                  "Reconcile the loan attributes and obtain an updated MI quote.",
+                  docs=_relevant_docs(state, "du_loan_amount", "loan_purpose", "mortgage_type",
+                                      "du_property_type", "occupancy_status",
+                                      doc_types=["DU Findings / AUS Certificate"]))
+        else:
+            _flag(flags, "2.1", "§14 #6 MI Inputs — LOS/AUS Review", "info",
+                  f"Available AUS and LOS MI inputs are consistent. Current LOS amortization is "
+                  f"'{amort_type or 'not populated'}'.",
+                  "Confirm property type, loan amount, purpose/type, amortization, and occupancy "
+                  "match the MI quote.",
+                  docs=_relevant_docs(state, "du_loan_amount", "loan_purpose", "mortgage_type",
+                                      "du_property_type", "occupancy_status",
+                                      doc_types=["DU Findings / AUS Certificate"]))
+    elif _is_conventional and _effective_ltv is None:
+        _flag(flags, "2.1", "§14 MI Applicability — LTV Missing", "warning",
+              "Conventional loan LTV is unavailable in both Encompass field 353 and AUS findings.",
+              "Populate/re-run LTV before determining whether an MI quote is required.")
 
     # ── Build result ──────────────────────────────────────────────────────
     result = {

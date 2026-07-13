@@ -263,6 +263,7 @@ _FIELD_LABEL = {
     "state": "State",
     "postalCode": "ZIP",
     "phone": "Phone",
+    "fax": "Fax",
     "email": "Email",
     "bizLicenseNumber": "Company License #",
     "personalLicenseNumber": "License #",
@@ -1049,6 +1050,212 @@ def _sync_title_company(
     return {_TITLE_CT: mode}
 
 
+# ── Insurance company File Contacts (Evidence of Insurance / Flood policy) ───
+# 02 #6/#7: populate the Hazard/HOI and Flood insurance-company File Contacts from
+# the extracted insurance docs. The doc field keys are the live CatchingDoc schema
+# names surfaced in required_docs.json: Evidence of Insurance uses hazard_insurance_*
+# / agent_email; the Flood doc uses the generic company_* / contact_* keys (which are
+# collision-free in the flat doc_fields namespace). Both are create-or-overwrite with
+# an info-overwrite flag, and no-op when the doc supplies no company name.
+_HOI_CT = "HAZARD_INSURANCE"
+_FLOOD_CT = "FLOOD_INSURANCE"
+
+# (contactType, label, reference-doc label, {contact_field: [doc_keys…]}) —
+# first non-empty doc key wins for each contact field.
+_INSURANCE_SOURCES = [
+    (_HOI_CT, "Hazard/HOI Insurance", "Evidence of Insurance", {
+        "name": ["hazard_insurance_company", "insurance_carrier_name"],
+        "contactName": ["hazard_insurance_contact"],
+        "phone": ["hazard_insurance_phone"],
+        "email": ["agent_email"],
+        "fax": ["hazard_insurance_fax"],
+        "address": ["hazard_insurance_address"],
+        "city": ["hazard_insurance_city"],
+        "state": ["hazard_insurance_state"],
+        "postalCode": ["hazard_insurance_zip"],
+    }),
+    (_FLOOD_CT, "Flood Insurance", "Flood Insurance policy", {
+        "name": ["flood_insurance_company"],
+        "contactName": ["flood_insurance_contact"],
+        "phone": ["flood_insurance_phone"],
+        "address": ["flood_insurance_address"],
+        "city": ["flood_insurance_city"],
+        "state": ["flood_insurance_state"],
+        "postalCode": ["flood_insurance_zip"],
+    }),
+]
+
+
+def _insurance_src(state: dict, mapping: Dict[str, List[str]]) -> Dict[str, str]:
+    """Build {contact_field: value} from the first non-empty extracted doc key.
+
+    When a single-line ``address`` is supplied without discrete city/state/ZIP
+    (the Flood policy case), split it into components so we don't cram the whole
+    line into ``address``.
+    """
+    src: Dict[str, str] = {}
+    for field, keys in mapping.items():
+        for k in keys:
+            v = _doc(state, k)
+            if v:
+                src[field] = v
+                break
+    full_addr = (src.get("address") or "").strip()
+    if full_addr and not (src.get("city") or src.get("state") or src.get("postalCode")):
+        comp = _split_address(full_addr)
+        if comp.get("city") or comp.get("state") or comp.get("postalCode"):
+            src["address"] = comp.get("address", full_addr)
+            for k in ("city", "state", "postalCode"):
+                if comp.get(k):
+                    src[k] = comp[k]
+    return src
+
+
+def _upsert_contact(
+    loan_id: str,
+    state: dict,
+    contact_map: Dict[str, Dict[str, Any]],
+    flags: List[Dict[str, Any]],
+    ct: str,
+    label: str,
+    ref_doc: str,
+    src: Dict[str, str],
+) -> Dict[str, str]:
+    """Create/update a single File Contact ``ct`` from ``src`` (field → value).
+
+    Mirrors ``_sync_title_company``: phone/email are validated and dropped if
+    incomplete/invalid (the contacts PATCH merges by contactType, so a dropped
+    field keeps the existing Encompass value); an existing contact is overwritten
+    only on real per-field differences (address compared as a whole so a
+    formatting-only difference does not trigger a write). Emits one
+    ``info-overwrite`` flag per write. Returns {ct: "created"|"updated"} or {}.
+    """
+    dropped: List[str] = []
+    obj: Dict[str, Any] = {"contactType": ct}
+    for k in ("name", "contactName", "address", "city", "state", "postalCode"):
+        if src.get(k):
+            obj[k] = src[k]
+    if src.get("fax"):
+        obj["fax"] = src["fax"]
+    if src.get("phone"):
+        if _looks_complete_phone(src["phone"]):
+            obj["phone"] = src["phone"]
+        else:
+            dropped.append("phone")
+    _email = re.sub(r"\s+", "", src.get("email", ""))
+    if _email:
+        if _EMAIL_RE.match(_email):
+            obj["email"] = _email
+        else:
+            dropped.append("email")
+    if len(obj) <= 1:  # nothing valid beyond contactType
+        return {}
+
+    existing = contact_map.get(ct)
+    mode = "created"
+    diffs: Dict[str, tuple] = {}
+    write_obj = obj
+    if existing:
+        mode = "updated"
+        for k, v in obj.items():
+            if k == "contactType" or k in _ADDRESS_FIELDS:
+                continue
+            old = (existing.get(k) or "").strip()
+            if old.lower() != str(v).strip().lower():
+                diffs[k] = (old, v)
+        if any(k in obj for k in _ADDRESS_FIELDS):
+            new_addr = {**existing, **{k: obj[k] for k in _ADDRESS_FIELDS if k in obj}}
+            if _norm_addr(_join_addr(existing)) != _norm_addr(_join_addr(new_addr)):
+                for k in _ADDRESS_FIELDS:
+                    if k in obj:
+                        old = (existing.get(k) or "").strip()
+                        new = str(obj[k]).strip()
+                        if old.lower() != new.lower():
+                            diffs[k] = (old, new)
+        if not diffs:
+            return {}
+        write_obj = {"contactType": ct}
+        write_obj.update({k: obj[k] for k in diffs if k in obj})
+
+    try:
+        from encompass_client import write_loan_contacts
+        res = write_loan_contacts(loan_id, [write_obj], state=state)
+    except Exception as exc:
+        logger.error(f"[REVIEW_FILE_CONTACTS] {ct} write raised: {exc}")
+        res = {"success": False, "error": str(exc)}
+
+    if not res.get("success"):
+        flags.append(_flag(
+            title=f"{label} Contact Auto-Sync Failed",
+            severity="warning",
+            details=(
+                f"Attempted to write the {label} file contact ({ct}) from the "
+                f"{ref_doc} but the contacts write failed: {res.get('error')}"
+            ),
+            suggestion=f"Manually update the {label} in Encompass File Contacts.",
+        ))
+        return {}
+
+    merged = dict(existing or {})
+    merged.update(write_obj)
+    contact_map[ct] = merged
+    note = (
+        f" Skipped {', '.join(dropped)} (incomplete/invalid on the {ref_doc} — kept existing value)."
+        if dropped else ""
+    )
+    if mode == "created":
+        title = f"File Contact Populated from {ref_doc}: {label}"
+        details = (
+            f"{label} ({ct}) was missing and has been written to Encompass File "
+            f"Contacts from the {ref_doc}:\n"
+            f"{_field_bullets(write_obj)}\n"
+            f"{note + chr(10) if note else ''}"
+            f"Verify accuracy against the {ref_doc}."
+        )
+    else:
+        title = f"File Contact Updated from {ref_doc}: {label}"
+        details = (
+            f"{label} ({ct}) differed from the {ref_doc} and the following field(s) "
+            f"were overwritten:\n"
+            f"{_diff_bullets(diffs)}\n"
+            f"{note + chr(10) if note else ''}"
+            f"Verify accuracy against the {ref_doc}."
+        )
+    flags.append({
+        "substep": SUBSTEP,
+        "title": title,
+        "severity": "info-overwrite",
+        "details": details,
+        "suggestion": f"Verify the {label} details in Encompass File Contacts.",
+        "resolved": False,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] {mode} from {ref_doc} — "
+                f"{_contact_summary(merged)}")
+    return {ct: mode}
+
+
+def _sync_insurance_contacts(
+    loan_id: str,
+    state: dict,
+    contact_map: Dict[str, Dict[str, Any]],
+    flags: List[Dict[str, Any]],
+) -> Dict[str, str]:
+    """Populate the Hazard/HOI and Flood insurance-company File Contacts (02 #6/#7).
+
+    Reads the extracted Evidence of Insurance (hazard) and Flood policy/certificate
+    docs. Requires at least a company name to act, so a file with no insurance doc
+    never gets a spurious write/flag.
+    """
+    written: Dict[str, str] = {}
+    for ct, label, ref_doc, mapping in _INSURANCE_SOURCES:
+        src = _insurance_src(state, mapping)
+        if not src.get("name"):
+            continue
+        written.update(_upsert_contact(loan_id, state, contact_map, flags, ct, label, ref_doc, src))
+    return written
+
+
 @tool
 def review_file_contacts(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -1079,6 +1286,10 @@ def review_file_contacts(
         (referenceNumber), and issuing agent / contact (contactName +
         personalLicenseNumber) with phone/email/address. No-op when the Title
         Report supplies no title-company data.
+      - Hazard/HOI Insurance (HAZARD_INSURANCE) and Flood Insurance
+        (FLOOD_INSURANCE) — company name + phone + email (+ contact / address)
+        written from the extracted Evidence of Insurance and Flood policy docs
+        (checklist 02 #6 / #7). No-op when no company name is extracted.
 
     Every auto-write flag enumerates the written field(s) as a bullet list.
 
@@ -1141,6 +1352,13 @@ def review_file_contacts(
     # (referenceNumber) + issuing agent/contact from the Title Report. No-op when
     # no title-company data is extracted.
     written.update(_sync_title_company(loan_id, state, contact_map, flags))
+
+    # ── Populate HOI + Flood insurance company contacts (02 #6/#7) ──
+    # Writes company name + phone + email (+ contact / address) to the
+    # HAZARD_INSURANCE and FLOOD_INSURANCE file contacts from the extracted
+    # Evidence of Insurance and Flood policy docs. No-op when no company name is
+    # extracted for a given insurer.
+    written.update(_sync_insurance_contacts(loan_id, state, contact_map, flags))
 
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []

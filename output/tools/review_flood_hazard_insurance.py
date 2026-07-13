@@ -11,9 +11,19 @@ Reviews the Flood Certificate against Encompass:
     against the Encompass Flood Zone on the Flood Information form (field 541),
     auto-correcting on mismatch/blank when the zone maps to a recognized FEMA
     designation.
+  • 12 #7/#8 — flood policy detail review (warn/info only, no writes, no-op when
+    no flood policy on file): coverage ≥ lesser-of(loan amount, $250k NFIP cap),
+    policy in force through closing (effective on/before, expires after), insurer
+    surfaced, and annual premium surfaced for paid-in-full / due-at-closing.
 
-Hazard-insurance verification (checklist section 13) is scaffolded via the YAML
-doc_types for future build-out.
+Reviews the Hazard Insurance policy (Evidence of Insurance) against Encompass —
+checklist section 13, all warn/info (no writes), no-op when no policy on file:
+  • 13 #2 loan # on policy   • 13 #3 applicant names   • 13 #4 property address
+  • 13 #5 effective date on/before closing (in force through closing)
+  • 13 #6 insurable coverage ≥ minimum (loan amount / replacement cost)
+  • 13 #7 paid-in-full / due-at-closing (surface premium)
+  • 13 #8 deductible vs guideline (≤ 5% of coverage)
+  • 13 #9 mortgagee clause present   • 13 #10 rent-loss coverage when investment.
 
 # FACTORY-LOCK: true
 """
@@ -91,6 +101,20 @@ def _sourced_property_address(state: dict, source_hint: str) -> Optional[str]:
     return None
 
 
+def _sourced_doc(state: dict, key: str, source_hint: str) -> Optional[str]:
+    """A doc-field ``key`` copy whose provenance matches ``source_hint``.
+
+    Used for keys that live on multiple document types in the flat ``doc_fields``
+    namespace (e.g. ``effective_date`` on both the Title Report and the Flood
+    policy). Returns the value only when the retained copy's ``source_document``
+    names the document we want, so we never compare the wrong document's value
+    (returns None if a different source won the slot — a safe no-op)."""
+    for c in _doc_all(state, key):
+        if source_hint in (c.get("source_document") or "").lower() and c.get("value"):
+            return c.get("value")
+    return None
+
+
 # Exact dropdown values accepted by Encompass Flood Zone (field 541, Flood
 # Information form). Numbered A/V zones collapse to the "A1-A30" / "V1-V30"
 # range options the dropdown offers (there are no per-number entries).
@@ -122,19 +146,68 @@ def _valid_flood_zone(zone) -> Optional[str]:
     return s if s in _FLOOD_ZONE_ENUM else None
 
 
+_DATE_FORMATS = (
+    "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%m-%d-%Y",
+    "%b %d, %Y", "%B %d, %Y", "%Y/%m/%d", "%m/%d/%Y %H:%M:%S",
+)
+
+
+def _parse_date(val):
+    """Best-effort date parse across the common LOS/extraction formats."""
+    s = str(val or "").strip()
+    if not s:
+        return None
+    s = s.split("T")[0].strip()  # tolerate ISO datetime
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_money(val):
+    """Currency-tolerant float parse ('$250,000.00' -> 250000.0); None if empty."""
+    s = re.sub(r"[^0-9.]", "", str(val or ""))
+    if not s or s == ".":
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _digits(val) -> str:
+    return re.sub(r"\D", "", str(val or ""))
+
+
+def _loan_num_match(a, b) -> bool:
+    """Loose loan-number equality: equal digit strings, or one is a suffix of the
+    other (policies often drop leading zeros / a prefix)."""
+    da, db = _digits(a), _digits(b)
+    if not da or not db:
+        return False
+    return da == db or (len(min(da, db, key=len)) >= 5 and (da.endswith(db) or db.endswith(da)))
+
+
 @tool
 def review_flood_hazard_insurance(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review the Flood Certificate against Encompass (checklist 12 #2 + 12 #4).
+    """Review Flood Certificate + Hazard Insurance vs Encompass (checklist 12 + 13).
 
-    Confirms the flood cert property address vs the USPS-validated subject and the
-    flood cert borrower name vs the Encompass applicant surname(s) (12 #2), and
-    reconciles the flood zone designation against Encompass field 541 with SFHA
-    insurance-required checks (12 #4). Auto-corrects field 541 from the cert only
-    when the extracted zone maps to a value the field-541 dropdown accepts;
-    otherwise warns and leaves it for manual entry.
+    Flood (12 #2/#4/#7/#8): flood cert property address vs the USPS-validated
+    subject and flood cert borrower name vs the applicant surname(s); flood zone
+    reconciled against Encompass field 541 (auto-correct on blank/mismatch for
+    recognized FEMA designations) with SFHA insurance-required checks; and, when a
+    flood policy is on file, coverage adequacy (lesser-of loan / $250k NFIP cap),
+    policy dates vs closing, insurer, and premium (warn/info only).
+
+    Hazard (13 #2–#10): the Evidence of Insurance policy is cross-checked against
+    the loan — loan #, applicant names, property address, effective date vs
+    closing, coverage adequacy, deductible, mortgagee clause, and rent-loss
+    coverage for investment properties. Warn/info only; no writes.
 
     Call this tool during STEP_08 (Flood & Hazard Insurance) as substep 8.1.
     """
@@ -262,10 +335,14 @@ def review_flood_hazard_insurance(
 
         # SFHA → flood insurance required; confirm a flood policy is on file.
         if _in_sfha:
+            # Flood policy presence signals come from the flood doc's live
+            # catchingDoc keys (company_name / annual_premium — collision-free in
+            # the flat doc_fields namespace); the old flood_* keys never matched
+            # the service and always read empty.
             _flood_ins_present = (
                 _efolder_present(state, "Flood Insurance")
-                or bool(_doc(state, "flood_policy_number"))
-                or bool(_doc(state, "flood_annual_premium"))
+                or bool(_doc(state, "company_name"))
+                or bool(_doc(state, "annual_premium"))
             )
             if not _flood_ins_present:
                 _flag(flags, "Flood Insurance Required (SFHA)", "warning",
@@ -285,6 +362,246 @@ def review_flood_hazard_insurance(
                   f"insurance is not required.",
                   "No action needed — confirm the zone matches the appraisal / determination.",
                   docs=_flood_docs)
+
+    # ── §12 #7/#8 Flood Insurance policy review (Flood policy / certificate) ──
+    # Warn/info only (no writes). Runs only when a flood policy appears on file
+    # (company / premium / coverage / expiry extracted, or the eFolder carries a
+    # Flood Insurance doc); the SFHA "required but missing" case is handled above.
+    # Flood keys are the live catchingDoc schema names (collision-free in the flat
+    # doc_fields namespace) except effective_date, which is shared with the Title
+    # Report and so is read source-filtered to the flood document.
+    _flood_company = _doc(state, "company_name")
+    _flood_premium = _parse_money(_doc(state, "annual_premium"))
+    _flood_coverage = _parse_money(_doc(state, "coverage_amount"))
+    _flood_eff = _parse_date(_sourced_doc(state, "effective_date", "flood"))
+    _flood_exp = _parse_date(_doc(state, "expiration_date"))
+    _flood_policy_present = (
+        _efolder_present(state, "Flood Insurance")
+        or bool(_flood_company)
+        or _flood_premium is not None
+        or _flood_coverage is not None
+        or _flood_exp is not None
+    )
+    if _flood_policy_present:
+        _flood_pol_docs = _relevant_docs(
+            state, "company_name", "coverage_amount", "expiration_date", "annual_premium",
+            doc_types=["Flood Insurance", "Flood Certificate"])
+
+        # 12 #7 — Coverage adequacy: flood coverage must be at least the lesser of
+        # the loan amount and the NFIP residential building maximum ($250,000).
+        _NFIP_MAX = 250000.0
+        _loan_amt = _parse_money(_los(state, "loan_amount"))
+        if _flood_coverage is not None:
+            _bases = [v for v in (_loan_amt, _NFIP_MAX) if v]
+            _min_req = min(_bases) if _bases else None
+            if _min_req and _flood_coverage + 1 < _min_req:
+                _flag(flags, "Flood Coverage May Be Insufficient", "warning",
+                      f"Flood policy coverage (${_flood_coverage:,.0f}) is below the required "
+                      f"minimum (${_min_req:,.0f} — the lesser of the loan amount and the "
+                      f"$250,000 NFIP residential building maximum).",
+                      "Confirm flood coverage meets the lesser-of (loan balance / insurable value / "
+                      "$250k NFIP cap) requirement.",
+                      docs=_flood_pol_docs)
+            else:
+                _flag(flags, "Flood Coverage Adequate", "info",
+                      f"Flood policy coverage (${_flood_coverage:,.0f}) meets the required minimum"
+                      + (f" (${_min_req:,.0f})" if _min_req else "") + ".",
+                      "No action needed — flood coverage meets the minimum requirement.",
+                      docs=_flood_pol_docs)
+
+        # 12 #7 — Policy in force through closing (effective on/before, expires after).
+        _flood_close_dt = _parse_date(
+            _los(state, "closing_date") or _los(state, "borrower_est_closing_date"))
+        if _flood_close_dt and (_flood_eff or _flood_exp):
+            if _flood_eff and _flood_eff > _flood_close_dt:
+                _flag(flags, "Flood Policy Effective After Closing", "warning",
+                      f"Flood policy effective date ({_flood_eff:%m/%d/%Y}) is after the closing "
+                      f"date ({_flood_close_dt:%m/%d/%Y}).",
+                      "Confirm the flood policy is in force on/before the note/closing date.",
+                      docs=_flood_pol_docs)
+            elif _flood_exp and _flood_exp < _flood_close_dt:
+                _flag(flags, "Flood Policy Expires Before Closing", "warning",
+                      f"Flood policy expiration date ({_flood_exp:%m/%d/%Y}) is before the closing "
+                      f"date ({_flood_close_dt:%m/%d/%Y}).",
+                      "Obtain a renewed flood policy that remains in force through closing.",
+                      docs=_flood_pol_docs)
+            else:
+                _flag(flags, "Flood Policy In Force", "info",
+                      "Flood policy dates cover the closing date.",
+                      "No action needed — flood policy is in force through closing.",
+                      docs=_flood_pol_docs)
+
+        # 12 #7 — Insurer present (for mortgagee-clause / policy detail verification).
+        if _flood_company:
+            _flag(flags, "Flood Insurer on Policy", "info",
+                  f"Flood policy insurer: '{_flood_company}'.",
+                  "Verify the flood policy details (mortgagee clause, policy #) against the policy.",
+                  docs=_flood_pol_docs)
+
+        # 12 #8 — Premium paid in full / due at closing (surface the amount).
+        if _flood_premium is not None:
+            _flag(flags, "Flood Premium — Confirm Paid/Due at Closing", "info",
+                  f"Flood policy annual premium: ${_flood_premium:,.0f}. Confirm it is paid in "
+                  f"full or itemized as due at closing.",
+                  "Confirm the flood premium is paid-in-full or collected at closing per the CD.",
+                  docs=_flood_pol_docs)
+
+    # ── §13 Hazard Insurance review (Evidence of Insurance) ──
+    # Every input comes from the extracted Evidence of Insurance policy; this block
+    # is warn/info only (no writes) and a no-op when no policy is on file / extracted.
+    _hoi_present = (
+        _efolder_present(state, "Evidence of Insurance")
+        or _is_checked(_doc(state, "hazard_insurance_present"))
+        or bool(_doc(state, "policy_number"))
+        or bool(_doc(state, "hazard_insurance_coverage"))
+    )
+    if _hoi_present:
+        _hoi_docs = _relevant_docs(state, "insured_name", "policy_number",
+                                   "hazard_insurance_coverage",
+                                   doc_types=["Evidence of Insurance"])
+        loan_number = _los(state, "loan_number")
+        loan_amount = _parse_money(_los(state, "loan_amount"))
+        occupancy = str(_los(state, "occupancy") or "").strip().lower()
+        closing_dt = _parse_date(_los(state, "closing_date") or _los(state, "borrower_est_closing_date"))
+
+        insured_name = _doc(state, "insured_name")
+        insured_location = _doc(state, "insured_location") or _doc(state, "insured_mailing_address")
+        mortgagee_loan_number = _doc(state, "mortgagee_loan_number")
+        mortgagee_name = _doc(state, "mortgagee_name")
+        cov_start = _parse_date(_doc(state, "coverage_start_date"))
+        cov_end = _parse_date(_doc(state, "coverage_end_date"))
+        coverage_amt = _parse_money(_doc(state, "hazard_insurance_coverage"))
+        replacement_cost = _parse_money(_doc(state, "replacement_cost"))
+        premium = _parse_money(_doc(state, "hazard_insurance_premium"))
+        deductible = _parse_money(_doc(state, "deductible"))
+        loss_of_use = _doc(state, "loss_of_use_coverage")
+
+        # 13 #2 — Loan number shown on the policy matches the loan.
+        if loan_number and mortgagee_loan_number:
+            if _loan_num_match(mortgagee_loan_number, loan_number):
+                _flag(flags, "Hazard Policy Loan # Confirmed", "info",
+                      f"Loan number on the hazard policy ('{mortgagee_loan_number}') matches the loan.",
+                      "No action needed — loan number matches.", docs=_hoi_docs)
+            else:
+                _flag(flags, "Hazard Policy Loan # Mismatch", "warning",
+                      f"Loan number on the hazard policy ('{mortgagee_loan_number}') does not match "
+                      f"the Encompass loan number ('{loan_number}').",
+                      "Have the insurance agent correct the loan number on the policy / mortgagee clause.",
+                      docs=_hoi_docs)
+        elif loan_number and not mortgagee_loan_number:
+            _flag(flags, "Hazard Policy Missing Loan #", "warning",
+                  "The hazard policy does not show the loan number in the mortgagee clause.",
+                  "Request an updated policy / evidence of insurance that lists the loan number.",
+                  docs=_hoi_docs)
+
+        # 13 #3 — Applicant name(s) on the policy.
+        if insured_name:
+            _applicant_last = {
+                (_los(state, "borrower_last_name") or "").strip().lower(),
+                (_los(state, "coborrower_last_name") or "").strip().lower(),
+            } - {""}
+            if _applicant_last and not any(ln in str(insured_name).lower() for ln in _applicant_last):
+                _flag(flags, "Hazard Policy Applicant Mismatch", "warning",
+                      f"Insured name on the hazard policy ('{insured_name}') does not match the "
+                      f"Encompass applicant(s) ({', '.join(sorted(_applicant_last))}).",
+                      "Verify the policy names the borrower(s); request a corrected policy if needed.",
+                      docs=_hoi_docs)
+            else:
+                _flag(flags, "Hazard Policy Applicant Confirmed", "info",
+                      f"Insured name on the hazard policy ('{insured_name}') matches the applicant(s).",
+                      "No action needed — policy names the correct borrower(s).", docs=_hoi_docs)
+
+        # 13 #4 — Property address on the policy matches the subject.
+        if insured_location and _usps_subject:
+            if not _addr_match(insured_location, _usps_subject):
+                _flag(flags, "Hazard Policy Address Mismatch", "warning",
+                      f"Property address on the hazard policy ('{insured_location}') does not match "
+                      f"the subject property ('{_usps_subject}').",
+                      "Verify the policy was issued for the subject property; request correction if needed.",
+                      docs=_hoi_docs)
+            else:
+                _flag(flags, "Hazard Policy Address Confirmed", "info",
+                      f"Property address on the hazard policy matches the subject ('{insured_location}').",
+                      "No action needed — policy covers the subject property.", docs=_hoi_docs)
+
+        # 13 #5 — Effective date on/before closing and in force through closing.
+        if closing_dt and cov_start and cov_start > closing_dt:
+            _flag(flags, "Hazard Policy Effective After Closing", "warning",
+                  f"Hazard policy effective date ({cov_start.isoformat()}) is after the estimated "
+                  f"closing date ({closing_dt.isoformat()}).",
+                  "Obtain coverage effective on or before the note/closing date.", docs=_hoi_docs)
+        elif closing_dt and cov_end and cov_end < closing_dt:
+            _flag(flags, "Hazard Policy Expires Before Closing", "warning",
+                  f"Hazard policy expiration ({cov_end.isoformat()}) is before the estimated closing "
+                  f"date ({closing_dt.isoformat()}).",
+                  "Obtain a policy that remains in force through the note/closing date.", docs=_hoi_docs)
+        elif cov_start or cov_end:
+            _flag(flags, "Hazard Policy Effective Dates", "info",
+                  f"Hazard policy period: {cov_start.isoformat() if cov_start else '?'} → "
+                  f"{cov_end.isoformat() if cov_end else '?'}.",
+                  "Confirm the policy is effective on/before closing and in force through closing.",
+                  docs=_hoi_docs)
+
+        # 13 #6 — Insurable coverage meets the minimum (loan amount or replacement cost).
+        if coverage_amt is not None and (loan_amount or replacement_cost):
+            _meets = (loan_amount and coverage_amt >= loan_amount) or \
+                     (replacement_cost and coverage_amt >= replacement_cost)
+            if _meets:
+                _flag(flags, "Hazard Coverage Adequate", "info",
+                      f"Dwelling coverage (${coverage_amt:,.0f}) meets the minimum "
+                      f"(loan ${loan_amount:,.0f}" + (f" / replacement ${replacement_cost:,.0f}" if replacement_cost else "") + ").",
+                      "No action needed — coverage meets the lender minimum.", docs=_hoi_docs)
+            else:
+                _flag(flags, "Hazard Coverage May Be Insufficient", "warning",
+                      f"Dwelling coverage (${coverage_amt:,.0f}) is below the loan amount "
+                      f"(${loan_amount:,.0f})" + (f" and the replacement cost (${replacement_cost:,.0f})" if replacement_cost else "") + ".",
+                      "Confirm coverage meets the lesser of loan amount or 100% replacement cost.",
+                      docs=_hoi_docs)
+
+        # 13 #7 — Premium paid-in-full / due-at-closing (surface for confirmation).
+        if premium is not None:
+            _flag(flags, "Hazard Premium", "info",
+                  f"Annual hazard premium is ${premium:,.0f}.",
+                  "Confirm the premium is paid in full (or shown due at closing on the CD).",
+                  docs=_hoi_docs)
+
+        # 13 #8 — Deductible within guideline (≤ 5% of dwelling coverage).
+        if deductible is not None and coverage_amt:
+            if deductible > 0.05 * coverage_amt:
+                _flag(flags, "Hazard Deductible Exceeds Guideline", "warning",
+                      f"Deductible (${deductible:,.0f}) exceeds 5% of dwelling coverage "
+                      f"(${coverage_amt:,.0f}).",
+                      "Confirm the deductible is within program guidelines (typically ≤ 5% of coverage).",
+                      docs=_hoi_docs)
+            else:
+                _flag(flags, "Hazard Deductible OK", "info",
+                      f"Deductible (${deductible:,.0f}) is within 5% of dwelling coverage.",
+                      "No action needed — deductible within guideline.", docs=_hoi_docs)
+
+        # 13 #9 — Mortgagee clause present on the policy.
+        if mortgagee_name:
+            _flag(flags, "Mortgagee Clause Present", "info",
+                  f"Policy shows a mortgagee clause ('{mortgagee_name}').",
+                  "Verify the mortgagee clause matches the lender's standard language.",
+                  docs=_hoi_docs)
+        else:
+            _flag(flags, "Mortgagee Clause Missing", "warning",
+                  "The hazard policy does not show a mortgagee clause.",
+                  "Request an updated policy showing the lender's standard mortgagee clause.",
+                  docs=_hoi_docs)
+
+        # 13 #10 — Rent-loss (loss of use) coverage when the subject is investment.
+        if "invest" in occupancy:
+            if not loss_of_use:
+                _flag(flags, "Rent-Loss Coverage Missing (Investment)", "warning",
+                      "Subject is an investment property but the hazard policy shows no rent-loss "
+                      "(loss-of-use / fair-rental-value) coverage.",
+                      "When rental income is used, obtain rent-loss coverage per program guidelines.",
+                      docs=_hoi_docs)
+            else:
+                _flag(flags, "Rent-Loss Coverage Present", "info",
+                      f"Investment property hazard policy shows rent-loss / loss-of-use coverage ('{loss_of_use}').",
+                      "Confirm the amount meets program requirements.", docs=_hoi_docs)
 
     # ── Build result ──
     result = {

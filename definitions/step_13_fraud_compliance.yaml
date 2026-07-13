@@ -1,0 +1,82 @@
+step:
+  id: STEP_13
+  name: Fraud & Compliance
+  phase: DATA_REVIEW
+  description: >
+    Review FraudGuard / fraud report alerts and LDP/OFAC clearance documents,
+    then run Mavent compliance via the Encompass ECS API. Covers checklist
+    section 15 — fraud high alerts, known participants / OFAC, Mavent review,
+    and ordering a new Mavent report when none exists.
+
+substeps:
+- id: '13.1'
+  name: Review Fraud & LDP
+  tool: review_fraud_compliance
+  description: >
+    Review extracted Fraud Report fields for high alerts and confirm LDP is on
+    file for known-participants / OFAC clearance. Read-only — does not order
+    fraud or LDP reports.
+  los_fields_read: []
+  doc_types:
+  - document_type: Fraud Report
+    all_copies: false
+    fields:
+    - key: fraud_alert_status
+      purpose: FraudGuard alert level — flag HIGH/ALERT statuses (15 #1)
+    - key: fraud_score
+      purpose: Numeric fraud score — flag when above threshold (15 #1)
+    - key: borrower_name
+      purpose: Cross-check fraud report identity
+    - key: borrower_ssn
+      purpose: Cross-check fraud report identity
+  - document_type: LDP
+    all_copies: false
+    fields:
+    - key: ldp_present
+      purpose: LDP/GSA on file for known participants / OFAC (15 #2)
+  rules:
+  - name: Fraud High Alerts
+    type: value_check
+    logic: >
+      When a Fraud Report is in the eFolder, review fraud_alert_status and
+      fraud_score. Flag HIGH/ALERT/FAIL statuses and elevated scores for
+      processor review.
+  - name: LDP Present
+    type: existence_check
+    logic: >
+      LDP document should be on file before submission. Warn when absent.
+  flags:
+  - title: Fraud Report High Alert
+    severity: warning
+    condition: fraud_alert_status indicates high risk or fraud_score exceeds threshold
+    suggestion: Review FraudGuard alerts and clear or escalate before submission
+  - title: LDP Missing
+    severity: warning
+    condition: LDP not present in eFolder
+    suggestion: Obtain LDP/GSA before submission
+
+- id: '13.2'
+  name: Run Mavent Compliance
+  tool: run_mavent_compliance
+  description: >
+    GET existing ECS Mavent report or POST a new Review report when missing.
+    Surface per-category flags and persist full compliance messages in
+    state.mavent_results for the dashboard detail panel (15 #3, #4).
+  los_fields_read: []
+  doc_types: []
+  rules:
+  - name: Mavent Category Review
+    type: custom
+    logic: >
+      Parse BaseReviewerStatuses from ECS API. Flag FAIL/ALERT/WARNING per
+      applicable category; enrich with ComplianceMessages. Persist full
+      structured results in mavent_results for dashboard display.
+  flags:
+  - title: Mavent Category Non-Pass
+    severity: critical
+    condition: Any applicable Mavent category is FAIL
+    suggestion: Resolve in Encompass Compliance Review, then rerun Mavent
+  - title: Mavent Overall Non-Pass
+    severity: warning
+    condition: ECS report_status is not Pass
+    suggestion: Review category flags and rerun Mavent after fixes

@@ -18,6 +18,10 @@ from .review_file_contacts import review_file_contacts
 from .review_borrower_summary import review_borrower_summary
 # STEP_03 / 3.1: Update 1003 URLA Lender
 from .update_urla_lender import update_urla_lender
+# STEP_03 / 3.2: Complete 1003 HUD Addendum
+from .update_hud_addendum import update_hud_addendum
+# STEP_03 / 3.3: Review 1003 URLA Signatures
+from .review_urla_signatures import review_urla_signatures
 # STEP_04 / 4.1: Review 1003 URLA Page 1
 from .review_urla_page1 import review_urla_page1
 # STEP_05 / 5.1: Employment Verification (2b VOE)
@@ -50,11 +54,15 @@ from .update_transmittal_summary import update_transmittal_summary
 from .update_fha_management import update_fha_management
 # STEP_12 / 12.2: HUD Transmittal
 from .update_hud_transmittal import update_hud_transmittal
-# STEP_13 / 13.1: Processor Workflow Update
+# STEP_13 / 13.1: Review Fraud & LDP
+from .review_fraud_compliance import review_fraud_compliance
+# STEP_13 / 13.2: Run Mavent Compliance
+from .run_mavent_compliance import run_mavent_compliance
+# STEP_14 / 14.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
-# STEP_13 / 13.2: Processor Closing Update
+# STEP_14 / 14.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
-# STEP_13 / 13.3: Build Action Items
+# STEP_14 / 14.3: Build Action Items
 from .build_action_items import build_action_items
 
 def get_all_tools() -> list:
@@ -76,6 +84,8 @@ def get_all_tools() -> list:
     tools.append(review_file_contacts)
     tools.append(review_borrower_summary)
     tools.append(update_urla_lender)
+    tools.append(update_hud_addendum)
+    tools.append(review_urla_signatures)
     tools.append(review_urla_page1)
     tools.append(review_urla_employment)
     tools.append(review_urla_other_income)
@@ -92,6 +102,8 @@ def get_all_tools() -> list:
     tools.append(update_transmittal_summary)
     tools.append(update_fha_management)
     tools.append(update_hud_transmittal)
+    tools.append(review_fraud_compliance)
+    tools.append(run_mavent_compliance)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
     tools.append(build_action_items)
@@ -113,6 +125,8 @@ __all__ = [
     "review_file_contacts",
     "review_borrower_summary",
     "update_urla_lender",
+    "update_hud_addendum",
+    "review_urla_signatures",
     "review_urla_page1",
     "review_urla_employment",
     "review_urla_other_income",
@@ -129,6 +143,8 @@ __all__ = [
     "update_transmittal_summary",
     "update_fha_management",
     "update_hud_transmittal",
+    "review_fraud_compliance",
+    "run_mavent_compliance",
     "update_processor_workflow",
     "update_processor_closing",
     "build_action_items",

@@ -383,7 +383,10 @@ def get_mavent_results(loan_id: str, state: dict = None) -> dict[str, any]:
         if response.status_code != 200:
             logger.error(f"[ENCOMPASS] ECS GET failed (status {response.status_code}): {response.text[:300]}")
             raise Exception(f"ECS compliance report retrieval failed (status {response.status_code}): {response.text[:200]}")
-        return response.json()
+        body = response.json() if response.text else None
+        if isinstance(body, list):
+            return body[0] if body else {"found": False, "message": "No compliance report found"}
+        return body or {"found": False, "message": "No compliance report found"}
     except _requests.exceptions.RequestException as e:
         logger.error(f"[ENCOMPASS] Network error getting ECS report: {e}")
         raise
@@ -415,20 +418,45 @@ def run_mavent(loan_id: str, run_type: str = "FULL", state: dict = None) -> dict
         "Authorization": f"Bearer {client.access_token}",
         "content-type": "application/json",
     }
-    payload = {
-        "entity": {
-            "entityType": "urn:elli:encompass:loan",
-            "entityId": loan_id,
-        },
-        "reportType": report_type,
-    }
+
+    channel_names = ["Retail", "Correspondent"]
+    response = None
 
     try:
-        response = _requests.post(url, json=payload, headers=headers, timeout=120)
-        if response.status_code not in (200, 201, 202):
-            logger.error(f"[ENCOMPASS] ECS POST failed (status {response.status_code}): {response.text[:300]}")
-            raise Exception(f"ECS compliance report order failed (status {response.status_code}): {response.text[:200]}")
-        return response.json()
+        for channel in channel_names:
+            payload = {
+                "entity": {
+                    "entityType": "urn:elli:encompass:loan",
+                    "entityId": loan_id,
+                },
+                "reportType": report_type,
+                "reportMode": "automatic",
+                "channelName": channel,
+                "reviewSource": "retail",
+            }
+            response = _requests.post(url, json=payload, headers=headers, timeout=180)
+            if response.status_code in (200, 201, 202):
+                logger.info(f"[ENCOMPASS] ECS POST succeeded with channelName={channel!r}")
+                break
+            if response.status_code == 400 and "channelName" in (response.text or ""):
+                logger.info(f"[ENCOMPASS] ECS POST 400 for channelName={channel!r}, trying next")
+                continue
+            break
+
+        if response is None or response.status_code not in (200, 201, 202):
+            status = response.status_code if response is not None else "N/A"
+            logger.error(
+                f"[ENCOMPASS] ECS POST failed (status {status}): "
+                f"{(response.text[:300] if response is not None else '')}"
+            )
+            raise Exception(
+                f"ECS compliance report order failed (status {status}): "
+                f"{(response.text[:200] if response is not None else 'no response')}"
+            )
+        body = response.json() if response.text else {}
+        if isinstance(body, list):
+            return body[0] if body else {}
+        return body or {}
     except _requests.exceptions.RequestException as e:
         logger.error(f"[ENCOMPASS] Network error ordering ECS report: {e}")
         raise

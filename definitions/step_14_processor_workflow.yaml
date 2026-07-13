@@ -1,5 +1,5 @@
 step:
-  id: STEP_13
+  id: STEP_14
   name: Processor Workflow and Closing
   phase: FORM_UPDATES
   description: >
@@ -8,7 +8,7 @@ step:
     and wire requested date.
 
 substeps:
-- id: '13.1'
+- id: '14.1'
   name: Processor Workflow Update
   tool: update_processor_workflow
   description: >
@@ -75,7 +75,7 @@ substeps:
     value: 'No'
     condition: always
 
-- id: '13.2'
+- id: '14.2'
   name: Processor Closing Update
   tool: update_processor_closing
   description: >
@@ -128,7 +128,7 @@ substeps:
     value: '{closing_date}'
     condition: loan_purpose == Purchase
 
-- id: '13.3'
+- id: '14.3'
   name: Build Action Items
   tool: build_action_items
   description: >

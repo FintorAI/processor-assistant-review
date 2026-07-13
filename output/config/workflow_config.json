@@ -62,14 +62,15 @@
       "STEP_05",
       "STEP_06",
       "STEP_07",
-      "STEP_08"
+      "STEP_08",
+      "STEP_13"
     ],
     "FORM_UPDATES": [
       "STEP_09",
       "STEP_10",
       "STEP_11",
       "STEP_12",
-      "STEP_13"
+      "STEP_14"
     ]
   },
   "step_order": [
@@ -86,7 +87,8 @@
     "STEP_10",
     "STEP_11",
     "STEP_12",
-    "STEP_13"
+    "STEP_13",
+    "STEP_14"
   ],
   "steps": {
     "STEP_00": {
@@ -109,13 +111,13 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (279 fields)",
+          "name": "Fetch LOS Fields (294 fields)",
           "tools": [
             "fetch_los_fields"
           ]
         },
         "3": {
-          "name": "Fetch Doc Fields (33 document types)",
+          "name": "Fetch Doc Fields (34 document types)",
           "tools": [
             "fetch_doc_fields"
           ]
@@ -195,6 +197,8 @@
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_lender.md",
       "tools": [
+        "review_urla_signatures",
+        "update_hud_addendum",
         "update_urla_lender"
       ],
       "substeps": {
@@ -202,6 +206,18 @@
           "name": "Update 1003 URLA Lender",
           "tools": [
             "update_urla_lender"
+          ]
+        },
+        "2": {
+          "name": "Complete 1003 HUD Addendum",
+          "tools": [
+            "update_hud_addendum"
+          ]
+        },
+        "3": {
+          "name": "Review 1003 URLA Signatures",
+          "tools": [
+            "review_urla_signatures"
           ]
         }
       }
@@ -422,6 +438,29 @@
       }
     },
     "STEP_13": {
+      "name": "Fraud & Compliance",
+      "phase": "DATA_REVIEW",
+      "plan_file": "fraud_&_compliance.md",
+      "tools": [
+        "review_fraud_compliance",
+        "run_mavent_compliance"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review Fraud & LDP",
+          "tools": [
+            "review_fraud_compliance"
+          ]
+        },
+        "2": {
+          "name": "Run Mavent Compliance",
+          "tools": [
+            "run_mavent_compliance"
+          ]
+        }
+      }
+    },
+    "STEP_14": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",

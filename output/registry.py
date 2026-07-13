@@ -205,6 +205,7 @@ def generate_workflow_overview() -> str:
     """Generate a compact workflow overview listing only steps (no substeps)."""
     lines = []
     current_phase = None
+    seen_phases: set[str] = set()
 
     for step_id in STEP_ORDER:
         cfg = get_step_config(step_id)
@@ -213,7 +214,12 @@ def generate_workflow_overview() -> str:
 
         if cfg.phase != current_phase:
             current_phase = cfg.phase
-            lines.append(f"\n### Phase: {current_phase}")
+            label = current_phase
+            if current_phase in seen_phases:
+                label = f"{current_phase} (continued)"
+            else:
+                seen_phases.add(current_phase)
+            lines.append(f"\n### Phase: {label}")
 
         step_num = get_step_number(step_id)
         ss_count = len(cfg.substeps)

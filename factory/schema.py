@@ -306,6 +306,10 @@ class StepDef(BaseModel):
     name: str = Field(..., description="Step name")
     phase: str = Field(..., description="Phase name, e.g. 'VERIFICATION'")
     description: str = Field(default="", description="What this step does")
+    workflow_position: Optional[float] = Field(
+        default=None,
+        description="Optional sort position (e.g. 12.5 runs after STEP_12, before STEP_13). Defaults to step_number.",
+    )
     substeps: list[SubstepDef] = Field(default_factory=list)
     dev: Optional[DevConfig] = None
 
@@ -319,6 +323,10 @@ class StepDef(BaseModel):
     @property
     def step_number(self) -> int:
         return int(self.id.replace("STEP_", ""))
+
+    @property
+    def sort_key(self) -> float:
+        return self.workflow_position if self.workflow_position is not None else float(self.step_number)
 
     @property
     def tool_names(self) -> list[str]:
@@ -476,6 +484,7 @@ def load_step_definition(path: str) -> StepDef:
         name=step_data.get("name", ""),
         phase=step_data.get("phase", ""),
         description=step_data.get("description", ""),
+        workflow_position=step_data.get("workflow_position"),
         substeps=substeps,
         dev=DevConfig(**dev_data) if isinstance(dev_data, dict) else None,
     )
@@ -502,6 +511,6 @@ def load_all_definitions(definitions_dir: str) -> tuple[AgentConfig, list[StepDe
             steps.append(step_def)
 
     # Sort by step number
-    steps.sort(key=lambda s: s.step_number)
+    steps.sort(key=lambda s: s.sort_key)
 
     return agent_config, steps

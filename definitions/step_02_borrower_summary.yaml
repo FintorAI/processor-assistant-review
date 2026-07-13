@@ -296,6 +296,27 @@ substeps:
     field_name: Purchase Price (LOS)
     category: loan_info
     purpose: Cross-check LOS purchase price against purchase price extracted from Purchase Contract
+  # ── Mortgage Insurance quick review (§14) ─────────────────────────
+  - key: ltv
+    field_id: '353'
+    field_name: LTV
+    category: insurance
+    purpose: Gate conventional PMI review and compare LOS LTV against AUS
+  - key: mi_cert_number
+    field_id: '1387'
+    field_name: MI Certificate Number
+    category: insurance
+    purpose: Confirm MI paperwork is reflected in Encompass when conventional LTV exceeds 80%
+  - key: mi_monthly_premium
+    field_id: '232'
+    field_name: Proposed Monthly Mortgage Insurance
+    category: insurance
+    purpose: Confirm a monthly MI payment is present when conventional LTV exceeds 80%
+  - key: mi_doc_expiration
+    field_id: Document.ExpirationDate.MORTGAGE INSURANCE
+    field_name: Mortgage Insurance Document Expiration Date
+    category: insurance
+    purpose: §14 #1 compare MI document expiration against estimated closing date
   # ── Transaction Details ────────────────────────────────────────────
   - key: lender
     field_id: '1264'
@@ -306,7 +327,17 @@ substeps:
     field_id: '1401'
     field_name: Loan Program
     category: loan_info
-    purpose: Presence check; info flag
+    purpose: Presence check; info flag; DPA detection when program contains DPA
+  - key: subordinate_financing
+    field_id: '140'
+    field_name: Subordinate Financing
+    category: loan_info
+    purpose: §01 #3 linked second-lien / DPA amount (Encompass field 140)
+  - key: dpa_subordinate_amount
+    field_id: URLA.X230
+    field_name: DPA Subordinate Finance Amount
+    category: loan_info
+    purpose: §01 #3 manually entered DPA amount on URLA
   - key: closing_cost_program
     field_id: '1785'
     field_name: Closing Cost Program
@@ -328,6 +359,11 @@ substeps:
     field_name: Property Will Be (Occupancy)
     category: loan_info
     purpose: Presence check; info flag
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: §14 #6 compare current LOS property type against AUS
   - key: loan_type
     field_id: '1172'
     field_name: Loan Type
