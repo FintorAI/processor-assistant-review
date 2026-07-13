@@ -26,6 +26,11 @@ Review Agent — verifies a mortgage loan file and writes confirmed field update
 - **Step 10** — Borrower Info - Vesting (1 substeps)
 - **Step 11** — Transmittal Summary (1 substeps)
 - **Step 12** — FHA-Specific Forms (2 substeps)
+
+### Phase: DATA_REVIEW
+- **Step 14** — Fraud & Compliance (2 substeps)
+
+### Phase: FORM_UPDATES
 - **Step 13** — Processor Workflow and Closing (3 substeps)
 
 ## Input Fields (already in state — do NOT ask the user for these)

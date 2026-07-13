@@ -65,7 +65,7 @@ no new code — status corrected on the sheet to reflect existing coverage.
 |---|---|
 | ~~**05 W-2 #4**~~ — OT/bonus/holiday variances | ✅ **SHIPPED** — earnings-variance rule landed (`_analyze_paystub_earnings`); only the catchingDoc `earnings[]` server-schema push remains (see spec below) |
 | ~~**03 #8 / 04 #6 / #9 / #10 / #11**~~ — Liabilities vs credit report | ✅ **SHIPPED** — reconciliation + VOL write path landed; only the catchingDoc `liabilities[]` server-schema push remains (see spec below) |
-| **07 #4** — Schedule E properties / rental income | no Schedule E extraction |
+| **07 #4** — Schedule E properties / rental income | ⚠️ **Needs clarification + live example** — no Schedule E extraction schema *and* no loan with a personal 1040 / Schedule E found in the eFolder to build/verify against. Repo only has `Tax Returns - Business` (no personal 1040 doc type). Blocked on the exact eFolder bucket name for personal tax returns + a sample loan. Review rule (address match to REO/subject + net-rental reconciliation) is designed but unbuilt |
 | ~~**08 #5**~~ — Transfers between accounts | ✅ **SHIPPED** — transfer-tracing rule landed (`_check_account_transfers`); only the catchingDoc `transactions[]` server-schema push remains (see spec below) |
 | ~~**12 #2**~~ — Applicant/property vs flood cert | ✅ **SHIPPED** — not a real extraction gap: the live flood-cert schema already extracts `property_address` + `borrower_name`; registered + wired (see Tier 2 above) |
 | **06 #1** — Awards letters / 1099s | no 1099 doc type |
@@ -230,7 +230,7 @@ if the LOE should be sent for e-sign instead).
 | 06 Income SS/Pension | 1 | Awards letters and 1099s per AUS | 3 |
 | 06 Income SS/Pension | 3 | Verify receipt on bank statements | 2 |
 | 07 Self-Employed | 2 | Verify borrower name, address, SSN | ✅ (via §1.6/§3.1) |
-| 07 Self-Employed | 4 | Schedule E properties / rental income | 3 |
+| 07 Self-Employed | 4 | Schedule E properties / rental income | 3 ⚠️ needs clarification + live example |
 | 08 Assets | 2 | Transaction history to current | **1 ✅** |
 | 08 Assets | 5 | Transfers between accounts | ✅ 3→2 (schema push pending) |
 | 08 Assets | 10 | Complete asset screen (Page 3) | ✅ 2 |

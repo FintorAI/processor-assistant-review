@@ -62,7 +62,8 @@
       "STEP_05",
       "STEP_06",
       "STEP_07",
-      "STEP_08"
+      "STEP_08",
+      "STEP_14"
     ],
     "FORM_UPDATES": [
       "STEP_09",
@@ -86,6 +87,7 @@
     "STEP_10",
     "STEP_11",
     "STEP_12",
+    "STEP_14",
     "STEP_13"
   ],
   "steps": {
@@ -109,13 +111,13 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (288 fields)",
+          "name": "Fetch LOS Fields (292 fields)",
           "tools": [
             "fetch_los_fields"
           ]
         },
         "3": {
-          "name": "Fetch Doc Fields (33 document types)",
+          "name": "Fetch Doc Fields (34 document types)",
           "tools": [
             "fetch_doc_fields"
           ]
@@ -431,6 +433,29 @@
           "name": "HUD Transmittal",
           "tools": [
             "update_hud_transmittal"
+          ]
+        }
+      }
+    },
+    "STEP_14": {
+      "name": "Fraud & Compliance",
+      "phase": "DATA_REVIEW",
+      "plan_file": "fraud_&_compliance.md",
+      "tools": [
+        "review_fraud_compliance",
+        "run_mavent_compliance"
+      ],
+      "substeps": {
+        "1": {
+          "name": "Review Fraud & LDP",
+          "tools": [
+            "review_fraud_compliance"
+          ]
+        },
+        "2": {
+          "name": "Run Mavent Compliance",
+          "tools": [
+            "run_mavent_compliance"
           ]
         }
       }

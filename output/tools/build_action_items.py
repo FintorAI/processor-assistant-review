@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 
 SUBSTEP = "13.3"
 COMMS_AGENT = "processor_communications"
+REVIEW_AGENT = "processor_assistant_review"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -187,6 +188,39 @@ def _item(
         "trigger": {
             "agent": COMMS_AGENT,
             "graph_id": graph_id,
+            "resume_contract": resume_contract,
+            "payload": payload,
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _integration_item(
+    action_type: str,
+    title: str,
+    description: str,
+    tool: str,
+    payload: Dict[str, Any],
+    *,
+    resume_contract: str = "integration_rerun",
+    status: str = "actionable",
+    severity: str = "action",
+    blockers: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Action item that re-invokes a review-agent tool (not a comms graph)."""
+    return {
+        "id": action_type,
+        "component": "integrations",
+        "action_type": action_type,
+        "title": title,
+        "description": description,
+        "severity": severity,
+        "status": status,
+        "blockers": blockers or [],
+        "needs_input": [],
+        "trigger": {
+            "agent": REVIEW_AGENT,
+            "tool": tool,
             "resume_contract": resume_contract,
             "payload": payload,
         },
@@ -409,6 +443,54 @@ def _rule_inquiry_loe(state: dict) -> Optional[dict]:
     )
 
 
+def _rule_rerun_mavent(state: dict) -> Optional[dict]:
+    """Rerun Mavent when STEP_14.2 reported non-pass categories or overall status."""
+    mv = state.get("mavent_verification") or {}
+    mr = state.get("mavent_results") or {}
+
+    mavent_flags = [
+        f for f in (state.get("flags") or [])
+        if isinstance(f, dict)
+        and not f.get("resolved")
+        and (
+            str(f.get("check_id") or "").startswith("mavent_")
+            or str(f.get("title") or "").startswith("Mavent ")
+        )
+        and f.get("severity") in ("error", "warning")
+        and f.get("check_id") not in ("mavent_overall_pass",)
+    ]
+
+    report_status = str(mr.get("report_status") or mv.get("report_status") or "").upper()
+    non_pass = (
+        mavent_flags
+        or mv.get("fail_count", 0) > 0
+        or mv.get("warning_count", 0) > 0
+        or report_status not in ("", "PASS", "PASSED")
+    )
+    if not non_pass:
+        return None
+
+    fail_n = mv.get("fail_count") or sum(1 for f in mavent_flags if f.get("severity") == "error")
+    warn_n = mv.get("warning_count") or sum(1 for f in mavent_flags if f.get("severity") == "warning")
+
+    payload = {
+        "loan_number": _loan_number(state),
+        "loan_id": state.get("loan_id"),
+        "env": state.get("env") or "Prod",
+        "force_refresh": True,
+    }
+    return _integration_item(
+        "rerun_mavent",
+        "Rerun Mavent Compliance Check",
+        (
+            f"Mavent reported {fail_n} fail(s) and {warn_n} warning(s) "
+            f"(overall: {report_status or 'non-pass'}). Rerun after resolving issues in Encompass."
+        ),
+        "run_mavent_compliance",
+        payload,
+    )
+
+
 # Registry — append future rules (including other components) here.
 # NOTE: `_rule_hoa_loe` is intentionally OMITTED. Per processor feedback
 # (notes.txt:608-619), the "no-HOA" Blend follow-up is case-by-case, not
@@ -423,6 +505,7 @@ RULES: List[Callable[[dict], Optional[dict]]] = [
     _rule_emd_request,
     _rule_employment_gap_loe,
     _rule_inquiry_loe,
+    _rule_rerun_mavent,
 ]
 
 

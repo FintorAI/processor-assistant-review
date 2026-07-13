@@ -53,6 +53,7 @@
       "field_name": "Property Type",
       "category": "property",
       "used_by_steps": [
+        "STEP_02",
         "STEP_03",
         "STEP_04",
         "STEP_07",
@@ -229,6 +230,15 @@
       "field_id": "136",
       "field_name": "Purchase Price (LOS)",
       "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
+      "key": "mi_cert_number",
+      "field_id": "1387",
+      "field_name": "MI Certificate Number",
+      "category": "insurance",
       "used_by_steps": [
         "STEP_02"
       ]
@@ -639,6 +649,15 @@
       ]
     },
     {
+      "key": "mi_monthly_premium",
+      "field_id": "232",
+      "field_name": "Proposed Monthly Mortgage Insurance",
+      "category": "insurance",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "hoa_dues_monthly",
       "field_id": "233",
       "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
@@ -774,6 +793,15 @@
       "category": "liabilities",
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "ltv",
+      "field_id": "353",
+      "field_name": "LTV",
+      "category": "insurance",
+      "used_by_steps": [
+        "STEP_02"
       ]
     },
     {
@@ -1897,6 +1925,15 @@
       ]
     },
     {
+      "key": "mi_doc_expiration",
+      "field_id": "Document.ExpirationDate.MORTGAGE INSURANCE",
+      "field_name": "Mortgage Insurance Document Expiration Date",
+      "category": "insurance",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "borr_1c_total_gross_income",
       "field_id": "FE0112",
       "field_name": "Borrower 1c \u2014 Total Gross Income",
@@ -2870,11 +2907,13 @@
       "key": "borrower_name",
       "source_documents": [
         "VOE",
-        "Flood Certificate"
+        "Flood Certificate",
+        "Fraud Report"
       ],
       "used_by_steps": [
         "STEP_05",
-        "STEP_08"
+        "STEP_08",
+        "STEP_14"
       ]
     },
     {
@@ -2884,6 +2923,15 @@
       ],
       "used_by_steps": [
         "STEP_03"
+      ]
+    },
+    {
+      "key": "borrower_ssn",
+      "source_documents": [
+        "Fraud Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
       ]
     },
     {
@@ -3276,6 +3324,24 @@
       ]
     },
     {
+      "key": "fraud_alert_status",
+      "source_documents": [
+        "Fraud Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "fraud_score",
+      "source_documents": [
+        "Fraud Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "gift_letter_present",
       "source_documents": [
         "Gift Letter"
@@ -3373,7 +3439,8 @@
         "LDP"
       ],
       "used_by_steps": [
-        "STEP_01"
+        "STEP_01",
+        "STEP_14"
       ]
     },
     {
@@ -3793,10 +3860,10 @@
     }
   ],
   "stats": {
-    "total_los_fields": 288,
-    "total_doc_fields": 124,
-    "total_document_types": 33,
-    "total_steps": 13,
+    "total_los_fields": 292,
+    "total_doc_fields": 127,
+    "total_document_types": 34,
+    "total_steps": 14,
     "categories": [
       "assets",
       "borrower_info",
@@ -3809,6 +3876,7 @@
       "file_contacts",
       "grant_program",
       "income",
+      "insurance",
       "liabilities",
       "loan_info",
       "processor_workflow",
@@ -3830,6 +3898,7 @@
       "FHA Government Documents",
       "Flood Certificate",
       "Flood Insurance",
+      "Fraud Report",
       "General Letter of Explanation",
       "Gift Letter",
       "HOA Statement",

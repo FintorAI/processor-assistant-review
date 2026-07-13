@@ -57,7 +57,11 @@
         "appraisal_property_address",
         "property_state",
         "property_zip",
-        "parcel_number"
+        "parcel_number",
+        "appraisal_made_as_is",
+        "appraisal_subject_to_completion",
+        "appraisal_subject_to_repairs",
+        "appraisal_subject_to_conditions"
       ]
     },
     "du_findings": {
@@ -467,6 +471,9 @@
         "pa_buyer_name",
         "pa_contract_date",
         "pa_signing_date",
+        "contract_date",
+        "buyer_signed",
+        "seller_signed",
         "emd_amount_pa",
         "emd_payable_to",
         "payment_terms",
@@ -496,6 +503,33 @@
         "seller_agent_email"
       ]
     },
+    "mi_certificate": {
+      "name": "MI Certificate",
+      "efolder_doc_type": "MI Certificate",
+      "category": "insurance",
+      "optional": true,
+      "aliases": [
+        "MI Quote",
+        "Mortgage Insurance",
+        "PMI Certificate",
+        "PMI"
+      ],
+      "fields_extracted": [
+        "certificate_number",
+        "premium_type",
+        "monthly_premium_amount",
+        "mi_company_name",
+        "mi_company_address",
+        "mi_file_number",
+        "first_renewal_percent",
+        "first_renewal_months",
+        "second_renewal_percent",
+        "second_renewal_months",
+        "cancel_at_percent",
+        "upfront_premium_amount",
+        "upfront_premium_percent"
+      ]
+    },
     "credit_report": {
       "name": "Credit Report",
       "category": "credit",
@@ -517,6 +551,29 @@
         "coborrower_current_address",
         "inquiries",
         "liabilities"
+      ]
+    },
+    "fraud_report": {
+      "name": "Fraud Report",
+      "efolder_doc_type": "Fraud Report",
+      "category": "compliance",
+      "aliases": [
+        "Fraud",
+        "Fraud Guard",
+        "FraudGuard",
+        "LoanSafe",
+        "Identity Fraud"
+      ],
+      "fields_extracted": [
+        "fraud_alert_status",
+        "fraud_score",
+        "fraud_aka",
+        "fraud_coborrower_aka",
+        "borrower_name",
+        "borrower_ssn",
+        "coborrower_name",
+        "coborrower_ssn",
+        "address_history"
       ]
     },
     "caivrs": {

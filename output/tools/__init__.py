@@ -54,6 +54,10 @@ from .update_transmittal_summary import update_transmittal_summary
 from .update_fha_management import update_fha_management
 # STEP_12 / 12.2: HUD Transmittal
 from .update_hud_transmittal import update_hud_transmittal
+# STEP_14 / 14.1: Review Fraud & LDP
+from .review_fraud_compliance import review_fraud_compliance
+# STEP_14 / 14.2: Run Mavent Compliance
+from .run_mavent_compliance import run_mavent_compliance
 # STEP_13 / 13.1: Processor Workflow Update
 from .update_processor_workflow import update_processor_workflow
 # STEP_13 / 13.2: Processor Closing Update
@@ -98,6 +102,8 @@ def get_all_tools() -> list:
     tools.append(update_transmittal_summary)
     tools.append(update_fha_management)
     tools.append(update_hud_transmittal)
+    tools.append(review_fraud_compliance)
+    tools.append(run_mavent_compliance)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
     tools.append(build_action_items)
@@ -137,6 +143,8 @@ __all__ = [
     "update_transmittal_summary",
     "update_fha_management",
     "update_hud_transmittal",
+    "review_fraud_compliance",
+    "run_mavent_compliance",
     "update_processor_workflow",
     "update_processor_closing",
     "build_action_items",
