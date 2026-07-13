@@ -1,6 +1,6 @@
-"""update_processor_closing — Tool for substep 13.2: Processor Closing Update
+"""update_processor_closing — Tool for substep 14.2: Processor Closing Update
 
-Step 13 (STEP_13): Processor Workflow and Closing
+Step 14 (STEP_14): Processor Workflow and Closing
 Phase: FORM_UPDATES
 
 For purchase loans, signing date = wire requested date = closing date.
@@ -58,7 +58,7 @@ def update_processor_closing(
     """Fill the Processor Closing screen. For purchase loans, set Signing Date
     and Wire Requested Date to the estimated closing date value (field 763).
 
-    Call this tool during STEP_13 (Processor Workflow and Closing) as substep 13.2.
+    Call this tool during STEP_14 (Processor Workflow and Closing) as substep 14.2.
     Reads LOS: closing_date, signing_date, wire_requested_date, loan_purpose
     Flags: Closing Date Not Set (warning), Signing Date Not Set (warning)
     """
@@ -84,7 +84,7 @@ def update_processor_closing(
     if is_purchase:
         if not closing_date:
             flags.append({
-                "substep": "13.2",
+                "substep": "14.2",
                 "title": "Closing Date Not Set",
                 "severity": "warning",
                 "details": "Field 763 (Est Closing Date) is blank — cannot populate Signing Date or Wire Requested Date.",
@@ -97,7 +97,7 @@ def update_processor_closing(
             iso_closing = _to_iso_date(closing_date)
             if not iso_closing:
                 flags.append({
-                    "substep": "13.2",
+                    "substep": "14.2",
                     "title": "Closing Date Unparseable",
                     "severity": "warning",
                     "details": (
@@ -116,7 +116,7 @@ def update_processor_closing(
         # Non-purchase: flag if signing date is blank, don't auto-fill
         if not signing_date:
             flags.append({
-                "substep": "13.2",
+                "substep": "14.2",
                 "title": "Signing Date Not Set",
                 "severity": "warning",
                 "details": f"Loan purpose is {loan_purpose!r} (not Purchase) — signing date must be set manually.",
@@ -126,11 +126,11 @@ def update_processor_closing(
             })
 
     if writes:
-        _write_fields(loan_id, writes, substep="13.2", flags=flags, state=state, labels=FIELD_LABELS)
+        _write_fields(loan_id, writes, substep="14.2", flags=flags, state=state, labels=FIELD_LABELS)
 
     result = {
         "success": True,
-        "substep": "13.2",
+        "substep": "14.2",
         "tool": "update_processor_closing",
         "loan_purpose": loan_purpose,
         "closing_date": closing_date,

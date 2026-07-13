@@ -1,6 +1,6 @@
-"""run_mavent_compliance — Tool for substep 14.2: Run Mavent Compliance
+"""run_mavent_compliance — Tool for substep 13.2: Run Mavent Compliance
 
-Step 14 (STEP_14): Fraud & Compliance
+Step 13 (STEP_13): Fraud & Compliance
 Phase: DATA_REVIEW
 
 Runs Mavent via Encompass ECS API (checklist §15 #3–#4):
@@ -26,7 +26,7 @@ from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "14.2"
+SUBSTEP = "13.2"
 _NON_PASS = frozenset({"FAIL", "ALERT", "WARNING", "DID NOT PASS", "DIDNOTPASS"})
 _SUMMARY_BULLET_LIMIT = 3
 _SUMMARY_CHAR_LIMIT = 250

@@ -10,10 +10,10 @@ Frontend spec for displaying full Mavent ECS results from the processor review a
 
 | Key | Written by | Purpose |
 |-----|------------|---------|
-| `mavent_results` | `run_mavent_compliance` (STEP_14.2) | Full structured ECS data for detail panel |
+| `mavent_results` | `run_mavent_compliance` (STEP_13.2) | Full structured ECS data for detail panel |
 | `mavent_verification` | `run_mavent_compliance` | Run summary counts and overall status |
 | `flags[]` | `run_mavent_compliance` | Short per-category cards (`check_id`: `mavent_*`) |
-| `comms_actions[]` | `build_action_items` (13.3) | Rerun tile when `action_type === "rerun_mavent"` |
+| `comms_actions[]` | `build_action_items` (14.3) | Rerun tile when `action_type === "rerun_mavent"` |
 
 ---
 

@@ -157,7 +157,7 @@
         "STEP_03",
         "STEP_09",
         "STEP_12",
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -636,7 +636,7 @@
         "STEP_03",
         "STEP_04",
         "STEP_10",
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1230,7 +1230,7 @@
       "field_name": "Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1781,7 +1781,7 @@
       "field_name": "Signing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1829,7 +1829,7 @@
       "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1903,7 +1903,7 @@
       "field_name": "Non-Del Inv. Approval",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1912,7 +1912,7 @@
       "field_name": "Product Type",
       "category": "processor_workflow",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -1921,7 +1921,7 @@
       "field_name": "Wire Requested Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -2931,7 +2931,7 @@
       "used_by_steps": [
         "STEP_05",
         "STEP_08",
-        "STEP_14"
+        "STEP_13"
       ]
     },
     {
@@ -2949,7 +2949,7 @@
         "Fraud Report"
       ],
       "used_by_steps": [
-        "STEP_14"
+        "STEP_13"
       ]
     },
     {
@@ -3347,7 +3347,7 @@
         "Fraud Report"
       ],
       "used_by_steps": [
-        "STEP_14"
+        "STEP_13"
       ]
     },
     {
@@ -3356,7 +3356,7 @@
         "Fraud Report"
       ],
       "used_by_steps": [
-        "STEP_14"
+        "STEP_13"
       ]
     },
     {
@@ -3412,7 +3412,7 @@
         "HOA Statement"
       ],
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {
@@ -3458,7 +3458,7 @@
       ],
       "used_by_steps": [
         "STEP_01",
-        "STEP_14"
+        "STEP_13"
       ]
     },
     {
@@ -3800,7 +3800,7 @@
         "Title Report"
       ],
       "used_by_steps": [
-        "STEP_13"
+        "STEP_14"
       ]
     },
     {

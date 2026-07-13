@@ -1,7 +1,6 @@
 step:
-  id: STEP_14
+  id: STEP_13
   name: Fraud & Compliance
-  workflow_position: 12.5
   phase: DATA_REVIEW
   description: >
     Review FraudGuard / fraud report alerts and LDP/OFAC clearance documents,
@@ -10,7 +9,7 @@ step:
     and ordering a new Mavent report when none exists.
 
 substeps:
-- id: '14.1'
+- id: '13.1'
   name: Review Fraud & LDP
   tool: review_fraud_compliance
   description: >
@@ -56,7 +55,7 @@ substeps:
     condition: LDP not present in eFolder
     suggestion: Obtain LDP/GSA before submission
 
-- id: '14.2'
+- id: '13.2'
   name: Run Mavent Compliance
   tool: run_mavent_compliance
   description: >

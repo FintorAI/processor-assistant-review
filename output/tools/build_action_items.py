@@ -1,7 +1,7 @@
 """build_action_items — Final substep: derive communications action items.
 
-Step 13 (STEP_13): Processor Workflow and Closing
-Substep 12.3 — run last, after all reviews/updates complete.
+Step 14 (STEP_14): Processor Workflow and Closing
+Substep 14.3 — run last, after all reviews/updates complete.
 
 Component-agnostic RULE REGISTRY. Each rule inspects the review state and emits
 at most one "action item" describing a downstream action a processor can trigger
@@ -52,7 +52,7 @@ from ._helpers import _efolder_present, _los, _profile
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "13.3"
+SUBSTEP = "14.3"
 COMMS_AGENT = "processor_communications"
 REVIEW_AGENT = "processor_assistant_review"
 
@@ -444,7 +444,7 @@ def _rule_inquiry_loe(state: dict) -> Optional[dict]:
 
 
 def _rule_rerun_mavent(state: dict) -> Optional[dict]:
-    """Rerun Mavent when STEP_14.2 reported non-pass categories or overall status."""
+    """Rerun Mavent when STEP_13.2 reported non-pass categories or overall status."""
     mv = state.get("mavent_verification") or {}
     mr = state.get("mavent_results") or {}
 

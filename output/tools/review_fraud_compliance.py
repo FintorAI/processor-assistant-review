@@ -1,6 +1,6 @@
-"""review_fraud_compliance — Tool for substep 14.1: Review Fraud & LDP
+"""review_fraud_compliance — Tool for substep 13.1: Review Fraud & LDP
 
-Step 14 (STEP_14): Fraud & Compliance
+Step 13 (STEP_13): Fraud & Compliance
 Phase: DATA_REVIEW
 
 Checklist §15:
@@ -27,7 +27,7 @@ from ._helpers import _doc, _efolder_present, _relevant_docs
 
 logger = logging.getLogger(__name__)
 
-SUBSTEP = "14.1"
+SUBSTEP = "13.1"
 FRAUD_DOC = "Fraud Report"
 LDP_DOC = "LDP"
 FRAUD_SCORE_THRESHOLD = 500

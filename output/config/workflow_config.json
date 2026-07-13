@@ -63,14 +63,14 @@
       "STEP_06",
       "STEP_07",
       "STEP_08",
-      "STEP_14"
+      "STEP_13"
     ],
     "FORM_UPDATES": [
       "STEP_09",
       "STEP_10",
       "STEP_11",
       "STEP_12",
-      "STEP_13"
+      "STEP_14"
     ]
   },
   "step_order": [
@@ -87,8 +87,8 @@
     "STEP_10",
     "STEP_11",
     "STEP_12",
-    "STEP_14",
-    "STEP_13"
+    "STEP_13",
+    "STEP_14"
   ],
   "steps": {
     "STEP_00": {
@@ -111,7 +111,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (292 fields)",
+          "name": "Fetch LOS Fields (294 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -437,7 +437,7 @@
         }
       }
     },
-    "STEP_14": {
+    "STEP_13": {
       "name": "Fraud & Compliance",
       "phase": "DATA_REVIEW",
       "plan_file": "fraud_&_compliance.md",
@@ -460,7 +460,7 @@
         }
       }
     },
-    "STEP_13": {
+    "STEP_14": {
       "name": "Processor Workflow and Closing",
       "phase": "FORM_UPDATES",
       "plan_file": "processor_workflow_and_closing.md",

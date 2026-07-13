@@ -1,7 +1,7 @@
 Phase,Phase_Name,Step_ID,Step_Num,Step_Name,Substep_ID,Substep_Name,Plan_File,Tools
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.md,find_loan
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (279 fields),data_gathering.md,fetch_los_fields
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (33 document types),data_gathering.md,fetch_doc_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (294 fields),data_gathering.md,fetch_los_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (34 document types),data_gathering.md,fetch_doc_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.5,Validate Property Address (USPS),data_gathering.md,validate_property_address
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.6,Extract Almas-Notes Images (Vision OCR),data_gathering.md,extract_almas_images
@@ -9,6 +9,8 @@ INTAKE,Intake,STEP_01,1,Pre-Checks,1.1,Document Presence Check,pre_checks.md,run
 INTAKE,Intake,STEP_01,1,Pre-Checks,1.2,File Contacts Check,pre_checks.md,review_file_contacts
 DATA_REVIEW,Data Review,STEP_02,2,Borrower Summary - Origination,2.1,Review Borrower Summary - Origination,borrower_summary___origination.md,review_borrower_summary
 DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Lender,3.1,Update 1003 URLA Lender,1003_urla_lender.md,update_urla_lender
+DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Lender,3.2,Complete 1003 HUD Addendum,1003_urla_lender.md,update_hud_addendum
+DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Lender,3.3,Review 1003 URLA Signatures,1003_urla_lender.md,review_urla_signatures
 DATA_REVIEW,Data Review,STEP_04,4,1003 URLA Page 1,4.1,Review 1003 URLA Page 1,1003_urla_page_1.md,review_urla_page1
 DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Page 2,5.1,Employment Verification (2b VOE),1003_urla_page_2.md,review_urla_employment
 DATA_REVIEW,Data Review,STEP_05,5,1003 URLA Page 2,5.2,Other Income (2e),1003_urla_page_2.md,review_urla_other_income
@@ -25,6 +27,8 @@ FORM_UPDATES,Form Updates,STEP_10,10,Borrower Info - Vesting,10.1,Update Borrowe
 FORM_UPDATES,Form Updates,STEP_11,11,Transmittal Summary,11.1,Update Transmittal Summary,transmittal_summary.md,update_transmittal_summary
 FORM_UPDATES,Form Updates,STEP_12,12,FHA-Specific Forms,12.1,FHA Management,fha_specific_forms.md,update_fha_management
 FORM_UPDATES,Form Updates,STEP_12,12,FHA-Specific Forms,12.2,HUD Transmittal,fha_specific_forms.md,update_hud_transmittal
-FORM_UPDATES,Form Updates,STEP_13,13,Processor Workflow and Closing,13.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
-FORM_UPDATES,Form Updates,STEP_13,13,Processor Workflow and Closing,13.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
-FORM_UPDATES,Form Updates,STEP_13,13,Processor Workflow and Closing,13.3,Build Action Items,processor_workflow_and_closing.md,build_action_items
+DATA_REVIEW,Data Review,STEP_13,13,Fraud & Compliance,13.1,Review Fraud & LDP,fraud_&_compliance.md,review_fraud_compliance
+DATA_REVIEW,Data Review,STEP_13,13,Fraud & Compliance,13.2,Run Mavent Compliance,fraud_&_compliance.md,run_mavent_compliance
+FORM_UPDATES,Form Updates,STEP_14,14,Processor Workflow and Closing,14.1,Processor Workflow Update,processor_workflow_and_closing.md,update_processor_workflow
+FORM_UPDATES,Form Updates,STEP_14,14,Processor Workflow and Closing,14.2,Processor Closing Update,processor_workflow_and_closing.md,update_processor_closing
+FORM_UPDATES,Form Updates,STEP_14,14,Processor Workflow and Closing,14.3,Build Action Items,processor_workflow_and_closing.md,build_action_items
