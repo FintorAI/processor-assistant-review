@@ -415,8 +415,10 @@ def _rule_inquiry_loe(state: dict) -> Optional[dict]:
     each recent inquiry.
     """
     inq_flags = [
-        f for f in _unresolved_flags(state, "recent credit inquiries", "lox required")
+        f for f in _unresolved_flags(state, "lox required")
         if "§04 #7" in (f.get("title") or "")
+        and "lox required" in (f.get("title") or "").lower()
+        and "no recent credit inquiries" not in (f.get("title") or "").lower()
     ]
     if not inq_flags:
         return None

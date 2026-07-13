@@ -959,7 +959,7 @@ def review_borrower_summary(
                   docs=_cr_docs)
         else:
             _flag(flags, "2.1", "§04 #4 Credit Report Address Confirmed", "info",
-                  f"Credit report residence matches the Encompass borrower present address.",
+                  "Credit report residence matches the Encompass borrower present address.",
                   "No action needed — residence address matches.")
 
     _cr_employer = (_doc(state, "employer_name") or "").strip()

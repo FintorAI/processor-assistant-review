@@ -296,11 +296,17 @@ def _build_workflow_overview(all_steps: list[StepDef]) -> str:
     """
     lines = []
     current_phase = None
+    seen_phases: set[str] = set()
 
     for step in all_steps:
         if step.phase != current_phase:
             current_phase = step.phase
-            lines.append(f"\n### Phase: {current_phase}")
+            label = current_phase
+            if current_phase in seen_phases:
+                label = f"{current_phase} (continued)"
+            else:
+                seen_phases.add(current_phase)
+            lines.append(f"\n### Phase: {label}")
 
         step_num = step.step_number
         ss_count = len(step.substeps)

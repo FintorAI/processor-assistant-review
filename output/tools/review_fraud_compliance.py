@@ -68,9 +68,7 @@ def _is_high_alert_status(status: str) -> bool:
     s = (status or "").strip().lower()
     if not s:
         return False
-    if s in _HIGH_ALERT_TOKENS:
-        return True
-    return any(tok in s for tok in _HIGH_ALERT_TOKENS)
+    return s in _HIGH_ALERT_TOKENS
 
 
 @tool

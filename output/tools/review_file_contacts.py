@@ -1074,13 +1074,14 @@ _INSURANCE_SOURCES = [
         "state": ["hazard_insurance_state"],
         "postalCode": ["hazard_insurance_zip"],
     }),
-    (_FLOOD_CT, "Flood Insurance", "Flood policy / certificate", {
-        "name": ["company_name"],
-        "contactName": ["contact_name"],
-        "phone": ["company_phone"],
-        "email": ["contact_email"],
-        "fax": ["company_fax"],
-        "address": ["company_address"],
+    (_FLOOD_CT, "Flood Insurance", "Flood Insurance policy", {
+        "name": ["flood_insurance_company"],
+        "contactName": ["flood_insurance_contact"],
+        "phone": ["flood_insurance_phone"],
+        "address": ["flood_insurance_address"],
+        "city": ["flood_insurance_city"],
+        "state": ["flood_insurance_state"],
+        "postalCode": ["flood_insurance_zip"],
     }),
 ]
 
