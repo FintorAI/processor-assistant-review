@@ -327,7 +327,17 @@ substeps:
     field_id: '1401'
     field_name: Loan Program
     category: loan_info
-    purpose: Presence check; info flag
+    purpose: Presence check; info flag; DPA detection when program contains DPA
+  - key: subordinate_financing
+    field_id: '140'
+    field_name: Subordinate Financing
+    category: loan_info
+    purpose: §01 #3 linked second-lien / DPA amount (Encompass field 140)
+  - key: dpa_subordinate_amount
+    field_id: URLA.X230
+    field_name: DPA Subordinate Finance Amount
+    category: loan_info
+    purpose: §01 #3 manually entered DPA amount on URLA
   - key: closing_cost_program
     field_id: '1785'
     field_name: Closing Cost Program

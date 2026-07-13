@@ -422,6 +422,8 @@ def review_borrower_summary(
     # ── Transaction Details ───────────────────────────────────────────────
     lender                   = _los(state, "lender")               # field 1264
     loan_program             = _los(state, "loan_program")         # field 1401
+    subordinate_financing    = _los(state, "subordinate_financing")  # field 140
+    dpa_subordinate_amount   = _los(state, "dpa_subordinate_amount")  # URLA.X230
     closing_cost_program     = _los(state, "closing_cost_program") # field 1785
     loan_number              = _los(state, "loan_number")          # field 364
     mers_min                 = _los(state, "mers_min")             # field 1051
@@ -1453,6 +1455,35 @@ def review_borrower_summary(
         _flag(flags, "2.1", "Loan Program", "info",
               f"Loan Program (1401) = '{loan_program}'.",
               "Verify Loan Program is correct.")
+
+    # ── §01 #3 DPA / secondary financing presence ─────────────────────────
+    def _dpa_money(val) -> float:
+        try:
+            return float(str(val or "0").replace(",", "").replace("$", "").strip())
+        except (ValueError, TypeError):
+            return 0.0
+
+    _sub_fin = _dpa_money(subordinate_financing)
+    _dpa_urla = _dpa_money(dpa_subordinate_amount)
+    _dpa_amount = _dpa_urla if _dpa_urla > 0 else _sub_fin
+    _is_dpa_program = bool(loan_program and "DPA" in str(loan_program).upper())
+    _has_dpa_amount = _dpa_amount > 0
+
+    if _is_dpa_program and not _has_dpa_amount:
+        _flag(flags, "2.1", "§01 #3 DPA Amount Missing", "warning",
+              f"Loan Program (1401) indicates DPA ('{loan_program}') but Subordinate "
+              "Financing (140) and DPA Subordinate Amount (URLA.X230) are both empty/zero.",
+              "Enter DPA / subordinate financing amount or confirm this is not a DPA loan.")
+    elif _has_dpa_amount:
+        _dpa_type = "dual (linked 2nd lien)" if _sub_fin > 0 else "URLA.X230 only"
+        _flag(flags, "2.1", "§01 #3 DPA / Secondary Financing Present", "info",
+              f"DPA or subordinate financing on file: ${_dpa_amount:,.2f} "
+              f"(field 140=${_sub_fin:,.2f}, URLA.X230=${_dpa_urla:,.2f}, type={_dpa_type})."
+              + (f" Loan Program: '{loan_program}'." if loan_program else ""),
+              "Review secondary financing / DPA terms against lock and program guidelines.")
+    elif _is_dpa_program:
+        pass  # handled above (program + no amount)
+    # Non-DPA loans: no flag (avoid noise)
 
     # Closing Cost Program — cross-check against Loan Purpose
     if closing_cost_program:

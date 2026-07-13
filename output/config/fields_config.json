@@ -267,6 +267,15 @@
       ]
     },
     {
+      "key": "subordinate_financing",
+      "field_id": "140",
+      "field_name": "Subordinate Financing",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "hud_lead_paint",
       "field_id": "1400",
       "field_name": "25(6) HUD Only - Lead Paint",
@@ -2640,6 +2649,15 @@
       ]
     },
     {
+      "key": "dpa_subordinate_amount",
+      "field_id": "URLA.X230",
+      "field_name": "DPA Subordinate Finance Amount",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_02"
+      ]
+    },
+    {
       "key": "borr_former_addr_does_not_apply",
       "field_id": "URLA.X265",
       "field_name": "Borrower Former Address Does Not Apply",
@@ -3860,7 +3878,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 292,
+    "total_los_fields": 294,
     "total_doc_fields": 127,
     "total_document_types": 34,
     "total_steps": 14,

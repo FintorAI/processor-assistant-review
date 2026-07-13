@@ -299,6 +299,8 @@ FIELD_MAP = {
     # ── Loan Info (Borrower Summary fields) ──
     "1264": {"key": "lender", "field_name": "Lender", "category": "loan_info"},
     "1401": {"key": "loan_program", "field_name": "Loan Program", "category": "loan_info"},
+    "140": {"key": "subordinate_financing", "field_name": "Subordinate Financing", "category": "loan_info"},
+    "URLA.X230": {"key": "dpa_subordinate_amount", "field_name": "DPA Subordinate Finance Amount", "category": "loan_info"},
     "1785": {"key": "closing_cost_program", "field_name": "Closing Cost Program", "category": "loan_info"},
     "1051": {"key": "mers_min", "field_name": "MERS MIN", "category": "loan_info"},
     "420": {"key": "lien_position", "field_name": "Lien Position", "category": "loan_info"},
