@@ -11,6 +11,10 @@ Reviews the Flood Certificate against Encompass:
     against the Encompass Flood Zone on the Flood Information form (field 541),
     auto-correcting on mismatch/blank when the zone maps to a recognized FEMA
     designation.
+  • 12 #7/#8 — flood policy detail review (warn/info only, no writes, no-op when
+    no flood policy on file): coverage ≥ lesser-of(loan amount, $250k NFIP cap),
+    policy in force through closing (effective on/before, expires after), insurer
+    surfaced, and annual premium surfaced for paid-in-full / due-at-closing.
 
 Reviews the Hazard Insurance policy (Evidence of Insurance) against Encompass —
 checklist section 13, all warn/info (no writes), no-op when no policy on file:
@@ -92,6 +96,20 @@ def _sourced_property_address(state: dict, source_hint: str) -> Optional[str]:
     Certificate, Lock Confirmation, etc., so we only accept the copy whose
     ``source_document`` names the document we want (e.g. 'flood')."""
     for c in _doc_all(state, "property_address"):
+        if source_hint in (c.get("source_document") or "").lower() and c.get("value"):
+            return c.get("value")
+    return None
+
+
+def _sourced_doc(state: dict, key: str, source_hint: str) -> Optional[str]:
+    """A doc-field ``key`` copy whose provenance matches ``source_hint``.
+
+    Used for keys that live on multiple document types in the flat ``doc_fields``
+    namespace (e.g. ``effective_date`` on both the Title Report and the Flood
+    policy). Returns the value only when the retained copy's ``source_document``
+    names the document we want, so we never compare the wrong document's value
+    (returns None if a different source won the slot — a safe no-op)."""
+    for c in _doc_all(state, key):
         if source_hint in (c.get("source_document") or "").lower() and c.get("value"):
             return c.get("value")
     return None
@@ -179,10 +197,12 @@ def review_flood_hazard_insurance(
 ) -> Command:
     """Review Flood Certificate + Hazard Insurance vs Encompass (checklist 12 + 13).
 
-    Flood (12 #2/#4): flood cert property address vs the USPS-validated subject and
-    flood cert borrower name vs the applicant surname(s); flood zone reconciled
-    against Encompass field 541 (auto-correct on blank/mismatch for recognized
-    FEMA designations) with SFHA insurance-required checks.
+    Flood (12 #2/#4/#7/#8): flood cert property address vs the USPS-validated
+    subject and flood cert borrower name vs the applicant surname(s); flood zone
+    reconciled against Encompass field 541 (auto-correct on blank/mismatch for
+    recognized FEMA designations) with SFHA insurance-required checks; and, when a
+    flood policy is on file, coverage adequacy (lesser-of loan / $250k NFIP cap),
+    policy dates vs closing, insurer, and premium (warn/info only).
 
     Hazard (13 #2–#10): the Evidence of Insurance policy is cross-checked against
     the loan — loan #, applicant names, property address, effective date vs
@@ -342,6 +362,89 @@ def review_flood_hazard_insurance(
                   f"insurance is not required.",
                   "No action needed — confirm the zone matches the appraisal / determination.",
                   docs=_flood_docs)
+
+    # ── §12 #7/#8 Flood Insurance policy review (Flood policy / certificate) ──
+    # Warn/info only (no writes). Runs only when a flood policy appears on file
+    # (company / premium / coverage / expiry extracted, or the eFolder carries a
+    # Flood Insurance doc); the SFHA "required but missing" case is handled above.
+    # Flood keys are the live catchingDoc schema names (collision-free in the flat
+    # doc_fields namespace) except effective_date, which is shared with the Title
+    # Report and so is read source-filtered to the flood document.
+    _flood_company = _doc(state, "company_name")
+    _flood_premium = _parse_money(_doc(state, "annual_premium"))
+    _flood_coverage = _parse_money(_doc(state, "coverage_amount"))
+    _flood_eff = _parse_date(_sourced_doc(state, "effective_date", "flood"))
+    _flood_exp = _parse_date(_doc(state, "expiration_date"))
+    _flood_policy_present = (
+        _efolder_present(state, "Flood Insurance")
+        or bool(_flood_company)
+        or _flood_premium is not None
+        or _flood_coverage is not None
+        or _flood_exp is not None
+    )
+    if _flood_policy_present:
+        _flood_pol_docs = _relevant_docs(
+            state, "company_name", "coverage_amount", "expiration_date", "annual_premium",
+            doc_types=["Flood Insurance", "Flood Certificate"])
+
+        # 12 #7 — Coverage adequacy: flood coverage must be at least the lesser of
+        # the loan amount and the NFIP residential building maximum ($250,000).
+        _NFIP_MAX = 250000.0
+        _loan_amt = _parse_money(_los(state, "loan_amount"))
+        if _flood_coverage is not None:
+            _bases = [v for v in (_loan_amt, _NFIP_MAX) if v]
+            _min_req = min(_bases) if _bases else None
+            if _min_req and _flood_coverage + 1 < _min_req:
+                _flag(flags, "Flood Coverage May Be Insufficient", "warning",
+                      f"Flood policy coverage (${_flood_coverage:,.0f}) is below the required "
+                      f"minimum (${_min_req:,.0f} — the lesser of the loan amount and the "
+                      f"$250,000 NFIP residential building maximum).",
+                      "Confirm flood coverage meets the lesser-of (loan balance / insurable value / "
+                      "$250k NFIP cap) requirement.",
+                      docs=_flood_pol_docs)
+            else:
+                _flag(flags, "Flood Coverage Adequate", "info",
+                      f"Flood policy coverage (${_flood_coverage:,.0f}) meets the required minimum"
+                      + (f" (${_min_req:,.0f})" if _min_req else "") + ".",
+                      "No action needed — flood coverage meets the minimum requirement.",
+                      docs=_flood_pol_docs)
+
+        # 12 #7 — Policy in force through closing (effective on/before, expires after).
+        _flood_close_dt = _parse_date(
+            _los(state, "closing_date") or _los(state, "borrower_est_closing_date"))
+        if _flood_close_dt and (_flood_eff or _flood_exp):
+            if _flood_eff and _flood_eff > _flood_close_dt:
+                _flag(flags, "Flood Policy Effective After Closing", "warning",
+                      f"Flood policy effective date ({_flood_eff:%m/%d/%Y}) is after the closing "
+                      f"date ({_flood_close_dt:%m/%d/%Y}).",
+                      "Confirm the flood policy is in force on/before the note/closing date.",
+                      docs=_flood_pol_docs)
+            elif _flood_exp and _flood_exp < _flood_close_dt:
+                _flag(flags, "Flood Policy Expires Before Closing", "warning",
+                      f"Flood policy expiration date ({_flood_exp:%m/%d/%Y}) is before the closing "
+                      f"date ({_flood_close_dt:%m/%d/%Y}).",
+                      "Obtain a renewed flood policy that remains in force through closing.",
+                      docs=_flood_pol_docs)
+            else:
+                _flag(flags, "Flood Policy In Force", "info",
+                      "Flood policy dates cover the closing date.",
+                      "No action needed — flood policy is in force through closing.",
+                      docs=_flood_pol_docs)
+
+        # 12 #7 — Insurer present (for mortgagee-clause / policy detail verification).
+        if _flood_company:
+            _flag(flags, "Flood Insurer on Policy", "info",
+                  f"Flood policy insurer: '{_flood_company}'.",
+                  "Verify the flood policy details (mortgagee clause, policy #) against the policy.",
+                  docs=_flood_pol_docs)
+
+        # 12 #8 — Premium paid in full / due at closing (surface the amount).
+        if _flood_premium is not None:
+            _flag(flags, "Flood Premium — Confirm Paid/Due at Closing", "info",
+                  f"Flood policy annual premium: ${_flood_premium:,.0f}. Confirm it is paid in "
+                  f"full or itemized as due at closing.",
+                  "Confirm the flood premium is paid-in-full or collected at closing per the CD.",
+                  docs=_flood_pol_docs)
 
     # ── §13 Hazard Insurance review (Evidence of Insurance) ──
     # Every input comes from the extracted Evidence of Insurance policy; this block
