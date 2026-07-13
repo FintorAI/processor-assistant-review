@@ -12,7 +12,7 @@ but do NOT modify the tool signature or state access patterns.
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from langchain_core.messages import ToolMessage
@@ -23,6 +23,9 @@ from langgraph.types import Command
 from ._helpers import _los, _doc, _doc_all, _write_fields, _relevant_docs
 
 logger = logging.getLogger(__name__)
+
+CREDIT_REPORT_VALIDITY_DAYS = 120
+INQUIRY_LOOKBACK_DAYS = 120
 
 
 def _flag(flags, substep, title, severity, details, suggestion, docs=None):
@@ -303,6 +306,7 @@ def review_borrower_summary(
     borrower_first_name      = _los(state, "borrower_first_name")
     borrower_last_name       = _los(state, "borrower_last_name")
     borrower_ssn             = _los(state, "borrower_ssn")
+    coborrower_ssn           = _los(state, "coborrower_ssn")
     borrower_dob             = _los(state, "borrower_dob")
     borrower_home_phone      = _los(state, "borrower_home_phone")
     borrower_cell_phone      = _los(state, "borrower_cell_phone")   # field 1490
@@ -511,9 +515,9 @@ def review_borrower_summary(
                   f"present (median {_median}). Verify the representative/decision score is populated.",
                   "Populate the decision credit score field (VASUMM.X23).")
 
-    if not credit_reference_number:
+    if not credit_reference_number and not _doc(state, "credit_reference_number"):
         _flag(flags, "2.1", "Credit Reference Number Missing", "warning",
-              "Credit Reference Number (field 300) is blank.",
+              "Credit Reference Number (field 300) is blank and no report ID was extracted.",
               "Enter the credit reference number from the credit report.")
 
     if has_coborrower:
@@ -693,13 +697,13 @@ def review_borrower_summary(
     _los_ssn4, _doc_ssn4 = _digits(borrower_ssn)[-4:], _digits(_ssn_doc)[-4:]
     if _los_ssn4 and _doc_ssn4:
         if _digits(borrower_ssn) != _digits(_ssn_doc):
-            _flag(flags, "2.1", "Borrower SSN vs Credit Report", "warning",
+            _flag(flags, "2.1", "§04 #3 Borrower SSN Mismatch", "warning",
                   f"Encompass borrower SSN (ending {_los_ssn4}) does not match the Credit "
                   f"Report SSN (ending {_doc_ssn4}).",
                   "Verify the borrower SSN in Encompass against the credit report / ID.",
                   docs=_relevant_docs(state, "borrower_ssn", doc_types=["Credit Report"]))
         else:
-            _flag(flags, "2.1", "Borrower SSN Confirmed", "info",
+            _flag(flags, "2.1", "§04 #3 Borrower SSN Confirmed", "info",
                   f"Borrower SSN (ending {_los_ssn4}) matches the Credit Report.",
                   "No action needed — SSN matches the credit report.")
 
@@ -770,6 +774,162 @@ def review_borrower_summary(
     if has_coborrower:
         _aka_reconcile("coborrower_aka", "1874",
                        coborrower_first_name, coborrower_last_name, "Co-Borrower")
+
+    # ── §04 Credit Report Review (warn/info only, no writes) ──
+    _cr_docs = _relevant_docs(
+        state, "credit_reference_number", "credit_report_order_date", "borrower_ssn",
+        "coborrower_ssn", "borrower_current_address", "employer_name", "inquiries",
+        doc_types=["Credit Report"],
+    )
+
+    # 04 #1 — Credit Report ID + expiration
+    _cr_ref_doc = _doc(state, "credit_reference_number")
+    _cr_ref_los = credit_reference_number
+    if _cr_ref_doc or _cr_ref_los:
+        _dr = _digits(_cr_ref_doc)
+        _dl = _digits(_cr_ref_los)
+        if _dr and _dl and _dr != _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Mismatch", "warning",
+                  f"Credit report ID ('{_cr_ref_doc}') does not match Encompass "
+                  f"Credit Reference Number (300) = '{_cr_ref_los}'.",
+                  "Verify field 300 matches the report ID in the top-right of the credit report.",
+                  docs=_cr_docs)
+        elif _dr and not _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Not in Encompass", "warning",
+                  f"Credit report shows ID '{_cr_ref_doc}' but Encompass field 300 is blank.",
+                  "Enter the credit reference number from the credit report into field 300.",
+                  docs=_cr_docs)
+        elif _dr and _dl:
+            _flag(flags, "2.1", "§04 #1 Credit Report ID Confirmed", "info",
+                  f"Credit report ID ('{_cr_ref_doc}') matches Encompass field 300.",
+                  "No action needed — credit report ID matches.")
+
+    _cr_order_raw = _doc(state, "credit_report_order_date")
+    _cr_order_dt = _parse_date(_cr_order_raw)
+    if _cr_order_dt:
+        _expiry = _cr_order_dt + timedelta(days=CREDIT_REPORT_VALIDITY_DAYS)
+        _close_dt = _parse_date(est_closing_date_val or borrower_est_closing_date_val)
+        _today = date.today()
+        if _expiry < _today:
+            _flag(flags, "2.1", "§04 #1 Credit Report Expired", "warning",
+                  f"Credit report ordered {_cr_order_raw} expires {_expiry:%m/%d/%Y} "
+                  f"({CREDIT_REPORT_VALIDITY_DAYS}-day validity) — already past today.",
+                  "Order a fresh credit report before proceeding.",
+                  docs=_cr_docs)
+        elif _close_dt and _expiry < _close_dt:
+            _flag(flags, "2.1", "§04 #1 Credit Report Expires Before Closing", "warning",
+                  f"Credit report ordered {_cr_order_raw} expires {_expiry:%m/%d/%Y}, "
+                  f"before the closing date ({_close_dt:%m/%d/%Y}).",
+                  "Order a fresh credit report or confirm the closing date.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #1 Credit Report Valid", "info",
+                  f"Credit report ordered {_cr_order_raw} is valid through {_expiry:%m/%d/%Y}"
+                  + (f" (closing {_close_dt:%m/%d/%Y})" if _close_dt else "") + ".",
+                  "No action needed — credit report is within the validity window.",
+                  docs=_cr_docs)
+
+    # 04 #3 — Co-borrower SSN (borrower handled above in §1.6)
+    if has_coborrower:
+        _co_ssn_doc = _doc(state, "coborrower_ssn")
+        _los_co4, _doc_co4 = _digits(coborrower_ssn)[-4:], _digits(_co_ssn_doc)[-4:]
+        if _los_co4 and _doc_co4:
+            if _digits(coborrower_ssn) != _digits(_co_ssn_doc):
+                _flag(flags, "2.1", "§04 #3 Co-Borrower SSN Mismatch", "warning",
+                      f"Encompass co-borrower SSN (ending {_los_co4}) does not match the "
+                      f"Credit Report SSN (ending {_doc_co4}).",
+                      "Verify the co-borrower SSN in Encompass against the credit report.",
+                      docs=_cr_docs)
+            else:
+                _flag(flags, "2.1", "§04 #3 Co-Borrower SSN Confirmed", "info",
+                      f"Co-borrower SSN (ending {_los_co4}) matches the Credit Report.",
+                      "No action needed — co-borrower SSN matches the credit report.")
+
+    # 04 #5 — Frozen bureau (score == 0)
+    _csf_raw = _doc(state, "credit_score_factors")
+    _csf = _csf_raw if isinstance(_csf_raw, list) else []
+    _frozen = []
+    for entry in _csf:
+        if not isinstance(entry, dict):
+            continue
+        repo = (entry.get("repository") or "").strip()
+        score = entry.get("score")
+        try:
+            if score is not None and float(score) == 0:
+                _frozen.append(repo or "Unknown bureau")
+        except (TypeError, ValueError):
+            continue
+    if _frozen:
+        _flag(flags, "2.1", "§04 #5 Frozen Credit Bureau", "warning",
+              f"Credit bureau(s) returned a score of 0 (frozen or unavailable): "
+              f"{', '.join(_frozen)}. The tri-merge may be incomplete.",
+              "Confirm whether the bureau is frozen and request an unfreeze or re-pull.",
+              docs=_cr_docs)
+    elif _csf:
+        _flag(flags, "2.1", "§04 #5 Credit Bureaus Active", "info",
+              "All reported bureau scores are non-zero — no frozen-bureau signal.",
+              "No action needed — tri-merge bureau scores are present.")
+
+    # 04 #4 — Residence address variance + employment discrepancy
+    _cr_addr = _doc(state, "borrower_current_address")
+    _los_addr = ", ".join(
+        p for p in (borr_present_addr, borr_present_city, borr_present_state, borr_present_zip) if p)
+    if _cr_addr and _los_addr:
+        if not _addr_match(_cr_addr, _los_addr):
+            _flag(flags, "2.1", "§04 #4 Credit Report Address Variance", "warning",
+                  f"Credit report residence ('{_cr_addr}') does not match the Encompass "
+                  f"borrower present address ('{_los_addr}').",
+                  "Verify the borrower's current address on the 1003 matches the credit report.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #4 Credit Report Address Confirmed", "info",
+                  f"Credit report residence matches the Encompass borrower present address.",
+                  "No action needed — residence address matches.")
+
+    _cr_employer = (_doc(state, "employer_name") or "").strip()
+    _los_employer = (
+        (_los(state, "be01_employer_name") or _los(state, "employer_name") or "").strip()
+    )
+    if _cr_employer and _los_employer:
+        _ce, _le = _cr_employer.lower(), _los_employer.lower()
+        if _ce not in _le and _le not in _ce:
+            _flag(flags, "2.1", "§04 #4 Employment Name Mismatch", "warning",
+                  f"Credit report employer ('{_cr_employer}') does not match Encompass "
+                  f"employer ('{_los_employer}').",
+                  "Verify the borrower's current employer on the 1003 matches the credit report.",
+                  docs=_cr_docs)
+        else:
+            _flag(flags, "2.1", "§04 #4 Employment Name Confirmed", "info",
+                  f"Credit report employer ('{_cr_employer}') matches Encompass.",
+                  "No action needed — employer matches the credit report.")
+
+    # 04 #7 — Recent inquiries → LOX required
+    _inq_raw = _doc(state, "inquiries")
+    _inquiries = _inq_raw if isinstance(_inq_raw, list) else []
+    _anchor = _cr_order_dt or date.today()
+    _cutoff = _anchor - timedelta(days=INQUIRY_LOOKBACK_DAYS)
+    _recent = []
+    for inq in _inquiries:
+        if not isinstance(inq, dict):
+            continue
+        _idt = _parse_date(inq.get("date"))
+        if _idt and _idt >= _cutoff:
+            _company = (inq.get("company") or inq.get("name") or "").strip()
+            _itype = (inq.get("type") or "").strip()
+            _recent.append(
+                f"{inq.get('date')}: {_company}" + (f" ({_itype})" if _itype else "")
+            )
+    if _recent:
+        _flag(flags, "2.1", "§04 #7 Recent Credit Inquiries — LOX Required", "warning",
+              f"{len(_recent)} credit inquir{'y' if len(_recent) == 1 else 'ies'} within the "
+              f"last {INQUIRY_LOOKBACK_DAYS} days — borrower LOX required:\n"
+              + "\n".join(f"  • {r}" for r in _recent),
+              "Request a Letter of Explanation from the borrower for each recent inquiry.",
+              docs=_cr_docs)
+    elif _inquiries:
+        _flag(flags, "2.1", "§04 #7 No Recent Credit Inquiries", "info",
+              f"No credit inquiries within the last {INQUIRY_LOOKBACK_DAYS} days of the report.",
+              "No action needed — no recent inquiries requiring LOX.")
 
     # §1.5 (refi) — Owner-occupied rate/term refi: borrower should reside at subject.
     # (Cash-out refis are already handled by the dedicated rule above.)

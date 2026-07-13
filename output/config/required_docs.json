@@ -504,9 +504,14 @@
         "borrower_aka",
         "coborrower_aka",
         "credit_score_factors",
+        "credit_reference_number",
         "credit_report_order_date",
         "credit_report_present",
         "fact_act_present",
+        "employer_name",
+        "borrower_current_address",
+        "coborrower_current_address",
+        "inquiries",
         "liabilities"
       ]
     },

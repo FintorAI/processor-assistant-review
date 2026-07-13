@@ -372,6 +372,43 @@ def _rule_hoa_loe(state: dict) -> Optional[dict]:
     )
 
 
+def _rule_inquiry_loe(state: dict) -> Optional[dict]:
+    """Request a credit-inquiry Letter of Explanation when §04 #7 flagged recent inquiries.
+
+    Fires only when ``review_borrower_summary`` raised an unresolved
+    ``§04 #7 Recent Credit Inquiries — LOX Required`` flag. The payload carries
+    the inquiry detail lines from the flag so the comms template can reference
+    each recent inquiry.
+    """
+    inq_flags = [
+        f for f in _unresolved_flags(state, "recent credit inquiries", "lox required")
+        if "§04 #7" in (f.get("title") or "")
+    ]
+    if not inq_flags:
+        return None
+
+    inquiry_details = [f.get("details", "") for f in inq_flags if f.get("details")]
+
+    payload = {**_base_payload(state), "inputs": {
+        "loe_type": "credit_inquiry",
+        "borrower_name": _borrower_name(state),
+        "coborrower_name": _coborrower_name(state),
+        "property_address": _property_address(state),
+        "loan_number": _loan_number(state),
+        "inquiry_details": inquiry_details,
+        "test_mode": _test_mode(state),
+    }}
+    return _item(
+        "inquiry_loe",
+        "Request Credit-Inquiry Letter of Explanation",
+        (
+            f"{len(inq_flags)} recent credit-inquiry flag(s) require a written explanation "
+            f"from the borrower. Request a credit-inquiry LOE."
+        ),
+        "processor_inquiry_loe", "email", payload,
+    )
+
+
 # Registry — append future rules (including other components) here.
 # NOTE: `_rule_hoa_loe` is intentionally OMITTED. Per processor feedback
 # (notes.txt:608-619), the "no-HOA" Blend follow-up is case-by-case, not
@@ -385,6 +422,7 @@ RULES: List[Callable[[dict], Optional[dict]]] = [
     _rule_lock_desk,
     _rule_emd_request,
     _rule_employment_gap_loe,
+    _rule_inquiry_loe,
 ]
 
 
