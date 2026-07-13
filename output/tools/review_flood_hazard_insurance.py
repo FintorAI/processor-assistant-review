@@ -315,10 +315,14 @@ def review_flood_hazard_insurance(
 
         # SFHA → flood insurance required; confirm a flood policy is on file.
         if _in_sfha:
+            # Flood policy presence signals come from the flood doc's live
+            # catchingDoc keys (company_name / annual_premium — collision-free in
+            # the flat doc_fields namespace); the old flood_* keys never matched
+            # the service and always read empty.
             _flood_ins_present = (
                 _efolder_present(state, "Flood Insurance")
-                or bool(_doc(state, "flood_policy_number"))
-                or bool(_doc(state, "flood_annual_premium"))
+                or bool(_doc(state, "company_name"))
+                or bool(_doc(state, "annual_premium"))
             )
             if not _flood_ins_present:
                 _flag(flags, "Flood Insurance Required (SFHA)", "warning",

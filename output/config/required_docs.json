@@ -613,10 +613,14 @@
         "Standard Flood Hazard Determination"
       ],
       "fields_extracted": [
-        "flood_insurance_company",
-        "flood_policy_number",
+        "company_name",
+        "company_phone",
+        "company_fax",
+        "contact_name",
+        "contact_email",
+        "company_address",
         "flood_zone",
-        "flood_annual_premium",
+        "annual_premium",
         "flood_cert_present",
         "in_sfha",
         "property_address",

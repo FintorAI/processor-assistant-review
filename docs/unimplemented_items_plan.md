@@ -49,9 +49,10 @@ the roadmap decision to defer post‑UW; revisit with the existing button/action
 
 > **Progress (2026-07-13, branch `feat/checklist-not-implemented-gaps-integration`):** 1A **shipped** —
 > §13 #2–#10 built into `review_flood_hazard_insurance` (STEP_08, substep 8.1), warn/info only,
-> `Validation: PASSED`, behavioral test green. 1B (§02 #6/#7 contact auto‑fill) is **held**: file
-> contacts are written via the Encompass **contacts API by contactType**, and the HOI/Flood
-> contact types aren't verified yet — needs confirmation before writing to a locked prod loan.
+> `Validation: PASSED`, behavioral test green. 1B **shipped** — §02 #6/#7 HOI + Flood file‑contact
+> auto‑fill built into `review_file_contacts` (STEP_01, 1.2). Contact types confirmed against the Test
+> instance (`HAZARD_INSURANCE` / `FLOOD_INSURANCE`); `required_docs.json` flood keys corrected to the
+> live CatchingDoc schema (`company_*` / `contact_*`). Create‑or‑overwrite with an info‑overwrite audit flag.
 
 ### 1A. Hazard Insurance review — §13 #2–#10 ✅ SHIPPED  → `review_flood_hazard_insurance` (STEP_08, 8.1)
 `evidence_of_insurance` already extracts the **entire** policy: `insured_name`,
@@ -75,10 +76,11 @@ the roadmap decision to defer post‑UW; revisit with the existing button/action
 Notes: add HOI contact/mortgagee LOS field IDs to `FIELD_MAP` + step YAML `los_fields_read`;
 add a `config/mortgagee_clause.yaml` for #9. Warn‑only (no auto‑write).
 
-### 1B. File‑Contacts auto‑fill from insurance docs — §02 #6, §02 #7  → `review_file_contacts.py`
-Both are Encompass contact writes we can source from already‑extracted docs.
-- **02 #6 HOI company / phone / email** ← `evidence_of_insurance.hazard_insurance_company` / `hazard_insurance_phone` / `agent_email`. Write‑if‑blank to the HOI file‑contact fields (audit flag on overwrite).
-- **02 #7 Flood company / phone / email** ← `flood_certificate.flood_insurance_company` (+ policy #). Write‑if‑blank.
+### 1B. File‑Contacts auto‑fill from insurance docs — §02 #6, §02 #7 ✅ SHIPPED  → `review_file_contacts` (STEP_01, 1.2)
+Both source from already‑extracted docs and write via the Encompass contacts API by `contactType`.
+- **02 #6 HOI company / phone / email** ← `evidence_of_insurance.hazard_insurance_company` / `hazard_insurance_phone` / `agent_email` (+ contact / address) → `HAZARD_INSURANCE`.
+- **02 #7 Flood company / phone / email** ← Flood doc `company_name` / `company_phone` / `contact_email` (+ contact / address) → `FLOOD_INSURANCE`. Required `required_docs.json` flood keys to be corrected to the live CatchingDoc schema (done).
+- Create‑or‑overwrite, per‑field diff (address compared whole), phone/email validated, one info‑overwrite flag per write; no‑op when no company name is extracted.
 
 ### 1C. Flood policy / zone logic — §12 #5 (and partial #3/#7/#8)  → `review_flood_hazard_insurance` (8.1/8.2)
 `flood_certificate` extracts `in_sfha`, `flood_zone`, `flood_insurance_company`,
@@ -135,8 +137,8 @@ Follow the shipped button model (a `comms_actions[]` item or a doc‑mgmt tile g
 | 11 #8 Send appraisal via Blend + ROV disclosure | comms |
 | 10 #2 Title package completeness | title‑order email exists; add completeness check on returned pkg |
 | 10 #3 Update Encompass w/ Tax Cert (parcel, annual amt) | write from `tax_summary` (`tax_parcel_number`, `annual_taxes`) — actually **Tier 1 write** once wired |
-| 10 #5 Upload title docs (Qualia) | doc‑mgmt (Qualia download pipeline — Tier 4 for the download) |
-| 11 #9, 13 #11 Uploads | generic upload exists (dry‑run until eFolder‑Modify granted) |
+| 10 #5 Upload title docs (Qualia) | upload **available** via dashboard Doc Management button; only the Qualia _download_ pipeline is Tier 4 |
+| ~~11 #9, 13 #11 Uploads~~ | ✅ **Implemented** — generic upload is live via the dashboard Doc Management upload button (`upload_forms_to_efolder.py`) |
 
 _(§17+ buttons — 21 #1/#2/#3 conditions, 21 #5 upload, 23 #1/#2 funding, 18 #2/#3 COC, 20 #4 CD request — are deferred; see the bottom section.)_
 
@@ -191,7 +193,7 @@ the Encompass milestone API).
 
 ## Recommended build order (§01–16)
 
-1. ✅ **§13 Hazard Insurance (1A)** — shipped. _(1B §02 #6/#7 contact auto‑fill held pending HOI/Flood contact‑type IDs.)_
+1. ✅ **§13 Hazard Insurance (1A)** — shipped. ✅ **§02 #6/#7 HOI+Flood contact auto‑fill (1B)** — shipped.
 2. **§12 flood policy/zone (1C)** — same tool, finishes the flood cluster.
 3. **§16 #3/#5 AUS findings parse (1F)** and **§11 #2 PIW (1E)** — pure reads off `du_findings`.
 4. **§04 #2/#3 credit (1D)** — small rule‑adds, some reclassify.
