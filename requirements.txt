@@ -16,3 +16,4 @@ jinja2>=3.1.0
 fastapi>=0.100.0
 uvicorn>=0.20.0
 pypdf>=4.0.0
+fintor-usps @ git+https://github.com/FintorAI/fintor-usps.git@v0.1.0
