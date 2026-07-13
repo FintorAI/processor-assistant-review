@@ -138,5 +138,129 @@ substeps:
     value: FeeSimple
     condition: empty or Leasehold
 
+- id: '3.2'
+  name: Complete 1003 HUD Addendum
+  tool: update_hud_addendum
+  description: >
+    Verify and auto-write the 1003 HUD Addendum for FHA and VA loans. Sets Agency
+    Type (1711), Lender ID Code (1059), Section of the Act (1039, FHA only),
+    Part IV 22a (900), and 25(2) Occupancy (1065) from loan purpose and occupancy.
+    Flags Agency Case # (1040), appraised value (356), and Part IV 25 fields that
+    require manual completion. No-op for Conventional/USDA loans.
+  los_fields_read:
+  - key: loan_type
+    field_id: '1172'
+    field_name: Mortgage Type
+    category: loan_info
+    purpose: FHA/VA gate — HUD Addendum applies only to government loans
+  - key: loan_purpose
+    field_id: '19'
+    field_name: Loan Purpose
+    category: loan_info
+    purpose: Purchase vs Refinance drives 25(2) Occupancy auto-select
+  - key: occupancy
+    field_id: '1811'
+    field_name: Occupancy
+    category: loan_info
+    purpose: Primary vs Investment drives 25(2) Occupancy auto-select
+  - key: hud_agency_type
+    field_id: '1711'
+    field_name: Agency Type (HUD Addendum)
+    category: loan_info
+    purpose: Must be HUD / FHA or VA matching loan type — auto-written when wrong/blank
+  - key: fha_case_number
+    field_id: '1040'
+    field_name: FHA/VA Agency Case Number
+    category: loan_info
+    purpose: Agency Case # — info when blank (externally assigned)
+  - key: hud_lender_id_code
+    field_id: '1059'
+    field_name: Lender ID Code (HUD Addendum)
+    category: loan_info
+    purpose: VA fixed ID or FHA Office ID from branch address lookup — auto-written
+  - key: hud_section_of_act
+    field_id: '1039'
+    field_name: Section of the Act
+    category: loan_info
+    purpose: FHA must be 203B — auto-written when wrong/blank
+  - key: hud_22a_own_sold_re
+    field_id: '900'
+    field_name: 22a - Own/Sold Other Real Estate
+    category: loan_info
+    purpose: Part IV 22a — auto-written to No when blank or incorrect
+  - key: hud_occupancy_cert
+    field_id: '1065'
+    field_name: 25(2) Occupancy (HUD Addendum)
+    category: loan_info
+    purpose: Part IV 25(2) — auto-selected from loan purpose + occupancy
+  - key: appraised_value
+    field_id: '356'
+    field_name: Appraised / Estimated Value
+    category: collateral
+    purpose: Part IV 25(3) — warn when blank
+  - key: hud_value_determination
+    field_id: '1639'
+    field_name: 25 Value Determination
+    category: loan_info
+    purpose: Part IV 25 — info when populated (no auto-write)
+  - key: hud_valuation_awareness
+    field_id: '1399'
+    field_name: 25 Valuation Awareness
+    category: loan_info
+    purpose: Part IV 25 — info when populated (no auto-write)
+  - key: hud_lead_paint
+    field_id: '1400'
+    field_name: 25(6) HUD Only - Lead Paint
+    category: loan_info
+    purpose: FHA Part IV 25(6) — info when populated (no auto-write)
+  - key: branch_street_address
+    field_id: URLA.X188
+    field_name: Company/Branch Street Address
+    category: loan_info
+    purpose: FHA Lender ID Code lookup by branch office address
+  - key: coborrower_first_name
+    field_id: '4004'
+    field_name: Co-Borrower First Name
+    category: borrower_info
+    purpose: Co-borrower presence noted in 25(2) occupancy flag text
+  doc_types: []
+  rules:
+  - name: HUD Addendum FHA/VA Only
+    type: custom
+    logic: >
+      No-op when loan_type is not FHA or VA. Auto-writes Agency Type (1711),
+      Lender ID (1059), Section of the Act (1039, FHA), 22a (900), and 25(2)
+      Occupancy (1065). Flags blank Agency Case #, appraised value, and manual
+      Part IV fields.
+  flags:
+  - title: HUD Addendum Not Applicable
+    severity: info
+    condition: Loan is Conventional or USDA — substep skipped
+  - title: Agency Type Mismatch
+    severity: warning
+    condition: Agency Type (1711) does not match loan type before auto-write
+  - title: 25(2) Occupancy Not Selected — Manual Update Required
+    severity: warning
+    condition: Occupancy (1065) blank and loan context insufficient to auto-select
+  - title: 25(3) Appraised Value Empty
+    severity: warning
+    condition: Appraised Value (356) is blank on FHA/VA loan
+  field_updates:
+  - field_id: '1711'
+    value: '{expected_agency_type}'
+    condition: blank or mismatch for FHA/VA
+  - field_id: '1059'
+    value: '{expected_lender_id}'
+    condition: blank or mismatch for FHA/VA
+  - field_id: '1039'
+    value: '203B'
+    condition: FHA and blank or not 203B
+  - field_id: '900'
+    value: 'N'
+    condition: blank or not No
+  - field_id: '1065'
+    value: '{expected_occupancy_enum}'
+    condition: blank or mismatch when purpose/occupancy determinable
+
 dev:
   skip: false

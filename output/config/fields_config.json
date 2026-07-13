@@ -29,11 +29,21 @@
       ]
     },
     {
+      "key": "hud_section_of_act",
+      "field_id": "1039",
+      "field_name": "Section of the Act",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "fha_case_number",
       "field_id": "1040",
       "field_name": "FHA/VA Agency Case Number",
       "category": "loan_info",
       "used_by_steps": [
+        "STEP_03",
         "STEP_12"
       ]
     },
@@ -56,6 +66,24 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "hud_lender_id_code",
+      "field_id": "1059",
+      "field_name": "Lender ID Code (HUD Addendum)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "hud_occupancy_cert",
+      "field_id": "1065",
+      "field_name": "25(2) Occupancy (HUD Addendum)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -125,6 +153,7 @@
       "used_by_steps": [
         "STEP_01",
         "STEP_02",
+        "STEP_03",
         "STEP_09",
         "STEP_12",
         "STEP_13"
@@ -205,6 +234,15 @@
       ]
     },
     {
+      "key": "hud_valuation_awareness",
+      "field_id": "1399",
+      "field_name": "25 Valuation Awareness",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "property_state",
       "field_id": "14",
       "field_name": "Property State",
@@ -216,6 +254,15 @@
         "STEP_08",
         "STEP_10",
         "STEP_11"
+      ]
+    },
+    {
+      "key": "hud_lead_paint",
+      "field_id": "1400",
+      "field_name": "25(6) HUD Only - Lead Paint",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -359,6 +406,24 @@
       ]
     },
     {
+      "key": "hud_value_determination",
+      "field_id": "1639",
+      "field_name": "25 Value Determination",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "hud_agency_type",
+      "field_id": "1711",
+      "field_name": "Agency Type (HUD Addendum)",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "borrower_work_phone",
       "field_id": "1715",
       "field_name": "Borrower Business/Work Phone",
@@ -419,6 +484,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_03",
         "STEP_04",
         "STEP_08",
         "STEP_10"
@@ -548,6 +614,7 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_03",
         "STEP_04",
         "STEP_10",
         "STEP_13"
@@ -715,7 +782,8 @@
       "field_name": "Appraised Value",
       "category": "collateral",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_03"
       ]
     },
     {
@@ -1181,6 +1249,15 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
+      ]
+    },
+    {
+      "key": "hud_22a_own_sold_re",
+      "field_id": "900",
+      "field_name": "22a - Own/Sold Other Real Estate",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -2415,6 +2492,15 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
+      ]
+    },
+    {
+      "key": "branch_street_address",
+      "field_id": "URLA.X188",
+      "field_name": "Company/Branch Street Address",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -3670,7 +3756,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 279,
+    "total_los_fields": 288,
     "total_doc_fields": 120,
     "total_document_types": 33,
     "total_steps": 13,

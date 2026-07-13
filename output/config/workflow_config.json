@@ -109,7 +109,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (279 fields)",
+          "name": "Fetch LOS Fields (288 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -195,6 +195,7 @@
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_lender.md",
       "tools": [
+        "update_hud_addendum",
         "update_urla_lender"
       ],
       "substeps": {
@@ -202,6 +203,12 @@
           "name": "Update 1003 URLA Lender",
           "tools": [
             "update_urla_lender"
+          ]
+        },
+        "2": {
+          "name": "Complete 1003 HUD Addendum",
+          "tools": [
+            "update_hud_addendum"
           ]
         }
       }
