@@ -13,7 +13,11 @@
         "borrower_marital_status",
         "coborrower_marital_status",
         "borrower_first_name",
-        "urla_signed"
+        "urla_signed",
+        "borrower_signature_date",
+        "coborrower_signature_date",
+        "loan_officer_signed",
+        "loan_officer_signature_date"
       ]
     },
     "transmittal_summary": {

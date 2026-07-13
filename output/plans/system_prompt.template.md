@@ -14,7 +14,7 @@ Review Agent — verifies a mortgage loan file and writes confirmed field update
 
 ### Phase: DATA_REVIEW
 - **Step 2** — Borrower Summary - Origination (1 substeps)
-- **Step 3** — 1003 URLA Lender (2 substeps)
+- **Step 3** — 1003 URLA Lender (3 substeps)
 - **Step 4** — 1003 URLA Page 1 (1 substeps)
 - **Step 5** — 1003 URLA Page 2 (2 substeps)
 - **Step 6** — 1003 URLA Part 3 (4 substeps)

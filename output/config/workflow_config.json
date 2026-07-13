@@ -195,6 +195,7 @@
       "phase": "DATA_REVIEW",
       "plan_file": "1003_urla_lender.md",
       "tools": [
+        "review_urla_signatures",
         "update_hud_addendum",
         "update_urla_lender"
       ],
@@ -209,6 +210,12 @@
           "name": "Complete 1003 HUD Addendum",
           "tools": [
             "update_hud_addendum"
+          ]
+        },
+        "3": {
+          "name": "Review 1003 URLA Signatures",
+          "tools": [
+            "review_urla_signatures"
           ]
         }
       }

@@ -262,5 +262,55 @@ substeps:
     value: '{expected_occupancy_enum}'
     condition: blank or mismatch when purpose/occupancy determinable
 
+- id: '3.3'
+  name: Review 1003 URLA Signatures
+  tool: review_urla_signatures
+  description: >
+    Confirm the 1003 URLA is signed and dated by the applicant (borrower, and
+    co-borrower when present) and by the Loan Officer / Loan Originator. Uses
+    extracted signature flags and dates from the 1003 URLA document. Warn when
+    any required signature or date is missing; info when all present.
+  los_fields_read:
+  - key: coborrower_first_name
+    field_id: '4004'
+    field_name: Co-Borrower First Name
+    category: borrower_info
+    purpose: Co-borrower signature required when co-borrower is on the loan
+  doc_types:
+  - document_type: 1003 URLA
+    all_copies: false
+    fields:
+    - key: urla_signed
+      purpose: Borrower/applicant signature present on 1003
+    - key: borrower_signature_date
+      purpose: Borrower/applicant signature date on 1003
+    - key: coborrower_signature_date
+      purpose: Co-borrower signature date when co-borrower present
+    - key: loan_officer_signed
+      purpose: Loan Officer / Originator signature present on 1003
+    - key: loan_officer_signature_date
+      purpose: Loan Officer / Originator signature date on 1003
+  rules:
+  - name: URLA Borrower and LO Signatures
+    type: custom
+    logic: >
+      Warn when borrower signature (urla_signed) or borrower_signature_date is
+      missing. When co-borrower present, warn if coborrower_signature_date blank.
+      Warn when loan_officer_signed is false or loan_officer_signature_date blank.
+      No-op when 1003 URLA is not in the eFolder.
+  flags:
+  - title: URLA Borrower Signature Missing
+    severity: warning
+    condition: urla_signed is false or borrower_signature_date is blank
+  - title: URLA Co-Borrower Signature Missing
+    severity: warning
+    condition: Co-borrower on loan but coborrower_signature_date is blank
+  - title: URLA Loan Officer Signature Missing
+    severity: warning
+    condition: loan_officer_signed is false or loan_officer_signature_date is blank
+  - title: URLA Signatures Confirmed
+    severity: info
+    condition: All required borrower and LO signatures and dates are present
+
 dev:
   skip: false

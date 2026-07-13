@@ -20,6 +20,8 @@ from .review_borrower_summary import review_borrower_summary
 from .update_urla_lender import update_urla_lender
 # STEP_03 / 3.2: Complete 1003 HUD Addendum
 from .update_hud_addendum import update_hud_addendum
+# STEP_03 / 3.3: Review 1003 URLA Signatures
+from .review_urla_signatures import review_urla_signatures
 # STEP_04 / 4.1: Review 1003 URLA Page 1
 from .review_urla_page1 import review_urla_page1
 # STEP_05 / 5.1: Employment Verification (2b VOE)
@@ -79,6 +81,7 @@ def get_all_tools() -> list:
     tools.append(review_borrower_summary)
     tools.append(update_urla_lender)
     tools.append(update_hud_addendum)
+    tools.append(review_urla_signatures)
     tools.append(review_urla_page1)
     tools.append(review_urla_employment)
     tools.append(review_urla_other_income)
@@ -117,6 +120,7 @@ __all__ = [
     "review_borrower_summary",
     "update_urla_lender",
     "update_hud_addendum",
+    "review_urla_signatures",
     "review_urla_page1",
     "review_urla_employment",
     "review_urla_other_income",

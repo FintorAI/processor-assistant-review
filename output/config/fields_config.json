@@ -2878,6 +2878,15 @@
       ]
     },
     {
+      "key": "borrower_signature_date",
+      "source_documents": [
+        "1003 URLA"
+      ],
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "caivrs_status",
       "source_documents": [
         "CAIVRS"
@@ -2911,6 +2920,15 @@
       ],
       "used_by_steps": [
         "STEP_12"
+      ]
+    },
+    {
+      "key": "coborrower_signature_date",
+      "source_documents": [
+        "1003 URLA"
+      ],
+      "used_by_steps": [
+        "STEP_03"
       ]
     },
     {
@@ -3359,6 +3377,24 @@
       ]
     },
     {
+      "key": "loan_officer_signature_date",
+      "source_documents": [
+        "1003 URLA"
+      ],
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
+      "key": "loan_officer_signed",
+      "source_documents": [
+        "1003 URLA"
+      ],
+      "used_by_steps": [
+        "STEP_03"
+      ]
+    },
+    {
       "key": "loe_present",
       "source_documents": [
         "General Letter of Explanation"
@@ -3706,7 +3742,8 @@
         "1003 URLA"
       ],
       "used_by_steps": [
-        "STEP_01"
+        "STEP_01",
+        "STEP_03"
       ]
     },
     {
@@ -3757,7 +3794,7 @@
   ],
   "stats": {
     "total_los_fields": 288,
-    "total_doc_fields": 120,
+    "total_doc_fields": 124,
     "total_document_types": 33,
     "total_steps": 13,
     "categories": [
