@@ -104,7 +104,8 @@
       "field_name": "Loan Amount",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -419,6 +420,7 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
+        "STEP_08",
         "STEP_10"
       ]
     },
@@ -722,7 +724,8 @@
       "field_name": "Loan Number",
       "category": "loan_info",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -833,7 +836,8 @@
       "field_name": "Borrower Est Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -1148,7 +1152,8 @@
       "field_name": "Est Closing Date",
       "category": "closing",
       "used_by_steps": [
-        "STEP_02"
+        "STEP_02",
+        "STEP_08"
       ]
     },
     {
@@ -2823,6 +2828,24 @@
       ]
     },
     {
+      "key": "coverage_end_date",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "coverage_start_date",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "credit_report_date",
       "source_documents": [
         "Credit Report"
@@ -2973,6 +2996,15 @@
       ],
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "deductible",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -3149,6 +3181,15 @@
       ]
     },
     {
+      "key": "hazard_insurance_coverage",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "hazard_insurance_expiry",
       "source_documents": [
         "Evidence of Hazard Insurance"
@@ -3158,12 +3199,23 @@
       ]
     },
     {
-      "key": "hazard_insurance_present",
+      "key": "hazard_insurance_premium",
       "source_documents": [
-        "Evidence of Hazard Insurance"
+        "Evidence of Insurance"
       ],
       "used_by_steps": [
-        "STEP_01"
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "hazard_insurance_present",
+      "source_documents": [
+        "Evidence of Hazard Insurance",
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_01",
+        "STEP_08"
       ]
     },
     {
@@ -3203,6 +3255,15 @@
       ]
     },
     {
+      "key": "insured_name",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "ldp_present",
       "source_documents": [
         "LDP"
@@ -3227,6 +3288,15 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "loss_of_use_coverage",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -3290,6 +3360,24 @@
       ],
       "used_by_steps": [
         "STEP_06"
+      ]
+    },
+    {
+      "key": "mortgagee_loan_number",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
+      "key": "mortgagee_name",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
       ]
     },
     {
@@ -3491,6 +3579,15 @@
       ]
     },
     {
+      "key": "replacement_cost",
+      "source_documents": [
+        "Evidence of Insurance"
+      ],
+      "used_by_steps": [
+        "STEP_08"
+      ]
+    },
+    {
       "key": "title_company",
       "source_documents": [
         "Title Report"
@@ -3574,7 +3671,7 @@
   ],
   "stats": {
     "total_los_fields": 279,
-    "total_doc_fields": 110,
+    "total_doc_fields": 120,
     "total_document_types": 33,
     "total_steps": 13,
     "categories": [

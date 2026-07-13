@@ -9,9 +9,12 @@ step:
     non-hazard (X), checking that a flood policy is on file when in an SFHA, and
     reconciling the extracted zone against the Encompass Flood Zone on the Flood
     Information form (field 541) with auto-correct on mismatch/blank (12 #4).
-    Hazard-insurance verification (checklist section 13) is scaffolded here for
-    future build-out. Read-only against borrower data; the only write is the
-    flood zone (541) when the cert maps to a recognized FEMA designation.
+    Also reviews the Hazard Insurance policy (Evidence of Insurance) against the
+    loan — loan #, applicant names, property address, effective date vs closing,
+    coverage adequacy, deductible, mortgagee clause, and rent-loss coverage for
+    investment properties (checklist section 13, warn/info only). Read-only
+    against borrower data; the only write is the flood zone (541) when the cert
+    maps to a recognized FEMA designation.
 
 substeps:
 - id: '8.1'
@@ -75,6 +78,32 @@ substeps:
     field_name: 'Flood Certification Number (Cert #)'
     category: property
     purpose: Flood Information form Cert # — reference for the determination number
+  # ── Loan context for hazard-insurance review (checklist 13) ──
+  - key: loan_number
+    field_id: '364'
+    field_name: Loan Number
+    category: loan_info
+    purpose: Match against the loan # in the hazard policy mortgagee clause (13 #2)
+  - key: loan_amount
+    field_id: '1109'
+    field_name: Loan Amount
+    category: loan_info
+    purpose: Minimum-coverage check vs dwelling coverage (13 #6)
+  - key: occupancy
+    field_id: '1811'
+    field_name: Occupancy
+    category: loan_info
+    purpose: Require rent-loss coverage for investment properties (13 #10)
+  - key: est_closing_date
+    field_id: '763'
+    field_name: Est Closing Date
+    category: closing
+    purpose: Confirm hazard policy effective on/before closing and in force through closing (13 #5)
+  - key: borrower_est_closing_date
+    field_id: '4114'
+    field_name: Borrower Est Closing Date
+    category: borrower_info
+    purpose: Fallback closing date for the hazard effective-date check (13 #5)
   doc_types:
   - document_type: Flood Certificate
     all_copies: false
@@ -97,8 +126,30 @@ substeps:
   - document_type: Evidence of Insurance
     all_copies: false
     fields:
+    - key: insured_name
+      purpose: Policy insured name vs applicant surname(s) (13 #3)
     - key: insured_location
-      purpose: Hazard policy insured location (section 13 build-out)
+      purpose: Policy property address vs subject (13 #4)
+    - key: mortgagee_loan_number
+      purpose: Loan # in the mortgagee clause vs the loan (13 #2)
+    - key: mortgagee_name
+      purpose: Presence of the lender mortgagee clause (13 #9)
+    - key: coverage_start_date
+      purpose: Policy effective on/before closing (13 #5)
+    - key: coverage_end_date
+      purpose: Policy in force through closing (13 #5)
+    - key: hazard_insurance_coverage
+      purpose: Dwelling coverage vs minimum (13 #6)
+    - key: replacement_cost
+      purpose: Replacement-cost basis for the minimum-coverage check (13 #6)
+    - key: hazard_insurance_premium
+      purpose: Annual premium — paid-in-full / due-at-closing (13 #7)
+    - key: deductible
+      purpose: Deductible vs guideline ≤ 5% of coverage (13 #8)
+    - key: loss_of_use_coverage
+      purpose: Rent-loss / loss-of-use coverage for investment properties (13 #10)
+    - key: hazard_insurance_present
+      purpose: Presence gate for the hazard-insurance review
   rules:
   - name: Flood Cert Applicant/Property Match
     type: field_comparison
@@ -126,6 +177,38 @@ substeps:
     severity: warning
     condition: Property is in a Special Flood Hazard Area but no flood policy is on file
     suggestion: Obtain a flood insurance policy meeting NFIP coverage requirements
+  - title: Hazard Policy Loan # Mismatch
+    severity: warning
+    condition: Loan number on the hazard policy does not match the Encompass loan number (13 #2)
+    suggestion: Have the insurance agent correct the loan number in the mortgagee clause
+  - title: Hazard Policy Applicant Mismatch
+    severity: warning
+    condition: Insured name on the hazard policy does not match the applicant(s) (13 #3)
+    suggestion: Verify the policy names the borrower(s); request a corrected policy if needed
+  - title: Hazard Policy Address Mismatch
+    severity: warning
+    condition: Property address on the hazard policy does not match the subject (13 #4)
+    suggestion: Verify the policy was issued for the subject property
+  - title: Hazard Policy Effective After Closing
+    severity: warning
+    condition: Hazard policy effective date is after the estimated closing date (13 #5)
+    suggestion: Obtain coverage effective on or before the note/closing date
+  - title: Hazard Coverage May Be Insufficient
+    severity: warning
+    condition: Dwelling coverage is below both the loan amount and the replacement cost (13 #6)
+    suggestion: Confirm coverage meets the lesser of loan amount or 100% replacement cost
+  - title: Hazard Deductible Exceeds Guideline
+    severity: warning
+    condition: Deductible exceeds 5% of dwelling coverage (13 #8)
+    suggestion: Confirm the deductible is within program guidelines
+  - title: Mortgagee Clause Missing
+    severity: warning
+    condition: The hazard policy does not show a mortgagee clause (13 #9)
+    suggestion: Request an updated policy showing the lender's standard mortgagee clause
+  - title: Rent-Loss Coverage Missing (Investment)
+    severity: warning
+    condition: Investment property but the hazard policy shows no rent-loss coverage (13 #10)
+    suggestion: Obtain rent-loss coverage per program guidelines when rental income is used
   field_updates:
   - field_id: '541'
     value: '{flood_zone}'
