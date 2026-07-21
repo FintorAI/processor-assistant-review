@@ -91,6 +91,7 @@ def update_processor_closing(
     is_michigan       = property_state == "MI"
 
     writes: dict[str, str] = {}
+    _closing_date_unparseable = False
 
     if is_purchase:
         if not closing_date:
@@ -107,6 +108,7 @@ def update_processor_closing(
             # CUST50FV / CX.WIREDATELO require ISO yyyy-MM-dd; field 763 is MM/DD/YYYY.
             iso_closing = _to_iso_date(closing_date)
             if not iso_closing:
+                _closing_date_unparseable = True
                 flags.append({
                     "substep": "14.2",
                     "title": "Closing Date Unparseable",
@@ -174,7 +176,7 @@ def update_processor_closing(
                     " (Michigan — Wire Date left for manual confirmation)" if writes else ""
                 )
                 if writes else
-                f"Processor Closing: no writes — {'closing date blank' if is_purchase else 'non-purchase loan'}"
+                f"Processor Closing: no writes — {'closing date unparseable' if _closing_date_unparseable else 'closing date blank' if is_purchase else 'non-purchase loan'}"
             )
             + (f" with {len(flags)} flag(s)" if flags else "")
         ),

@@ -74,15 +74,19 @@ def _split_title_names(title_names: str) -> list[str]:
 
 
 def _name_on_title_matches(name: str, first: str | None, last: str | None) -> bool:
-    """True if a Title Names entry plausibly refers to the given first/last name."""
+    """True if a Title Names entry plausibly refers to the given first/last name.
+
+    Matches on whole name tokens (not substrings) so a last name like "SON"
+    can't falsely match "JOHNSON" or "ANDERSON" inside a longer surname.
+    """
     if not name:
         return False
-    n = name.upper()
+    tokens = [t for t in re.split(r"[^A-Z0-9]+", name.upper()) if t]
     f = (first or "").strip().upper()
     ln = (last or "").strip().upper()
-    if ln and ln in n:
+    if ln and ln in tokens:
         return True
-    if f and f in n and not ln:
+    if f and f in tokens and not ln:
         return True
     return False
 

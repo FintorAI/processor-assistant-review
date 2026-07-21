@@ -1147,18 +1147,19 @@ def review_urla_assets(
         for bank_name, rows in _unmatched_by_bank.items():
             if len(rows) == 1:
                 row = rows[0]
+                bal = _parse_float(row.get("balance")) or 0.0
                 details = (
-                    f"VOD entry for {row['institution_name']!r} "
+                    f"VOD entry for {bank_name!r} "
                     f"({row.get('account_type', '')} {row.get('account_number', '')}) "
-                    f"balance ${row['balance']:,.2f} has no matching bank statement or asset doc."
+                    f"balance ${bal:,.2f} has no matching bank statement or asset doc."
                 )
             else:
                 lines = "\n".join(
                     f"  • {row.get('account_type', '')} {row.get('account_number', '')} "
-                    f"— ${row['balance']:,.2f}"
+                    f"— ${(_parse_float(row.get('balance')) or 0.0):,.2f}"
                     for row in rows
                 )
-                total = sum(row["balance"] for row in rows)
+                total = sum(_parse_float(row.get("balance")) or 0.0 for row in rows)
                 details = (
                     f"{len(rows)} VOD accounts at {bank_name!r} (total ${total:,.2f}) have no "
                     f"matching bank statement or asset doc:\n{lines}"

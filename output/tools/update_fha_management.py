@@ -86,9 +86,14 @@ def _clean(val) -> str | None:
 
 
 # Property Type (1041) values that indicate a standard 1-unit property.
-_ONE_UNIT_PROPERTY_TYPES = {"detached", "attached", "condominium", "pud"}
+_ONE_UNIT_PROPERTY_TYPES = {"detached", "attached"}
 # Property Type / Project Type values or unit counts that indicate 2-4 units.
 _MULTI_UNIT_MARKERS = {"2-4 unit", "2-4unit", "duplex", "triplex", "fourplex"}
+# Condo/PUD markers — excluded from _is_one_unit up front so it agrees with
+# _confirmed_single_unit (which also excludes condo/PUD). Without this, a
+# condo/PUD with Number of Units = "1" would read as one_unit=True here while
+# _confirmed_single_unit says False, producing contradictory flags.
+_CONDO_PUD_MARKERS = {"condo", "condominium", "pud", "planned unit development"}
 
 
 def _is_one_unit(property_type: str | None, property_units: str | None) -> bool | None:
@@ -96,10 +101,14 @@ def _is_one_unit(property_type: str | None, property_units: str | None) -> bool 
 
     Returns True/False when determinable from Property Type (1041) and/or
     Number of Units (16), or None when neither field has a usable value.
+    Condo/PUD is treated as NOT a standard 1-unit property here (aligned with
+    _confirmed_single_unit) even when Number of Units = "1".
     """
     pt = (property_type or "").strip().lower()
     units = (property_units or "").strip()
 
+    if pt and any(marker in pt for marker in _CONDO_PUD_MARKERS):
+        return False
     if units and units not in ("1",):
         return False
     if pt and any(marker in pt for marker in _MULTI_UNIT_MARKERS):
@@ -424,8 +433,11 @@ def update_fha_management(
             })
 
     # ── Property Type — confirm 1-unit before assuming ADP code 703 ──
+    # Also require _confirmed_single_unit (one_unit_2996, computed above) so a
+    # condo/PUD/HOA property can't get both this "Confirmed 1 Unit" info flag
+    # and the "Not Confirmed 1 Unit" warning from the field 2996 section.
     one_unit = _is_one_unit(property_type, property_units)
-    if one_unit is True:
+    if one_unit is True and one_unit_2996:
         flags.append({
             "substep": "12.1",
             "title": "Property Type Confirmed — 1 Unit",

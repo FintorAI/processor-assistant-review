@@ -515,7 +515,8 @@ def update_transmittal_summary(
     _hoa_amount = _parse_money(hoa_dues)
     _has_hoa = bool(_hoa_amount and _hoa_amount > 0)
     _confirmed_single_family = (
-        not _is_condo(property_type)  # excludes PUD + Condo
+        bool(property_type)  # blank property type can't confirm single-family
+        and not _is_condo(property_type)  # excludes PUD + Condo
         and not _is_multi_unit
         and not _has_hoa
     )

@@ -36,19 +36,21 @@ which is the existing frontend contract doc for this exact case.
 
 - `almas_notes_images` refs carry a `url` **plus** DocRepo coordinates
   (`client_id`, `doc_id`, `bucket`) whenever the frontend supplied them at
-  invocation (`output/tools/data_gathering.py::extract_almas_images`).
+  invocation (`output/tools/data_gathering.py::extract_almas_images`). `bucket`
+  is metadata only — it isn't a `get_docrepo_url` lookup parameter (see below).
 - The `url` is a **presigned S3 link that expires**. Regular eFolder documents
   work in the dashboard because their viewer re-mints a fresh presigned URL
   from the coordinates *at click time*; the Almas-image viewer appears to be
   using the cached `url` directly instead, so it 404s/"cannot access" once
   the link has expired.
 - **Fix is entirely dashboard-side:** when opening an Almas-notes image,
-  re-mint the URL from `client_id` + `doc_id` (+ `bucket`) via DocRepo the
-  same way the eFolder document viewer already does, rather than opening the
-  stored `url` directly. If `client_id`/`doc_id` are empty for an image (only
-  raw `url` was sent), that image was never given DocRepo coordinates and the
-  cached `url` is the only option — those should be treated as "may go stale"
-  rather than a broken link.
+  re-mint the URL via DocRepo's `get_docrepo_url(doc_id, client_id)`
+  (`shared/docrepo.py`) — it only takes `doc_id` + `client_id`, not `bucket` —
+  the same way the eFolder document viewer already does, rather than opening
+  the stored `url` directly. If `client_id`/`doc_id` are empty for an image
+  (only raw `url` was sent), that image was never given DocRepo coordinates
+  and the cached `url` is the only option — those should be treated as "may
+  go stale" rather than a broken link.
 
 ---
 

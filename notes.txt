@@ -5,7 +5,7 @@ Pipeline
 - Ash’s view
 
 {
-  "loan_number": "2605968111",
+  "loan_number": "LOAN_NUMBER_REDACTED",
   "env": "PROD"
 }
 
@@ -23,8 +23,8 @@ LOAN_NUMBER_REDACTED
 ENV_REDACTED
 BORROWER_REDACTED
 
-2605968111
-Suttles, Jhonel
+LOAN_NUMBER_REDACTED
+BORROWER_REDACTED
 
 2604964148 
 
