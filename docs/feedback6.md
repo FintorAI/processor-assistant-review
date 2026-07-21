@@ -1,0 +1,47 @@
+Processor Feedback 6 
+- Consider reordering steps?
+- First thing they do is Cover Letter so maybe consider reordering?
+- Move property check to Pre-Checks rather than where it is now
+- Go to property listing: do we do this? Check state
+- For Manner in Which Title… check URLA.X136 (Title Names) not just borrowers
+    - Tenancy by the Entirety because 
+- FHA Management > Check 1 Unit in Property Type
+- Borrower Information - Vesting
+    - Vesting Type - Title Only
+    - Occupancy Intent - Will Occupy
+    - Manner in which Title will be held is same
+    - Need to sign something for title even though not borrower
+    - Title / Vesting by state
+- HUD-9200.. Transmittal: 
+    - Construction: Existing, Proposed, New etc; 99% of loans are just Existing
+- Transmittal Summary
+    - No HOA, single family home. 1 unit, not a PUD
+    - Level of Property Review: 
+- Fannie Mae Additional Data
+    - Fannie Mae’s Community Lending Product: 08 Home Ready
+- Processor Closing
+    - Signing Date & Wire Requested Date & Est Closing Date are the same for Purchase loans in MD; Michigan: Wire is 8/13
+    - Difference between Dry and Wet States
+    - Refinances 
+- Don’t deal with USDA loans much; Baltimore 
+- URLA Page 2
+    - Income Calculation Worksheets: usually on file because we verify income beforehand
+- AUS
+    - What UW needs to get File sold
+    - Pre-underwriting
+    - Bible, most important
+    - Checked income and assets
+- Processor Workflow steps missing in Dashboard? Is it also missing in agent state?
+- VOD should be info lumped under one Bank
+- Deleted buckets; maybe add as option for Mark as UW
+- Cross check Credit Reference Number with number in Credit Reports
+- Ordered Radian
+    - MI could be MI Rate Quote
+- Run both FNM and Freddie for Conventional loans
+- Documents still needed… added EMD check/wire receipt for Purchases that have EMD
+    - Could have multiple EMDs
+- Sam.gov: Fraud check
+    - Uploaded to efolder
+- In Processing / Submitted Worksheet for Ash Desai
+    - Maybe add screen for writing?
+- Will cover Post UW Approval in next call for same file

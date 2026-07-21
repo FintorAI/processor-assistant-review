@@ -463,7 +463,7 @@ substeps:
     field_name: Rate Lock Disclosure Date
     category: loan_info
     purpose: Must be today if locked; can be blank if unlocked
-  - key: est_closing_date
+  - key: closing_date
     field_id: '763'
     field_name: Est Closing Date
     category: closing

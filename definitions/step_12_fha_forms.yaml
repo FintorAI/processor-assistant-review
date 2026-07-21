@@ -3,35 +3,42 @@ step:
   name: FHA-Specific Forms
   phase: FORM_UPDATES
   description: >
-    FHA-only forms that don't apply to conventional/VA/USDA loans. Covers FHA
-    Management (CAIVRS authorization numbers + FHA Case Number/ADP code) and the
-    HUD-92900-LT Transmittal. Every substep is gated on loan_type == FHA and is a
-    no-op for non-FHA loans. Runs after the Transmittal Summary (STEP_10) and
-    before Processor Workflow and Closing (STEP_12).
+    Mostly-FHA forms: FHA Management (CAIVRS authorization numbers + FHA Case
+    Number/ADP code) and the HUD-92900-LT Transmittal. The CAIVRS and FHA Case
+    Number sections are FHA-only (no-op for non-FHA loans), but each substep
+    also writes one shared field that reflects on other forms regardless of
+    loan type: FHA Management writes Property Type (field 2996, "1 Unit") and
+    HUD Transmittal writes Construction Status (field 1067, "Existing"). Those
+    two writes always run, on every loan type. Runs after the Transmittal
+    Summary (STEP_11) and before Processor Workflow and Closing (STEP_13).
 
 substeps:
 - id: '12.1'
   name: FHA Management
   tool: update_fha_management
-  condition:
-    field: loan_type
-    equals: FHA
   description: >
-    Populate the FHA Management screen (Tracking tab). Two parts:
-      1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted
+    Populate the FHA Management screen (Tracking tab). Three parts:
+      1. Property Type (field 2996) — write "1 Unit" (exact string, verified
+         live) when the subject property is confirmed a standard single-unit
+         property (Property Type 1041 / Units 16, no HOA, not condo/PUD/2-4
+         unit). Runs on EVERY loan type — field 2996 is a shared field that
+         reflects on other forms, not an FHA-only value.
+      2. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted
          from the CAIVRS document (borrower + co-borrowers) into the Encompass
          CAIVRS fields. Write-only-if-blank; emits an info flag listing what was
          written and a warning if the document has a number Encompass is missing.
-      2. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code
+         FHA-only.
+      3. FHA Case Number — confirm the FHA Case Number (field 1040) and ADP code
          (703 for a standard 1-unit property) are present. Flag if missing; the
          case number itself is assigned via FHA Connection, not written here.
-    FHA-only: no-op when loan_type != FHA.
+         FHA-only.
+    Parts 2 and 3 are no-ops when loan_type != FHA; part 1 always runs.
   los_fields_read:
   - key: loan_type
     field_id: '1172'
     field_name: Mortgage Type
     category: loan_info
-    purpose: Gate — substep only runs for FHA loans
+    purpose: Gate — CAIVRS/case-number sections only run for FHA loans
   - key: fha_case_number
     field_id: '1040'
     field_name: FHA/VA Agency Case Number
@@ -57,6 +64,26 @@ substeps:
     field_name: CAIVRS Updated By
     category: loan_info
     purpose: Who updated the CAIVRS number fields
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: Confirm the property is a standard 1-unit property (field 2996 write + ADP code 703)
+  - key: property_units
+    field_id: '16'
+    field_name: Subject Property Number of Units
+    category: property
+    purpose: Confirm 1-unit (field 2996 write + ADP code 703; 2-4 unit uses a different ADP code)
+  - key: hoa_dues_monthly
+    field_id: '233'
+    field_name: HOA Dues (Monthly)
+    category: property
+    purpose: Confirms single-family/no-HOA before writing Property Type (2996) = "1 Unit"
+  - key: fha_property_type_units
+    field_id: '2996'
+    field_name: FHA Management — Property Type
+    category: property
+    purpose: 'Written "1 Unit" (verified live value) for a confirmed single-unit property, any loan type'
   doc_types:
   - document_type: CAIVRS
     all_copies: false
@@ -85,6 +112,16 @@ substeps:
     - key: fha_case_assignment_date
       purpose: Date the FHA Case Number was assigned
   rules:
+  - name: Write FHA Management Property Type (2996)
+    type: custom
+    logic: >
+      Runs regardless of loan type. If field 2996 (FHA Management screen,
+      Property Type) is blank and the property is confirmed a standard
+      single-unit property (Property Type 1041 / Units 16, no HOA (233), not
+      condo/PUD, not 2-4 unit), write "1 Unit" (exact string, verified live on
+      a Conventional loan). If 2996 already has a value, or the property
+      can't be confirmed single-unit, do not write — flag instead. This field
+      is shared across forms, so it is written even when the loan is not FHA.
   - name: Write CAIVRS Authorization Numbers
     type: custom
     logic: >
@@ -103,7 +140,24 @@ substeps:
       both forms). If 1040 is blank and no case number was extracted, flag a
       warning — it must be assigned via FHA Connection before submission. ADP
       code is 703 for a standard 1-unit property.
+  - name: Confirm 1-Unit Property Type Before Assuming ADP 703
+    type: value_check
+    logic: >
+      ADP code 703 (referenced in the case-number flags above) only applies to
+      a standard 1-unit property. Cross-check Property Type (1041) and Subject
+      Property Number of Units (16) — if either indicates 2-4 units or a
+      multi-unit property, raise a warning that ADP 703 does not apply so the
+      processor selects the correct code in FHA Connection.
+    check: property_units == '1' and property_type not in ('2-4 Unit',)
   flags:
+  - title: FHA Management Property Type Set to 1 Unit
+    severity: info
+    condition: Field 2996 was blank and the property is confirmed a standard single-unit property
+    suggestion: Verify Property Type = "1 Unit" on the FHA Management screen
+  - title: FHA Management Property Type — Not Confirmed 1 Unit
+    severity: warning
+    condition: Field 2996 is blank but the property could not be confirmed single-unit (HOA present, condo/PUD, or 2-4 unit signal)
+    suggestion: Confirm the property's unit count (check Zillow/appraisal) and set Property Type on the FHA Management screen manually
   - title: CAIVRS Numbers Written
     severity: info
     condition: One or more CAIVRS Authorization Numbers were written to Encompass
@@ -126,32 +180,49 @@ substeps:
     severity: warning
     condition: FHA loan with blank FHA Case Number (field 1040) and none extracted from FHA Government Documents
     suggestion: Assign the FHA Case Number via FHA Connection (ADP code 703 for standard 1-unit)
+  - title: Property Type Confirmed — 1 Unit
+    severity: info
+    condition: Property Type (1041) / Number of Units (16) confirm a standard 1-unit property
+    suggestion: ADP code 703 applies — no action needed
+  - title: Property Is Not 1-Unit — ADP Code 703 Does Not Apply
+    severity: warning
+    condition: Property Type (1041) or Number of Units (16) indicates 2-4 units or a multi-unit property
+    suggestion: Select the correct ADP code for a 2-4 unit property in FHA Connection instead of 703
 
 - id: '12.2'
   name: HUD Transmittal
   tool: update_hud_transmittal
-  condition:
-    field: loan_type
-    equals: FHA
   description: >
-    Review the HUD-92900-LT (FHA Loan Transmittal). This form is normally
-    completed by the underwriter, so the agent flags rather than writes. The
-    only programmatic check is FHA Case Number presence (field 1040 /
-    fha_assigned_case_number); Source/EIN (MMP / 52, Government) and the ADP code
-    live on the underwriter-completed form and are NOT read into state, so they
-    are surfaced as manual-verification reminders only. FHA-only: no-op when
-    loan_type != FHA.
+    Two parts:
+      1. Construction Status (field 1067) — write "ExistingConstruction" when
+         blank (99% of loans are existing construction). Runs on EVERY loan
+         type — field 1067 is a shared field that reflects on other forms
+         (e.g. Transmittal Summary), not an FHA-only value. Filed here because
+         the HUD-92900-LT is where construction status is documented for FHA
+         review, but the write itself is not gated on loan_type.
+      2. HUD-92900-LT review — this form is normally completed by the
+         underwriter, so the agent flags rather than writes. The only
+         programmatic check is FHA Case Number presence (field 1040 /
+         fha_assigned_case_number); Source/EIN (MMP / 52, Government) and the
+         ADP code live on the underwriter-completed form and are NOT read into
+         state, so they are surfaced as manual-verification reminders only.
+         FHA-only: no-op when loan_type != FHA.
   los_fields_read:
   - key: loan_type
     field_id: '1172'
     field_name: Mortgage Type
     category: loan_info
-    purpose: Gate — substep only runs for FHA loans
+    purpose: Gate — HUD-92900-LT review section only runs for FHA loans
   - key: fha_case_number
     field_id: '1040'
     field_name: FHA/VA Agency Case Number
     category: loan_info
     purpose: HUD-92900-LT requires the case number (same field 1040 as FHA Management)
+  - key: construction_status
+    field_id: '1067'
+    field_name: Construction Status
+    category: property
+    purpose: 'Written "ExistingConstruction" when blank, any loan type — shared with Transmittal Summary'
   doc_types:
   - document_type: FHA Government Documents
     all_copies: false
@@ -159,6 +230,14 @@ substeps:
     - key: fha_assigned_case_number
       purpose: Assigned case number (accepts as present even before state refresh)
   rules:
+  - name: Construction Status Defaults to Existing
+    type: custom
+    logic: >
+      Runs regardless of loan type. If Construction Status (field 1067) is
+      blank, write "ExistingConstruction" (99% of loans are existing
+      construction). If already set to something other than
+      Existing/ExistingConstruction, flag for manual confirmation rather than
+      overwrite.
   - name: HUD-92900-LT Review
     type: existence_check
     logic: >
@@ -167,8 +246,16 @@ substeps:
       refresh). Source/EIN = MMP/52 (Government) and the ADP code are surfaced
       as manual-verification reminders only — those values are not read into
       state, so no automated existence/mismatch check is performed on them. The
-      underwriter completes this form.
+      underwriter completes this form. FHA-only.
   flags:
+  - title: Construction Status Set to Existing
+    severity: info
+    condition: Field 1067 was blank and was written to "ExistingConstruction"
+    suggestion: Verify Construction Status on the HUD Transmittal / Transmittal Summary
+  - title: Construction Status — Confirm Value
+    severity: info
+    condition: Field 1067 is set to something other than Existing (e.g. Proposed, Under Construction)
+    suggestion: Confirm Proposed/Under Construction is correct for this loan
   - title: HUD-92900-LT Review Required
     severity: info
     condition: Always raised for FHA loans — underwriter completes the HUD-92900-LT

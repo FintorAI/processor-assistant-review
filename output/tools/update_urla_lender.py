@@ -61,6 +61,50 @@ _SOLE_OWNERSHIP_VARIANTS = {
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _split_title_names(title_names: str) -> list[str]:
+    """Split a Title Names (URLA.X136) string into individual name strings.
+
+    Typical formats seen: "John Smith and Jane Smith", "John Smith, Jane Smith",
+    "John Smith & Jane Smith".
+    """
+    if not title_names:
+        return []
+    parts = re.split(r",|\band\b|&", title_names, flags=re.IGNORECASE)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _name_on_title_matches(name: str, first: str | None, last: str | None) -> bool:
+    """True if a Title Names entry plausibly refers to the given first/last name."""
+    if not name:
+        return False
+    n = name.upper()
+    f = (first or "").strip().upper()
+    ln = (last or "").strip().upper()
+    if ln and ln in n:
+        return True
+    if f and f in n and not ln:
+        return True
+    return False
+
+
+def _extra_title_party(title_names: str, borrower_first, borrower_last,
+                        cobr_first, cobr_last) -> str | None:
+    """Return the first Title Names entry that matches neither the borrower nor
+    the co-borrower, or None if every name on title is already accounted for.
+
+    Used to auto-detect a non-borrowing spouse straight from Title Names
+    (URLA.X136) rather than relying solely on the manually-set CX.NBSFLAG /
+    CX.NBSINFO fields (video 6 feedback).
+    """
+    for name in _split_title_names(title_names):
+        if _name_on_title_matches(name, borrower_first, borrower_last):
+            continue
+        if _name_on_title_matches(name, cobr_first, cobr_last):
+            continue
+        return name
+    return None
+
+
 def _flag(substep, title, severity, details, suggestion, resolved=False, docs=None):
     f = {
         "substep": substep,
@@ -308,6 +352,9 @@ def update_urla_lender(
     cobr_last = _los(state, "coborrower_last_name")
     nbs_flag = _los(state, "nbs_flag")
     nbs_info = _los(state, "nbs_info")
+    title_names = _los(state, "title_names")           # URLA.X136
+    borrower_first = _los(state, "borrower_first_name")
+    borrower_last = _los(state, "borrower_last_name")
 
     current_manner = (_los(state, "manner_of_title") or "").strip()   # field 33
     current_urla_x138 = (_los(state, "manner_urla_x138") or "").strip()  # URLA.X138
@@ -317,14 +364,43 @@ def update_urla_lender(
 
     # ── Derived flags ─────────────────────────────────────────────────────────
     has_coborrower = bool(cobr_first and cobr_last)
-    has_nbs = not has_coborrower and (nbs_flag or "").strip().upper() == "YES" and bool(nbs_info)
+    has_nbs_flag = not has_coborrower and (nbs_flag or "").strip().upper() == "YES" and bool(nbs_info)
+
+    # Title Names (URLA.X136) cross-check — a party listed on title who is neither
+    # the borrower nor a co-borrower is treated as a non-borrowing spouse for
+    # manner-held purposes even when CX.NBSFLAG/CX.NBSINFO were never set manually
+    # (video 6 feedback: "Title Names include borrower's spouse, but spouse is not
+    # a coborrower, but we consider that they are Tenancy by the Entirety still").
+    extra_title_party = None
+    if not has_coborrower:
+        extra_title_party = _extra_title_party(title_names, borrower_first, borrower_last, cobr_first, cobr_last)
+
+    has_nbs = has_nbs_flag or bool(extra_title_party)
     prop_st = (property_state or "").strip().upper()
 
     logger.info(
         f"[UPDATE_URLA_LENDER] state={prop_st}, marital={marital_status} "
         f"(summary52={summary_marital or '-'}, vesting479={vesting_marital or '-'}), "
-        f"has_coborrower={has_coborrower}, has_nbs={has_nbs}"
+        f"has_coborrower={has_coborrower}, has_nbs={has_nbs} "
+        f"(flag={has_nbs_flag}, title_names_extra={extra_title_party!r})"
     )
+
+    if extra_title_party and not has_nbs_flag:
+        flags.append(_flag("3.1",
+            "Additional Party on Title Names (Non-Borrowing Spouse)",
+            "info",
+            (
+                f"Title Names (URLA.X136) = '{title_names}' includes '{extra_title_party}', "
+                f"who is neither the borrower nor a co-borrower on this loan. Treating this "
+                f"as a non-borrowing spouse on title for manner-held purposes (Tenancy By The "
+                f"Entirety), even though CX.NBSFLAG/CX.NBSINFO are not set."
+            ),
+            (
+                f"Confirm '{extra_title_party}' is the borrower's non-borrowing spouse, set "
+                f"CX.NBSFLAG=YES / CX.NBSINFO='{extra_title_party}', and note they must still "
+                f"sign title/vesting documents even though they are not a co-borrower."
+            ),
+        ))
 
     if summary_marital and vesting_marital and summary_marital.upper() != vesting_marital.upper():
         flags.append(_flag("3.1",

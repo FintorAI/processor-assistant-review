@@ -216,6 +216,9 @@ FIELD_MAP = {
     "33": {"key": "manner_of_title", "field_name": "Manner in Which Title Will Be Held", "category": "title"},
     "URLA.X138": {"key": "manner_of_title_lender", "field_name": "Manner in Which Title Will Be Held (Lender Form)", "category": "title"},
     "1066": {"key": "estate_held", "field_name": "Estate Will Be Held In", "category": "title"},
+    # URLA.X136 = Title Names — everyone actually vested on title, which can include a
+    # non-borrowing spouse who never appears in the coborrower fields (feedback video 6).
+    "URLA.X136": {"key": "title_names", "field_name": "Title Names", "category": "title"},
     "35": {"key": "borrower_current_address", "field_name": "Borrower Current Street Address", "category": "borrower_info"},
     "350": {"key": "total_monthly_payments", "field_name": "Total Monthly Liabilities", "category": "liabilities"},
     "353": {"key": "ltv", "field_name": "LTV", "category": "insurance"},
@@ -239,6 +242,16 @@ FIELD_MAP = {
     "Document.ExpirationDate.MORTGAGE INSURANCE": {"key": "mi_doc_expiration", "field_name": "Mortgage Insurance Document Expiration Date", "category": "insurance"},
     "1014": {"key": "qualifying_rate", "field_name": "Qualifying Rate (Transmittal Summary)", "category": "loan_info"},
     "1012": {"key": "project_type_1012", "field_name": "Project Type (Transmittal Summary dropdown)", "category": "property"},
+    # Field 1067 = Construction Status — read/written from the HUD Transmittal tool
+    # (organizationally filed under FHA-Specific Forms) but the field is shared with
+    # other forms and applies regardless of loan type. Verified live value
+    # "ExistingConstruction" on a Conventional loan.
+    "1067": {"key": "construction_status", "field_name": "Construction Status", "category": "property"},
+    # Field 2996 = "FHA Management" Property Type/Units field — written "1 Unit"
+    # for a confirmed single-family/no-HOA property. Verified live value "1 Unit"
+    # (exact string) on a Conventional loan — the field is shared across forms and
+    # applies regardless of loan type (notes.txt:470, video 2/6 feedback).
+    "2996": {"key": "fha_property_type_units", "field_name": "FHA Management — Property Type", "category": "property"},
     "1541": {"key": "property_review_type", "field_name": "Level of Property Review (Exterior/Interior)", "category": "property"},
     "1542": {"key": "appraisal_form_number", "field_name": "Appraisal Form Number (e.g. 1004, 1073, 1025)", "category": "property"},
     "TSUM.PropertyFormType": {"key": "property_form_type", "field_name": "Property Form Type (Transmittal Summary)", "category": "property"},

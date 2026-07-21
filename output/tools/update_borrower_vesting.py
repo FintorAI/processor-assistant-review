@@ -24,6 +24,7 @@ Vesting strategy:
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -35,6 +36,45 @@ from langgraph.types import Command
 from ._helpers import _los, _write_fields, _enrich_flag_docs
 
 logger = logging.getLogger(__name__)
+
+
+def _split_title_names(title_names: str) -> list[str]:
+    """Split a Title Names (URLA.X136) string into individual name strings."""
+    if not title_names:
+        return []
+    parts = re.split(r",|\band\b|&", title_names, flags=re.IGNORECASE)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _name_on_title_matches(name: str, first: str | None, last: str | None) -> bool:
+    """True if a Title Names entry plausibly refers to the given first/last name."""
+    if not name:
+        return False
+    n = name.upper()
+    f = (first or "").strip().upper()
+    ln = (last or "").strip().upper()
+    if ln and ln in n:
+        return True
+    if f and f in n and not ln:
+        return True
+    return False
+
+
+def _extra_title_party(title_names: str, borrower_first, borrower_last,
+                        cobr_first, cobr_last) -> str | None:
+    """Return the first Title Names entry matching neither borrower nor co-borrower.
+
+    Auto-detects a non-borrowing spouse straight from Title Names (URLA.X136)
+    rather than relying solely on the manually-set CX.NBSFLAG / CX.NBSINFO fields
+    (video 6 feedback — "added spouse because his name is in Title Names").
+    """
+    for name in _split_title_names(title_names):
+        if _name_on_title_matches(name, borrower_first, borrower_last):
+            continue
+        if _name_on_title_matches(name, cobr_first, cobr_last):
+            continue
+        return name
+    return None
 
 # ── State-specific vesting rules ──────────────────────────────────────────────
 # NOTE: Manner-held computation (state rules, URLA.X138 mapping) lives in the
@@ -230,6 +270,7 @@ def update_borrower_vesting(
 
     nbs_flag = _los(state, "nbs_flag")
     nbs_info = _los(state, "nbs_info")
+    title_names = _los(state, "title_names")  # URLA.X136
 
     current_manner  = (_los(state, "manner_of_title") or "").strip()  # field 33 (owned by 1003 URLA Lender step)
     current_vesting = (_los(state, "final_vesting") or "").strip()    # field 1867
@@ -243,7 +284,14 @@ def update_borrower_vesting(
 
     # ── Derived flags ─────────────────────────────────────────────────────────
     has_coborrower = bool(cobr_first and cobr_last)
-    has_nbs = not has_coborrower and (nbs_flag or "").strip().upper() == "YES" and bool(nbs_info)
+    has_nbs_flag = not has_coborrower and (nbs_flag or "").strip().upper() == "YES" and bool(nbs_info)
+    # Title Names (URLA.X136) cross-check — same auto-detection as the 1003 URLA
+    # Lender step (3.1); catches an NBS that was never manually flagged.
+    extra_title_party = None
+    if not has_coborrower:
+        extra_title_party = _extra_title_party(title_names, borr_first, borr_last, cobr_first, cobr_last)
+    has_nbs = has_nbs_flag or bool(extra_title_party)
+    nbs_name = (nbs_info or "").strip() or (extra_title_party or "")
     prop_st = (property_state or "").strip().upper()
     is_refinance = "REFI" in loan_purpose
     is_female = (borr_sex or "").strip().upper() == "FEMALE"
@@ -545,13 +593,27 @@ def update_borrower_vesting(
 
     # ── G. NBS reminder ───────────────────────────────────────────────────────
     if has_nbs:
-        nbs_name = (nbs_info or "").strip()
         if nbs_name:
+            source_note = (
+                "(CX.NBSFLAG=YES)" if has_nbs_flag else
+                "(from Title Names URLA.X136 — CX.NBSFLAG/CX.NBSINFO not yet set)"
+            )
             flags.append(_flag("10.1",
                 "NBS Detected — Set Title Only in Encompass",
                 "info",
-                f"Non-Borrowing Spouse '{nbs_name}' detected (CX.NBSFLAG=YES). Vesting type for NBS must be 'Title only' (TR0104). Set manually in the Vesting Entities screen.",
-                "In Encompass, set NBS vesting type (TR0104) = 'Title only'; verify NBS name (TR0101) = '" + nbs_name + "'",
+                (
+                    f"Non-Borrowing Spouse '{nbs_name}' detected {source_note}. Vesting "
+                    "type for NBS must be 'Title only' (TR0104) with Occupancy Intent "
+                    "'Will Occupy'. They are not a co-borrower on the loan, but they must "
+                    "still sign the title/vesting-related documents (deed, right of "
+                    "rescission where applicable) even though not a borrower."
+                ),
+                (
+                    "In Encompass, set NBS vesting type (TR0104) = 'Title only', Occupancy "
+                    "Intent = 'Will Occupy', verify NBS name (TR0101) = '" + nbs_name + "'"
+                    + ("" if has_nbs_flag else "; also set CX.NBSFLAG=YES and CX.NBSINFO='" + nbs_name + "'")
+                    + ", and route the required title/vesting documents to them for signature."
+                ),
                 docs=["Title Report"],
             ))
         else:

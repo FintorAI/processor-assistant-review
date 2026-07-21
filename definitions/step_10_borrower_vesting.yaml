@@ -166,6 +166,15 @@ substeps:
     field_name: Non-Borrowing Spouse Name
     category: borrower_info
     purpose: NBS name → written to TR0101 (vesting entity)
+  - key: title_names
+    field_id: URLA.X136
+    field_name: Title Names
+    category: title
+    purpose: >
+      Cross-checked against borrower/co-borrower names to auto-detect a
+      non-borrowing spouse on title even when CX.NBSFLAG/CX.NBSINFO were never
+      set manually (video 6 feedback: "added spouse because his name is in
+      Title Names").
   # ── Manner Held / Final Vesting ───────────────────────────────────────
   - key: manner_of_title
     field_id: '33'
@@ -235,6 +244,15 @@ substeps:
     severity: warning
     condition: Field 1867 is empty
     suggestion: Click Build Final Vesting in Encompass to populate field 1867
+  - title: NBS Detected — Set Title Only in Encompass
+    severity: info
+    condition: >
+      Non-borrowing spouse detected either via CX.NBSFLAG/CX.NBSINFO or via a
+      Title Names (URLA.X136) party who is neither the borrower nor a co-borrower
+    suggestion: >
+      Set NBS vesting type (TR0104) = 'Title only', Occupancy Intent = 'Will
+      Occupy'; the NBS must still sign title/vesting documents even though not
+      a co-borrower on the loan
   - title: Vesting Suffix Missing (Single/Unmarried)
     severity: warning
     condition: >

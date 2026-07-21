@@ -3,12 +3,20 @@
 Step 12 (STEP_12): FHA-Specific Forms
 Phase: FORM_UPDATES
 
-Reviews the HUD-92900-LT (FHA Loan Transmittal). This form is normally completed
-by the underwriter, so the agent verifies/flags rather than writes:
-  - Source/EIN should be MMP / 52 (Government)
-  - FHA Case Number + ADP code must be present
+Two parts:
+  1. Construction Status (field 1067) — write "ExistingConstruction" when
+     blank (99% of loans are existing construction). Runs on EVERY loan type
+     — field 1067 is a shared field that reflects on other forms (e.g.
+     Transmittal Summary), not an FHA-only value. Filed here (rather than
+     Transmittal Summary) because the HUD-92900-LT is where construction
+     status is documented for FHA review, but the write is not gated on
+     loan_type.
+  2. HUD-92900-LT review — this form is normally completed by the
+     underwriter, so the agent verifies/flags rather than writes:
+       - Source/EIN should be MMP / 52 (Government)
+       - FHA Case Number + ADP code must be present
 
-No-op when loan_type != FHA.
+Part 2 is FHA-only (no-op when loan_type != FHA); part 1 always runs.
 """
 # FACTORY-LOCK: true
 
@@ -22,7 +30,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _doc, _los, _profile
+from ._helpers import _doc, _los, _profile, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +53,16 @@ def update_hud_transmittal(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Review the HUD-92900-LT (FHA Loan Transmittal) for FHA loans.
+    """Review the HUD-92900-LT (FHA Loan Transmittal).
 
-    Flag-only — the underwriter completes this form. Confirms Source/EIN =
-    MMP/52 (Government) and that the FHA Case Number + ADP code are present.
-    No-op when loan_type != FHA. Call as STEP_12 substep 12.2.
+    1. Construction Status (field 1067) — write "ExistingConstruction" when
+       blank; flag for manual confirmation when set to Proposed/Under
+       Construction. Runs for every loan type.
+    2. HUD-92900-LT review — flag-only, the underwriter completes this form.
+       Confirms Source/EIN = MMP/52 (Government) and that the FHA Case Number
+       + ADP code are present. FHA-only — no-op when loan_type != FHA.
+
+    Call as STEP_12 substep 12.2.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -58,22 +71,66 @@ def update_hud_transmittal(
             tool_call_id=tool_call_id,
         )]})
 
-    # ── FHA gate ──
+    logger.info(f"[UPDATE_HUD_TRANSMITTAL] Starting for loan {str(loan_id)[:8]}...")
+
+    flags: list[dict] = []
+    construction_status = _los(state, "construction_status")  # field 1067
+
+    # ── Construction Status (field 1067) — runs regardless of loan type.
+    # Verified live value "ExistingConstruction" on a Conventional loan. ──
+    _construction_current = (construction_status or "").strip()
+    if not _construction_current:
+        _write_fields(
+            loan_id, {"1067": "ExistingConstruction"}, substep="12.2", flags=flags,
+            state=state, labels={"1067": "Construction Status"},
+        )
+        flags.append({
+            "substep": "12.2",
+            "title": "Construction Status Set to Existing",
+            "severity": "info",
+            "details": "Field 1067 (Construction Status) was blank — wrote 'ExistingConstruction' (99% of loans are existing construction).",
+            "suggestion": "Verify Construction Status on the HUD Transmittal / Transmittal Summary.",
+            "resolved": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info("[UPDATE_HUD_TRANSMITTAL] Wrote field 1067 (Construction Status) = 'ExistingConstruction'")
+    elif _construction_current.lower() not in ("existingconstruction", "existing construction", "existing"):
+        flags.append({
+            "substep": "12.2",
+            "title": "Construction Status — Confirm Value",
+            "severity": "info",
+            "details": (
+                f"Field 1067 (Construction Status) = {_construction_current!r} — 99% of "
+                "loans are Existing Construction; confirm this loan is actually "
+                "Proposed/Under Construction."
+            ),
+            "suggestion": "Confirm Proposed/Under Construction is correct for this loan.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    else:
+        logger.info(f"[UPDATE_HUD_TRANSMITTAL] Field 1067 already populated: {_construction_current!r}")
+
+    # ── FHA gate — HUD-92900-LT review is FHA-only ──
     if not _is_fha(state):
         result = {
             "success": True,
             "substep": "12.2",
             "tool": "update_hud_transmittal",
-            "skipped": True,
-            "message": "Not an FHA loan — HUD Transmittal skipped.",
+            "skipped_fha_only_sections": True,
+            "construction_status": _construction_current or "ExistingConstruction",
+            "flags_count": len(flags),
+            "message": (
+                "Not an FHA loan — HUD-92900-LT review skipped; Construction Status "
+                "(1067) check still ran." + (f" {len(flags)} flag(s)." if flags else "")
+            ),
         }
         logger.info(f"[UPDATE_HUD_TRANSMITTAL] {result['message']}")
-        return Command(update={"messages": [ToolMessage(
-            content=json.dumps(result), tool_call_id=tool_call_id)]})
+        update: dict = {"messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)]}
+        if flags:
+            update["flags"] = flags
+        return Command(update=update)
 
-    logger.info(f"[UPDATE_HUD_TRANSMITTAL] Starting for loan {str(loan_id)[:8]}...")
-
-    flags: list[dict] = []
     fha_case_number = _los(state, "fha_case_number")
     # Field 1040 is the same case-number field FHA Management (11.1) may have just
     # written; state["los_fields"] isn't refreshed after a write, so also accept the
@@ -113,6 +170,7 @@ def update_hud_transmittal(
         "success": True,
         "substep": "12.2",
         "tool": "update_hud_transmittal",
+        "construction_status": _construction_current or "ExistingConstruction",
         "fha_case_number_present": case_present,
         "flags_count": len(flags),
         "message": "HUD Transmittal reviewed" + (f" with {len(flags)} flags" if flags else ""),

@@ -111,6 +111,13 @@ substeps:
     field_name: CPM Project ID
     category: property
     purpose: Written by CUA after Freddie Mac CPA lookup — read to check if already populated
+  - key: property_units
+    field_id: '16'
+    field_name: Subject Property Number of Units
+    category: property
+    purpose: >
+      Written write-only-if-blank to "1" when the property is confirmed single
+      family (no HOA, not a PUD, not 2-4 unit).
   doc_types: []
   rules:
   - name: Note Rate Equals Qualifying Rate
@@ -139,8 +146,15 @@ substeps:
       says PUD, HOA+Attached agree, or 2+ Zillow signals; else info) with the
       Zillow listing URL (or an address deep link as fallback). No property/project
       type is auto-written — the processor confirms. When PUD indicators are present
-      and the Zillow lookup returns a community/subdivision name, Project Name
+      and the       Zillow lookup returns a community/subdivision name, Project Name
       (field 1298) is written write-only-if-blank from that subdivision.
+  - name: Number of Units Defaults to 1 for Confirmed Single Family
+    type: custom
+    logic: >
+      When the property is confirmed non-PUD, non-condo, not 2-4 unit, and has
+      no HOA dues (field 233 blank/zero), write "1" to Number of Units (field
+      16) if it is blank. Flag a warning if 16 already holds a value
+      inconsistent with the unit count implied by property type.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning
@@ -162,6 +176,16 @@ substeps:
     suggestion: >
       Verify on Zillow whether the subject is in a Planned Unit Development; if so
       set Property Type (1041) = PUD and Project Type (1012) = "Other: P/PUD"
+  - title: Number of Units Set to 1
+    severity: info
+    condition: >
+      Field 16 was blank and the property was confirmed single family (no HOA,
+      not a PUD, not 2-4 unit)
+    suggestion: No action needed — Number of Units (16) set to 1
+  - title: Number of Units — Unexpected Value
+    severity: warning
+    condition: Field 16 holds a value inconsistent with the unit count implied by property type
+    suggestion: Verify and correct Number of Units (field 16)
   field_updates: []
 
 dev:

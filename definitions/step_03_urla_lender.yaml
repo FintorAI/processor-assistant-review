@@ -69,6 +69,25 @@ substeps:
     field_name: Non-Borrowing Spouse Name
     category: borrower_info
     purpose: NBS presence affects manner held (both on title)
+  - key: title_names
+    field_id: URLA.X136
+    field_name: Title Names
+    category: title
+    purpose: >
+      Everyone actually vested on title. Cross-checked against borrower/co-borrower
+      names — a name here that is neither is treated as a non-borrowing spouse on
+      title (Tenancy By The Entirety applies) even when CX.NBSFLAG/CX.NBSINFO were
+      never manually set (video 6 feedback).
+  - key: borrower_first_name
+    field_id: '4000'
+    field_name: Borrower First Name
+    category: borrower_info
+    purpose: Name-match against Title Names to isolate any extra party on title
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: Name-match against Title Names to isolate any extra party on title
   # ── Lender-form fields written / surfaced ─────────────────────────────
   - key: manner_of_title
     field_id: '33'
@@ -103,6 +122,17 @@ substeps:
       Community property states: AZ, CA, ID, LA, NV, NM, TX, WA, WI.
       NV married couples → As Joint Tenants (force overwrite). Flag mismatch for
       others. Always write URLA.X138 (Lender-form enum) together with field 33.
+  - name: Title Names Cross-Check for Non-Borrowing Spouse
+    type: custom
+    logic: >
+      Parse Title Names (URLA.X136) and compare each name against the borrower and
+      co-borrower. When no co-borrower is on the loan but Title Names lists a party
+      that is neither the borrower nor a co-borrower, treat that party as a
+      non-borrowing spouse on title (has_nbs = true) for manner-held computation —
+      Tenancy By The Entirety applies the same as if CX.NBSFLAG/CX.NBSINFO had been
+      set manually. Raise an info flag naming the extra party so the processor can
+      confirm CX.NBSFLAG/CX.NBSINFO and the NBS signature requirement (video 6:
+      the non-borrowing spouse must still sign title/vesting documents).
   - name: Estate Will Be Held In = Fee Simple
     type: value_set
     logic: >
@@ -127,6 +157,15 @@ substeps:
     severity: info
     condition: Field 1066 was blank or Leasehold and was set to FeeSimple
     suggestion: Confirm Fee Simple is appropriate for this property
+  - title: Additional Party on Title Names (Non-Borrowing Spouse)
+    severity: info
+    condition: >
+      No co-borrower on the loan, but Title Names (URLA.X136) lists a party who is
+      neither the borrower nor a co-borrower
+    suggestion: >
+      Confirm the extra party is the borrower's non-borrowing spouse, set
+      CX.NBSFLAG/CX.NBSINFO, and note they must still sign title/vesting documents
+      even though they are not a co-borrower
   field_updates:
   - field_id: '33'
     value: '{computed_manner_held}'
