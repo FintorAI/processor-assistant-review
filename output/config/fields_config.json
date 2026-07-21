@@ -57,7 +57,8 @@
         "STEP_03",
         "STEP_04",
         "STEP_07",
-        "STEP_11"
+        "STEP_11",
+        "STEP_12"
       ]
     },
     {
@@ -95,6 +96,15 @@
       "used_by_steps": [
         "STEP_03",
         "STEP_07"
+      ]
+    },
+    {
+      "key": "construction_status",
+      "field_id": "1067",
+      "field_name": "Construction Status",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_12"
       ]
     },
     {
@@ -263,7 +273,8 @@
         "STEP_03",
         "STEP_08",
         "STEP_10",
-        "STEP_11"
+        "STEP_11",
+        "STEP_14"
       ]
     },
     {
@@ -421,7 +432,9 @@
       "field_name": "Subject Property Number of Units",
       "category": "property",
       "used_by_steps": [
-        "STEP_04"
+        "STEP_04",
+        "STEP_11",
+        "STEP_12"
       ]
     },
     {
@@ -672,7 +685,8 @@
       "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
       "category": "property",
       "used_by_steps": [
-        "STEP_11"
+        "STEP_11",
+        "STEP_12"
       ]
     },
     {
@@ -691,6 +705,15 @@
       "category": "loan_info",
       "used_by_steps": [
         "STEP_02"
+      ]
+    },
+    {
+      "key": "fha_property_type_units",
+      "field_id": "2996",
+      "field_name": "FHA Management \u2014 Property Type",
+      "category": "property",
+      "used_by_steps": [
+        "STEP_12"
       ]
     },
     {
@@ -858,6 +881,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_03",
         "STEP_04",
         "STEP_10"
       ]
@@ -880,6 +904,7 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_02",
+        "STEP_03",
         "STEP_04",
         "STEP_08",
         "STEP_10"
@@ -1225,15 +1250,6 @@
       ]
     },
     {
-      "key": "closing_date",
-      "field_id": "748",
-      "field_name": "Closing Date",
-      "category": "closing",
-      "used_by_steps": [
-        "STEP_14"
-      ]
-    },
-    {
       "key": "lock_date",
       "field_id": "761",
       "field_name": "Lock Date",
@@ -1252,13 +1268,14 @@
       ]
     },
     {
-      "key": "est_closing_date",
+      "key": "closing_date",
       "field_id": "763",
       "field_name": "Est Closing Date",
       "category": "closing",
       "used_by_steps": [
         "STEP_02",
-        "STEP_08"
+        "STEP_08",
+        "STEP_14"
       ]
     },
     {
@@ -2529,6 +2546,16 @@
       "category": "borrower_info",
       "used_by_steps": [
         "STEP_04"
+      ]
+    },
+    {
+      "key": "title_names",
+      "field_id": "URLA.X136",
+      "field_name": "Title Names",
+      "category": "title",
+      "used_by_steps": [
+        "STEP_03",
+        "STEP_10"
       ]
     },
     {
@@ -3878,7 +3905,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 294,
+    "total_los_fields": 296,
     "total_doc_fields": 127,
     "total_document_types": 34,
     "total_steps": 14,

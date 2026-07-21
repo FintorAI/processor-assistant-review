@@ -1,6 +1,6 @@
 Phase,Phase_Name,Step_ID,Step_Num,Step_Name,Substep_ID,Substep_Name,Plan_File,Tools
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.md,find_loan
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (294 fields),data_gathering.md,fetch_los_fields
+VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (296 fields),data_gathering.md,fetch_los_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (34 document types),data_gathering.md,fetch_doc_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.5,Validate Property Address (USPS),data_gathering.md,validate_property_address

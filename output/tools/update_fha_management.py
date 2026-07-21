@@ -3,15 +3,21 @@
 Step 12 (STEP_12): FHA-Specific Forms
 Phase: FORM_UPDATES
 
-FHA-only. Two parts:
-  1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from
+Three parts:
+  1. Property Type (field 2996, "FHA Management" screen) — write "1 Unit" when
+     the subject property is confirmed as a standard 1-unit property. Runs for
+     EVERY loan type (verified live on a Conventional loan), because field 2996
+     is a shared field that reflects on other forms, not an FHA-only value.
+  2. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from
      the CAIVRS document into the Encompass CAIVRS fields (write-only-if-blank).
-  2. FHA Case Number — write the assigned FHA Case Number (field 1040) from the
+     FHA-only.
+  3. FHA Case Number — write the assigned FHA Case Number (field 1040) from the
      FHA Government Documents extraction when 1040 is blank. Field 1040 is the
      same case-number field shown on the HUD-92900-LT, so one write covers both
-     forms. ADP code is 703 for a standard 1-unit property.
+     forms. ADP code is 703 for a standard 1-unit property. FHA-only.
 
-No-op when loan_type != FHA.
+CAIVRS and FHA Case Number are no-ops when loan_type != FHA; the Property Type
+(2996) write always runs.
 
 CAIVRS field IDs (verified, FHA Management → Tracking tab): borrower 1018,
 co-borrower 1144. When a number is written, the update is stamped with CAIVRS
@@ -79,22 +85,95 @@ def _clean(val) -> str | None:
     return s
 
 
+# Property Type (1041) values that indicate a standard 1-unit property.
+_ONE_UNIT_PROPERTY_TYPES = {"detached", "attached"}
+# Property Type / Project Type values or unit counts that indicate 2-4 units.
+_MULTI_UNIT_MARKERS = {"2-4 unit", "2-4unit", "duplex", "triplex", "fourplex"}
+# Condo/PUD markers — excluded from _is_one_unit up front so it agrees with
+# _confirmed_single_unit (which also excludes condo/PUD). Without this, a
+# condo/PUD with Number of Units = "1" would read as one_unit=True here while
+# _confirmed_single_unit says False, producing contradictory flags.
+_CONDO_PUD_MARKERS = {"condo", "condominium", "pud", "planned unit development"}
+
+
+def _is_one_unit(property_type: str | None, property_units: str | None) -> bool | None:
+    """Best-effort check that the subject property is a standard 1-unit property.
+
+    Returns True/False when determinable from Property Type (1041) and/or
+    Number of Units (16), or None when neither field has a usable value.
+    Condo/PUD is treated as NOT a standard 1-unit property here (aligned with
+    _confirmed_single_unit) even when Number of Units = "1".
+    """
+    pt = (property_type or "").strip().lower()
+    units = (property_units or "").strip()
+
+    if pt and any(marker in pt for marker in _CONDO_PUD_MARKERS):
+        return False
+    if units and units not in ("1",):
+        return False
+    if pt and any(marker in pt for marker in _MULTI_UNIT_MARKERS):
+        return False
+    if units == "1":
+        return True
+    if pt and pt in _ONE_UNIT_PROPERTY_TYPES:
+        return True
+    return None
+
+
+def _parse_money(val) -> float | None:
+    if val is None:
+        return None
+    s = str(val).strip().replace("$", "").replace(",", "")
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _confirmed_single_unit(
+    property_type: str | None, property_units: str | None, hoa_dues: str | None,
+) -> bool:
+    """Stricter single-unit confirmation used for the field 2996 write.
+
+    Mirrors the "single family, no HOA" heuristic the processor uses on Zillow
+    (notes.txt) and the Transmittal Summary's field-16 logic: excludes condo/
+    PUD and any HOA dues, not just multi-unit signals, since field 2996 is a
+    shared value other forms rely on.
+    """
+    pt = (property_type or "").strip().lower()
+    hoa_amount = _parse_money(hoa_dues)
+    has_hoa = bool(hoa_amount and hoa_amount > 0)
+
+    if has_hoa:
+        return False
+    if pt and any(marker in pt for marker in ("condo", "condominium", "pud", "planned unit development")):
+        return False
+    return _is_one_unit(property_type, property_units) is True
+
+
 @tool
 def update_fha_management(
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict, InjectedState],
 ) -> Command:
-    """Populate the FHA Management screen (Tracking tab) for FHA loans.
+    """Populate the FHA Management screen (Tracking tab).
 
-    1. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from
+    1. Property Type (field 2996) — write "1 Unit" (exact string, verified
+       live) when the property is confirmed a standard single-unit property.
+       Runs on EVERY loan type — field 2996 is a shared field, not FHA-only.
+    2. CAIVRS — write the per-applicant CAIVRS Authorization Number extracted from
        the CAIVRS document into the Encompass CAIVRS fields (write-only-if-blank).
        Emits an info flag listing what was written. While the Encompass CAIVRS
        field IDs are unverified, the numbers are flagged for manual entry instead.
-    2. FHA Case Number — write the assigned case number (field 1040) from the FHA
+       FHA-only.
+    3. FHA Case Number — write the assigned case number (field 1040) from the FHA
        Government Documents extraction when 1040 is blank (same field as the
-       HUD-92900-LT); flag a warning if blank with nothing to write.
+       HUD-92900-LT); flag a warning if blank with nothing to write. FHA-only.
 
-    No-op when loan_type != FHA. Call as STEP_12 substep 12.1.
+    Parts 2 and 3 are no-ops when loan_type != FHA; part 1 always runs.
+    Call as STEP_12 substep 12.1.
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -103,22 +182,82 @@ def update_fha_management(
             tool_call_id=tool_call_id,
         )]})
 
-    # ── FHA gate ──
+    logger.info(f"[UPDATE_FHA_MANAGEMENT] Starting for loan {str(loan_id)[:8]}...")
+
+    flags: list[dict] = []
+    property_type = _los(state, "property_type")
+    property_units = _los(state, "property_units")
+    hoa_dues = _los(state, "hoa_dues_monthly")
+    fha_property_type_units = _los(state, "fha_property_type_units")  # field 2996
+
+    # ── Property Type (field 2996, FHA Management screen) — runs regardless
+    # of loan type. Verified live value: exact string "1 Unit". This is a
+    # shared field other forms reflect, so it is NOT gated on loan_type == FHA. ──
+    fha_2996_current = (fha_property_type_units or "").strip()
+    one_unit_2996 = _confirmed_single_unit(property_type, property_units, hoa_dues)
+    if not fha_2996_current:
+        if one_unit_2996:
+            _write_fields(
+                loan_id, {"2996": "1 Unit"}, substep="12.1", flags=flags,
+                state=state, labels={"2996": "FHA Management — Property Type"},
+            )
+            flags.append({
+                "substep": "12.1",
+                "title": "FHA Management Property Type Set to 1 Unit",
+                "severity": "info",
+                "details": (
+                    f"Field 2996 (FHA Management — Property Type) was blank. Property "
+                    f"Type (1041) = '{property_type or 'n/a'}', Number of Units (16) = "
+                    f"'{property_units or 'n/a'}', HOA Dues (233) = '{hoa_dues or 'n/a'}' "
+                    "confirm a standard single-unit property — wrote '1 Unit'."
+                ),
+                "suggestion": "Verify Property Type = \"1 Unit\" on the FHA Management screen.",
+                "resolved": True,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.info("[UPDATE_FHA_MANAGEMENT] Wrote field 2996 (Property Type) = '1 Unit'")
+        else:
+            flags.append({
+                "substep": "12.1",
+                "title": "FHA Management Property Type — Not Confirmed 1 Unit",
+                "severity": "warning",
+                "details": (
+                    f"Field 2996 (FHA Management — Property Type) is blank, but the "
+                    f"property could not be confirmed single-unit: Property Type (1041) "
+                    f"= '{property_type or 'n/a'}', Number of Units (16) = "
+                    f"'{property_units or 'n/a'}', HOA Dues (233) = '{hoa_dues or 'n/a'}'."
+                ),
+                "suggestion": (
+                    "Confirm the property's unit count (check Zillow/appraisal) and set "
+                    "Property Type on the FHA Management screen manually."
+                ),
+                "resolved": False,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+    else:
+        logger.info(f"[UPDATE_FHA_MANAGEMENT] Field 2996 already populated: {fha_2996_current!r}")
+
+    # ── FHA gate — CAIVRS + FHA Case Number are FHA-only ──
     if not _is_fha(state):
+        wrote_2996 = bool(not fha_2996_current and one_unit_2996)
         result = {
             "success": True,
             "substep": "12.1",
             "tool": "update_fha_management",
-            "skipped": True,
-            "message": "Not an FHA loan — FHA Management skipped.",
+            "skipped_fha_only_sections": True,
+            "fha_property_type_units": "1 Unit" if wrote_2996 else fha_property_type_units,
+            "flags_count": len(flags),
+            "message": (
+                "Not an FHA loan — CAIVRS/FHA Case Number skipped; Property Type (2996) "
+                "check still ran." + (f" {len(flags)} flag(s)." if flags else "")
+            ),
         }
         logger.info(f"[UPDATE_FHA_MANAGEMENT] {result['message']}")
-        return Command(update={"messages": [ToolMessage(
-            content=json.dumps(result), tool_call_id=tool_call_id)]})
+        update: dict = {"messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)]}
+        if flags:
+            update["flags"] = flags
+        return Command(update=update)
 
-    logger.info(f"[UPDATE_FHA_MANAGEMENT] Starting for loan {str(loan_id)[:8]}...")
-
-    flags: list[dict] = []
     fha_case_number = _los(state, "fha_case_number")
 
     # ── CAIVRS Authorization Numbers ──
@@ -293,10 +432,51 @@ def update_fha_management(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
+    # ── Property Type — confirm 1-unit before assuming ADP code 703 ──
+    # Also require _confirmed_single_unit (one_unit_2996, computed above) so a
+    # condo/PUD/HOA property can't get both this "Confirmed 1 Unit" info flag
+    # and the "Not Confirmed 1 Unit" warning from the field 2996 section.
+    one_unit = _is_one_unit(property_type, property_units)
+    if one_unit is True and one_unit_2996:
+        flags.append({
+            "substep": "12.1",
+            "title": "Property Type Confirmed — 1 Unit",
+            "severity": "info",
+            "details": (
+                f"Property Type (1041) = '{property_type or 'n/a'}', Number of Units "
+                f"(16) = '{property_units or 'n/a'}' — confirms a standard 1-unit "
+                "property, so ADP code 703 applies."
+            ),
+            "suggestion": "No action needed.",
+            "resolved": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    elif one_unit is False:
+        flags.append({
+            "substep": "12.1",
+            "title": "Property Is Not 1-Unit — ADP Code 703 Does Not Apply",
+            "severity": "warning",
+            "details": (
+                f"Property Type (1041) = '{property_type or 'n/a'}', Number of Units "
+                f"(16) = '{property_units or 'n/a'}' — this is not a standard 1-unit "
+                "property, so the 703 ADP code referenced for FHA Case Number "
+                "assignment does not apply."
+            ),
+            "suggestion": "Select the correct ADP code for a 2-4 unit property in FHA Connection instead of 703.",
+            "resolved": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    # one_unit is None: Property Type/Units not yet available — no flag, avoid noise.
+
     result = {
         "success": True,
         "substep": "12.1",
         "tool": "update_fha_management",
+        "property_type": property_type,
+        "property_units": property_units,
+        "fha_property_type_units": (
+            "1 Unit" if (not fha_2996_current and one_unit_2996) else fha_property_type_units
+        ),
         "fha_case_number_present": case_present,
         "caivrs_numbers_found": len(present),
         "caivrs_numbers_written": len(written_labels),

@@ -21,9 +21,14 @@ What this agent does:
   5. Project Name — when PUD indicators are present, populate Project Name
      (field 1298, write-only-if-blank) from the Zillow community / subdivision
      name returned by the HasData lookup (e.g. "Germantown View").
+  6. Number of Units — write "1" to field 16 when the property is confirmed
+     single family (no HOA, not condo/PUD, not 2-4 unit).
 
 What this agent does NOT do:
   - Populate CPM Project ID# (field 3050) — requires browser lookup (CUA).
+  - Construction Status (field 1067) — moved to update_hud_transmittal.py
+    (substep 12.2) per processor feedback; it still runs regardless of loan
+    type, just filed under the HUD Transmittal tool instead of here.
   See ARCHITECTURE.md "Transmittal Summary — Condo Split" for the full design.
 """
 # FACTORY-LOCK: true
@@ -142,10 +147,11 @@ def update_transmittal_summary(
     Call this tool during STEP_11 (Transmittal Summary) as substep 11.1.
     Reads LOS: note_rate, qualifying_rate, transmittal_project_type, property_type,
                condo_project_name, condo_project_id, hoa_dues_monthly,
-               attachment_type, property_address/city/state/zip
+               attachment_type, property_address/city/state/zip, property_units
     Reads DOC: appraisal_pud, property_type, appraisal_project_type (legacy fallback)
     Flags: Note Rate vs Qualifying Rate Mismatch (warning), Project Type (info),
-           Condo Project Fields Pending (info), Possible PUD — Verify (warning/info)
+           Condo Project Fields Pending (info), Possible PUD — Verify (warning/info),
+           Number of Units Set to 1 (info-overwrite) / Unexpected Value (warning)
     """
     loan_id = state.get("loan_id")
     if not loan_id:
@@ -170,6 +176,7 @@ def update_transmittal_summary(
     condo_project_id     = _los(state, "condo_project_id")      # field 3050
     hoa_dues             = _los(state, "hoa_dues_monthly")      # field 233
     attachment_type      = _los(state, "attachment_type")       # CX.ATTACHMENT.TYPE
+    property_units       = _los(state, "property_units")        # field 16
     # Authoritative PUD signal when the appraisal (URAR/1004) has been extracted.
     # The live server 'Appraisal Report' schema exposes these under real field
     # names (appraisal_pud / is_condominium / is_cooperative / property_type);
@@ -500,6 +507,56 @@ def update_transmittal_summary(
                     f"[UPDATE_TRANSMITTAL_SUMMARY] Condo fields already populated: "
                     f"name={condo_project_name!r}, id={condo_project_id!r}"
                 )
+
+    # ── Rule: Number of Units (field 16) defaults to 1 for confirmed single family ──
+    _is_multi_unit = any(
+        u in _prop_lower for u in ("2 unit", "2-unit", "3 unit", "3-unit", "4 unit", "4-unit", "2-4 unit")
+    )
+    _hoa_amount = _parse_money(hoa_dues)
+    _has_hoa = bool(_hoa_amount and _hoa_amount > 0)
+    _confirmed_single_family = (
+        bool(property_type)  # blank property type can't confirm single-family
+        and not _is_condo(property_type)  # excludes PUD + Condo
+        and not _is_multi_unit
+        and not _has_hoa
+    )
+    _units_current = (property_units or "").strip()
+    if not _units_current:
+        if _confirmed_single_family:
+            _write_fields(loan_id, {"16": "1"}, "11.1", flags, state=state, labels={"16": "Number of Units"})
+            logger.info("[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 16 (Number of Units) = '1'")
+        else:
+            logger.info(
+                "[UPDATE_TRANSMITTAL_SUMMARY] Field 16 blank but property not confirmed "
+                f"single-family (condo/PUD={_is_condo(property_type)}, multi_unit={_is_multi_unit}, "
+                f"hoa=${_hoa_amount or 0:,.2f}) — not auto-writing."
+            )
+    elif _units_current != "1" and _confirmed_single_family:
+        flags.append({
+            "substep": "11.1",
+            "title": "Number of Units — Unexpected Value",
+            "severity": "warning",
+            "details": (
+                f"Field 16 (Number of Units) = {_units_current!r}, but the property is "
+                f"confirmed single family (no HOA, not condo/PUD, property_type={property_type!r})."
+            ),
+            "suggestion": "Verify and correct Number of Units (field 16) — expected 1.",
+            "resolved": False,
+            "timestamp": ts,
+        })
+    elif _units_current == "1" and _is_multi_unit:
+        flags.append({
+            "substep": "11.1",
+            "title": "Number of Units — Unexpected Value",
+            "severity": "warning",
+            "details": (
+                f"Field 16 (Number of Units) = '1', but property type "
+                f"{property_type!r} indicates a 2-4 unit property."
+            ),
+            "suggestion": "Verify and correct Number of Units (field 16) to match the actual unit count.",
+            "resolved": False,
+            "timestamp": ts,
+        })
 
     result = {
         "success": True,

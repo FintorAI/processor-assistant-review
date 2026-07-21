@@ -5,7 +5,7 @@ Pipeline
 - Ash’s view
 
 {
-  "loan_number": "2604964148",
+  "loan_number": "LOAN_NUMBER_REDACTED",
   "env": "PROD"
 }
 
@@ -21,6 +21,9 @@ Pipeline
 
 LOAN_NUMBER_REDACTED
 ENV_REDACTED
+BORROWER_REDACTED
+
+LOAN_NUMBER_REDACTED
 BORROWER_REDACTED
 
 2604964148 

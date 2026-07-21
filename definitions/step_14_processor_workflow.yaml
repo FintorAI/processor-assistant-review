@@ -84,8 +84,8 @@ substeps:
     value to both CUST50FV (Signing Date) and CX.WIREDATELO (Wire Requested Date).
   los_fields_read:
   - key: closing_date
-    field_id: '748'
-    field_name: Closing Date
+    field_id: '763'
+    field_name: Est Closing Date
     category: closing
     purpose: Source of truth for signing and wire dates on purchase loans
   - key: signing_date
@@ -103,6 +103,14 @@ substeps:
     field_name: Loan Purpose
     category: loan_info
     purpose: Determines date logic (purchase = all three dates match)
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: >
+      MD purchase loans: Signing/Wire/Closing dates all match (confirmed).
+      Michigan is called out separately by the processor — do not blindly equate
+      Wire Requested Date to Closing Date there; flag for manual confirmation.
   doc_types: []
   rules:
   - name: Purchase Loan Date Alignment
@@ -110,7 +118,16 @@ substeps:
     logic: >
       For purchase loans: Signing Date = Wire Requested Date = Closing Date (field 748).
       Read closing_date from LOS and write to both CUST50FV and CX.WIREDATELO.
-      Flag if closing_date is blank.
+      Flag if closing_date is blank. Confirmed behavior for Maryland purchases.
+  - name: Michigan Wire Date Exception
+    type: custom
+    logic: >
+      For Michigan (property_state == MI) purchase loans, still set Signing Date
+      (CUST50FV) = Closing Date, but do NOT auto-set Wire Requested Date
+      (CX.WIREDATELO) to the same value — the processor flagged Michigan's wire
+      timing as different from the MD same-day pattern. Raise an info flag
+      asking the processor to confirm the correct wire date for Michigan instead
+      of auto-writing it.
   flags:
   - title: Closing Date Not Set
     severity: warning
@@ -120,13 +137,17 @@ substeps:
     severity: warning
     condition: Signing date is still blank after write attempt
     suggestion: Manually set signing date to match closing date on Processor Closing screen
+  - title: Michigan Wire Date Needs Manual Confirmation
+    severity: info
+    condition: Michigan purchase loan — Wire Requested Date was not auto-set to match Closing Date
+    suggestion: Confirm the correct Wire Requested Date for this Michigan closing with the closing team
   field_updates:
   - field_id: CUST50FV
     value: '{closing_date}'
     condition: loan_purpose == Purchase
   - field_id: CX.WIREDATELO
     value: '{closing_date}'
-    condition: loan_purpose == Purchase
+    condition: loan_purpose == Purchase and property_state != MI
 
 - id: '14.3'
   name: Build Action Items

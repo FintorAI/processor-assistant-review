@@ -94,7 +94,7 @@ substeps:
     field_name: Occupancy
     category: loan_info
     purpose: Require rent-loss coverage for investment properties (13 #10)
-  - key: est_closing_date
+  - key: closing_date
     field_id: '763'
     field_name: Est Closing Date
     category: closing

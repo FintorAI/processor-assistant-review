@@ -1133,20 +1133,44 @@ def review_urla_assets(
         _check_matches(asset_full_copies or asset_acct_copies, "asset_account_number")
         _check_matches(retirement_full_copies, "account_number")
 
+        # Lump unmatched accounts under one flag per institution instead of one
+        # flag per account row — several accounts at the same bank should read
+        # as a single info item for that bank, not a repeated row-by-row list
+        # (video 6 feedback).
+        _unmatched_by_bank: dict[str, list[dict]] = {}
         for row in vod_rows:
             key = row["vod_id"] + "_" + (row.get("account_number") or "")
             if key not in matched_vod_ids:
-                flags.append(_flag(
-                    "6.1",
-                    f"VOD Account Has No Supporting Document ({row.get('institution_name') or row.get('account_number') or 'account'})",
-                    "warning",
-                    (
-                        f"VOD entry for {row['institution_name']!r} "
-                        f"({row.get('account_type', '')} {row.get('account_number', '')}) "
-                        f"balance ${row['balance']:,.2f} has no matching bank statement or asset doc."
-                    ),
-                    "Ensure all VOD accounts have corresponding bank statements or asset docs in eFolder.",
-                ))
+                bank_key = (row.get("institution_name") or "Unknown Institution").strip() or "Unknown Institution"
+                _unmatched_by_bank.setdefault(bank_key, []).append(row)
+
+        for bank_name, rows in _unmatched_by_bank.items():
+            if len(rows) == 1:
+                row = rows[0]
+                bal = _parse_float(row.get("balance")) or 0.0
+                details = (
+                    f"VOD entry for {bank_name!r} "
+                    f"({row.get('account_type', '')} {row.get('account_number', '')}) "
+                    f"balance ${bal:,.2f} has no matching bank statement or asset doc."
+                )
+            else:
+                lines = "\n".join(
+                    f"  • {row.get('account_type', '')} {row.get('account_number', '')} "
+                    f"— ${(_parse_float(row.get('balance')) or 0.0):,.2f}"
+                    for row in rows
+                )
+                total = sum(_parse_float(row.get("balance")) or 0.0 for row in rows)
+                details = (
+                    f"{len(rows)} VOD accounts at {bank_name!r} (total ${total:,.2f}) have no "
+                    f"matching bank statement or asset doc:\n{lines}"
+                )
+            flags.append(_flag(
+                "6.1",
+                f"VOD Account Has No Supporting Document ({bank_name})",
+                "warning",
+                details,
+                "Ensure all VOD accounts have corresponding bank statements or asset docs in eFolder.",
+            ))
 
     # ── 7. LOS total_assets sanity (informational) ───────────────────────────
     if vod_rows and total_assets is not None:
