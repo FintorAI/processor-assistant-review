@@ -1,6 +1,11 @@
 ## Purpose
 
-Verify presence (and signing where applicable) of all docs that downstream steps depend on. Fails fast with a flag if any are missing. Also reads the existing AUS (Underwriting bucket) for collateral relief and income raw relief — AUS is required and flagged if absent.
+Verify presence (and signing where applicable) of all docs that downstream steps
+depend on. Fails fast with a flag if any are missing. Also reads the existing AUS
+(Underwriting bucket) for collateral relief and income raw relief — AUS is required
+and flagged if absent. Substep 1.3 consolidates property verification (USPS +
+Zillow/HasData PUD + new-construction) so property facts are available to every
+downstream step.
 
 
 **NOTE**: Each substep has its own dedicated tool. State (`los_fields`, `doc_fields`, `loan_summary`) is automatically injected.
@@ -11,6 +16,7 @@ Verify presence (and signing where applicable) of all docs that downstream steps
 |------|---------|
 | `run_pre_checks` | Document Presence Check |
 | `review_file_contacts` | File Contacts Check |
+| `review_property_listing` | Property Verification (USPS + Zillow/PUD + new construction) |
 
 ## Overview
 
@@ -18,6 +24,7 @@ Verify presence (and signing where applicable) of all docs that downstream steps
 |---------|-------------|------|
 | 1.1 | Document Presence Check | `run_pre_checks` |
 | 1.2 | File Contacts Check | `review_file_contacts` |
+| 1.3 | Property Verification (Address + Listing / PUD) | `review_property_listing` |
 
 ## Tool Calls
 
@@ -26,6 +33,8 @@ Verify presence (and signing where applicable) of all docs that downstream steps
 run_pre_checks(loan_guid=loan_id)
 # Substep 1.2 - File Contacts Check
 review_file_contacts(loan_guid=loan_id)
+# Substep 1.3 - Property Verification (Address + Listing / PUD)
+review_property_listing(loan_guid=loan_id)
 ```
 
 ---
@@ -184,6 +193,58 @@ Verify that the four key file contacts are assigned in Encompass: Buyer's Agent,
 After completing this substep, call:
 ```
 write_todo(step_id="STEP_01", substep_id="1.2", status="completed", notes="<detailed report with every check result, field IDs/values, and flags>")
+```
+
+---
+
+### Substep 1.3 - Property Verification (Address + Listing / PUD)
+**Tool**: `review_property_listing`
+
+Consolidate property verification into Pre-Checks:
+1. USPS Address API v3 deliverability + Purchase Contract street-number cross-check
+   (moved from former STEP_00 0.5). Stores `state['address_validation']` (unchanged
+   shape for `review_borrower_summary` / `review_flood_hazard_insurance` /
+   `build_action_items`).
+2. Live Zillow/HasData public-records lookup for PUD signals and new-construction
+   (`year_built` / `isNewConstruction`). One HasData call per loan.
+3. Stores results in `state['property_verification']` (`{pud, new_construction}`)
+   for Transmittal Summary (11.1), FHA Management (12.1), and HUD Transmittal (12.2).
+
+Flag-only — no Encompass writes in Pre-Checks.
+
+**LOS Fields (read from state):**
+
+| Encompass Field | Field ID | Key | Purpose |
+|-----------------|----------|-----|---------|
+| Property Street Address | `11` | `property_address` | USPS + Zillow keyword |
+| Property City | `12` | `property_city` | USPS + Zillow keyword |
+| Property State | `14` | `property_state` | USPS + Zillow keyword |
+| Property ZIP | `15` | `property_zip` | USPS + Zillow keyword |
+| Property Type | `1041` | `property_type` | Encompass PUD / condo signal |
+| HOA Dues Monthly | `233` | `hoa_dues_monthly` | PUD heuristic |
+| Attachment Type | `CX.ATTACHMENT.TYPE` | `attachment_type` | PUD heuristic |
+| Condo Project Name | `1298` | `condo_project_name` | Read for downstream 11.1 |
+| Construction Status | `1067` | `construction_status` | Gate new-construction flag |
+
+**Document Types:**
+- **Purchase Agreement**: `purchase_property_address`
+
+**Business Rules:**
+- **Address Deliverability** (custom): USPS DPV in Y/S/D; flag street-number mismatch vs Purchase Contract.
+- **PUD Detection** (custom): appraisal + HOA/Attached + Zillow signals → strong/weak flags.
+- **New Construction Signal** (custom): Zillow `year_built` within last calendar year (or `isNewConstruction=True`).
+
+**Flags — raise when conditions are met:**
+- WARNING: "Address Undeliverable"
+- WARNING: "Address Mismatch with Purchase Contract"
+- WARNING: "Possible PUD — Verify Property / Project Type"
+- INFO: "Possible PUD — Weak Indicators (Verify)"
+- INFO: "Possible New Construction — Verify"
+- INFO: "Property Listing Facts"
+
+After completing this substep, call:
+```
+write_todo(step_id="STEP_01", substep_id="1.3", status="completed", notes="<detailed report with USPS result, Zillow facts, PUD/new-construction signals, and flags>")
 ```
 
 ---

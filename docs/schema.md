@@ -69,7 +69,8 @@ They are **not** in the input — they carry data between tools.
 | `efolder_documents` | `list[dict]` | `fetch_doc_fields` | Raw eFolder document list from Encompass |
 | `almas_notes_images` | `list[dict]` | `extract_almas_images` (0.6) | Input images (from `additional_info`) enriched with `extracted_text` + `ocr_status` via Claude vision |
 | `loan_summary` | `dict` | `build_loan_summary` | Structured URLA summary built from `los_fields` + `almas_notes` |
-| `address_validation` | `dict` | `validate_property_address` | USPS address validation result (see below) |
+| `address_validation` | `dict` | `review_property_listing` (1.3) | USPS address validation result (see below). Formerly produced by STEP_00 `validate_property_address` (0.5); consolidated into Pre-Checks. |
+| `property_verification` | `dict` | `review_property_listing` (1.3) | Zillow/HasData PUD + new-construction signals (see below). Consumed by Transmittal Summary 11.1, FHA Management 12.1, HUD Transmittal 12.2. |
 | `vod_data` | `list[dict]` | `fetch_los_fields` → tools | Cached VOD records fetched by tools |
 | `flags` | `list[dict]` | All review tools | Accumulated flags from all substeps (see Flag schema below) |
 | `pending_field_updates` | `list[dict]` | Form update tools | Field writes staged but not yet committed |
@@ -92,11 +93,21 @@ Each entry in `los_fields` is a dict keyed by the snake_case key defined in `FIE
 
 ### `address_validation` shape
 
+Produced by STEP_01 substep 1.3 (`review_property_listing`). Shape is unchanged
+from the former STEP_00 0.5 producer so existing consumers
+(`review_borrower_summary`, `review_flood_hazard_insurance`, `build_action_items`)
+need no changes.
+
 ```json
 {
   "valid": true,
-  "address": "2814 Carlisle Dr Unit 18, New Windsor, MD 21776",
-  "usps_response": { ... }
+  "normalized": "2814 CARLISLE DR UNIT 18 NEW WINDSOR MD 21776",
+  "dpv_confirmation": "Y",
+  "error": null,
+  "warnings": [],
+  "mismatch_with_purchase_contract": false,
+  "purchase_contract_address": "2814 Carlisle Dr Unit 18",
+  "los_address": "2814 Carlisle Dr Unit 18, New Windsor, MD 21776"
 }
 ```
 
@@ -106,7 +117,49 @@ If the property address was not available in `los_fields` at validation time:
 {
   "valid": null,
   "skipped": true,
-  "skip_reason": "Property address not in state — los_fields may not be populated"
+  "skip_reason": "property_address not in los_fields — fetch_los_fields may not have run yet or failed",
+  "normalized": null,
+  "mismatch_with_purchase_contract": null,
+  "purchase_contract_address": null
+}
+```
+
+### `property_verification` shape
+
+Produced by STEP_01 substep 1.3 (`review_property_listing`) via one HasData
+Zillow Listing API call per loan. Downstream tools prefer this over a live
+re-lookup (they fall back via `_get_or_detect_property_verification` only when
+1.3 was skipped).
+
+```json
+{
+  "pud": {
+    "is_condo": false,
+    "pud_signals": ["Zillow home/structure type = TOWNHOUSE", "Zillow shows HOA dues ($88 monthly)"],
+    "strong": true,
+    "zillow_url": "https://www.zillow.com/homedetails/...",
+    "zillow_deep_link": "https://www.zillow.com/homes/...",
+    "zillow_subdivision": "Germantown View",
+    "zillow_attached": false,
+    "zillow_signals": ["Zillow home/structure type = TOWNHOUSE", "Zillow shows HOA dues ($88 monthly)"],
+    "appraisal_says_pud": false,
+    "hoa_present": true,
+    "attached": true,
+    "home_type": "TOWNHOUSE",
+    "structure_type": "End of Row/Townhouse",
+    "hoa_fee": "$88 monthly",
+    "found": true,
+    "error": null
+  },
+  "new_construction": {
+    "is_new_construction": false,
+    "year_built": 1983,
+    "zillow_flag": false,
+    "zillow_url": "https://www.zillow.com/homedetails/...",
+    "confidence": "none",
+    "found": true,
+    "error": null
+  }
 }
 ```
 

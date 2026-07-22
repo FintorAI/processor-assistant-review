@@ -135,19 +135,15 @@ substeps:
   - name: PUD Detection
     type: custom
     logic: >
-      For a non-condo property, gather PUD signals from three sources:
-      (a) document-backed — the appraisal (URAR/1004) Project Type checkbox
-      indicates PUD; (b) heuristic — HOA dues present (field 233) plus an Attached
-      dwelling (CX.ATTACHMENT.TYPE or property_type); (c) external — Zillow public
-      records via HasData (home/structure type, hasAttachedProperty, HOA dues),
-      which automates the manual "Go to Zillow" check (needs HASDATA_API_KEY;
-      best-effort). When any signal is present, do NOT auto-set field 1012 to
-      "Not in a Project"; instead raise a flag-to-verify (warning if the appraisal
-      says PUD, HOA+Attached agree, or 2+ Zillow signals; else info) with the
-      Zillow listing URL (or an address deep link as fallback). No property/project
-      type is auto-written — the processor confirms. When PUD indicators are present
-      and the       Zillow lookup returns a community/subdivision name, Project Name
-      (field 1298) is written write-only-if-blank from that subdivision.
+      Consumes precomputed PUD signals from STEP_01 substep 1.3
+      (state['property_verification']['pud'], produced by review_property_listing
+      via appraisal + HOA/Attached heuristic + Zillow/HasData). When strong
+      signals are present, do NOT auto-set field 1012 to "Not in a Project";
+      instead skip the write (the Possible PUD flag was already raised at 1.3).
+      When PUD indicators are present and the Zillow lookup returned a
+      community/subdivision name, Project Name (field 1298) is written
+      write-only-if-blank from that subdivision. Falls back to a live lookup
+      only if 1.3 did not run (e.g. dev-mode skip).
   - name: Number of Units Defaults to 1 for Confirmed Single Family
     type: custom
     logic: >

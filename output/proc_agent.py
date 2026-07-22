@@ -247,6 +247,7 @@ class ProcessorAgentState(AgentState):
     loan_summary: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
     loan_profile: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
     address_validation: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
+    property_verification: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
     vod_data: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
 
     # ── Issues and tracking ──

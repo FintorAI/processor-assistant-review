@@ -277,5 +277,132 @@ substeps:
     suggestion: Go to File Contacts in Encompass and add the missing contact
   field_updates: []
 
+- id: '1.3'
+  name: Property Verification (Address + Listing / PUD)
+  tool: review_property_listing
+  description: >
+    Consolidate property verification into Pre-Checks: (1) USPS Address API v3
+    deliverability check + Purchase Contract street-number cross-check (moved
+    from former STEP_00 0.5); (2) live Zillow/HasData public-records lookup for
+    PUD signals (home/structure type, attached, HOA, subdivision) and
+    new-construction (year_built / isNewConstruction); (3) store both results
+    in state so Transmittal Summary (11.1), FHA Management (12.1), and HUD
+    Transmittal (12.2) can consume them without re-querying. Flag-only —
+    no Encompass writes in Pre-Checks.
+  los_fields_read:
+  - key: property_address
+    field_id: '11'
+    field_name: Property Street Address
+    category: property
+    purpose: USPS validation + Zillow listing keyword / deep-link
+  - key: property_city
+    field_id: '12'
+    field_name: Property City
+    category: property
+    purpose: USPS validation + Zillow listing keyword / deep-link
+  - key: property_state
+    field_id: '14'
+    field_name: Property State
+    category: property
+    purpose: USPS validation + Zillow listing keyword / deep-link
+  - key: property_zip
+    field_id: '15'
+    field_name: Property ZIP
+    category: property
+    purpose: USPS validation + Zillow listing keyword / deep-link
+  - key: property_type
+    field_id: '1041'
+    field_name: Property Type
+    category: property
+    purpose: Encompass PUD / condo signal for the PUD-detection rule
+  - key: hoa_dues_monthly
+    field_id: '233'
+    field_name: Proposed Homeowner Assoc. Dues (Monthly)
+    category: property
+    purpose: PUD signal — HOA dues present on a non-condo property
+  - key: attachment_type
+    field_id: CX.ATTACHMENT.TYPE
+    field_name: Attachment Type (Attached/Detached)
+    category: property
+    purpose: PUD signal — Attached dwelling combined with HOA dues
+  - key: condo_project_name
+    field_id: '1298'
+    field_name: Condo Project Name (Transmittal Summary)
+    category: property
+    purpose: Read so downstream 11.1 knows whether Project Name is already set
+  - key: construction_status
+    field_id: '1067'
+    field_name: Construction Status
+    category: property
+    purpose: >
+      Read current Construction Status so the new-construction flag only fires
+      when 1067 is blank or Existing — consumed later by HUD Transmittal 12.2
+  doc_types:
+  - document_type: Purchase Agreement
+    all_copies: false
+    fields:
+    - key: purchase_property_address
+      purpose: Cross-check USPS / LOS street number against the Purchase Contract
+  rules:
+  - name: Address Deliverability
+    type: custom
+    logic: >
+      Call USPS Address Validation API v3 against the LOS subject-property
+      address. Flag warning when the address is not deliverable (DPV not in
+      Y/S/D) or when the LOS street number disagrees with the Purchase Contract.
+      Stores the full result in state['address_validation'] for downstream
+      tools (review_borrower_summary, review_flood_hazard_insurance,
+      build_action_items).
+  - name: PUD Detection
+    type: custom
+    logic: >
+      Gather PUD signals from three sources: (a) document-backed — appraisal
+      URAR Project Type checkbox indicates PUD; (b) heuristic — HOA dues
+      (field 233) plus an Attached dwelling (CX.ATTACHMENT.TYPE or
+      property_type); (c) external — Zillow public records via HasData
+      (home/structure type, hasAttachedProperty, HOA dues), which automates
+      the manual "Go to Zillow" check (needs HASDATA_API_KEY; best-effort).
+      Raise a flag-to-verify (warning if appraisal says PUD, HOA+Attached
+      agree, or 2+ Zillow signals; else info). Stores the full signal dict
+      under state['property_verification']['pud'] for Transmittal Summary
+      11.1 and FHA Management 12.1.
+  - name: New Construction Signal
+    type: custom
+    logic: >
+      When Zillow year_built is within the last calendar year (or Zillow's
+      isNewConstruction boolean is True), raise an info flag citing the
+      year_built and listing URL. Stores the result under
+      state['property_verification']['new_construction'] for HUD Transmittal
+      12.2 to override Construction Status (field 1067) from the default
+      ExistingConstruction to New.
+  flags:
+  - title: Address Undeliverable
+    severity: warning
+    condition: USPS DPV confirmation is not Y/S/D for the subject property address
+    suggestion: Correct the property address in Encompass against the Purchase Contract / USPS
+  - title: Possible PUD — Verify Property / Project Type
+    severity: warning
+    condition: >
+      Non-condo property with strong PUD indicators (appraisal Project Type =
+      PUD, or HOA dues + Attached, or 2+ Zillow signals)
+    suggestion: >
+      Verify on Zillow whether the subject is in a Planned Unit Development; if so
+      set Property Type (1041) = PUD and Project Type (1012) = "Other: P/PUD"
+  - title: Possible PUD — Weak Indicators (Verify)
+    severity: info
+    condition: Non-condo property with only weak PUD hints (HOA-only or one Zillow signal)
+    suggestion: Confirm the subject is not in a PUD via the listing / appraisal
+  - title: Possible New Construction — Verify
+    severity: info
+    condition: Zillow year_built is within the last calendar year (or isNewConstruction=True)
+    suggestion: >
+      Confirm Construction Status (field 1067) — HUD Transmittal 12.2 will attempt
+      to write "New" when blank if this signal is present
+  - title: Property Listing Facts
+    severity: info
+    condition: Zillow/HasData returned a match (even with no PUD / new-construction signal)
+    suggestion: No action needed — facts stored in state for downstream tools
+  field_updates: []
+
 dev:
   skip: false

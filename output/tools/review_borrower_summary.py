@@ -684,7 +684,7 @@ def review_borrower_summary(
               "Appraised value (field 356) is blank and no estimated value to copy from.",
               "Enter the appraised value once the appraisal report is received.")
 
-    # ── Rule: Property Address (reads from state["address_validation"] set by step 0.5) ──
+    # ── Rule: Property Address (reads from state["address_validation"] set by step 1.3) ──
     addr_val = state.get("address_validation", {})
     if addr_val and not addr_val.get("skipped"):
         if addr_val.get("valid") is False:
@@ -706,7 +706,7 @@ def review_borrower_summary(
                   "Correct the property address in Encompass and flag for Lock Desk if needed.",
                   docs=_relevant_docs(state, "purchase_property_address"))
     elif purchase_property_address_doc and property_address:
-        # Fallback if validate_property_address wasn't run yet
+        # Fallback if review_property_listing (1.3) hasn't run yet
         los_num = str(property_address).strip().split()[0] if property_address else ""
         doc_num = str(purchase_property_address_doc).strip().split()[0] if purchase_property_address_doc else ""
         if los_num and doc_num and los_num != doc_num:

@@ -1,15 +1,17 @@
-"""HasData Zillow API client — best-effort property lookup for PUD detection.
+"""HasData Zillow API client — best-effort property lookup for PUD + new-construction.
 
 Automates the manual "Go to Zillow" step a processor does to decide whether a
-subject property sits in a Planned Unit Development. Given an address, it queries
-HasData's Zillow Listing API (which handles proxy rotation / CAPTCHA on Zillow's
-behalf — raw requests + BeautifulSoup against zillow.com gets 403'd) and returns
-the public-record facts that matter for PUD classification:
+subject property sits in a Planned Unit Development, and to spot new construction
+(< 1 year old). Given an address, it queries HasData's Zillow Listing API (which
+handles proxy rotation / CAPTCHA on Zillow's behalf — raw requests + BeautifulSoup
+against zillow.com gets 403'd) and returns the public-record facts that matter:
 
   - home_type / structure_type  (SingleFamily / Townhouse / Condo / …)
   - has_attached_property        (shared wall → attached dwelling)
   - hoa_fee                      (HOA dues present → community/association)
   - subdivision                  (community/subdivision name → PUD project name)
+  - year_built                   (for new-construction detection)
+  - is_new_construction_flag     (Zillow's own boolean — bonus only)
 
 API docs: https://docs.hasdata.com/apis/zillow/listing
 Auth: HASDATA_API_KEY in the environment (x-api-key header).
@@ -22,6 +24,7 @@ heuristic + a Zillow deep-link. No exceptions propagate to the agent.
 import logging
 import os
 from dataclasses import dataclass, field
+from datetime import date
 from typing import List, Optional
 
 import requests
@@ -40,6 +43,11 @@ _ATTACHED_HOME_TYPES = (
     "condo", "condominium", "multi", "apartment", "garden",
 )
 
+# Single-family markers used by FHA Management "1 Unit" confirmation.
+_SINGLE_FAMILY_HOME_TYPES = (
+    "singlefamily", "single_family", "single family", "detached",
+)
+
 
 @dataclass
 class ZillowPropertyFacts:
@@ -53,6 +61,11 @@ class ZillowPropertyFacts:
     hoa_fee: Optional[str] = None
     subdivision: Optional[str] = None
     community_features: List[str] = field(default_factory=list)
+    # Verified live (HasData 2026-07-22): prop.yearBuilt / resoData.yearBuilt,
+    # plus atAGlanceFacts "Year Built". resoData.isNewConstruction is inconsistently
+    # populated (False on some listings, None/absent on others) — bonus signal only.
+    year_built: Optional[int] = None
+    is_new_construction_flag: Optional[bool] = None
 
 
 def _parse_hoa(reso: dict) -> Optional[str]:
@@ -63,6 +76,27 @@ def _parse_hoa(reso: dict) -> Optional[str]:
             val = fact.get("factValue")
             if val and str(val).strip().lower() not in ("", "no data", "none", "$0/mo"):
                 return str(val).strip()
+    return None
+
+
+def _parse_year_built(prop: dict, reso: dict) -> Optional[int]:
+    """Pull year built from prop / resoData / atAGlanceFacts (verified live)."""
+    raw = prop.get("yearBuilt") or reso.get("yearBuilt")
+    if raw is None:
+        for fact in reso.get("atAGlanceFacts") or []:
+            label = (fact.get("factLabel") or "").lower()
+            if "year built" in label:
+                raw = fact.get("factValue")
+                break
+    if raw is None:
+        return None
+    try:
+        year = int(str(raw).strip()[:4])
+    except (TypeError, ValueError):
+        return None
+    # Sanity: ignore garbage years outside a plausible residential range.
+    if 1700 <= year <= date.today().year + 2:
+        return year
     return None
 
 
@@ -78,6 +112,38 @@ def is_pud_indicative(facts: ZillowPropertyFacts) -> "tuple[bool, List[str]]":
     if facts.hoa_fee:
         signals.append(f"Zillow shows HOA dues ({facts.hoa_fee})")
     return (len(signals) > 0, signals)
+
+
+def is_new_construction(facts: ZillowPropertyFacts, as_of: Optional[date] = None) -> bool:
+    """True when the listing looks like new construction (< ~1 year old).
+
+    Primary signal: ``year_built`` within the last calendar year of ``as_of``.
+    Bonus: Zillow's ``isNewConstruction`` boolean when True (never used alone —
+    live tests showed it is ``None``/absent on plenty of legitimate non-new
+    listings rather than ``False``).
+    """
+    if not facts.found:
+        return False
+    today = as_of or date.today()
+    if facts.year_built is not None and facts.year_built >= today.year - 1:
+        return True
+    if facts.is_new_construction_flag is True:
+        return True
+    return False
+
+
+def looks_single_family(facts: ZillowPropertyFacts) -> bool:
+    """True when Zillow home/structure type looks like a detached single-family."""
+    if not facts.found:
+        return False
+    ht = (facts.home_type or "").lower().replace(" ", "").replace("_", "")
+    st = (facts.structure_type or "").lower().replace(" ", "").replace("_", "")
+    if any(t in ht or t in st for t in _ATTACHED_HOME_TYPES):
+        return False
+    return any(
+        t.replace(" ", "").replace("_", "") in ht or t.replace(" ", "").replace("_", "") in st
+        for t in _SINGLE_FAMILY_HOME_TYPES
+    ) or (ht == "singlefamily" or st == "singlefamily")
 
 
 class ZillowClient:
@@ -139,11 +205,20 @@ class ZillowClient:
                     or reso.get("subdivision")
                 ),
                 community_features=reso.get("communityFeatures") or [],
+                year_built=_parse_year_built(prop, reso),
+                is_new_construction_flag=(
+                    reso.get("isNewConstruction")
+                    if isinstance(reso.get("isNewConstruction"), bool)
+                    else prop.get("isNewConstruction")
+                    if isinstance(prop.get("isNewConstruction"), bool)
+                    else None
+                ),
             )
             logger.info(
                 f"[ZILLOW] Found property ({log_loc}) — type={facts.home_type}, "
                 f"attached={facts.has_attached_property}, hoa={facts.hoa_fee}, "
-                f"subdivision={facts.subdivision!r}"
+                f"subdivision={facts.subdivision!r}, year_built={facts.year_built}, "
+                f"is_new={facts.is_new_construction_flag}"
             )
             return facts
         except Exception as e:  # noqa: BLE001 — best-effort, never break the agent

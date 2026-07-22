@@ -1,0 +1,26 @@
+Thread id: 19f84d2-cd3c-7ee1-b907-90be8502309d
+
+- Property lookup still: where do we do this actually?
+- Cover Letter: Add Gift letter and receipt to cover letter if file has gift
+- Borrower Summary: Verify subject property with purchase contract
+- Same bank fix was not applied yet in 1003 URLA Part 3 2a
+- Changed sole ownership from unmarried man
+- Construction is changed to New (less than 1 year) because of Property listing
+- Transmittal Summary: Property Type is 1 unit (single house)
+- Level of Property Review:
+    - Exterior / Interior usually unless with Appraisal Review
+    - No Appraisal - has Appraisal Waiver
+    - Explanation around 18 min
+    - Home Buyers Education Certification is Yrs (added to cover letter as well)
+- Transmittal Summary
+    - Fannie Mae’s Community Lending Product is 08 Home Ready
+- Seller’s Documents
+    - Got Albert Allen from the downloaded document
+    - Ask seller for signing authority document that Allen is able to sign
+    - Do this for Sellers that are LLC
+- Credit Report Pre-Qual is not needed
+- No MI so delete MI Quote
+- Reviews all docs so maybe should get / display that on dashboard
+- Remove Ocrolus bucket from efolder 
+- FHA choose Fannie or Freddie, conventional both, good to run for both
+- Cover letter: added 
