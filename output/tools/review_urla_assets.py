@@ -750,9 +750,12 @@ def review_urla_assets(
     # Encompass already has 2+ separate entries for the same institution +
     # owner (e.g. created one-at-a-time before the add_vod_accounts grouping
     # fix, or entered manually), flag it for merge. NOTE: not auto-merged here
-    # yet — merge_duplicate_vods' request shapes are confirmed from the "V3
-    # Manage VODs" API reference but not yet exercised against a live loan;
-    # flip this to call it once that's been live-tested.
+    # yet — merge_duplicate_vods is live-tested and confirmed working (loan
+    # 2607973377, prod, 2026-07-22: 2 "Cryptocurrency wallet" VODs -> merged
+    # into 1 entry with both items, surplus entry deleted), but auto-running a
+    # delete against production data on every review is a bigger behavior
+    # change than just flagging it — left as a flag pending a decision to wire
+    # it in automatically.
     if vod_rows:
         _dup_vod_ids: dict = {}
         for row in vod_rows:
@@ -782,9 +785,9 @@ def review_urla_assets(
                         "Merge the duplicate entries in Encompass: move the extra entry's account "
                         "row(s) into the first entry's Account Information grid, then delete the "
                         "now-empty duplicate entry. (Automatic merge via "
-                        "shared.encompass_io.merge_duplicate_vods is implemented — PATCH ?action=update "
-                        "+ ?action=delete, per the V3 Manage VODs API reference — but not yet live-"
-                        "tested; ask to enable it once tested.)"
+                        "shared.encompass_io.merge_duplicate_vods is implemented and live-tested — "
+                        "PATCH ?action=update + ?action=delete, per the V3 Manage VODs API reference — "
+                        "ask to wire it in here to run automatically instead of just flagging.)"
                     ),
                 ))
 

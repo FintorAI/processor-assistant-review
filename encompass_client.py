@@ -2285,10 +2285,18 @@ def merge_duplicate_vods(
         PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods?action=delete
         body: [ {"id": "<surplus_vod_id>"}, ... ]
 
-    The merge (update) call runs first so surplus entries are never removed
-    before their accounts are safely combined into the kept entry; the delete
-    call for all surplus entries across all institutions is then batched into
-    one second PATCH.
+        The merge (update) call runs first so surplus entries are never removed
+        before their accounts are safely combined into the kept entry; the delete
+        call for all surplus entries across all institutions is then batched into
+        one second PATCH.
+
+        Live-tested and confirmed working against prod loan 2607973377 (2026-07-22):
+        2 "Cryptocurrency wallet" VODs (Checking $500 + Savings $100, entered as
+        separate entries) merged into 1 entry with both items and the surplus
+        entry deleted. NOTE: each item's ``depositoryAccountGuid`` (assigned by
+        Encompass on read) must be stripped before the ``?action=update`` PATCH —
+        the server 400s with "The DepositoryAccountGuid field is readonly" if it's
+        echoed back; see ``_VOD_ITEM_READONLY_FIELDS`` below.
 
     Args:
         loan_id: Encompass loan GUID
@@ -2362,6 +2370,11 @@ def merge_duplicate_vods(
         keep_id = group_sorted[0].get("id")
         surplus_ids = [v.get("id") for v in group_sorted[1:]]
 
+        # Fields the server assigns and rejects on write-back (confirmed live:
+        # PATCH ?action=update 400s with "The DepositoryAccountGuid field is
+        # readonly" if it's echoed back from a GET response).
+        _VOD_ITEM_READONLY_FIELDS = {"itemNumber", "depositoryAccountGuid"}
+
         combined_items: list[dict] = []
         for v in group_sorted:
             for item in (v.get("items") or []):
@@ -2369,7 +2382,9 @@ def merge_duplicate_vods(
                 if (not item.get("type") and not item.get("accountIdentifier")
                         and item.get("urla2020CashOrMarketValueAmount") in (None, "")):
                     continue
-                combined_items.append({k: val for k, val in item.items() if k != "itemNumber"})
+                combined_items.append({
+                    k: val for k, val in item.items() if k not in _VOD_ITEM_READONLY_FIELDS
+                })
         for idx, item in enumerate(combined_items, start=1):
             item["itemNumber"] = idx
 
