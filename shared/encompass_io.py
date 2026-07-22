@@ -924,6 +924,34 @@ def update_vods(
     return result
 
 
+def merge_duplicate_vods(loan_id: str, state: dict = None) -> Dict[str, Any]:
+    """Merge existing duplicate same-institution VOD entries into one (video 7 feedback).
+
+        Thin wrapper over ``encompass_client.merge_duplicate_vods``. If Encompass
+        has 2+ separate VOD entries for the same institution + owner, combines
+        their account rows into the first entry's items (``PATCH .../vods?action=update``)
+        and deletes the surplus entries (``PATCH .../vods?action=delete``) — both
+        confirmed from the "V3 Manage VODs" API reference and live-tested
+        successfully against prod loan 2607973377 (2026-07-22). Not yet wired to
+        run automatically from a review tool — currently only called manually /
+        ad hoc; see the wrapped function's docstring for request-shape details.
+
+    Returns ``{"success": bool, "merged": [...], "skipped": [...], "error"?: str}``.
+    """
+    try:
+        from encompass_client import merge_duplicate_vods as _merge_duplicate_vods
+    except ImportError:
+        logger.warning("encompass_client not available — merge_duplicate_vods will fail at runtime")
+        return {"success": False, "error": "encompass_client not available", "merged": [], "skipped": []}
+
+    result = _merge_duplicate_vods(loan_id, state=state)
+    logger.info(
+        f"[ENCOMPASS] merge_duplicate_vods: merged {len(result.get('merged', []))} group(s), "
+        f"skipped {len(result.get('skipped', []))} for loan {loan_id[:8]}"
+    )
+    return result
+
+
 def update_vols(
     loan_id: str,
     completions: List[Dict[str, Any]],

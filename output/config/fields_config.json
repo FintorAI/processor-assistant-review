@@ -53,6 +53,7 @@
       "field_name": "Property Type",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_02",
         "STEP_03",
         "STEP_04",
@@ -104,6 +105,7 @@
       "field_name": "Construction Status",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_12"
       ]
     },
@@ -122,6 +124,7 @@
       "field_name": "Property Street Address",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_02",
         "STEP_04",
         "STEP_08",
@@ -185,6 +188,7 @@
       "field_name": "Property City",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_02",
         "STEP_08",
         "STEP_11"
@@ -214,6 +218,7 @@
       "field_name": "Condo Project Name (Transmittal Summary)",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_11"
       ]
     },
@@ -385,6 +390,7 @@
       "field_name": "Property ZIP",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_02",
         "STEP_08",
         "STEP_11"
@@ -685,6 +691,7 @@
       "field_name": "Proposed Homeowner Assoc. Dues (Monthly)",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_11",
         "STEP_12"
       ]
@@ -1835,6 +1842,7 @@
       "field_name": "Attachment Type (Attached/Detached)",
       "category": "property",
       "used_by_steps": [
+        "STEP_01",
         "STEP_03",
         "STEP_07",
         "STEP_11"
@@ -3809,6 +3817,7 @@
         "Purchase Agreement"
       ],
       "used_by_steps": [
+        "STEP_01",
         "STEP_02"
       ]
     },

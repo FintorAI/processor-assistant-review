@@ -3,10 +3,10 @@ VERIFICATION,Verification,STEP_00,0,Data Gathering,0.1,Find Loan,data_gathering.
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.2,Fetch LOS Fields (296 fields),data_gathering.md,fetch_los_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.3,Fetch Doc Fields (34 document types),data_gathering.md,fetch_doc_fields
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.4,Build Loan Summary (URLA),data_gathering.md,build_loan_summary
-VERIFICATION,Verification,STEP_00,0,Data Gathering,0.5,Validate Property Address (USPS),data_gathering.md,validate_property_address
 VERIFICATION,Verification,STEP_00,0,Data Gathering,0.6,Extract Almas-Notes Images (Vision OCR),data_gathering.md,extract_almas_images
 INTAKE,Intake,STEP_01,1,Pre-Checks,1.1,Document Presence Check,pre_checks.md,run_pre_checks
 INTAKE,Intake,STEP_01,1,Pre-Checks,1.2,File Contacts Check,pre_checks.md,review_file_contacts
+INTAKE,Intake,STEP_01,1,Pre-Checks,1.3,Property Verification (Address + Listing / PUD),pre_checks.md,review_property_listing
 DATA_REVIEW,Data Review,STEP_02,2,Borrower Summary - Origination,2.1,Review Borrower Summary - Origination,borrower_summary___origination.md,review_borrower_summary
 DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Lender,3.1,Update 1003 URLA Lender,1003_urla_lender.md,update_urla_lender
 DATA_REVIEW,Data Review,STEP_03,3,1003 URLA Lender,3.2,Complete 1003 HUD Addendum,1003_urla_lender.md,update_hud_addendum

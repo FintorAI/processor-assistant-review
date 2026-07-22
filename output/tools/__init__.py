@@ -8,12 +8,14 @@ Each substep tool lives in its own file (named after the tool function).
 from .general import write_todo, get_workflow_status, save_step_report
 
 # Step 0: Data Gathering (auto-generated)
-from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, validate_property_address, extract_almas_images
+from .data_gathering import find_loan, fetch_los_fields, fetch_doc_fields, build_loan_summary, extract_almas_images
 
 # STEP_01 / 1.1: Document Presence Check
 from .run_pre_checks import run_pre_checks
 # STEP_01 / 1.2: File Contacts Check
 from .review_file_contacts import review_file_contacts
+# STEP_01 / 1.3: Property Verification (Address + Listing / PUD)
+from .review_property_listing import review_property_listing
 # STEP_02 / 2.1: Review Borrower Summary - Origination
 from .review_borrower_summary import review_borrower_summary
 # STEP_03 / 3.1: Update 1003 URLA Lender
@@ -77,11 +79,11 @@ def get_all_tools() -> list:
         fetch_los_fields,
         fetch_doc_fields,
         build_loan_summary,
-        validate_property_address,
         extract_almas_images,
     ]
     tools.append(run_pre_checks)
     tools.append(review_file_contacts)
+    tools.append(review_property_listing)
     tools.append(review_borrower_summary)
     tools.append(update_urla_lender)
     tools.append(update_hud_addendum)
@@ -119,10 +121,10 @@ __all__ = [
     "fetch_los_fields",
     "fetch_doc_fields",
     "build_loan_summary",
-    "validate_property_address",
     "extract_almas_images",
     "run_pre_checks",
     "review_file_contacts",
+    "review_property_listing",
     "review_borrower_summary",
     "update_urla_lender",
     "update_hud_addendum",

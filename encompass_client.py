@@ -1940,10 +1940,18 @@ def add_vod_accounts(
     rows are never modified here — each call only **adds** new depository
     entries via the URLA-2020 schema.
 
-    Endpoint::
+    Accounts sharing the same institution_name + owner are grouped into a
+    SINGLE VOD entry with multiple ``items`` (Encompass models multiple
+    accounts at one bank as one "Belong To" row with several rows in its
+    Account Information grid — Checking + Savings at the same bank is one
+    VOD entry, not two), instead of one VOD entry per account.
 
-        POST /encompass/v3/loans/{loanId}/applications/{applicationId}/vods
-        body: {"holderName": "...", "owner": "Borrower", "items": [ {...} ]}
+    Endpoint (confirmed from the "V3 Manage VODs" API reference — this manages
+    the whole VODs *collection* in one transaction; there is no separate POST
+    and no ``{vodId}`` in the path)::
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods?action=add
+        body: [ {"holderName": "...", "owner": "Borrower", "items": [ {...}, {...} ]}, ... ]
 
     Args:
         loan_id: Encompass loan GUID
@@ -1987,54 +1995,83 @@ def add_vod_accounts(
         "content-type": "application/json",
     }
 
-    added: list[str] = []
+    # Multiple accounts at the SAME institution (and same owner) belong under a
+    # single VOD "Belong To" entry — Encompass models this as one holderName
+    # with multiple items in its "Account Information" grid, not one VOD row
+    # per account (confirmed against both the Encompass VOD UI and the "V3
+    # Manage VODs" API reference). Group before building the request body so
+    # we create one VOD entry per institution+owner instead of one per account.
+    groups: dict[tuple[str, str], list[dict[str, any]]] = {}
+    group_order: list[tuple[str, str]] = []
     for acct in accounts:
         institution = (acct.get("institution_name") or "").strip()
         if not institution:
             continue
-        acct_type_norm = (acct.get("account_type") or "").replace(" ", "").lower()
-        enum_type = _VOD_ACCOUNT_TYPE_ENUM.get(acct_type_norm) or _VOD_ACCOUNT_TYPE_ENUM.get(
-            (acct.get("account_type") or "").lower()
-        )
-        item: dict[str, any] = {
-            "itemNumber": 1,
-            "accountIdentifier": (acct.get("account_number") or "").strip() or None,
-            "depositoryAccountName": (acct.get("account_holder") or "").strip() or None,
-        }
-        if enum_type:
-            item["type"] = enum_type
-        if acct.get("balance") is not None:
-            item["urla2020CashOrMarketValueAmount"] = acct["balance"]
-        item = {k: v for k, v in item.items() if v is not None}
+        owner = acct.get("owner") or "Borrower"
+        gkey = (institution.lower(), owner)
+        if gkey not in groups:
+            groups[gkey] = []
+            group_order.append(gkey)
+        groups[gkey].append(acct)
 
-        body = {
+    new_vods: list[dict[str, any]] = []
+    institutions: list[str] = []
+    for gkey in group_order:
+        group_accounts = groups[gkey]
+        institution = group_accounts[0]["institution_name"].strip()
+        owner = gkey[1]
+
+        items: list[dict[str, any]] = []
+        for idx, acct in enumerate(group_accounts, start=1):
+            acct_type_norm = (acct.get("account_type") or "").replace(" ", "").lower()
+            enum_type = _VOD_ACCOUNT_TYPE_ENUM.get(acct_type_norm) or _VOD_ACCOUNT_TYPE_ENUM.get(
+                (acct.get("account_type") or "").lower()
+            )
+            item: dict[str, any] = {
+                "itemNumber": idx,
+                "accountIdentifier": (acct.get("account_number") or "").strip() or None,
+                "depositoryAccountName": (acct.get("account_holder") or "").strip() or None,
+            }
+            if enum_type:
+                item["type"] = enum_type
+            if acct.get("balance") is not None:
+                item["urla2020CashOrMarketValueAmount"] = acct["balance"]
+            items.append({k: v for k, v in item.items() if v is not None})
+
+        new_vods.append({
             "holderName": institution,
-            "owner": acct.get("owner") or "Borrower",
+            "owner": owner,
             "sourceOfAssetData": "Encompass",
-            "items": [item],
-        }
+            "items": items,
+        })
+        institutions.append(institution)
 
-        try:
-            resp = requests.post(url, json=body, headers=headers, timeout=30)
-            if resp.status_code == 401:
-                client.refresh_token()
-                headers["Authorization"] = f"Bearer {client.access_token}"
-                resp = requests.post(url, json=body, headers=headers, timeout=30)
-            if resp.status_code in (200, 201, 204):
-                logger.info(f"[ENCOMPASS] Added VOD '{institution}' for loan {loan_id[:8]}")
-                added.append(institution)
-            else:
-                error_msg = (
-                    f"VOD POST failed for {institution!r} (status {resp.status_code}): "
-                    f"{resp.text[:300]}"
-                )
-                logger.error(f"[ENCOMPASS] {error_msg}")
-                return {"success": False, "error": error_msg, "added": added}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"[ENCOMPASS] Network error adding VOD {institution!r}: {e}")
-            return {"success": False, "error": str(e), "added": added}
+    if not new_vods:
+        return {"success": True, "added": []}
 
-    return {"success": True, "added": added}
+    # Single transaction for the whole batch, per the API reference ("perform
+    # one of these operations in a single transaction on all the entries in
+    # this collection").
+    try:
+        resp = requests.patch(url, params={"action": "add"}, json=new_vods, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, params={"action": "add"}, json=new_vods, headers=headers, timeout=30)
+        if resp.status_code in (200, 201, 204):
+            logger.info(
+                f"[ENCOMPASS] Added {len(new_vods)} VOD entrie(s) "
+                f"({', '.join(institutions)}) for loan {loan_id[:8]}"
+            )
+            return {"success": True, "added": institutions}
+        error_msg = (
+            f"VOD add (PATCH ?action=add) failed (status {resp.status_code}): {resp.text[:300]}"
+        )
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {"success": False, "error": error_msg, "added": []}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error adding VODs: {e}")
+        return {"success": False, "error": str(e), "added": []}
 
 
 def _digits_last4(val) -> str:
@@ -2062,9 +2099,12 @@ def update_vod_accounts(
     Only the URLA-2020 ``items`` schema is supported; legacy
     ``accountInformation`` VODs are reported as skipped so the caller can warn.
 
-    Endpoint::
+    Endpoint (confirmed from the "V3 Manage VODs" API reference — one PATCH on
+    the whole collection with ``action=update``, body items identified by
+    ``id``; no ``{vodId}`` in the path)::
 
-        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods/{vodId}
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods?action=update
+        body: [ {"id": "...", "items": [ {...}, {...} ]}, ... ]
 
     Args:
         loan_id: Encompass loan GUID
@@ -2119,6 +2159,7 @@ def update_vod_accounts(
     }
     updated: list[dict] = []
     skipped: list[dict] = []
+    vods_to_patch: list[dict] = []  # one entry per VOD with a real change
 
     for vod_id, comps in by_vod.items():
         raw = by_id.get(vod_id)
@@ -2181,33 +2222,237 @@ def update_vod_accounts(
         if not changed_fields:
             continue  # nothing blank to fill on this VOD
 
-        url = (
-            f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
-            f"/applications/{application_id}/vods/{vod_id}"
-        )
-        body = {"items": items}
-        try:
-            resp = requests.patch(url, json=body, headers=headers, timeout=30)
-            if resp.status_code == 401:
-                client.refresh_token()
-                headers["Authorization"] = f"Bearer {client.access_token}"
-                resp = requests.patch(url, json=body, headers=headers, timeout=30)
-            if resp.status_code in (200, 201, 204):
-                logger.info(
-                    f"[ENCOMPASS] Completed VOD {vod_id[:8]} fields={changed_fields} for loan {loan_id[:8]}"
-                )
-                updated.append({"vod_id": vod_id, "fields": changed_fields})
-            else:
-                error_msg = (
-                    f"VOD PATCH failed for {vod_id} (status {resp.status_code}): {resp.text[:300]}"
-                )
-                logger.error(f"[ENCOMPASS] {error_msg}")
-                return {"success": False, "error": error_msg, "updated": updated, "skipped": skipped}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"[ENCOMPASS] Network error updating VOD {vod_id}: {e}")
-            return {"success": False, "error": str(e), "updated": updated, "skipped": skipped}
+        vods_to_patch.append({"id": vod_id, "items": items})
+        updated.append({"vod_id": vod_id, "fields": changed_fields})
 
-    return {"success": True, "updated": updated, "skipped": skipped}
+    if not vods_to_patch:
+        return {"success": True, "updated": [], "skipped": skipped}
+
+    url = (
+        f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+        f"/applications/{application_id}/vods"
+    )
+    try:
+        resp = requests.patch(url, params={"action": "update"}, json=vods_to_patch, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, params={"action": "update"}, json=vods_to_patch, headers=headers, timeout=30)
+        if resp.status_code in (200, 201, 204):
+            logger.info(
+                f"[ENCOMPASS] Completed {len(vods_to_patch)} VOD(s) for loan {loan_id[:8]}: "
+                + "; ".join(f"{u['vod_id'][:8]}={u['fields']}" for u in updated)
+            )
+            return {"success": True, "updated": updated, "skipped": skipped}
+        error_msg = (
+            f"VOD update (PATCH ?action=update) failed (status {resp.status_code}): {resp.text[:300]}"
+        )
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {"success": False, "error": error_msg, "updated": [], "skipped": skipped}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error updating VODs: {e}")
+        return {"success": False, "error": str(e), "updated": [], "skipped": skipped}
+
+
+def merge_duplicate_vods(
+    loan_id: str,
+    application_id: str = None,
+    state: dict = None,
+) -> dict[str, any]:
+    """Merge duplicate URLA-2020 VOD entries that share the same institution + owner.
+
+    Encompass models multiple accounts at one institution as a SINGLE VOD
+    "Belong To" entry with several rows in its Account Information (items)
+    grid — not one VOD entry per account. If N separate VOD entries already
+    exist for the same holderName + owner (e.g. created one-at-a-time before
+    the ``add_vod_accounts`` grouping fix, or entered manually), this combines
+    every entry's items into the FIRST one (PATCH, sorted by ``vodIndex``) and
+    deletes the surplus entries (DELETE) — the same result a processor gets by
+    manually dragging the second entry's account rows into the first entry's
+    Account Information grid and removing the now-empty duplicate row.
+
+    Only the URLA-2020 ``items[]`` schema is handled; duplicate legacy
+    ``accountInformation[]`` VODs are reported in ``skipped`` for manual merge.
+
+    Endpoint (confirmed from the "V3 Manage VODs" API reference — the whole
+    VODs *collection* is managed via ONE PATCH endpoint; the ``action`` query
+    param selects add/update/reorder/delete, there is no separate HTTP DELETE
+    verb and no ``{vodId}`` in the path)::
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods?action=update
+        body: [ {"id": "<keep_vod_id>", "items": [ {...}, {...} ]}, ... ]
+
+        PATCH /encompass/v3/loans/{loanId}/applications/{applicationId}/vods?action=delete
+        body: [ {"id": "<surplus_vod_id>"}, ... ]
+
+        The merge (update) call runs first so surplus entries are never removed
+        before their accounts are safely combined into the kept entry; the delete
+        call for all surplus entries across all institutions is then batched into
+        one second PATCH.
+
+        Live-tested and confirmed working against prod loan 2607973377 (2026-07-22):
+        2 "Cryptocurrency wallet" VODs (Checking $500 + Savings $100, entered as
+        separate entries) merged into 1 entry with both items and the surplus
+        entry deleted. NOTE: each item's ``depositoryAccountGuid`` (assigned by
+        Encompass on read) must be stripped before the ``?action=update`` PATCH —
+        the server 400s with "The DepositoryAccountGuid field is readonly" if it's
+        echoed back; see ``_VOD_ITEM_READONLY_FIELDS`` below.
+
+    Args:
+        loan_id: Encompass loan GUID
+        application_id: Application ID (auto-resolved if omitted)
+        state: optional agent state dict (selects Prod/Test env)
+
+    Returns:
+        ``{"success": bool,
+           "merged": [{"institution", "owner", "kept_vod_id",
+                       "deleted_vod_ids": [...], "item_count": int}],
+           "skipped": [{"institution", "vod_id"?, "vod_ids"?, "reason"}],
+           "error"?: str}``
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    try:
+        raw_vods = get_vods(loan_id, application_id=application_id, state=state)
+    except Exception as e:
+        return {"success": False, "error": f"could not fetch VODs: {e}", "merged": [], "skipped": []}
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    url = (
+        f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+        f"/applications/{application_id}/vods"
+    )
+
+    def _patch(action: str, body: list[dict]) -> "requests.Response":
+        resp = requests.patch(url, params={"action": action}, json=body, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, params={"action": action}, json=body, headers=headers, timeout=30)
+        return resp
+
+    # Group URLA-2020 (items[]) entries by institution + owner; track legacy
+    # (accountInformation[]) duplicates separately since they're not merged here.
+    groups: dict[tuple[str, str], list[dict]] = {}
+    legacy_groups: dict[tuple[str, str], list[dict]] = {}
+    for vod in raw_vods:
+        institution = (vod.get("holderName") or vod.get("depInstitution") or "").strip()
+        if not institution:
+            continue
+        owner = vod.get("owner") or vod.get("for") or "Borrower"
+        gkey = (institution.lower(), owner)
+        if vod.get("items"):
+            groups.setdefault(gkey, []).append(vod)
+        elif vod.get("accountInformation"):
+            legacy_groups.setdefault(gkey, []).append(vod)
+
+    skipped: list[dict] = []
+    plan: list[dict] = []  # {institution, owner, keep_id, surplus_ids, combined_items}
+
+    for gkey, group_vods in groups.items():
+        if len(group_vods) < 2:
+            continue
+        institution, owner = gkey[0], gkey[1]
+        group_sorted = sorted(group_vods, key=lambda v: v.get("vodIndex", 0))
+        keep_id = group_sorted[0].get("id")
+        surplus_ids = [v.get("id") for v in group_sorted[1:]]
+
+        # Fields the server assigns and rejects on write-back (confirmed live:
+        # PATCH ?action=update 400s with "The DepositoryAccountGuid field is
+        # readonly" if it's echoed back from a GET response).
+        _VOD_ITEM_READONLY_FIELDS = {"itemNumber", "depositoryAccountGuid"}
+
+        combined_items: list[dict] = []
+        for v in group_sorted:
+            for item in (v.get("items") or []):
+                # Skip empty placeholder rows padded onto the items array.
+                if (not item.get("type") and not item.get("accountIdentifier")
+                        and item.get("urla2020CashOrMarketValueAmount") in (None, "")):
+                    continue
+                combined_items.append({
+                    k: val for k, val in item.items() if k not in _VOD_ITEM_READONLY_FIELDS
+                })
+        for idx, item in enumerate(combined_items, start=1):
+            item["itemNumber"] = idx
+
+        plan.append({
+            "institution": institution, "owner": owner,
+            "keep_id": keep_id, "surplus_ids": surplus_ids,
+            "combined_items": combined_items,
+        })
+
+    for gkey, group_vods in legacy_groups.items():
+        if len(group_vods) > 1:
+            skipped.append({
+                "institution": gkey[0],
+                "reason": "legacy VOD schema (accountInformation[]) duplicates — merge manually",
+                "vod_ids": [v.get("id") for v in group_vods],
+            })
+
+    if not plan:
+        return {"success": True, "merged": [], "skipped": skipped}
+
+    # 1) Merge — one batched PATCH ?action=update combining every group's items
+    #    into its kept entry. Runs BEFORE any delete so accounts are never lost.
+    update_body = [{"id": p["keep_id"], "items": p["combined_items"]} for p in plan]
+    try:
+        resp = _patch("update", update_body)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error merging duplicate VODs: {e}")
+        return {"success": False, "error": str(e), "merged": [], "skipped": skipped}
+    if resp.status_code not in (200, 201, 204):
+        error_msg = f"VOD merge (PATCH ?action=update) failed (status {resp.status_code}): {resp.text[:300]}"
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {"success": False, "error": error_msg, "merged": [], "skipped": skipped}
+
+    # 2) Delete — one batched PATCH ?action=delete for every surplus entry
+    #    across all institutions, now that their items are safely merged.
+    delete_body = [{"id": vid} for p in plan for vid in p["surplus_ids"]]
+    deleted_ok = True
+    try:
+        dresp = _patch("delete", delete_body)
+        deleted_ok = dresp.status_code in (200, 201, 204)
+        if not deleted_ok:
+            logger.error(
+                f"[ENCOMPASS] VOD delete (PATCH ?action=delete) failed (status {dresp.status_code}): "
+                f"{dresp.text[:300]} — items already merged into their kept entries; surplus "
+                "entries left in place, retry delete."
+            )
+    except requests.exceptions.RequestException as e:
+        deleted_ok = False
+        logger.error(f"[ENCOMPASS] Network error deleting surplus VODs: {e}")
+
+    merged: list[dict] = []
+    for p in plan:
+        merged.append({
+            "institution": p["institution"], "owner": p["owner"], "kept_vod_id": p["keep_id"],
+            "deleted_vod_ids": p["surplus_ids"] if deleted_ok else [],
+            "item_count": len(p["combined_items"]),
+        })
+        if not deleted_ok:
+            skipped.append({
+                "institution": p["institution"], "vod_ids": p["surplus_ids"],
+                "reason": f"items merged into {p['keep_id']} but the delete batch failed — retry delete",
+            })
+
+    logger.info(
+        f"[ENCOMPASS] merge_duplicate_vods: merged {len(merged)} institution group(s) "
+        f"for loan {loan_id[:8]} (deleted_ok={deleted_ok})"
+    )
+    return {"success": True, "merged": merged, "skipped": skipped}
 
 
 # Safe VOL sub-fields to auto-complete when blank (checklist 03 #8). Scalar

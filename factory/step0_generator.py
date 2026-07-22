@@ -112,20 +112,12 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         ),
     )
 
-    # ── Substep 0.5: Validate Property Address (USPS) ──
-    substep_05 = SubstepDef(
-        id="0.5",
-        name="Validate Property Address (USPS)",
-        tool="validate_property_address",
-        description=(
-            "Call USPS Address Validation API v3 to confirm the subject property "
-            "address is deliverable and return a normalized form. "
-            "Reads property_address/city/state/zip from state['los_fields'] and "
-            "purchase_property_address from state['doc_fields']. "
-            "Stores result in state['address_validation'] for use by "
-            "review_borrower_summary (substep 2.1)."
-        ),
-    )
+    # NOTE: Property address USPS validation used to live here as substep 0.5
+    # (validate_property_address). It was consolidated into STEP_01 substep 1.3
+    # (review_property_listing) together with the Zillow/HasData PUD + new-
+    # construction lookup so property facts are verified up front in Pre-Checks.
+    # Substep numbering leaves a gap at 0.5 so 0.6 (extract_almas_images) stays
+    # stable for any code/docs that already reference it.
 
     # ── Substep 0.6: Extract Almas-Notes Images (Claude vision OCR) ──
     substep_06 = SubstepDef(
@@ -150,10 +142,11 @@ def generate_step0_definition(registry: FieldRegistry) -> StepDef:
         description=(
             f"Auto-generated step that fetches all data needed by subsequent steps. "
             f"LOS: {len(all_los)} fields, Docs: {len(all_doc_types)} document types. "
-            f"Builds loan_summary (URLA) snapshot. Validates property address via USPS. "
-            f"OCRs Almas-notes images via Claude vision."
+            f"Builds loan_summary (URLA) snapshot. "
+            f"OCRs Almas-notes images via Claude vision. "
+            f"(Property address / Zillow verification lives in STEP_01 1.3.)"
         ),
-        substeps=[substep_01, substep_02, substep_03, substep_04, substep_05, substep_06],
+        substeps=[substep_01, substep_02, substep_03, substep_04, substep_06],
         dev=DevConfig(skip=False),
     )
 
@@ -1246,7 +1239,6 @@ Gather all data needed by the workflow in one upfront step:
 | `fetch_los_fields` | Fetch all needed LOS fields in one batch call |
 | `fetch_doc_fields` | Extract fields from specific document types |
 | `build_loan_summary` | Build categorized URLA-style loan summary from los_fields |
-| `validate_property_address` | Validate subject property address via USPS |
 | `extract_almas_images` | OCR images attached to Almas' notes via Claude vision |
 
 ## Tool Calls
@@ -1339,7 +1331,8 @@ The loan profile drives `rule_modifiers` on all subsequent substeps.
 
 ## Step Completion
 
-When ALL substeps above are completed (0.1 through 0.6):
+When ALL substeps above are completed (0.1–0.4 and 0.6; property verification
+is STEP_01 1.3):
 1. Call `save_step_report(step_name="STEP_00", status="completed", ...)`
 2. Call `write_todo(step_id="STEP_00", status="completed")` to advance to the next step
 3. Call `write_todo(step_id="{next_step_id}", status="in_progress")` to start {next_step_id} ({next_step_name})

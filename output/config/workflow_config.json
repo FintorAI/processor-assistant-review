@@ -100,8 +100,7 @@
         "extract_almas_images",
         "fetch_doc_fields",
         "fetch_los_fields",
-        "find_loan",
-        "validate_property_address"
+        "find_loan"
       ],
       "substeps": {
         "1": {
@@ -128,12 +127,6 @@
             "build_loan_summary"
           ]
         },
-        "5": {
-          "name": "Validate Property Address (USPS)",
-          "tools": [
-            "validate_property_address"
-          ]
-        },
         "6": {
           "name": "Extract Almas-Notes Images (Vision OCR)",
           "tools": [
@@ -148,6 +141,7 @@
       "plan_file": "pre_checks.md",
       "tools": [
         "review_file_contacts",
+        "review_property_listing",
         "run_pre_checks"
       ],
       "substeps": {
@@ -172,6 +166,12 @@
           "name": "File Contacts Check",
           "tools": [
             "review_file_contacts"
+          ]
+        },
+        "3": {
+          "name": "Property Verification (Address + Listing / PUD)",
+          "tools": [
+            "review_property_listing"
           ]
         }
       }

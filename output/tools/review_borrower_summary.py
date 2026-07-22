@@ -684,7 +684,7 @@ def review_borrower_summary(
               "Appraised value (field 356) is blank and no estimated value to copy from.",
               "Enter the appraised value once the appraisal report is received.")
 
-    # ── Rule: Property Address (reads from state["address_validation"] set by step 0.5) ──
+    # ── Rule: Property Address (reads from state["address_validation"] set by step 1.3) ──
     addr_val = state.get("address_validation", {})
     if addr_val and not addr_val.get("skipped"):
         if addr_val.get("valid") is False:
@@ -699,14 +699,14 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Property Address Invalid", "warning",
                   f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. {_reason}.",
                   "Verify the property address is correct in Encompass.")
-        if addr_val.get("mismatch_with_purchase_contract"):
-            _flag(flags, "2.1", "Property Address Mismatch", "warning",
-                  f"Encompass: '{addr_val.get('los_address')}' vs Purchase Contract: "
-                  f"'{addr_val.get('purchase_contract_address')}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
-                  docs=_relevant_docs(state, "purchase_property_address"))
+        # NOTE: the mismatch warning itself is raised once, upstream, by
+        # review_property_listing (1.3) — "Address Mismatch with Purchase
+        # Contract" — since 1.3 always runs before 2.1 in the normal workflow.
+        # Suppressed here to avoid a duplicate warning for the same fact; the
+        # positive "Property Address Confirmed" info flag below still fires
+        # when there's no mismatch.
     elif purchase_property_address_doc and property_address:
-        # Fallback if validate_property_address wasn't run yet
+        # Fallback if review_property_listing (1.3) hasn't run yet
         los_num = str(property_address).strip().split()[0] if property_address else ""
         doc_num = str(purchase_property_address_doc).strip().split()[0] if purchase_property_address_doc else ""
         if los_num and doc_num and los_num != doc_num:
@@ -1223,6 +1223,20 @@ def review_borrower_summary(
         _piw_sources.append("PIW document in eFolder")
     _aus_docs = _relevant_docs(state, "appraisal_waiver_eligible", "collateral_rw_relief",
                                "appraisal_waiver_expiration", doc_types=["DU Findings / AUS Certificate"])
+
+    # Same >= 80% LTV threshold used to require a full Exterior/Interior
+    # Level of Property Review (field 1541) in update_transmittal_summary.py
+    # (11.1) — a "no appraisal" (PIW) signal at LTV >= 80% is inconsistent
+    # with that rule and needs manual confirmation.
+    _piw_ltv_val = _parse_number(ltv)
+    if _piw_active and _piw_ltv_val is not None and _piw_ltv_val >= 80:
+        _flag(flags, "2.1", "§11 #2 PIW Active Despite LTV >= 80%", "warning",
+              f"An appraisal waiver (PIW) signal is active ({'; '.join(_piw_sources)}), but LTV is "
+              f"{_piw_ltv_val:.3g}% (>= 80%) — per policy, LTV >= 80% requires a full appraisal with "
+              "Exterior/Interior review (field 1541), not a waiver.",
+              "Confirm PIW eligibility with the LTV on file; obtain a full appraisal if the waiver "
+              "does not actually apply.",
+              docs=_aus_docs)
 
     if _piw_active:
         if _piw_in_aus and not (_piw_in_efolder or _has_los_waiver):

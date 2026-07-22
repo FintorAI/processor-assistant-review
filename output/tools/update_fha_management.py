@@ -37,7 +37,7 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _doc, _los, _profile, _write_fields
+from ._helpers import _doc, _get_or_detect_property_verification, _los, _profile, _write_fields
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,7 @@ def _parse_money(val) -> float | None:
 
 def _confirmed_single_unit(
     property_type: str | None, property_units: str | None, hoa_dues: str | None,
+    pud: dict | None = None,
 ) -> bool:
     """Stricter single-unit confirmation used for the field 2996 write.
 
@@ -141,6 +142,11 @@ def _confirmed_single_unit(
     (notes.txt) and the Transmittal Summary's field-16 logic: excludes condo/
     PUD and any HOA dues, not just multi-unit signals, since field 2996 is a
     shared value other forms rely on.
+
+    When ``pud`` (from state['property_verification']['pud'], STEP_01 1.3) is
+    provided, also reject if Zillow shows strong PUD / attached / townhouse /
+    condo home-type signals — even when Encompass property_type is blank or
+    ambiguous. Falls back to Encompass-only behavior when ``pud`` is None/empty.
     """
     pt = (property_type or "").strip().lower()
     hoa_amount = _parse_money(hoa_dues)
@@ -150,6 +156,23 @@ def _confirmed_single_unit(
         return False
     if pt and any(marker in pt for marker in ("condo", "condominium", "pud", "planned unit development")):
         return False
+
+    # Zillow / 1.3 signals: strong PUD or attached/townhouse/condo home type
+    # means this is NOT a confirmed single-unit detached SFR.
+    if pud:
+        if pud.get("strong") or pud.get("is_condo"):
+            return False
+        ht = (pud.get("home_type") or "").lower()
+        st = (pud.get("structure_type") or "").lower()
+        _attached_markers = (
+            "townhouse", "townhome", "row", "rowhouse", "duplex", "twin",
+            "condo", "condominium", "multi", "apartment", "garden",
+        )
+        if any(t in ht or t in st for t in _attached_markers):
+            return False
+        if pud.get("hoa_fee") or pud.get("hoa_present"):
+            return False
+
     return _is_one_unit(property_type, property_units) is True
 
 
@@ -190,11 +213,17 @@ def update_fha_management(
     hoa_dues = _los(state, "hoa_dues_monthly")
     fha_property_type_units = _los(state, "fha_property_type_units")  # field 2996
 
+    # Precomputed at STEP_01 1.3 (falls back to a live lookup if 1.3 was skipped).
+    pud = (_get_or_detect_property_verification(state).get("pud") or {})
+
     # ── Property Type (field 2996, FHA Management screen) — runs regardless
     # of loan type. Verified live value: exact string "1 Unit". This is a
     # shared field other forms reflect, so it is NOT gated on loan_type == FHA. ──
     fha_2996_current = (fha_property_type_units or "").strip()
-    one_unit_2996 = _confirmed_single_unit(property_type, property_units, hoa_dues)
+    one_unit_2996 = _confirmed_single_unit(property_type, property_units, hoa_dues, pud=pud)
+    _zillow_note = ""
+    if pud.get("found") and pud.get("home_type"):
+        _zillow_note = f", Zillow home_type={pud.get('home_type')!r}"
     if not fha_2996_current:
         if one_unit_2996:
             _write_fields(
@@ -208,7 +237,8 @@ def update_fha_management(
                 "details": (
                     f"Field 2996 (FHA Management — Property Type) was blank. Property "
                     f"Type (1041) = '{property_type or 'n/a'}', Number of Units (16) = "
-                    f"'{property_units or 'n/a'}', HOA Dues (233) = '{hoa_dues or 'n/a'}' "
+                    f"'{property_units or 'n/a'}', HOA Dues (233) = '{hoa_dues or 'n/a'}'"
+                    f"{_zillow_note} "
                     "confirm a standard single-unit property — wrote '1 Unit'."
                 ),
                 "suggestion": "Verify Property Type = \"1 Unit\" on the FHA Management screen.",
@@ -217,6 +247,15 @@ def update_fha_management(
             })
             logger.info("[UPDATE_FHA_MANAGEMENT] Wrote field 2996 (Property Type) = '1 Unit'")
         else:
+            _zillow_reason = ""
+            if pud.get("strong") or pud.get("pud_signals"):
+                _zillow_reason = (
+                    " Zillow/1.3 PUD signals: "
+                    + "; ".join(pud.get("pud_signals") or [])
+                    + "."
+                )
+            elif pud.get("home_type"):
+                _zillow_reason = f" Zillow home_type={pud.get('home_type')!r}."
             flags.append({
                 "substep": "12.1",
                 "title": "FHA Management Property Type — Not Confirmed 1 Unit",
@@ -226,6 +265,7 @@ def update_fha_management(
                     f"property could not be confirmed single-unit: Property Type (1041) "
                     f"= '{property_type or 'n/a'}', Number of Units (16) = "
                     f"'{property_units or 'n/a'}', HOA Dues (233) = '{hoa_dues or 'n/a'}'."
+                    f"{_zillow_reason}"
                 ),
                 "suggestion": (
                     "Confirm the property's unit count (check Zillow/appraisal) and set "

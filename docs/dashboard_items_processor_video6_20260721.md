@@ -59,19 +59,20 @@ which is the existing frontend contract doc for this exact case.
 These came up in the feedback but are bigger structural changes than a field
 write, so flagging for a decision rather than shipping silently.
 
-### 3.1 Step reordering (Cover Letter first; property check → Pre-Checks)
+### 3.1 Step reordering (Cover Letter first) — partially resolved
 
-- Cover Letter is currently **STEP_09** (after all six 1003/Flood-Insurance
+- **Property check → Pre-Checks: DONE (feedback 7).** USPS address validation
+  (former STEP_00 0.5) + Zillow/HasData PUD + new-construction lookup are now
+  consolidated into **STEP_01 substep 1.3** (`review_property_listing`). Results
+  live in `state['address_validation']` (unchanged shape) and
+  `state['property_verification']` (`{pud, new_construction}`), consumed by
+  Transmittal Summary (11.1), FHA Management (12.1), and HUD Transmittal (12.2).
+- Cover Letter is still **STEP_09** (after all six 1003/Flood-Insurance
   data-review steps), not first. Processors said it's the first thing they
-  actually do.
-- The property-listing / Zillow verification check currently lives inside
-  **Transmittal Summary (11.1)** (PUD detection via HasData) — the feedback
-  asks whether this should move to **Pre-Checks (STEP_01)** instead, so the
-  property is verified up front rather than deep into form updates.
-- **Not implemented yet** — reordering steps changes the substep numbering
-  scheme (`X.Y` ids) that flags/CSVs/dashboard already key off of, so this
-  needs sign-off before a broader renumbering pass. Recommend scoping as its
-  own follow-up rather than bundling with today's field-level fixes.
+  actually do. **Cover Letter reordering remains open** — it changes the
+  substep numbering scheme (`X.Y` ids) that flags/CSVs/dashboard already key
+  off of, so it needs its own follow-up rather than bundling with the
+  property-verification move.
 
 ### 3.2 Processor Workflow steps "missing" in dashboard
 

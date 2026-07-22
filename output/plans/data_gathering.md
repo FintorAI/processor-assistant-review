@@ -22,8 +22,10 @@ Gather all data needed by the workflow in one upfront step:
 | `fetch_los_fields` | Fetch all needed LOS fields in one batch call |
 | `fetch_doc_fields` | Extract fields from specific document types |
 | `build_loan_summary` | Build categorized URLA-style loan summary from los_fields |
-| `validate_property_address` | Validate subject property address via USPS |
 | `extract_almas_images` | OCR images attached to Almas' notes via Claude vision |
+
+> Property address / Zillow verification moved to **STEP_01 substep 1.3**
+> (`review_property_listing`) — see `pre_checks.md`.
 
 ## Tool Calls
 

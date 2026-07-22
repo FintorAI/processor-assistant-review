@@ -36,6 +36,19 @@ LDP Missing (warning)
 MD Right of Assumption Disclosure Missing (warning) [rule_modifier: state=MD]"
 Step 1: Pre-Checks,1.2,File Contacts Check,"Verify that the four key file contacts are assigned in Encompass: Buyer's Agent, Seller's Agent, Seller 1, and Escrow Company. Flag missing contacts as warnings so they can be linked before orders are placed.","638: Seller 1 Name
 186: Escrow Case #",—,—,Missing File Contact (warning)
+Step 1: Pre-Checks,1.3,Property Verification (Address + Listing / PUD),"Consolidate property verification into Pre-Checks: (1) USPS Address API v3 deliverability check + Purchase Contract street-number cross-check (moved from former STEP_00 0.5); (2) live Zillow/HasData public-records lookup for PUD signals (home/structure type, attached, HOA, subdivision) and new-construction (year_built / isNewConstruction); (3) store both results in state so Transmittal Summary (11.1), FHA Management (12.1), and HUD Transmittal (12.2) can consume them without re-querying. Flag-only — no Encompass writes in Pre-Checks.","11: Property Street Address
+12: Property City
+14: Property State
+15: Property ZIP
+1041: Property Type
+233: Proposed Homeowner Assoc. Dues (Monthly)
+CX.ATTACHMENT.TYPE: Attachment Type (Attached/Detached)
+1298: Condo Project Name (Transmittal Summary)
+1067: Construction Status",Purchase Agreement,—,"Address Undeliverable (warning)
+Possible PUD — Verify Property / Project Type (warning)
+Possible PUD — Weak Indicators (Verify) (info)
+Possible New Construction — Verify (info)
+Property Listing Facts (info)"
 Step 2: Borrower Summary - Origination,2.1,Review Borrower Summary - Origination,"Walk through the Borrower Summary – Origination screen. Check every field for completeness (cell phone = home phone if empty). Verify ID is not expired. Cross-check subject property address against listing (Google). Confirm credit score, loan amount, and AMI / Affordable Loan Eligibility fields.","5053: Borrower Government ID
 5055: Borrower Government ID Type
 5054: Co-Borrower Government ID

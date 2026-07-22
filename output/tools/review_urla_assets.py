@@ -743,6 +743,102 @@ def review_urla_assets(
     except Exception:
         _vod_dry_run = False
 
+    # ── 3b. Duplicate same-institution VOD entries (video 7 feedback) ────────
+    # Encompass expects one VOD "Belong To" entry per institution, with each
+    # account as a row in that entry's Account Information grid — not one VOD
+    # entry per account (see shared.encompass_io.merge_duplicate_vods). If
+    # Encompass already has 2+ separate entries for the same institution +
+    # owner (e.g. created one-at-a-time before the add_vod_accounts grouping
+    # fix, or entered manually), auto-merge them. merge_duplicate_vods is
+    # live-tested and confirmed working (loan 2607973377, prod, 2026-07-22:
+    # 2 "Cryptocurrency wallet" VODs -> merged into 1 entry with both items,
+    # surplus entry deleted). Detection here is done off vod_rows (cheap,
+    # already-fetched) purely to decide WHETHER to call merge_duplicate_vods
+    # (which re-fetches + re-groups the raw VODs itself) — this avoids an
+    # extra live API round-trip on every review when there's nothing to merge.
+    if vod_rows:
+        _dup_vod_ids: dict = {}
+        for row in vod_rows:
+            _bank_key = (
+                (row.get("institution_name") or "").strip().lower(),
+                row.get("borrower_type") or "Borrower",
+            )
+            if _bank_key[0]:
+                _dup_vod_ids.setdefault(_bank_key, set()).add(row.get("vod_id"))
+        _dup_groups = {k: v for k, v in _dup_vod_ids.items() if len(v) > 1}
+
+        for (_bank_lower, _owner), _vids in _dup_groups.items():
+            _bank_display = next(
+                (r.get("institution_name") for r in vod_rows
+                 if (r.get("institution_name") or "").strip().lower() == _bank_lower),
+                _bank_lower,
+            )
+            if _vod_dry_run:
+                flags.append(_flag(
+                    "6.1",
+                    f"Duplicate VOD Entries at Same Institution (dry-run) ({_bank_display})",
+                    "info",
+                    (
+                        f"[DRY-RUN] {len(_vids)} separate VOD entries exist for {_bank_display!r} "
+                        f"({_owner}) — would merge into one entry with both items combined."
+                    ),
+                    "",
+                ))
+
+        if _dup_groups and not _vod_dry_run:
+            from shared.encompass_io import merge_duplicate_vods
+            _merge_result = merge_duplicate_vods(loan_id, state=state)
+            _merged_by_key = {
+                (m.get("institution", "").strip().lower(), m.get("owner") or "Borrower"): m
+                for m in _merge_result.get("merged", [])
+            }
+            _skipped_by_inst = {}
+            for s in _merge_result.get("skipped", []):
+                _skipped_by_inst.setdefault((s.get("institution") or "").strip().lower(), []).append(s)
+
+            for (_bank_lower, _owner), _vids in _dup_groups.items():
+                _bank_display = next(
+                    (r.get("institution_name") for r in vod_rows
+                     if (r.get("institution_name") or "").strip().lower() == _bank_lower),
+                    _bank_lower,
+                )
+                _m = _merged_by_key.get((_bank_lower, _owner))
+                if _m:
+                    flags.append(_flag(
+                        "6.1",
+                        f"Duplicate VOD Entries Merged ({_bank_display})",
+                        "info-overwrite",
+                        (
+                            f"{len(_vids)} separate VOD entries for {_bank_display!r} ({_owner}) were "
+                            f"merged into one entry ({_m['item_count']} account(s) combined); "
+                            f"{len(_m.get('deleted_vod_ids', []))} surplus entry/entries deleted."
+                        ),
+                        "Verify the merged 2a/VOD entry in Encompass.",
+                    ))
+                elif _skipped_by_inst.get(_bank_lower):
+                    _reasons = "; ".join(s.get("reason", "") for s in _skipped_by_inst[_bank_lower])
+                    flags.append(_flag(
+                        "6.1",
+                        f"Duplicate VOD Entries — Not Auto-Merged ({_bank_display})",
+                        "warning",
+                        (
+                            f"{len(_vids)} separate VOD entries exist for {_bank_display!r} ({_owner}) "
+                            f"but could not be auto-merged: {_reasons}"
+                        ),
+                        "Merge the duplicate entries manually in Encompass.",
+                    ))
+                elif not _merge_result.get("success"):
+                    flags.append(_flag(
+                        "6.1",
+                        f"Duplicate VOD Entries — Merge Failed ({_bank_display})",
+                        "warning",
+                        (
+                            f"{len(_vids)} separate VOD entries exist for {_bank_display!r} ({_owner}); "
+                            f"auto-merge failed: {_merge_result.get('error')}"
+                        ),
+                        "Merge the duplicate entries manually in Encompass.",
+                    ))
+
     # ── 4. Bank Statement copies ─────────────────────────────────────────────
     # Each copy dict from _doc_all has: {value, source_document, confidence, copy_index}
     bank_statement_copies = _doc_all(state, "bank_account_number")   # one per attachment
