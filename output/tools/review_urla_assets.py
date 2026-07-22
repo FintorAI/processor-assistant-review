@@ -743,6 +743,51 @@ def review_urla_assets(
     except Exception:
         _vod_dry_run = False
 
+    # ── 3b. Duplicate same-institution VOD entries (video 7 feedback) ────────
+    # Encompass expects one VOD "Belong To" entry per institution, with each
+    # account as a row in that entry's Account Information grid — not one VOD
+    # entry per account (see shared.encompass_io.merge_duplicate_vods). If
+    # Encompass already has 2+ separate entries for the same institution +
+    # owner (e.g. created one-at-a-time before the add_vod_accounts grouping
+    # fix, or entered manually), flag it for merge. NOTE: not auto-merged here
+    # yet — merge_duplicate_vods' request shapes are confirmed from the "V3
+    # Manage VODs" API reference but not yet exercised against a live loan;
+    # flip this to call it once that's been live-tested.
+    if vod_rows:
+        _dup_vod_ids: dict = {}
+        for row in vod_rows:
+            _bank_key = (
+                (row.get("institution_name") or "").strip().lower(),
+                row.get("borrower_type") or "Borrower",
+            )
+            if _bank_key[0]:
+                _dup_vod_ids.setdefault(_bank_key, set()).add(row.get("vod_id"))
+        for (_bank_lower, _owner), _vids in _dup_vod_ids.items():
+            if len(_vids) > 1:
+                _bank_display = next(
+                    (r.get("institution_name") for r in vod_rows
+                     if (r.get("institution_name") or "").strip().lower() == _bank_lower),
+                    _bank_lower,
+                )
+                flags.append(_flag(
+                    "6.1",
+                    f"Duplicate VOD Entries at Same Institution ({_bank_display})",
+                    "warning",
+                    (
+                        f"{len(_vids)} separate VOD entries exist for {_bank_display!r} ({_owner}). "
+                        "Encompass should show one VOD entry per institution with each account as a "
+                        "row in its Account Information grid, not multiple top-level entries."
+                    ),
+                    (
+                        "Merge the duplicate entries in Encompass: move the extra entry's account "
+                        "row(s) into the first entry's Account Information grid, then delete the "
+                        "now-empty duplicate entry. (Automatic merge via "
+                        "shared.encompass_io.merge_duplicate_vods is implemented — PATCH ?action=update "
+                        "+ ?action=delete, per the V3 Manage VODs API reference — but not yet live-"
+                        "tested; ask to enable it once tested.)"
+                    ),
+                ))
+
     # ── 4. Bank Statement copies ─────────────────────────────────────────────
     # Each copy dict from _doc_all has: {value, source_document, confidence, copy_index}
     bank_statement_copies = _doc_all(state, "bank_account_number")   # one per attachment
