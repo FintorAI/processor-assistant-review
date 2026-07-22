@@ -1224,6 +1224,20 @@ def review_borrower_summary(
     _aus_docs = _relevant_docs(state, "appraisal_waiver_eligible", "collateral_rw_relief",
                                "appraisal_waiver_expiration", doc_types=["DU Findings / AUS Certificate"])
 
+    # Same >= 80% LTV threshold used to require a full Exterior/Interior
+    # Level of Property Review (field 1541) in update_transmittal_summary.py
+    # (11.1) — a "no appraisal" (PIW) signal at LTV >= 80% is inconsistent
+    # with that rule and needs manual confirmation.
+    _piw_ltv_val = _parse_number(ltv)
+    if _piw_active and _piw_ltv_val is not None and _piw_ltv_val >= 80:
+        _flag(flags, "2.1", "§11 #2 PIW Active Despite LTV >= 80%", "warning",
+              f"An appraisal waiver (PIW) signal is active ({'; '.join(_piw_sources)}), but LTV is "
+              f"{_piw_ltv_val:.3g}% (>= 80%) — per policy, LTV >= 80% requires a full appraisal with "
+              "Exterior/Interior review (field 1541), not a waiver.",
+              "Confirm PIW eligibility with the LTV on file; obtain a full appraisal if the waiver "
+              "does not actually apply.",
+              docs=_aus_docs)
+
     if _piw_active:
         if _piw_in_aus and not (_piw_in_efolder or _has_los_waiver):
             _flag(flags, "2.1", "§11 #2 PIW — Certificate/Disclosure Missing", "warning",

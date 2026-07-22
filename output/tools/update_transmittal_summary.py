@@ -114,6 +114,7 @@ def update_transmittal_summary(
     property_type        = _los(state, "property_type")         # field 1041
     condo_project_name   = _los(state, "condo_project_name")    # field 1298
     condo_project_id     = _los(state, "condo_project_id")      # field 3050
+    ltv                  = _los(state, "ltv")                   # field 353
     hoa_dues             = _los(state, "hoa_dues_monthly")      # field 233
     property_units       = _los(state, "property_units")        # field 16
 
@@ -260,13 +261,56 @@ def update_transmittal_summary(
             "timestamp": ts,
         })
 
-    # Surface property review type (field 1541) as info
-    if property_review_type:
+    # ── Rule: Level of Property Review (field 1541) ─────────────────────────
+    # Per processor feedback: LTV >= 80% requires a full Exterior/Interior
+    # property review (no drive-by/exterior-only, no appraisal waiver — see
+    # the matching PIW-vs-LTV cross-check in review_borrower_summary.py 2.1,
+    # which uses this same >= 80% threshold).
+    _EXPECTED_REVIEW_HIGH_LTV = "Exterior / Interior"
+    _ltv_val = _parse_rate(ltv)
+    _current_review = (property_review_type or "").strip()
+
+    def _is_ext_int(val: str) -> bool:
+        v = val.lower()
+        return "exterior" in v and "interior" in v
+
+    if _ltv_val is not None and _ltv_val >= 80:
+        if not _current_review:
+            _write_fields(loan_id, {"1541": _EXPECTED_REVIEW_HIGH_LTV}, "11.1", flags, state=state)
+            logger.info(f"[UPDATE_TRANSMITTAL_SUMMARY] Wrote field 1541 = '{_EXPECTED_REVIEW_HIGH_LTV}' (LTV {_ltv_val:.3g}% >= 80%)")
+        elif not _is_ext_int(_current_review):
+            flags.append({
+                "substep": "11.1",
+                "title": "Level of Property Review — Unexpected Value",
+                "severity": "warning",
+                "details": (
+                    f"Field 1541 (Level of Property Review) = {_current_review!r}, but LTV is "
+                    f"{_ltv_val:.3g}% (>= 80%), which requires a full Exterior/Interior review."
+                ),
+                "suggestion": f"Verify and correct field 1541 to '{_EXPECTED_REVIEW_HIGH_LTV}' if appropriate.",
+                "resolved": False,
+                "timestamp": ts,
+            })
+        else:
+            flags.append({
+                "substep": "11.1",
+                "title": "Level of Property Review",
+                "severity": "info",
+                "details": (
+                    f"Field 1541 (Level of Property Review) = {_current_review!r}, consistent "
+                    f"with LTV {_ltv_val:.3g}% (>= 80%)."
+                ),
+                "suggestion": "No action needed.",
+                "resolved": False,
+                "timestamp": ts,
+            })
+    elif _current_review:
+        # LTV < 80% (or unavailable) — no enforced value; just surface current review type.
         flags.append({
             "substep": "11.1",
             "title": "Level of Property Review",
             "severity": "info",
-            "details": f"Field 1541 (Level of Property Review) = {property_review_type!r}.",
+            "details": f"Field 1541 (Level of Property Review) = {_current_review!r}.",
             "suggestion": "Confirm review type matches the appraisal ordered (Exterior = drive-by, Interior = full).",
             "resolved": False,
             "timestamp": ts,
