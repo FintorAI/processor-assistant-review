@@ -699,12 +699,12 @@ def review_borrower_summary(
             _flag(flags, "2.1", "Property Address Invalid", "warning",
                   f"USPS could not confirm address: {addr_val.get('los_address', property_address)}. {_reason}.",
                   "Verify the property address is correct in Encompass.")
-        if addr_val.get("mismatch_with_purchase_contract"):
-            _flag(flags, "2.1", "Property Address Mismatch", "warning",
-                  f"Encompass: '{addr_val.get('los_address')}' vs Purchase Contract: "
-                  f"'{addr_val.get('purchase_contract_address')}'.",
-                  "Correct the property address in Encompass and flag for Lock Desk if needed.",
-                  docs=_relevant_docs(state, "purchase_property_address"))
+        # NOTE: the mismatch warning itself is raised once, upstream, by
+        # review_property_listing (1.3) — "Address Mismatch with Purchase
+        # Contract" — since 1.3 always runs before 2.1 in the normal workflow.
+        # Suppressed here to avoid a duplicate warning for the same fact; the
+        # positive "Property Address Confirmed" info flag below still fires
+        # when there's no mismatch.
     elif purchase_property_address_doc and property_address:
         # Fallback if review_property_listing (1.3) hasn't run yet
         los_num = str(property_address).strip().split()[0] if property_address else ""

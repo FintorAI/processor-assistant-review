@@ -1,26 +1,46 @@
 Thread id: 19f84d2-cd3c-7ee1-b907-90be8502309d
 
 - Property lookup still: where do we do this actually?
+  - ✅ **Implemented (2026-07-22).** Consolidated into new **STEP_01 substep 1.3** (`output/tools/review_property_listing.py`, FACTORY-LOCK: true) — runs USPS address validation + HasData/Zillow PUD + new-construction lookup once, upfront, and stores results in `state["address_validation"]` / `state["property_verification"]`. Former substep 0.5 (`validate_property_address`) was merged into 1.3 and removed. Downstream consumers (11.1 Transmittal Summary, 12.1 FHA Management, 12.2 HUD Transmittal) now read the precomputed signals instead of re-querying Zillow.
 - Cover Letter: Add Gift letter and receipt to cover letter if file has gift
+  - ✅ **Implemented (2026-07-22).** `draft_cover_letter.py` (9.1) already had a "Documents still needed:" builder (Appraisal / HOI / Title Report / Assets). Added a gift check to it: calls `read_gifts_grants(loan_id)` live (7.1's `gifts_found` count is only in its ToolMessage JSON, never written to `state`, so 9.1 can't just read it off state) and, if any `GiftOfCash`/`GiftOfEquity`/`GiftFunds` record exists, appends `"Gift Letter"` and `"Gift Receipt"` to the missing-docs list (only if not already in the eFolder), which then gets written into `CX.KM.SUBMISSION.NOTES` under "Documents still needed:".
 - Borrower Summary: Verify subject property with purchase contract
+  - ✅ **Yes, flag confirmed to exist and to be wired to state.** `review_property_listing.py` (1.3) computes `state["address_validation"]["mismatch_with_purchase_contract"]` (bool) + `purchase_contract_address` / `los_address` (the "output" shape — see `docs/schema.md`). `review_borrower_summary.py` (2.1) then reads that same key and raises `"Property Address Mismatch"` (warning) if true, or `"Property Address Confirmed"` (info) if valid and no mismatch — both are appended to the tool's `flags` list and returned via `Command(update={"flags": flags, ...})`, i.e. genuinely written to state, not just computed and discarded.
+  - ✅ **Duplicate suppressed (2026-07-22).** 1.3 raises its own `"Address Mismatch with Purchase Contract"` warning the moment it detects the mismatch. `review_borrower_summary.py` (2.1) no longer re-raises `"Property Address Mismatch"` when `state["address_validation"]` is present (i.e. 1.3 ran) — that warning is now only emitted from 1.3. The 2.1 fallback path (when 1.3 hasn't run, `addr_val` empty) still raises it directly off the doc data, and the positive `"Property Address Confirmed"` info flag at 2.1 is unaffected.
 - Same bank fix was not applied yet in 1003 URLA Part 3 2a
+  - ✅ **Yes, it is written to state.** Confirmed in `review_urla_assets.py` (6.1, lines ~1136–1173): unmatched VOD rows are grouped into `_unmatched_by_bank` (dict keyed by institution name), one `"VOD Account Has No Supporting Document ({bank_name})"` flag is built per bank (single-line detail if 1 account, bulleted multi-line detail with a total if 2+), and `flags.append(...)` — same `flags` list that gets returned via `Command(update={"flags": flags, ...})` at the end of the function. So the lumped flag is genuinely written to state, not just computed. If the loan for this thread still showed one row per account, that run predates the fix — rerunning against current code should show the lumped version.
 - Changed sole ownership from unmarried man
+  - ✅ **Already fixed** (pre-existing "Logic Error #6", see `docs/thread-diagnosis-jun17-matthews-satterfield.md`) — `update_urla_lender.py` `_manner_held_compatible()` has `_SOLE_OWNERSHIP_VARIANTS` (`Single Man`, `Unmarried Man`, `Married Woman`, etc.) so a computed "Sole Ownership" is now accepted as compatible with LOS values like "Unmarried Man" instead of raising a false mismatch/overwrite.
 - Construction is changed to New (less than 1 year) because of Property listing
+  - ✅ **Implemented (2026-07-22).** `shared/zillow_client.py` now parses `year_built` / `is_new_construction_flag` from HasData (live-verified against `prop.yearBuilt` / `resoData.yearBuilt` + "Year Built" at-a-glance fact). `output/tools/_helpers.py` `_detect_new_construction()` flags a property as new construction if built within the last year. `update_hud_transmittal.py` (12.2) reads `state["property_verification"]["new_construction"]` and writes field 1067 (Construction Status) to `"New"` instead of the default `"ExistingConstruction"` when detected — live-tested write against Encompass.
 - Transmittal Summary: Property Type is 1 unit (single house)
+  - ✅ **Already implemented** (pre-existing) — `update_transmittal_summary.py` reads field 16 (Number of Units) and writes/confirms the 1008 Property Type accordingly; no change needed this round.
 - Level of Property Review:
     - Exterior / Interior usually unless with Appraisal Review
+      - 🟡 **Partial** — Level of Review is surfaced as an info flag from the Appraisal/AUS data where available, but there's no dedicated rule enforcing Exterior/Interior vs. Appraisal Review logic. Not part of this round's scope.
     - No Appraisal - has Appraisal Waiver
+      - ✅ **Already implemented** (pre-existing) — appraisal waiver / PIW detection exists in `run_pre_checks.py`, `review_borrower_summary.py`, and `update_transmittal_summary.py`.
     - Explanation around 18 min
+      - ❓ **Not investigated** — unclear what this refers to (likely a timestamp/reference into the review video, not an actionable item). No code change made.
     - Home Buyers Education Certification is Yrs (added to cover letter as well)
+      - ❌ **Not implemented.** No tool currently reads a Homebuyer Education Certification field/doc, and `draft_cover_letter.py` (9.1) has no logic referencing it. Needs a field/doc mapping before this can be wired in.
 - Transmittal Summary
-    - Fannie Mae’s Community Lending Product is 08 Home Ready
-- Seller’s Documents
+    - Fannie Mae's Community Lending Product is 08 Home Ready
+      - ❌ **Not implemented.** `update_transmittal_summary.py` does not currently set the Community Lending Product code. Needs the Encompass field ID for this dropdown before it can be wired in.
+- Seller's Documents
     - Got Albert Allen from the downloaded document
     - Ask seller for signing authority document that Allen is able to sign
     - Do this for Sellers that are LLC
+      - ❌ **Not implemented** — no existing tool reviews seller entity documents or signing-authority verification for LLC sellers. This is a new capability, not covered by any current substep.
 - Credit Report Pre-Qual is not needed
+  - ❓ **Not implemented / not actioned.** No specific rule suppresses or skips a "Credit Report Pre-Qual" check today (the existing Credit Reference Number cross-check is unrelated and already confirmed working). Needs clarification on which flag/step this refers to before a change can be made.
 - No MI so delete MI Quote
+  - 🟡 **Partial.** `review_borrower_summary.py` (2.1) already flags "§14 MI Quote Review — MI Not Applicable/Not Required" (info) when the loan is government or conventional LTV ≤ 80%. Actually deleting/moving the MI Quote doc bucket in the eFolder when MI is not required is not yet automated — related to the broader "Remove Ocrolus bucket" / efolder cleanup item below.
 - Reviews all docs so maybe should get / display that on dashboard
-- Remove Ocrolus bucket from efolder 
+  - ℹ️ **Dashboard-only ask, no agent code change.** The agent already reviews all extracted documents per substep; this is a request to surface "all docs reviewed" status on the dashboard UI, not a backend/tool change.
+- Remove Ocrolus bucket from efolder
+  - ❌ **Not implemented.** eFolder bucket cleanup (`config/efolder_delete_list.yaml`) exists for some buckets, but Ocrolus-specific bucket removal is not yet in that list. Full Ocrolus integration is separately blocked on `OCROLUS_API_KEY` + `book_uuid` resolution (see `notes.txt`).
 - FHA choose Fannie or Freddie, conventional both, good to run for both
-- Cover letter: added 
+  - ❌ **Not implemented / blocked.** AUS run (DU + LP) selection logic is not wired up — this is the same underlying gap as feedback6's "Run both FNM and Freddie for Conventional loans." AUS ordering is currently blocked on unavailable credentials per `docs/processor_checklist_code_reality.csv`.
+- Cover letter: added
+  - ℹ️ Unclear which specific addition this refers to — no corresponding action taken. Flag for clarification with the reviewer if this needs follow-up.

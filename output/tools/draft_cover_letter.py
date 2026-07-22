@@ -208,6 +208,26 @@ def draft_cover_letter(
         if not has_assets:
             missing_docs.append("Assets / Bank Statement (reserves for investment property)")
 
+    # Gift Letter / Gift Receipt — required when a gift shows up on the file.
+    # review_urla_downpayment (7.1) already detects gifts, but only reports
+    # gifts_found in its ToolMessage content — it is never written to `state` —
+    # so 9.1 re-derives it here via the same live giftsGrants lookup.
+    has_gift = False
+    try:
+        from shared.encompass_io import read_gifts_grants
+        _gifts_grants = read_gifts_grants(loan_id, state=state)
+        has_gift = any(
+            r.get("asset_type") in ("GiftOfCash", "GiftOfEquity", "GiftFunds")
+            for r in (_gifts_grants or [])
+        )
+    except Exception as e:
+        logger.warning(f"[DRAFT_COVER_LETTER] Could not check giftsGrants for gift docs: {e}")
+    if has_gift:
+        if not _efolder_present(state, "Gift Letter"):
+            missing_docs.append("Gift Letter")
+        if not _efolder_present(state, "Gift Receipt"):
+            missing_docs.append("Gift Receipt")
+
     # Append to notes if any are missing
     if missing_docs:
         docs_section = "\n\nDocuments still needed:\n" + "".join(
