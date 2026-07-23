@@ -180,6 +180,7 @@ FIELD_MAP = {
     "1072": {"key": "base_monthly_income", "field_name": "Base Monthly Income", "category": "income"},
     "1073": {"key": "years_in_profession", "field_name": "Years in Profession", "category": "employment"},
     "11": {"key": "property_address", "field_name": "Property Street Address", "category": "property"},
+    "URLA.X73": {"key": "property_address_urla", "field_name": "Property Street Address (URLA)", "category": "property"},
     "1109": {"key": "loan_amount", "field_name": "Loan Amount", "category": "loan_info"},
     "1169": {"key": "employer_name", "field_name": "Employer Name", "category": "employment"},
     "1172": {"key": "loan_type", "field_name": "Mortgage Type", "category": "loan_info"},
@@ -279,6 +280,14 @@ FIELD_MAP = {
     "CX.REALTOR.EMAIL": {"key": "realtor_email", "field_name": "Realtor Email", "category": "file_contacts"},
     "CX.REQUIRED.FIELDS.STATUS": {"key": "required_fields_status", "field_name": "Encompass Required Fields Status", "category": "submission"},
     "CUST50FV": {"key": "signing_date", "field_name": "Signing Date", "category": "closing"},
+    # ── Processor Closing — Certifications section (all format X checkboxes; verified 2026-07-23) ──
+    "CX.VESTINGVERIFTITLE": {"key": "cert_vesting_verif_title", "field_name": "Vesting Verified - Title", "category": "closing"},
+    "CX.VESTINGVERIFBOR": {"key": "cert_vesting_verif_borrower", "field_name": "Vesting Verified - Borrower", "category": "closing"},
+    "CX.WIREINSTINFILE": {"key": "cert_wire_instructions_in_file", "field_name": "Escrow wire instructions in file", "category": "closing"},
+    "CX.ESCROWEOINFILE": {"key": "cert_escrow_eo_in_file", "field_name": "Escrow E&O insurance in file", "category": "closing"},
+    "CX.CPLINFILE": {"key": "cert_cpl_in_file", "field_name": "CPL in file (correct names, loan #, addressed to AWM)", "category": "closing"},
+    "CX.HOIEFFECTIVE": {"key": "cert_hoi_effective", "field_name": "HOI effective on/before Note Date (Wet) / Funding Date (Dry)", "category": "closing"},
+    "CX.TAXES": {"key": "taxes_dropdown", "field_name": "Taxes (Unimproved/Improved)", "category": "closing"},
     "CX.TITLE.COMPANY.EMAIL": {"key": "title_company_email", "field_name": "Title Company Email", "category": "file_contacts"},
     "CX.TITLE.COMPANY.NAME": {"key": "title_company_name", "field_name": "Title Company Name", "category": "file_contacts"},
     "CX.VESTING.DESCRIPTION": {"key": "vesting_description", "field_name": "Vesting Description", "category": "title"},
@@ -562,10 +571,15 @@ FIELD_MAP = {
     "CoBorr.OccupancyIntent": {"key": "coborrower_occupancy_intent", "field_name": "Co-Borrower Occupancy Intent", "category": "borrower_info"},
     "CX.NBSFLAG": {"key": "nbs_flag", "field_name": "Non-Borrowing Spouse Flag", "category": "vesting"},
     "CX.NBSINFO": {"key": "nbs_info", "field_name": "Non-Borrowing Spouse Name", "category": "vesting"},
-    # ── Step 10 — Processor Workflow ──
+    # ── Step 14 — Processor Workflow ──
     "CX.PRODUCTTYPE": {"key": "product_type", "field_name": "Product Type", "category": "processor_workflow"},
-    "CX.NONDEL.INV.APPROVAL": {"key": "non_del_inv_approval", "field_name": "Non-Del Inv. Approval", "category": "processor_workflow"},
+    # CUST42FV replaces CX.NONDEL.INV.APPROVAL (which does not exist in the prod
+    # instance — confirmed via customFields schema + EC UI, 2026-07-23).
+    "CUST42FV": {"key": "non_del_inv_approval", "field_name": "Non-Del Inv. Approval (Prior Approval)", "category": "processor_workflow"},
     "CX.DOCUMENTATIONTYPE": {"key": "doc_type_submission", "field_name": "Documentation Type (Submission)", "category": "processor_workflow"},
+    # ── Step 11 — Transmittal Summary manual-entry fields ──
+    "1551": {"key": "community_lending_ahi", "field_name": "Community Lending / Affordable Housing Initiative", "category": "loan_info"},
+    "1552": {"key": "homebuyer_education_cert", "field_name": "Home Buyers Education Certification", "category": "loan_info"},
 }
 
 ALL_FIELD_IDS = list(FIELD_MAP.keys())

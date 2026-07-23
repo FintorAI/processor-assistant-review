@@ -37,7 +37,13 @@ from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
-from ._helpers import _get_or_detect_property_verification, _is_condo_or_pud, _los, _write_fields
+from ._helpers import (
+    _get_or_detect_property_verification,
+    _is_condo_or_pud,
+    _los,
+    _manual_field,
+    _write_fields,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -436,6 +442,21 @@ def update_transmittal_summary(
             "timestamp": ts,
         })
 
+    # ── Community Lending / Homebuyer Education — manual-entry rows ──────
+    # Never auto-written: the rule for when 1551 applies (e.g. HomeReady) is
+    # unconfirmed, and 1552 is left blank per processor guidance. Both are
+    # surfaced in state['manual_fields'] for the dashboard Field Writes tab.
+    manual_rows: list = []
+    _manual_field(manual_rows, "11.1", "1551",
+                  "Community Lending / Affordable Housing Initiative",
+                  current_value=_los(state, "community_lending_ahi"),
+                  reason="Community lending checkbox (Y/N) — applies-when rule unconfirmed; set manually")
+    _manual_field(manual_rows, "11.1", "1552",
+                  "Home Buyers Education Certification",
+                  current_value=_los(state, "homebuyer_education_cert"),
+                  reason=("Left blank by design — dropdown: Homeowner education completed / "
+                          "1x1 counseling completed / Both completed / Yes / No"))
+
     result = {
         "success": True,
         "substep": "11.1",
@@ -445,6 +466,7 @@ def update_transmittal_summary(
         "project_type": project_type,
         "is_condo": _is_condo(property_type),
         "pud_signals": pud_signals,
+        "manual_fields_registered": [row["field_id"] for row in manual_rows],
         "flags_count": len(flags),
         "message": (
             f"Transmittal Summary: note_rate={note_rate}, qualifying_rate={qualifying_rate}, "
@@ -458,5 +480,7 @@ def update_transmittal_summary(
     update = {"messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)]}
     if flags:
         update["flags"] = flags
+    if manual_rows:
+        update["manual_fields"] = manual_rows
 
     return Command(update=update)

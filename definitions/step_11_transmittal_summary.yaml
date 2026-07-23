@@ -118,6 +118,24 @@ substeps:
     purpose: >
       Written write-only-if-blank to "1" when the property is confirmed single
       family (no HOA, not a PUD, not 2-4 unit).
+  - key: community_lending_ahi
+    field_id: '1551'
+    field_name: Community Lending / Affordable Housing Initiative
+    category: loan_info
+    purpose: >
+      Community lending CHECKBOX on the Transmittal Summary (YN — fieldWriter
+      accepts "True"/"False", reads back Y/N; verified 2026-07-23). There is no
+      separate "08 Home Ready" dropdown. NOT auto-written — the applies-when
+      rule is unconfirmed; surfaced as a manual-entry row instead.
+  - key: homebuyer_education_cert
+    field_id: '1552'
+    field_name: Home Buyers Education Certification
+    category: loan_info
+    purpose: >
+      Dropdown on the Transmittal Summary — options (from prod field schema):
+      "Homeowner education completed", "1x1 counseling completed",
+      "Both completed", "Yes", "No". Left blank by design (write verified
+      2026-07-23) — surfaced as a manual-entry row for the dashboard.
   doc_types: []
   rules:
   - name: Note Rate Equals Qualifying Rate
@@ -151,6 +169,13 @@ substeps:
       no HOA dues (field 233 blank/zero), write "1" to Number of Units (field
       16) if it is blank. Flag a warning if 16 already holds a value
       inconsistent with the unit count implied by property type.
+  - name: Community Lending / Homebuyer Education — Manual Entry
+    type: custom
+    logic: >
+      Read fields 1551 (Community Lending/AHI checkbox) and 1552 (Home Buyers
+      Education Certification dropdown). Never auto-write either — register
+      both as manual-entry rows in state['manual_fields'] (with current values)
+      so the processor can set them in the dashboard Field Writes tab.
   flags:
   - title: Note Rate vs Qualifying Rate Mismatch
     severity: warning
