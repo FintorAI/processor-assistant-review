@@ -1357,6 +1357,132 @@ def write_loan_contacts(
         return {"success": False, "error": str(e)}
 
 
+def get_loan_milestones(loan_id: str, state: dict = None) -> list[dict[str, any]]:
+    """List all milestones on a loan via the v1 milestones API.
+
+    Endpoint (verified against Prod, 2026-07-23)::
+
+        GET /encompass/v1/loans/{loanId}/milestones -> 200 [ {...}, ... ]
+
+    Each milestone dict includes ``id``, ``milestoneName`` (e.g.
+    ``"In Processing/Submitted"``), ``doneIndicator`` (the worksheet's
+    "Finished" checkbox), ``roleRequired``, and ``loanAssociate``
+    (``{"loanAssociateType": "User", "id": "adesai", "roleName": "Loan Processor", ...}``).
+
+    NOTE: the v3 ``/loans/{id}/associates`` endpoint returns 403 with our
+    credentials — milestone-based v1 access is the working path.
+
+    Returns:
+        List of milestone dicts, or [] on error.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v1/loans/{loan_id}/milestones"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Failed to list milestones for loan {loan_id[:8]}: {e}")
+        return []
+
+
+def update_loan_milestone(
+    loan_id: str,
+    milestone_id: str,
+    payload: dict[str, any],
+    state: dict = None,
+    action: str = None,
+) -> dict[str, any]:
+    """Update a loan milestone (associate assignment and/or finished checkbox).
+
+    Endpoint::
+
+        PATCH /encompass/v1/loans/{loanId}/milestones/{milestoneId}[?action=finish|unfinish]
+
+    Example payloads::
+
+        {"loanAssociate": {"loanAssociateType": "User", "id": "adesai"}}
+        {"doneIndicator": true}   # the worksheet "Finished" checkbox
+
+    Quirks verified on Prod (2026-07-23):
+      - The PATCH body MUST include ``startDate`` or Encompass rejects it with
+        400 "startDate is missing". If the caller doesn't pass one, the current
+        milestone is fetched and its startDate reused (defaulting to now for a
+        never-started milestone).
+      - A loan open in the Encompass UI returns 409 EBS-4360 ("Loan is locked
+        by some other user") — surfaced in ``error`` with ``locked: True``.
+      - When finishing, Encompass enforces the milestone's admin-configured
+        required fields server-side; the 400 response describes the unmet
+        fields (surfaced in ``error`` for the caller to parse).
+
+    Args:
+        action: optional ``"finish"`` / ``"unfinish"`` query action (the
+            documented way to complete or re-open a milestone).
+
+    Returns:
+        ``{"success": True}`` or ``{"success": False, "error": "...",
+        "status_code": int, "locked": bool}``.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v1/loans/{loan_id}/milestones/{milestone_id}"
+    if action:
+        url += f"?action={action}"
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+
+    body = dict(payload or {})
+    if "startDate" not in body:
+        current = next(
+            (m for m in get_loan_milestones(loan_id, state=state) if m.get("id") == milestone_id),
+            None,
+        )
+        from datetime import datetime, timezone
+        body["startDate"] = (current or {}).get("startDate") or datetime.now(
+            timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    try:
+        resp = requests.patch(url, json=body, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.patch(url, json=body, headers=headers, timeout=30)
+        if resp.status_code in (200, 204):
+            logger.info(
+                f"[ENCOMPASS] Updated milestone {milestone_id[:8]} on loan {loan_id[:8]}: "
+                f"{sorted(body.keys())}{f' action={action}' if action else ''}"
+            )
+            return {"success": True}
+        locked = resp.status_code == 409
+        error_msg = f"milestone PATCH failed (status {resp.status_code}): {resp.text[:500]}"
+        logger.error(f"[ENCOMPASS] {error_msg}")
+        return {
+            "success": False,
+            "error": error_msg,
+            "status_code": resp.status_code,
+            "locked": locked,
+            "response_text": resp.text[:2000],
+        }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error updating milestone: {e}")
+        return {"success": False, "error": str(e), "status_code": 0, "locked": False}
+
+
 def get_employment(
     loan_id: str,
     application_id: str = None,

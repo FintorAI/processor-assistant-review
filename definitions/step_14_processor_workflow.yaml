@@ -3,9 +3,10 @@ step:
   name: Processor Workflow and Closing
   phase: FORM_UPDATES
   description: >
-    Update the Processor Workflow screen and Processor Closing screen.
-    Covers: Conforming/Non-Del Inv. Approval, doc type, signing date,
-    and wire requested date.
+    Update the Processor Workflow screen, Processor Closing screen (incl.
+    Certifications), and the In Processing/Submitted milestone worksheet.
+    Covers: Conforming/Non-Del Inv. Approval, doc type, signing/wire date
+    alignment, certification checkboxes, and processor assignment.
 
 substeps:
 - id: '14.1'
@@ -13,7 +14,7 @@ substeps:
   tool: update_processor_workflow
   description: >
     Fill out the Processor Workflow screen: set Product Type (derived from loan type),
-    Non-Del Inv. Approval (usually No), and Documentation Type (Full Doc for
+    Non-Del Inv. Approval (usually NO), and Documentation Type (Full Doc for
     conventional loans).
   los_fields_read:
   - key: loan_type
@@ -25,17 +26,27 @@ substeps:
     field_id: CX.PRODUCTTYPE
     field_name: Product Type
     category: processor_workflow
-    purpose: Current value — verify and set if blank
+    purpose: >
+      Current value — verify and set if blank. Dropdown options (from prod field
+      schema): Conforming, FHA, VA, USDA, DPA/Bond, Jumbo, NonQM, Reverse,
+      2nd/HELOC, Private, Construction, Bridge.
   - key: doc_type_submission
     field_id: CX.DOCUMENTATIONTYPE
     field_name: Documentation Type (NON-QM Submission)
     category: processor_workflow
-    purpose: Set to Full Doc for conventional loans
+    purpose: >
+      Set to Full Doc for conventional loans. Dropdown options: Full Doc,
+      Bank Statement(s), Verification of Employment, Asset Qualification,
+      Debt Service Coverage Ratio, 1099, CPA P&L 12 mos, CPA P&L 24 mos.
   - key: non_del_inv_approval
-    field_id: CX.NONDEL.INV.APPROVAL
-    field_name: Non-Del Inv. Approval
+    field_id: CUST42FV
+    field_name: Non-Del Inv. Approval (Prior Approval)
     category: processor_workflow
-    purpose: Usually No — verify field ID before going live
+    purpose: >
+      Usually NO (set NO by default — YES only if the underwriter already
+      approved). Field ID CUST42FV verified in EC UI + live round-trip write
+      (2026-07-23); dropdown options are uppercase YES / NO.
+      (CX.NONDEL.INV.APPROVAL does not exist in the prod instance.)
   doc_types: []
   rules:
   - name: Product Type Derived from Loan Type
@@ -50,7 +61,10 @@ substeps:
       Non-QM Submission doc type for conventional is Full Doc.
   - name: Non-Del Inv. Approval
     type: existence_check
-    logic: Set Non-Del Inv. Approval to No (standard for conforming loans).
+    logic: >
+      Set Non-Del Inv. Approval (CUST42FV) to "NO" (uppercase — dropdown enum).
+      Standard for conforming loans; YES only when the underwriter already
+      approved the loan before (rare).
   flags:
   - title: Product Type Not Set
     severity: warning
@@ -71,33 +85,40 @@ substeps:
   - field_id: CX.DOCUMENTATIONTYPE
     value: Full Doc
     condition: always
-  - field_id: CX.NONDEL.INV.APPROVAL
-    value: 'No'
+  - field_id: CUST42FV
+    value: 'NO'
     condition: always
 
 - id: '14.2'
   name: Processor Closing Update
   tool: update_processor_closing
   description: >
-    Fill out the Processor Closing screen. For purchase loans, signing date,
-    wire requested date, and closing date all match — write the closing date
-    value to both CUST50FV (Signing Date) and CX.WIREDATELO (Wire Requested Date).
+    Fill out the Processor Closing screen. Date alignment: Est Closing Date
+    (763) is the source of truth — if Signing Date (CUST50FV) and Wire
+    Requested Date (CX.WIREDATELO) already match it, write nothing; otherwise
+    write the mismatched/blank date(s) FROM 763. Never write 763 itself.
+    Also fills the Certifications section: Vesting Verified checkboxes always
+    checked; Wire Instructions / Escrow E&O / CPL checkboxes checked from
+    eFolder presence (live bucket listing); HOI Effective and Taxes left blank
+    (manual-entry rows for the dashboard Field Writes tab).
   los_fields_read:
   - key: closing_date
     field_id: '763'
     field_name: Est Closing Date
     category: closing
-    purpose: Source of truth for signing and wire dates on purchase loans
+    purpose: >
+      SOURCE OF TRUTH for signing and wire dates on purchase loans. Read-only —
+      never written by this substep.
   - key: signing_date
     field_id: CUST50FV
     field_name: Signing Date
     category: closing
-    purpose: Set to closing date on purchase loans
+    purpose: Written from 763 only when blank or mismatched
   - key: wire_requested_date
     field_id: CX.WIREDATELO
     field_name: Wire Requested Date
     category: closing
-    purpose: Set to closing date on purchase loans
+    purpose: Written from 763 only when blank or mismatched (except Michigan)
   - key: loan_purpose
     field_id: '19'
     field_name: Loan Purpose
@@ -111,27 +132,86 @@ substeps:
       MD purchase loans: Signing/Wire/Closing dates all match (confirmed).
       Michigan is called out separately by the processor — do not blindly equate
       Wire Requested Date to Closing Date there; flag for manual confirmation.
+  - key: cert_vesting_verif_title
+    field_id: CX.VESTINGVERIFTITLE
+    field_name: Vesting Verified - Title
+    category: closing
+    purpose: Certification checkbox (format X) — always checked ("X")
+  - key: cert_vesting_verif_borrower
+    field_id: CX.VESTINGVERIFBOR
+    field_name: Vesting Verified - Borrower
+    category: closing
+    purpose: Certification checkbox (format X) — always checked ("X")
+  - key: cert_wire_instructions_in_file
+    field_id: CX.WIREINSTINFILE
+    field_name: Escrow wire instructions in file
+    category: closing
+    purpose: Checked ("X") when a Wire Instructions document exists in the eFolder
+  - key: cert_escrow_eo_in_file
+    field_id: CX.ESCROWEOINFILE
+    field_name: Escrow E&O insurance in file
+    category: closing
+    purpose: Checked ("X") when an Escrow E&O insurance document exists in the eFolder
+  - key: cert_cpl_in_file
+    field_id: CX.CPLINFILE
+    field_name: CPL in file with correct names, loan number, addressed to AWM
+    category: closing
+    purpose: Checked ("X") when a Closing Protection Letter exists in the eFolder
+  - key: cert_hoi_effective
+    field_id: CX.HOIEFFECTIVE
+    field_name: HOI is effective on or before Note Date (Wet) / Funding Date (Dry)
+    category: closing
+    purpose: Left blank by design — manual-entry row (judgment call)
+  - key: taxes_dropdown
+    field_id: CX.TAXES
+    field_name: Taxes
+    category: closing
+    purpose: >
+      Left blank by design — manual-entry row. Dropdown options (from prod
+      field schema): Unimproved, Improved.
   doc_types: []
   rules:
-  - name: Purchase Loan Date Alignment
+  - name: Purchase Loan Date Alignment (763 is Source of Truth)
     type: custom
     logic: >
-      For purchase loans: Signing Date = Wire Requested Date = Closing Date (field 748).
-      Read closing_date from LOS and write to both CUST50FV and CX.WIREDATELO.
-      Flag if closing_date is blank. Confirmed behavior for Maryland purchases.
+      For purchase loans: Signing Date (CUST50FV) and Wire Requested Date
+      (CX.WIREDATELO) must equal Est Closing Date (763). If all three already
+      match, write NOTHING. Otherwise write only the blank/mismatched date(s)
+      with the value FROM field 763. Field 763 itself is never written. Flag
+      if 763 is blank.
   - name: Michigan Wire Date Exception
     type: custom
     logic: >
-      For Michigan (property_state == MI) purchase loans, still set Signing Date
-      (CUST50FV) = Closing Date, but do NOT auto-set Wire Requested Date
-      (CX.WIREDATELO) to the same value — the processor flagged Michigan's wire
-      timing as different from the MD same-day pattern. Raise an info flag
-      asking the processor to confirm the correct wire date for Michigan instead
-      of auto-writing it.
+      For Michigan (property_state == MI) purchase loans, still align Signing
+      Date (CUST50FV) with 763, but do NOT auto-set Wire Requested Date
+      (CX.WIREDATELO) — the processor flagged Michigan's wire timing as
+      different from the MD same-day pattern. Raise an info flag + manual-entry
+      row asking the processor to confirm the correct wire date instead.
+  - name: Certifications — Vesting Verified
+    type: custom
+    logic: >
+      Always check (write "X") CX.VESTINGVERIFTITLE and CX.VESTINGVERIFBOR.
+      Both are custom checkbox fields (format X) — verified by live round-trip
+      write 2026-07-23.
+  - name: Certifications — eFolder Presence Checkboxes
+    type: custom
+    logic: >
+      Check (write "X") CX.WIREINSTINFILE / CX.ESCROWEOINFILE / CX.CPLINFILE
+      when a matching document bucket with attachments exists in the live
+      eFolder listing (GET /v3/loans/{id}/documents — fuzzy title match on
+      "wire instruction", "e&o" / "errors & omissions", "cpl" / "closing
+      protection"). When absent, leave unchecked and raise an info flag so the
+      processor knows why.
+  - name: Certifications — Manual-Entry Fields
+    type: custom
+    logic: >
+      CX.HOIEFFECTIVE (HOI effective date certification) and CX.TAXES
+      (Unimproved/Improved) are never auto-written — register both as
+      manual-entry rows in state['manual_fields'] for the dashboard.
   flags:
   - title: Closing Date Not Set
     severity: warning
-    condition: Closing date (field 748) is blank — cannot set signing or wire dates
+    condition: Est Closing Date (field 763) is blank — cannot align signing or wire dates
     suggestion: Set the closing date in Encompass before running this step
   - title: Signing Date Not Set
     severity: warning
@@ -141,15 +221,121 @@ substeps:
     severity: info
     condition: Michigan purchase loan — Wire Requested Date was not auto-set to match Closing Date
     suggestion: Confirm the correct Wire Requested Date for this Michigan closing with the closing team
+  - title: Closing Dates Already Aligned
+    severity: info
+    condition: Signing, Wire Requested, and Est Closing dates all match — no writes needed
+    suggestion: No action needed
+  - title: Certification Document Not Found in eFolder
+    severity: info
+    condition: >
+      Wire Instructions / Escrow E&O / CPL bucket absent or empty in the live
+      eFolder listing — corresponding certification checkbox left unchecked
+    suggestion: Upload the document to the eFolder, then check the certification box
   field_updates:
   - field_id: CUST50FV
     value: '{closing_date}'
-    condition: loan_purpose == Purchase
+    condition: loan_purpose == Purchase and CUST50FV != 763
   - field_id: CX.WIREDATELO
     value: '{closing_date}'
-    condition: loan_purpose == Purchase and property_state != MI
+    condition: loan_purpose == Purchase and CX.WIREDATELO != 763 and property_state != MI
+  - field_id: CX.VESTINGVERIFTITLE
+    value: 'X'
+    condition: always
+  - field_id: CX.VESTINGVERIFBOR
+    value: 'X'
+    condition: always
+  - field_id: CX.WIREINSTINFILE
+    value: 'X'
+    condition: wire instructions document present in eFolder
+  - field_id: CX.ESCROWEOINFILE
+    value: 'X'
+    condition: escrow E&O document present in eFolder
+  - field_id: CX.CPLINFILE
+    value: 'X'
+    condition: CPL document present in eFolder
 
 - id: '14.3'
+  name: Processing/Submitted Milestone Update
+  tool: update_processing_submitted
+  description: >
+    Update the "In Processing/Submitted" milestone worksheet via the v1
+    milestones API (GET/PATCH /encompass/v1/loans/{id}/milestones): ensure the
+    Loan Processor associate is assigned (Ash Desai, user id "adesai"), and
+    collect the milestone's MISSING REQUIRED FIELDS (the EC UI "Go To Fields"
+    dialog list) as manual-entry rows for the dashboard. The "Finished"
+    checkbox is the milestone's doneIndicator via ?action=finish (NOT field
+    1057 — schema says 1057 is "Borr Declarations E"); auto-finishing is HELD
+    pending processor confirmation. PATCH bodies must include startDate; a loan
+    open in the EC UI is locked (409 EBS-4360) and writes are skipped with a
+    warning.
+  los_fields_read: []
+  doc_types: []
+  rules:
+  - name: Assign Loan Processor
+    type: custom
+    logic: >
+      Read the loan's milestones; find "In Processing/Submitted". If its
+      loanAssociate is not a Loan Processor user, PATCH the milestone with
+      {"loanAssociate": {"loanAssociateType": "User", "id": "adesai"}}.
+      Honors DEV_MODE.dry_run (no PATCH; info flag instead).
+  - name: Missing Required Fields Probe
+    type: custom
+    logic: >
+      Encompass enforces the admin's per-milestone required fields server-side
+      when a milestone is finished (the settings APIs that expose the config
+      return 403 for our API user). The tool attempts PATCH ?action=finish to
+      trigger that validation: on rejection it parses the unmet-field list into
+      a warning flag + state['manual_fields'] rows (field_id + description) so
+      the dashboard shows them for manual entry; if the attempt unexpectedly
+      succeeds it immediately PATCHes ?action=unfinish (auto-finish is held).
+      Skipped when the milestone is already finished, in dry_run, or the loan
+      is locked.
+  - name: Milestone Finished Checkbox (HELD)
+    type: custom
+    logic: >
+      Never leave doneIndicator set — the mechanism is confirmed (milestone
+      doneIndicator via ?action=finish, verified on prod loan 2604964148) but
+      auto-finishing is held pending processor confirmation. Raise an info flag
+      showing the current doneIndicator value.
+  flags:
+  - title: Loan Processor Assigned
+    severity: info
+    condition: >
+      Milestone loanAssociate was blank/non-processor and was PATCHed to Ash
+      Desai (tool emits this at runtime as info-overwrite — the audit severity)
+    suggestion: Confirm the processor assignment on the In Processing/Submitted worksheet
+  - title: Loan Processor Already Assigned
+    severity: info
+    condition: Milestone already has a Loan Processor associate
+    suggestion: No action needed
+  - title: Milestone Required Fields Missing
+    severity: warning
+    condition: >
+      The finish-attempt probe was rejected because admin-required fields are
+      blank — the unmet fields are listed in the flag and registered as
+      manual-entry rows
+    suggestion: Fill the listed fields (dashboard Field Writes tab or Encompass), then finish the milestone
+  - title: Milestone Required Fields All Satisfied
+    severity: info
+    condition: The finish-attempt probe passed validation (milestone was immediately re-opened)
+    suggestion: Check the Finished box on the worksheet when ready
+  - title: Loan Locked — Milestone Writes Skipped
+    severity: warning
+    condition: The loan is open/locked in the Encompass UI (409 EBS-4360)
+    suggestion: Close the loan in Encompass, then re-run this substep
+  - title: Milestone Finish Pending Manual Confirmation
+    severity: info
+    condition: Always raised — doneIndicator (Finished checkbox) is not left set by the agent
+    suggestion: >
+      Check the Finished box on the In Processing/Submitted worksheet after
+      verifying required fields (Encompass enforces them on save)
+  - title: Milestone Not Found
+    severity: warning
+    condition: No "In Processing/Submitted" milestone exists on the loan
+    suggestion: Verify the loan's milestone template in Encompass
+  field_updates: []
+
+- id: '14.4'
   name: Build Action Items
   tool: build_action_items
   description: >

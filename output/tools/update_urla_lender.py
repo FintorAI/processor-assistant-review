@@ -361,7 +361,7 @@ def update_urla_lender(
     borrower_last = _los(state, "borrower_last_name")
 
     current_manner = (_los(state, "manner_of_title") or "").strip()   # field 33
-    current_urla_x138 = (_los(state, "manner_urla_x138") or "").strip()  # URLA.X138
+    current_urla_x138 = (_los(state, "manner_of_title_lender") or "").strip()  # URLA.X138
     current_estate = (_los(state, "estate_held") or "").strip()       # field 1066
     property_type = (_los(state, "property_type") or "").strip()      # field 1041
     attachment_type = (_los(state, "attachment_type") or "").strip()  # CX.ATTACHMENT.TYPE

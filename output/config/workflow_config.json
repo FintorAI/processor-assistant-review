@@ -110,7 +110,7 @@
           ]
         },
         "2": {
-          "name": "Fetch LOS Fields (296 fields)",
+          "name": "Fetch LOS Fields (305 fields)",
           "tools": [
             "fetch_los_fields"
           ]
@@ -466,6 +466,7 @@
       "plan_file": "processor_workflow_and_closing.md",
       "tools": [
         "build_action_items",
+        "update_processing_submitted",
         "update_processor_closing",
         "update_processor_workflow"
       ],
@@ -483,6 +484,12 @@
           ]
         },
         "3": {
+          "name": "Processing/Submitted Milestone Update",
+          "tools": [
+            "update_processing_submitted"
+          ]
+        },
+        "4": {
           "name": "Build Action Items",
           "tools": [
             "build_action_items"

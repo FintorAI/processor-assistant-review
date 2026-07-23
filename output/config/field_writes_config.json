@@ -1,0 +1,6616 @@
+{
+  "generated_at": "2026-07-23T08:15:23.855880+00:00",
+  "env": "Prod",
+  "source": "GET /v3/schemas/loan/standardFields + /v3/settings/loan/customFields",
+  "stats": {
+    "total": 305,
+    "found": 295,
+    "missing_from_schema": 10,
+    "with_options": 93
+  },
+  "missing_field_ids": [
+    "218",
+    "CX.AMI.ELIGIBILITY",
+    "CX.AMI.PERCENTAGE",
+    "CX.APPRAISAL.WAIVER",
+    "CX.ATTACHMENT.TYPE",
+    "CX.FNMA.ADDITIONAL.DATA",
+    "CX.KM.CL.ADDITIONAL.NOTES",
+    "CX.KM.CL.APPRAISAL",
+    "CX.KM.CL.TITLE.COMPANY",
+    "Document.ExpirationDate.MORTGAGE INSURANCE"
+  ],
+  "fields": {
+    "1012": {
+      "key": "project_type_1012",
+      "label": "Project Type dropdown (Transmittal Summary)",
+      "encompass_description": "Subject Property Project Classification",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "A_IIICondominium",
+          "text": "Freddie Mac: Streamlined Review"
+        },
+        {
+          "value": "B_IICondominium",
+          "text": "Freddie Mac: Established Project"
+        },
+        {
+          "value": "C_ICondominium",
+          "text": "Freddie Mac: New Project"
+        },
+        {
+          "value": "DetachedProject",
+          "text": "Freddie Mac: Detached Project"
+        },
+        {
+          "value": "2To4UnitProject",
+          "text": "Freddie Mac: 2-To-4-Unit Project"
+        },
+        {
+          "value": "ExemptFromReview",
+          "text": "Freddie Mac: Exempt From Review"
+        },
+        {
+          "value": "ReciprocalReview",
+          "text": "Freddie Mac: Reciprocal Review"
+        },
+        {
+          "value": "E_PUD",
+          "text": "Fannie Mae: E Established PUD Project"
+        },
+        {
+          "value": "F_PUD",
+          "text": "Fannie Mae: F New PUD Project"
+        },
+        {
+          "value": "P_LimitedReviewNew",
+          "text": "Fannie Mae: P Limited Review - New Condo Project"
+        },
+        {
+          "value": "Q_LimitedReviewEst",
+          "text": "Fannie Mae: Q Limited Review - Established Condo Project"
+        },
+        {
+          "value": "R_ExpeditedNew",
+          "text": "Fannie Mae: R Full Review - New Condo Project"
+        },
+        {
+          "value": "S_ExpeditedEst",
+          "text": "Fannie Mae: S Full Review - Established Condo Project"
+        },
+        {
+          "value": "T_FannieMaeReview",
+          "text": "Fannie Mae: T Fannie Mae Review through PERS - Condo Project"
+        },
+        {
+          "value": "U_FHAapproved",
+          "text": "Fannie Mae: U FHA-approved Condo Project"
+        },
+        {
+          "value": "V_NoReviewSiteCondo",
+          "text": "Fannie Mae: V Condo Project Review Waived"
+        },
+        {
+          "value": "FullReviewCoopProject",
+          "text": "Fannie Mae: 1 Full Review - Co-op Project"
+        },
+        {
+          "value": "FannieMaeReviewPERSCoopProject",
+          "text": "Fannie Mae: 2 Fannie Mae Review through PERS - Co-op Project"
+        },
+        {
+          "value": "OneCooperative",
+          "text": "Other: One Cooperative"
+        },
+        {
+          "value": "TwoCooperative",
+          "text": "Other: Two Cooperative"
+        },
+        {
+          "value": "TCooperative",
+          "text": "Other: T Cooperative"
+        },
+        {
+          "value": "T_PUD",
+          "text": "Other: T/PUD"
+        },
+        {
+          "value": "III PUD",
+          "text": "Other: PUD"
+        },
+        {
+          "value": "V_RefiPlus",
+          "text": "Other: V/Refi Plus"
+        },
+        {
+          "value": "Approved FHA/VA Condominium Project Or Spot Loan",
+          "text": "Other: Approved FHA/VA Condominium Project Or Spot Loan"
+        },
+        {
+          "value": "G_NotInAProjectOrDevelopment",
+          "text": "Other: G/Not in a Project or Development"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1014": {
+      "key": "qualifying_rate",
+      "label": "Qualifying Rate",
+      "encompass_description": "Trans Details Qual Rate",
+      "category": "loan_info",
+      "format": "DECIMAL_3",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 15,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1018": {
+      "key": "borrower_caivrs_number",
+      "label": "Borrower CAIVRS Number",
+      "encompass_description": "Borr CAIVRS #",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1039": {
+      "key": "hud_section_of_act",
+      "label": "Section of the Act",
+      "encompass_description": "Loan Info Section of Housing Act",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "184",
+          "text": "184"
+        },
+        {
+          "value": "203B",
+          "text": "203B"
+        },
+        {
+          "value": "203B251",
+          "text": "203B251"
+        },
+        {
+          "value": "203B2",
+          "text": "203B2"
+        },
+        {
+          "value": "203K",
+          "text": "203K"
+        },
+        {
+          "value": "203K251",
+          "text": "203K251"
+        },
+        {
+          "value": "221D2",
+          "text": "221D2"
+        },
+        {
+          "value": "221D2251",
+          "text": "221D2251"
+        },
+        {
+          "value": "234C",
+          "text": "234C"
+        },
+        {
+          "value": "234C251",
+          "text": "234C251"
+        },
+        {
+          "value": "257",
+          "text": "257"
+        },
+        {
+          "value": "203H",
+          "text": "203H"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1040": {
+      "key": "fha_case_number",
+      "label": "FHA/VA Agency Case Number",
+      "encompass_description": "Trans Details Agency Case #",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1041": {
+      "key": "property_type",
+      "label": "Property Type",
+      "encompass_description": "Subject Property Type Fannie Mae",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Attached",
+          "text": "Attached"
+        },
+        {
+          "value": "Condominium",
+          "text": "Condominium"
+        },
+        {
+          "value": "Cooperative",
+          "text": "Co-Operative"
+        },
+        {
+          "value": "Detached",
+          "text": "Detached"
+        },
+        {
+          "value": "HighRiseCondominium",
+          "text": "High Rise Condominium"
+        },
+        {
+          "value": "ManufacturedHousing",
+          "text": "Manufactured Housing"
+        },
+        {
+          "value": "PUD",
+          "text": "PUD"
+        },
+        {
+          "value": "DetachedCondo",
+          "text": "Detached Condo"
+        },
+        {
+          "value": "ManufacturedHomeCondoPUDCoOp",
+          "text": "Mfd Home/Condo/PUD/Co-Op"
+        },
+        {
+          "value": "MH HomeChoice",
+          "text": "MH CHOICEHome"
+        },
+        {
+          "value": "MHSelect",
+          "text": "MH Select"
+        },
+        {
+          "value": "MHAdvantage",
+          "text": "MH Advantage"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1051": {
+      "key": "mers_min",
+      "label": "MERS MIN",
+      "encompass_description": "Trans Details MERS MIN #",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1059": {
+      "key": "hud_lender_id_code",
+      "label": "Lender ID Code (HUD Addendum)",
+      "encompass_description": "FHA Lender ID",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1065": {
+      "key": "hud_occupancy_cert",
+      "label": "25(2) Occupancy (HUD Addendum)",
+      "encompass_description": "Borr Cert Occupancy",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "ActuallyOccupyPropertyAsMyHome",
+          "text": "I now actually occupy the above property as my home"
+        },
+        {
+          "value": "ActuallyOccupyPropertyWithin60DaysContinueAtLeast1Year",
+          "text": "I, the Borrower or Co-Borrower will occupy the property within 60 days of signing the security instrument, and intend to continue occupancy for at least one year"
+        },
+        {
+          "value": "DoNotIntendToOccupyPropertyAsMyHome",
+          "text": "I do not intend to occupy the property as my primary residence"
+        },
+        {
+          "value": "SpouseOnActiveMilitaryDuty",
+          "text": "My spouse is on active military duty and I occupy"
+        },
+        {
+          "value": "VeteranOnActiveMilitaryDuty",
+          "text": "I am active duty and my dependent child occupies home"
+        },
+        {
+          "value": "PreviouslyOccupiedTheProperty",
+          "text": "I previously occupied the property as my home"
+        },
+        {
+          "value": "PreviouslyOccupiedWhileSpouseOnActiveMilitaryDuty",
+          "text": "While my spouse was on active military duty...I previously"
+        },
+        {
+          "value": "PreviouslyDependentOccupiedWhileVeteranOnActiveMilitaryDuty",
+          "text": "I was on active military duty...my dependent child occupied home"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1066": {
+      "key": "estate_held",
+      "label": "Estate Will Be Held In",
+      "encompass_description": "Subject Property Estate Held",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "FeeSimple",
+          "text": "Fee Simple"
+        },
+        {
+          "value": "Leasehold",
+          "text": "Leasehold"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1067": {
+      "key": "construction_status",
+      "label": "Construction Status",
+      "encompass_description": "Loan Info Constr Loan Type",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "ExistingConstruction",
+          "text": "Existing Construction"
+        },
+        {
+          "value": "ProposedConstruction",
+          "text": "Proposed Construction"
+        },
+        {
+          "value": "NewConstruction",
+          "text": "New (less than 1 year)"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1069": {
+      "key": "prior_title_held",
+      "label": "Declaration 5a(A)(2) \u2014 How Title Was Held (Prior Property)",
+      "encompass_description": "Borr Declarations Ownership Title",
+      "category": "declarations",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Sole",
+          "text": "Sole Ownership"
+        },
+        {
+          "value": "JointWithSpouse",
+          "text": "Joint With Spouse"
+        },
+        {
+          "value": "JointWithOtherThanSpouse",
+          "text": "Joint With Other Than Spouse"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "11": {
+      "key": "property_address",
+      "label": "Property Street Address",
+      "encompass_description": "Subject Property Street",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1108": {
+      "key": "coborr_ownership_3yr",
+      "label": "Declaration 5a(A) \u2014 Co-Borrower Ownership Interest Past 3 Years",
+      "encompass_description": "CoBorr Declarations Ownership in 3 years",
+      "category": "declarations",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Yes",
+          "text": "Yes"
+        },
+        {
+          "value": "No",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1109": {
+      "key": "loan_amount",
+      "label": "Loan Amount",
+      "encompass_description": "Trans Details Loan Amt",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1144": {
+      "key": "coborrower_caivrs_number",
+      "label": "Co-Borrower CAIVRS Number",
+      "encompass_description": "Co-Borr CAIVRS #",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1172": {
+      "key": "loan_type",
+      "label": "Mortgage Type",
+      "encompass_description": "Trans Details Loan Type",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Conventional",
+          "text": "Conventional"
+        },
+        {
+          "value": "VA",
+          "text": "VA"
+        },
+        {
+          "value": "FHA",
+          "text": "FHA"
+        },
+        {
+          "value": "Other",
+          "text": "Other"
+        },
+        {
+          "value": "FarmersHomeAdministration",
+          "text": "USDA-RHS"
+        },
+        {
+          "value": "HELOC",
+          "text": "HELOC"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1179": {
+      "key": "coborrower_email",
+      "label": "Co-Borrower Email",
+      "encompass_description": "Coborrower Work Email",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "12": {
+      "key": "property_city",
+      "label": "Property City",
+      "encompass_description": "Subject Property City",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1240": {
+      "key": "borrower_email",
+      "label": "Borrower Email",
+      "encompass_description": "Borr Email",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1264": {
+      "key": "lender",
+      "label": "Lender",
+      "encompass_description": "File Contacts Lender Co Name",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1298": {
+      "key": "condo_project_name",
+      "label": "Condo Project Name (Transmittal Summary)",
+      "encompass_description": "Subject Property Project Name",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "13": {
+      "key": "property_county",
+      "label": "Property County",
+      "encompass_description": "Subject Property County",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1335": {
+      "key": "down_payment_amount",
+      "label": "Down Payment Amount",
+      "encompass_description": "Trans Details Down Pymt Amt",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "136": {
+      "key": "los_purchase_price",
+      "label": "Purchase Price (LOS)",
+      "encompass_description": "Trans Details Purchase Price",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1387": {
+      "key": "mi_cert_number",
+      "label": "MI Certificate Number",
+      "encompass_description": "Fees Hazard Ins # of Mos Reserve Required",
+      "category": "insurance",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1399": {
+      "key": "hud_valuation_awareness",
+      "label": "25 Valuation Awareness",
+      "encompass_description": "Borr Cert Aware/Unaware of Valuation",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "AwareOfThisValuation",
+          "text": "I was aware of this valuation when I signed my contract"
+        },
+        {
+          "value": "NotAwareOfThisValuation",
+          "text": "I was not aware of this valuation when I signed my contract"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "14": {
+      "key": "property_state",
+      "label": "Property State",
+      "encompass_description": "Subject Property State",
+      "category": "property",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "140": {
+      "key": "subordinate_financing",
+      "label": "Subordinate Financing",
+      "encompass_description": "Trans Details Subordinate Financing",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1400": {
+      "key": "hud_lead_paint",
+      "label": "25(6) HUD Only - Lead Paint",
+      "encompass_description": "HUD Rec Lead Paint Poisoning Info",
+      "category": "loan_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1401": {
+      "key": "loan_program",
+      "label": "Loan Program",
+      "encompass_description": "Trans Details Loan Program",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1402": {
+      "key": "borrower_dob",
+      "label": "Borrower Date of Birth",
+      "encompass_description": "Borr DOB",
+      "category": "borrower_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1403": {
+      "key": "coborrower_dob",
+      "label": "Co-Borrower Date of Birth",
+      "encompass_description": "Co-Borr DOB",
+      "category": "borrower_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1414": {
+      "key": "equifax_score",
+      "label": "Borrower Equifax/Beacon Score",
+      "encompass_description": "Borr Equifax BEACON",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1415": {
+      "key": "coborrower_equifax_score",
+      "label": "Co-Borrower Equifax/Beacon Score",
+      "encompass_description": "Co-Borr Equifax BEACON",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1450": {
+      "key": "transunion_score",
+      "label": "Borrower TransUnion/Empirica Score",
+      "encompass_description": "Borr TransUnion Empirica",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1452": {
+      "key": "coborrower_transunion_score",
+      "label": "Co-Borrower TransUnion/Empirica Score",
+      "encompass_description": "Co-Borr TransUnion Empirica",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1480": {
+      "key": "coborrower_cell_phone",
+      "label": "Co-Borrower Cell Phone",
+      "encompass_description": "Co-Borr Cell",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1490": {
+      "key": "borrower_cell_phone",
+      "label": "Borrower Cell Phone",
+      "encompass_description": "Borr Cell",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "15": {
+      "key": "property_zip",
+      "label": "Property ZIP",
+      "encompass_description": "Subject Property Zip",
+      "category": "property",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1541": {
+      "key": "property_review_type",
+      "label": "Level of Property Review (Exterior/Interior)",
+      "encompass_description": "Underwriting Level of Prpty Review",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Exterior/Interior",
+          "text": "Exterior / Interior"
+        },
+        {
+          "value": "Exterior Only",
+          "text": "Exterior Only"
+        },
+        {
+          "value": "No Appraisal",
+          "text": "No Appraisal"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1542": {
+      "key": "appraisal_form_number",
+      "label": "Appraisal Form Number",
+      "encompass_description": "Underwriting Level of Prpty Review Form #",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1544": {
+      "key": "borrower_ethnicity",
+      "label": "Borrower Ethnicity",
+      "encompass_description": "Underwriting Risk Assess AUS Recomm",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1551": {
+      "key": "community_lending_ahi",
+      "label": "Community Lending / Affordable Housing Initiative",
+      "encompass_description": "Underwriting Commun Lending/AHI",
+      "category": "loan_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Community Lending/Affordable Housing Initiative"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1552": {
+      "key": "homebuyer_education_cert",
+      "label": "Home Buyers Education Certification",
+      "encompass_description": "Underwriting Buyer/Homeownrshp Edu Cert",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Homeowner education completed",
+          "text": "Homeowner education completed"
+        },
+        {
+          "value": "1x1 counseling completed",
+          "text": "1x1 counseling completed"
+        },
+        {
+          "value": "Both completed",
+          "text": "Both completed"
+        },
+        {
+          "value": "Yes",
+          "text": "Yes"
+        },
+        {
+          "value": "No",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1553": {
+      "key": "transmittal_project_type",
+      "label": "Project Type (Transmittal Summary)",
+      "encompass_description": "Subject Property Type",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "1 Unit",
+          "text": "1 unit"
+        },
+        {
+          "value": "2-4 Units",
+          "text": "2-4 units"
+        },
+        {
+          "value": "Condominium",
+          "text": "Condominium"
+        },
+        {
+          "value": "PUD",
+          "text": "PUD"
+        },
+        {
+          "value": "Cooperative",
+          "text": "Co-op"
+        },
+        {
+          "value": "Manufactured Housing Single Wide",
+          "text": "Manufactured Single Wide"
+        },
+        {
+          "value": "Manufactured Housing Multiwide",
+          "text": "Manufactured Multiwide"
+        },
+        {
+          "value": "Detached Condominium",
+          "text": "Detached Condominium"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "16": {
+      "key": "property_units",
+      "label": "Subject Property Number of Units",
+      "encompass_description": "Subject Property # Units",
+      "category": "property",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1639": {
+      "key": "hud_value_determination",
+      "label": "25 Value Determination",
+      "encompass_description": "Borr Cert Property Value",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "The reasonable value of the property as determined by V.A.",
+          "text": "The reasonable value of the property as determined by V.A."
+        },
+        {
+          "value": "The statement of appraised value as determined by HUD / FHA",
+          "text": "The statement of appraised value as determined by HUD / FHA"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1711": {
+      "key": "hud_agency_type",
+      "label": "Agency Type (HUD Addendum)",
+      "encompass_description": "HUD Addendum Type",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "V.A.",
+          "text": "V.A."
+        },
+        {
+          "value": "HUD / FHA",
+          "text": "HUD / FHA"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1715": {
+      "key": "borrower_work_phone",
+      "label": "Borrower Business/Work Phone",
+      "encompass_description": "Assets Cash Deposit 2 Descr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1716": {
+      "key": "coborrower_work_phone",
+      "label": "Co-Borrower Business/Work Phone",
+      "encompass_description": "Assets Cash Deposit 2 Value",
+      "category": "borrower_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "172": {
+      "key": "other_income_type",
+      "label": "Other Income Type",
+      "encompass_description": "Borr Declarations D",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "173": {
+      "key": "other_income_amount",
+      "label": "Other Income Amount (Monthly)",
+      "encompass_description": "Borr Declarations G",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1771": {
+      "key": "down_payment_pct",
+      "label": "Down Payment %",
+      "encompass_description": "Trans Details Down Pmt %",
+      "category": "loan_info",
+      "format": "DECIMAL_3",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 15,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1785": {
+      "key": "closing_cost_program",
+      "label": "Closing Cost Program",
+      "encompass_description": "Trans Details Closing Cost Program",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1811": {
+      "key": "occupancy",
+      "label": "Property Will Be (Occupancy)",
+      "encompass_description": "Subject Property Occupancy Status",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "PrimaryResidence",
+          "text": "Primary"
+        },
+        {
+          "value": "SecondHome",
+          "text": "Secondary"
+        },
+        {
+          "value": "Investor",
+          "text": "Investment"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1819": {
+      "key": "borr_mailing_same_as_present",
+      "label": "Borrower Mailing Address Same as Present",
+      "encompass_description": "Borr Mailing Addr Same as Present",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Same as present address"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1820": {
+      "key": "coborr_mailing_same_as_present",
+      "label": "Co-Borrower Mailing Address Same as Present",
+      "encompass_description": "Co-Borr Mailing Addr Same as Present",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Same as present address"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1821": {
+      "key": "estimated_value",
+      "label": "Estimated Value",
+      "encompass_description": "Subject Property Est Value",
+      "category": "collateral",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "186": {
+      "key": "escrow_case_number",
+      "label": "Escrow Case #",
+      "encompass_description": "File Contacts Escrow Co Escrow #",
+      "category": "file_contacts",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1867": {
+      "key": "final_vesting",
+      "label": "Final Vesting",
+      "encompass_description": "Borrower Vesting Borr Final Vesting to Read",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1868": {
+      "key": "borrower_vesting_name",
+      "label": "Borrower Vesting Name",
+      "encompass_description": "Borr Name",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1869": {
+      "key": "borrower_aka",
+      "label": "Borrower Alias / AKA (URLA)",
+      "encompass_description": "Borrower Vesting Borr AKA",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1871": {
+      "key": "borrower_vesting_type",
+      "label": "Borrower Vesting Type",
+      "encompass_description": "Borrower Vesting - Borrower Vesting Type",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Individual",
+          "text": "Individual"
+        },
+        {
+          "value": "Co-signer",
+          "text": "Co-signer"
+        },
+        {
+          "value": "Title only",
+          "text": "Title only"
+        },
+        {
+          "value": "Non Title Spouse",
+          "text": "Non Title Spouse"
+        },
+        {
+          "value": "Trustee",
+          "text": "Trustee"
+        },
+        {
+          "value": "Title Only Trustee",
+          "text": "Title Only Trustee"
+        },
+        {
+          "value": "Settlor Trustee",
+          "text": "Settlor Trustee"
+        },
+        {
+          "value": "Settlor",
+          "text": "Settlor"
+        },
+        {
+          "value": "Title Only Settlor Trustee",
+          "text": "Title Only Settlor Trustee"
+        },
+        {
+          "value": "Officer",
+          "text": "Officer"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1872": {
+      "key": "borrower_vesting_desc",
+      "label": "Borrower Vesting Description",
+      "encompass_description": "Borrower Vesting Borr Vesting",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1873": {
+      "key": "coborrower_vesting_name",
+      "label": "Co-Borrower Vesting Name",
+      "encompass_description": "Co-Borr Name",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1874": {
+      "key": "coborrower_aka",
+      "label": "Co-Borrower Alias / AKA (URLA)",
+      "encompass_description": "Borrower Vesting Co-Borr AKA",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1876": {
+      "key": "coborrower_vesting_type",
+      "label": "Co-Borrower Vesting Type",
+      "encompass_description": "Borrower Vesting - Co-Borr Vesting Type",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Individual",
+          "text": "Individual"
+        },
+        {
+          "value": "Co-signer",
+          "text": "Co-signer"
+        },
+        {
+          "value": "Title only",
+          "text": "Title only"
+        },
+        {
+          "value": "Non Title Spouse",
+          "text": "Non Title Spouse"
+        },
+        {
+          "value": "Trustee",
+          "text": "Trustee"
+        },
+        {
+          "value": "Title Only Trustee",
+          "text": "Title Only Trustee"
+        },
+        {
+          "value": "Settlor Trustee",
+          "text": "Settlor Trustee"
+        },
+        {
+          "value": "Settlor",
+          "text": "Settlor"
+        },
+        {
+          "value": "Title Only Settlor Trustee",
+          "text": "Title Only Settlor Trustee"
+        },
+        {
+          "value": "Officer",
+          "text": "Officer"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "1877": {
+      "key": "coborrower_vesting_desc",
+      "label": "Co-Borrower Vesting Description",
+      "encompass_description": "Borrower Vesting Co-Borr Vesting",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "19": {
+      "key": "loan_purpose",
+      "label": "Loan Purpose",
+      "encompass_description": "Trans Details Loan Purpose",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "ConstructionToPermanent",
+          "text": "Construction - Perm"
+        },
+        {
+          "value": "NoCash-Out Refinance",
+          "text": "No Cash-Out Refi"
+        },
+        {
+          "value": "Purchase",
+          "text": "Purchase"
+        },
+        {
+          "value": "ConstructionOnly",
+          "text": "Construction"
+        },
+        {
+          "value": "Cash-Out Refinance",
+          "text": "Cash-Out Refi"
+        },
+        {
+          "value": "Other",
+          "text": "Other"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "218": {
+      "key": "rental_income",
+      "label": "Rental Income",
+      "category": "income",
+      "found_in_schema": false
+    },
+    "231": {
+      "key": "gift_amount",
+      "label": "Gift Amount",
+      "encompass_description": "Fees Tax Per Mo",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "232": {
+      "key": "mi_monthly_premium",
+      "label": "Proposed Monthly Mortgage Insurance",
+      "encompass_description": "Expenses Proposed Mtg Ins",
+      "category": "insurance",
+      "format": "RA_DECIMAL_2",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "233": {
+      "key": "hoa_dues_monthly",
+      "label": "Proposed Homeowner Assoc. Dues (Monthly)",
+      "encompass_description": "Expenses Proposed HOA",
+      "category": "property",
+      "format": "RA_DECIMAL_2",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "2363": {
+      "key": "los_flood_cert_number",
+      "label": "Flood Certification Number (Cert #)",
+      "encompass_description": "Underwriting Flood Info Cert Number",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "2400": {
+      "key": "rate_is_locked",
+      "label": "Rate Is Locked (Y/N)",
+      "encompass_description": "Closing Loan Info Loan is Locked",
+      "category": "loan_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "2996": {
+      "key": "fha_property_type_units",
+      "label": "FHA Management \u2014 Property Type",
+      "encompass_description": "HUD 92900 LT Subject Property Type",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "1 Unit",
+          "text": "1 unit"
+        },
+        {
+          "value": "2 Units",
+          "text": "2 units"
+        },
+        {
+          "value": "3-4 Units",
+          "text": "3-4 units"
+        },
+        {
+          "value": "Condominium",
+          "text": "Condominium"
+        },
+        {
+          "value": "Cooperative",
+          "text": "Co-Operative"
+        },
+        {
+          "value": "ManufacturedHousing",
+          "text": "Manufactured Housing"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3": {
+      "key": "note_rate",
+      "label": "Note Rate",
+      "encompass_description": "Trans Details Interest Rate",
+      "category": "loan_info",
+      "format": "DECIMAL_3",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 15,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "300": {
+      "key": "credit_reference_number",
+      "label": "Credit Reference Number",
+      "encompass_description": "Trans Details Credit Rpt Ref #",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3050": {
+      "key": "condo_project_id",
+      "label": "CPM Project ID",
+      "encompass_description": "Condo Project ID Number",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3067": {
+      "key": "caivrs_date_updated",
+      "label": "CAIVRS Date Updated",
+      "encompass_description": "FHA Management Obtain CAIVRS Date",
+      "category": "loan_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3068": {
+      "key": "caivrs_updated_by",
+      "label": "CAIVRS Updated By",
+      "encompass_description": "FHA Management CAIVRS Obtained By",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "325": {
+      "key": "term_due_in_months",
+      "label": "Term Due In (Months)",
+      "encompass_description": "Trans Details Term Due In",
+      "category": "loan_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3253": {
+      "key": "last_rate_set_date",
+      "label": "Last Rate Set Date",
+      "encompass_description": "Last Rate Set Date",
+      "category": "loan_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3259": {
+      "key": "rate_lock_disclosure_date",
+      "label": "Rate Lock Disclosure Date",
+      "encompass_description": "Rate Lock Disclosure Date",
+      "category": "loan_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3293": {
+      "key": "undiscounted_rate",
+      "label": "Undiscounted Rate",
+      "encompass_description": "UnDiscounted Rate",
+      "category": "loan_info",
+      "format": "DECIMAL_3",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 15,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "33": {
+      "key": "manner_of_title",
+      "label": "Manner in Which Title Will Be Held",
+      "encompass_description": "Subject Property Manner Held",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Community property",
+          "text": "Community property"
+        },
+        {
+          "value": "Joint tenants",
+          "text": "Joint tenants"
+        },
+        {
+          "value": "Single man",
+          "text": "Single man"
+        },
+        {
+          "value": "Single woman",
+          "text": "Single woman"
+        },
+        {
+          "value": "Married man",
+          "text": "Married man"
+        },
+        {
+          "value": "Married woman",
+          "text": "Married woman"
+        },
+        {
+          "value": "Tenants in common",
+          "text": "Tenants in common"
+        },
+        {
+          "value": "Tenancy by entirety",
+          "text": "Tenancy by entirety"
+        },
+        {
+          "value": "To be decided in escrow",
+          "text": "To be decided in escrow"
+        },
+        {
+          "value": "Unmarried man",
+          "text": "Unmarried man"
+        },
+        {
+          "value": "Unmarried woman",
+          "text": "Unmarried woman"
+        },
+        {
+          "value": "Spouses Married to Each Other",
+          "text": "Spouses Married to Each Other"
+        },
+        {
+          "value": "Other",
+          "text": "Other"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "35": {
+      "key": "borrower_current_address",
+      "label": "Borrower Current Street Address",
+      "encompass_description": "Trans Details Income of Spouse will not be used",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "The income/assets of the Borrower's spouse will not be used.."
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "350": {
+      "key": "total_monthly_payments",
+      "label": "Total Monthly Liabilities",
+      "encompass_description": "Liabilities Total Liability Pymt",
+      "category": "liabilities",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": true,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "353": {
+      "key": "ltv",
+      "label": "LTV",
+      "encompass_description": "Freddie Mac Loan To Value (LTV)",
+      "category": "insurance",
+      "format": "DECIMAL_3",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 15,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "356": {
+      "key": "appraised_value",
+      "label": "Appraised Value",
+      "encompass_description": "Subject Property Appraised Value",
+      "category": "collateral",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "364": {
+      "key": "loan_number",
+      "label": "Loan Number",
+      "encompass_description": "Trans Details Loan #",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "3941": {
+      "key": "secondary_registration",
+      "label": "Secondary Registration",
+      "encompass_description": "Secondary Registration",
+      "category": "loan_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4": {
+      "key": "loan_term_months",
+      "label": "Loan Term (Months)",
+      "encompass_description": "Trans Details Term (Mos)",
+      "category": "loan_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4000": {
+      "key": "borrower_first_name",
+      "label": "Borrower First Name",
+      "encompass_description": "Borrower First Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4001": {
+      "key": "borrower_middle_name",
+      "label": "Borrower Middle Name",
+      "encompass_description": "Borrower Middle Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4002": {
+      "key": "borrower_last_name",
+      "label": "Borrower Last Name",
+      "encompass_description": "Borrower Last Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4003": {
+      "key": "borrower_name_suffix",
+      "label": "Borrower Name Suffix",
+      "encompass_description": "Borrower Suffix Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4004": {
+      "key": "coborrower_first_name",
+      "label": "Co-Borrower First Name",
+      "encompass_description": "Co-Borrower First Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4005": {
+      "key": "coborrower_middle_name",
+      "label": "Co-Borrower Middle Name",
+      "encompass_description": "Co-Borrower Middle Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4006": {
+      "key": "coborrower_last_name",
+      "label": "Co-Borrower Last Name",
+      "encompass_description": "Co-Borrower Last Name",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "403": {
+      "key": "declaration_ownership_3yr",
+      "label": "Declaration 5a(A) \u2014 Ownership Interest Past 3 Years",
+      "encompass_description": "Borr Declarations Ownership in 3 years",
+      "category": "declarations",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Yes",
+          "text": "Yes"
+        },
+        {
+          "value": "No",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4114": {
+      "key": "borrower_est_closing_date",
+      "label": "Borrower Est Closing Date",
+      "encompass_description": "Borrower Est Closing Date",
+      "category": "closing",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "418": {
+      "key": "declaration_primary_residence",
+      "label": "Declaration - Primary Residence Intent (5a-A)",
+      "encompass_description": "Borr Declarations A",
+      "category": "declarations",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Yes",
+          "text": "Yes"
+        },
+        {
+          "value": "No",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "420": {
+      "key": "lien_position",
+      "label": "Lien Position",
+      "encompass_description": "Trans Details Lien Position",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "FirstLien",
+          "text": "First"
+        },
+        {
+          "value": "SecondLien",
+          "text": "Subordinate"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "432": {
+      "key": "lock_days",
+      "label": "Lock Period (# of Days)",
+      "encompass_description": "Trans Details Rate Lock # Days",
+      "category": "loan_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4533": {
+      "key": "borr_p1_work_phone",
+      "label": "Borrower Work Phone (1003 URLA Page 1)",
+      "encompass_description": "Borr Work Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4534": {
+      "key": "coborr_p1_work_phone",
+      "label": "Co-Borrower Work Phone (1003 URLA Page 1)",
+      "encompass_description": "Co-Borr Work Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "471": {
+      "key": "borrower_sex",
+      "label": "Borrower Sex",
+      "encompass_description": "Borr Sex Male/Female",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Male",
+          "text": "Male"
+        },
+        {
+          "value": "Female",
+          "text": "Female"
+        },
+        {
+          "value": "InformationNotProvidedUnknown",
+          "text": "Not Provided/Unknown"
+        },
+        {
+          "value": "NotApplicable",
+          "text": "Not Applicable"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "478": {
+      "key": "coborrower_sex",
+      "label": "Co-Borrower Sex",
+      "encompass_description": "Co-Borr Sex Male/Female",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Male",
+          "text": "Male"
+        },
+        {
+          "value": "Female",
+          "text": "Female"
+        },
+        {
+          "value": "InformationNotProvidedUnknown",
+          "text": "Not Provided/Unknown"
+        },
+        {
+          "value": "NotApplicable",
+          "text": "Not Applicable"
+        },
+        {
+          "value": "No co-applicant",
+          "text": "No co-applicant"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "479": {
+      "key": "marital_status",
+      "label": "Borrower Marital Status",
+      "encompass_description": "Trans Details Application Taken By",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "FaceToFace",
+          "text": "Face-to-Face Interview (includes Electronic Media with Video Component)"
+        },
+        {
+          "value": "Internet",
+          "text": "Email or Internet"
+        },
+        {
+          "value": "Mail",
+          "text": "Fax or Mail"
+        },
+        {
+          "value": "Telephone",
+          "text": "Telephone Interview"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4920": {
+      "key": "borrower_accept_sms",
+      "label": "Borrower Accept Text/SMS",
+      "encompass_description": "Borrower - Text Message Preferred",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "4935": {
+      "key": "coborrower_accept_sms",
+      "label": "Co-Borrower Accept Text/SMS",
+      "encompass_description": "CoBorrower - Text Message Preferred",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "5": {
+      "key": "monthly_payment",
+      "label": "Monthly Payment (P&I)",
+      "encompass_description": "Trans Details Mo Pymt (P&I)",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "5053": {
+      "key": "borrower_gov_id",
+      "label": "Borrower Government ID",
+      "encompass_description": "Borrower Government ID number that identifies the entity based on a government-issued ID or corporate filing.",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "5054": {
+      "key": "coborrower_gov_id",
+      "label": "Co-Borrower Government ID",
+      "encompass_description": "Co-Borrower Government ID number that identifies the entity based on a government-issued ID or corporate filing. ",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "5055": {
+      "key": "borrower_gov_id_type",
+      "label": "Borrower Government ID Type",
+      "encompass_description": "Borrower Government ID Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "SSN",
+          "text": "SSN - Social Security Number"
+        },
+        {
+          "value": "TIN",
+          "text": "TIN - Tax Identification Number"
+        },
+        {
+          "value": "DL",
+          "text": "DL - US State Issued Driver's License ID"
+        },
+        {
+          "value": "ML",
+          "text": "ML - Military ID"
+        },
+        {
+          "value": "PPT",
+          "text": "PPT- Valid Passport"
+        },
+        {
+          "value": "AID",
+          "text": "AID - Alien Identification Card"
+        },
+        {
+          "value": "OTH",
+          "text": "OTH - Describe Other"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "5056": {
+      "key": "coborrower_gov_id_type",
+      "label": "Co-Borrower Government ID Type",
+      "encompass_description": "Co-Borrower Government ID Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "SSN",
+          "text": "SSN - Social Security Number"
+        },
+        {
+          "value": "TIN",
+          "text": "TIN - Tax Identification Number"
+        },
+        {
+          "value": "DL",
+          "text": "DL - US State Issued Driver's License ID"
+        },
+        {
+          "value": "ML",
+          "text": "ML - Military ID"
+        },
+        {
+          "value": "PPT",
+          "text": "PPT- Valid Passport"
+        },
+        {
+          "value": "AID",
+          "text": "AID - Alien Identification Card"
+        },
+        {
+          "value": "OTH",
+          "text": "OTH - Describe Other"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "52": {
+      "key": "borrower_marital_status",
+      "label": "Borrower Marital Status",
+      "encompass_description": "Borr Marital Status",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Married",
+          "text": "Married"
+        },
+        {
+          "value": "Unmarried",
+          "text": "Unmarried"
+        },
+        {
+          "value": "Separated",
+          "text": "Separated"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "53": {
+      "key": "borrower_dependents_count",
+      "label": "Borrower Dependents Count",
+      "encompass_description": "Borr Dependent #",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "54": {
+      "key": "borrower_dependent_ages",
+      "label": "Borrower Dependent Ages",
+      "encompass_description": "Borr Dependents Ages",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "541": {
+      "key": "los_flood_zone",
+      "label": "Flood Zone (Flood Information form)",
+      "encompass_description": "Property Info Flood Zone",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Yes",
+          "text": "Yes"
+        },
+        {
+          "value": "No",
+          "text": "No"
+        },
+        {
+          "value": "None",
+          "text": "None"
+        },
+        {
+          "value": "A1-A30",
+          "text": "A1-A30"
+        },
+        {
+          "value": "A1",
+          "text": "A1"
+        },
+        {
+          "value": "A2",
+          "text": "A2"
+        },
+        {
+          "value": "A3",
+          "text": "A3"
+        },
+        {
+          "value": "A4",
+          "text": "A4"
+        },
+        {
+          "value": "A5",
+          "text": "A5"
+        },
+        {
+          "value": "A6",
+          "text": "A6"
+        },
+        {
+          "value": "A7",
+          "text": "A7"
+        },
+        {
+          "value": "A8",
+          "text": "A8"
+        },
+        {
+          "value": "A9",
+          "text": "A9"
+        },
+        {
+          "value": "A10",
+          "text": "A10"
+        },
+        {
+          "value": "A11",
+          "text": "A11"
+        },
+        {
+          "value": "A12",
+          "text": "A12"
+        },
+        {
+          "value": "A13",
+          "text": "A13"
+        },
+        {
+          "value": "A14",
+          "text": "A14"
+        },
+        {
+          "value": "A15",
+          "text": "A15"
+        },
+        {
+          "value": "A16",
+          "text": "A16"
+        },
+        {
+          "value": "A17",
+          "text": "A17"
+        },
+        {
+          "value": "A18",
+          "text": "A18"
+        },
+        {
+          "value": "A19",
+          "text": "A19"
+        },
+        {
+          "value": "A20",
+          "text": "A20"
+        },
+        {
+          "value": "A21",
+          "text": "A21"
+        },
+        {
+          "value": "A22",
+          "text": "A22"
+        },
+        {
+          "value": "A23",
+          "text": "A23"
+        },
+        {
+          "value": "A24",
+          "text": "A24"
+        },
+        {
+          "value": "A25",
+          "text": "A25"
+        },
+        {
+          "value": "A26",
+          "text": "A26"
+        },
+        {
+          "value": "A27",
+          "text": "A27"
+        },
+        {
+          "value": "A28",
+          "text": "A28"
+        },
+        {
+          "value": "A29",
+          "text": "A29"
+        },
+        {
+          "value": "A30",
+          "text": "A30"
+        },
+        {
+          "value": "V1-V30",
+          "text": "V1-V30"
+        },
+        {
+          "value": "V1",
+          "text": "V1"
+        },
+        {
+          "value": "V2",
+          "text": "V2"
+        },
+        {
+          "value": "V3",
+          "text": "V3"
+        },
+        {
+          "value": "V4",
+          "text": "V4"
+        },
+        {
+          "value": "V5",
+          "text": "V5"
+        },
+        {
+          "value": "V6",
+          "text": "V6"
+        },
+        {
+          "value": "V7",
+          "text": "V7"
+        },
+        {
+          "value": "V8",
+          "text": "V8"
+        },
+        {
+          "value": "V9",
+          "text": "V9"
+        },
+        {
+          "value": "V10",
+          "text": "V10"
+        },
+        {
+          "value": "V11",
+          "text": "V11"
+        },
+        {
+          "value": "V12",
+          "text": "V12"
+        },
+        {
+          "value": "V13",
+          "text": "V13"
+        },
+        {
+          "value": "V14",
+          "text": "V14"
+        },
+        {
+          "value": "V15",
+          "text": "V15"
+        },
+        {
+          "value": "V16",
+          "text": "V16"
+        },
+        {
+          "value": "V17",
+          "text": "V17"
+        },
+        {
+          "value": "V18",
+          "text": "V18"
+        },
+        {
+          "value": "V19",
+          "text": "V19"
+        },
+        {
+          "value": "V20",
+          "text": "V20"
+        },
+        {
+          "value": "V21",
+          "text": "V21"
+        },
+        {
+          "value": "V22",
+          "text": "V22"
+        },
+        {
+          "value": "V23",
+          "text": "V23"
+        },
+        {
+          "value": "V24",
+          "text": "V24"
+        },
+        {
+          "value": "V25",
+          "text": "V25"
+        },
+        {
+          "value": "V26",
+          "text": "V26"
+        },
+        {
+          "value": "V27",
+          "text": "V27"
+        },
+        {
+          "value": "V28",
+          "text": "V28"
+        },
+        {
+          "value": "V29",
+          "text": "V29"
+        },
+        {
+          "value": "V30",
+          "text": "V30"
+        },
+        {
+          "value": "A",
+          "text": "A"
+        },
+        {
+          "value": "A99",
+          "text": "A99"
+        },
+        {
+          "value": "AE",
+          "text": "AE"
+        },
+        {
+          "value": "AH",
+          "text": "AH"
+        },
+        {
+          "value": "AO",
+          "text": "AO"
+        },
+        {
+          "value": "AR",
+          "text": "AR"
+        },
+        {
+          "value": "AR/A",
+          "text": "AR/A"
+        },
+        {
+          "value": "AR/AE",
+          "text": "AR/AE"
+        },
+        {
+          "value": "AR/AH",
+          "text": "AR/AH"
+        },
+        {
+          "value": "AR/AO",
+          "text": "AR/AO"
+        },
+        {
+          "value": "B",
+          "text": "B"
+        },
+        {
+          "value": "BX",
+          "text": "BX"
+        },
+        {
+          "value": "C",
+          "text": "C"
+        },
+        {
+          "value": "CX",
+          "text": "CX"
+        },
+        {
+          "value": "D",
+          "text": "D"
+        },
+        {
+          "value": "FHSHA",
+          "text": "FHSHA"
+        },
+        {
+          "value": "S",
+          "text": "S"
+        },
+        {
+          "value": "V",
+          "text": "V"
+        },
+        {
+          "value": "VE",
+          "text": "VE"
+        },
+        {
+          "value": "VO",
+          "text": "VO"
+        },
+        {
+          "value": "X",
+          "text": "X"
+        },
+        {
+          "value": "X500",
+          "text": "X500"
+        },
+        {
+          "value": "XS",
+          "text": "XS"
+        },
+        {
+          "value": "XU",
+          "text": "XU"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "558": {
+      "key": "owned_properties_count",
+      "label": "Number of Owned Properties (REO)",
+      "encompass_description": "Fees Aggregate Adj",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "60": {
+      "key": "coborrower_experian_score",
+      "label": "Co-Borrower Experian/FICO Score",
+      "encompass_description": "Co-Borr Experian FICO",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "608": {
+      "key": "amort_type",
+      "label": "Amortization Type",
+      "encompass_description": "Trans Details Amort Type",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Fixed",
+          "text": "Fixed Rate"
+        },
+        {
+          "value": "GraduatedPaymentMortgage",
+          "text": "GPM - Rate"
+        },
+        {
+          "value": "AdjustableRate",
+          "text": "ARM"
+        },
+        {
+          "value": "OtherAmortizationType",
+          "text": "Other"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "638": {
+      "key": "seller_1_name",
+      "label": "Seller 1 Name",
+      "encompass_description": "File Contacts Seller Name",
+      "category": "transaction",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "65": {
+      "key": "borrower_ssn",
+      "label": "Borrower SSN",
+      "encompass_description": "Borr SSN",
+      "category": "borrower_info",
+      "format": "SSN",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "66": {
+      "key": "borrower_home_phone",
+      "label": "Borrower Home Phone",
+      "encompass_description": "Borr Home Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "67": {
+      "key": "experian_score",
+      "label": "Borrower Experian/FICO Score",
+      "encompass_description": "Borr Experian FICO",
+      "category": "credit",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "732": {
+      "key": "total_assets",
+      "label": "Total Assets",
+      "encompass_description": "Assets Total Assets",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": true,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "733": {
+      "key": "checking_balance",
+      "label": "Checking Account Balance",
+      "encompass_description": "Liabilities Total Liability Balance",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "734": {
+      "key": "savings_balance",
+      "label": "Savings Account Balance",
+      "encompass_description": "Liabilities Net Worth",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": true,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "736": {
+      "key": "monthly_income",
+      "label": "Monthly Income",
+      "encompass_description": "Income Total Mo Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": true,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "761": {
+      "key": "lock_date",
+      "label": "Lock Date",
+      "encompass_description": "Trans Details Lock Date",
+      "category": "loan_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "762": {
+      "key": "lock_expires",
+      "label": "Lock Expiration Date",
+      "encompass_description": "Trans Details Rate Lock Expires",
+      "category": "loan_info",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "763": {
+      "key": "closing_date",
+      "label": "Est Closing Date",
+      "encompass_description": "Trans Details Est Closing Date",
+      "category": "closing",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "84": {
+      "key": "coborrower_marital_status",
+      "label": "Co-Borrower Marital Status",
+      "encompass_description": "Co-Borr Marital Status",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Married",
+          "text": "Married"
+        },
+        {
+          "value": "Unmarried",
+          "text": "Unmarried"
+        },
+        {
+          "value": "Separated",
+          "text": "Separated"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "85": {
+      "key": "coborr_dependents_count",
+      "label": "Co-Borrower Number of Dependents",
+      "encompass_description": "Co-Borr # Dependents",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "86": {
+      "key": "coborr_dependents_ages",
+      "label": "Co-Borrower Dependents Ages",
+      "encompass_description": "Co-Borr Dependents Ages",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "900": {
+      "key": "hud_22a_own_sold_re",
+      "label": "22a - Own/Sold Other Real Estate",
+      "encompass_description": "Borr Cert Own/Sold Other than RE",
+      "category": "loan_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "912": {
+      "key": "total_monthly_payment",
+      "label": "Total Monthly Payment",
+      "encompass_description": "Expenses Proposed Total Housing",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "97": {
+      "key": "coborrower_ssn",
+      "label": "Co-Borrower SSN",
+      "encompass_description": "Co-Borr SSN",
+      "category": "borrower_info",
+      "format": "SSN",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "98": {
+      "key": "coborrower_home_phone",
+      "label": "Co-Borrower Home Phone",
+      "encompass_description": "Co-Borr Home Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "981": {
+      "key": "prior_property_type",
+      "label": "Declaration 5a(A)(1) \u2014 Type of Prior Property",
+      "encompass_description": "Borr Declarations Ownership Occupancy",
+      "category": "declarations",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "PrimaryResidence",
+          "text": "Primary Residence"
+        },
+        {
+          "value": "FHASecondaryResidence",
+          "text": "FHA Secondary Residence"
+        },
+        {
+          "value": "SecondaryResidence",
+          "text": "Second Home"
+        },
+        {
+          "value": "Investment",
+          "text": "Investment Property"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0102": {
+      "key": "be01_employer_name",
+      "label": "Employment 1 \u2014 Employer Name",
+      "encompass_description": "Borr Employer Name",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0105": {
+      "key": "be01_employer_city",
+      "label": "Employment 1 \u2014 Employer City",
+      "encompass_description": "Borr Employer City",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0106": {
+      "key": "be01_employer_state",
+      "label": "Employment 1 \u2014 Employer State",
+      "encompass_description": "Borr Employer State",
+      "category": "employment",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0107": {
+      "key": "be01_employer_zip",
+      "label": "Employment 1 \u2014 Employer Zip",
+      "encompass_description": "Borr Employer Zip",
+      "category": "employment",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0108": {
+      "key": "be01_voe_is_for",
+      "label": "Employment 1 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "encompass_description": "Borr Employer Verif is For Borrower",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0109": {
+      "key": "be01_employment_type",
+      "label": "Employment 1 \u2014 Type (Current / Prior)",
+      "encompass_description": "Borr Employer Current Indicator",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Current"
+        },
+        {
+          "value": "N",
+          "text": "Prior"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0110": {
+      "key": "be01_position_title",
+      "label": "Employment 1 \u2014 Position / Title / Type of Business",
+      "encompass_description": "Borr Employer Position",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0113": {
+      "key": "be01_years_in_job",
+      "label": "Employment 1 \u2014 Years in This Job",
+      "encompass_description": "Borr Employer Years on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0114": {
+      "key": "be01_date_terminated",
+      "label": "Employment 1 \u2014 Date Terminated",
+      "encompass_description": "Borr Employer Date Terminated",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0116": {
+      "key": "be01_years_in_line_of_work",
+      "label": "Employment 1 \u2014 Years in Line of Work",
+      "encompass_description": "Borr Years in Line of Work",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0117": {
+      "key": "be01_employer_phone",
+      "label": "Employment 1 \u2014 Employer Phone",
+      "encompass_description": "Borr Employer Phone",
+      "category": "employment",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0119": {
+      "key": "be01_monthly_base_pay",
+      "label": "Employment 1 \u2014 Monthly Base Pay",
+      "encompass_description": "Borr Employer Base Pay",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0133": {
+      "key": "be01_months_in_job",
+      "label": "Employment 1 \u2014 Months in This Job",
+      "encompass_description": "Borr Employer Months on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0151": {
+      "key": "be01_date_hired",
+      "label": "Employment 1 \u2014 Date Hired",
+      "encompass_description": "Borr Employer Date Hired",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0152": {
+      "key": "be01_months_in_line_of_work",
+      "label": "Employment 1 \u2014 Months in Line of Work",
+      "encompass_description": "Borr Months in Line of Work",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0158": {
+      "key": "be01_employer_unit_type",
+      "label": "Employment 1 \u2014 Unit Type (Suite / Apt / etc.)",
+      "encompass_description": "Borr Employer Index Unit Type",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0159": {
+      "key": "be01_employer_unit_number",
+      "label": "Employment 1 \u2014 Unit Number",
+      "encompass_description": "Borr Employer Index Unit Number",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0160": {
+      "key": "be01_employer_street",
+      "label": "Employment 1 \u2014 Employer Street Address",
+      "encompass_description": "Mortgage Property URLA 2020 Street Address",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0180": {
+      "key": "be01_foreign_address",
+      "label": "Employment 1 \u2014 Foreign Address Checkbox",
+      "encompass_description": "Borr Employer Foreign Address Indicator",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0202": {
+      "key": "be02_employer_name",
+      "label": "Employment 2 \u2014 Employer Name",
+      "encompass_description": "Borr Employer Name",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0205": {
+      "key": "be02_employer_city",
+      "label": "Employment 2 \u2014 Employer City",
+      "encompass_description": "Borr Employer City",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0206": {
+      "key": "be02_employer_state",
+      "label": "Employment 2 \u2014 Employer State",
+      "encompass_description": "Borr Employer State",
+      "category": "employment",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0207": {
+      "key": "be02_employer_zip",
+      "label": "Employment 2 \u2014 Employer Zip",
+      "encompass_description": "Borr Employer Zip",
+      "category": "employment",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0208": {
+      "key": "be02_voe_is_for",
+      "label": "Employment 2 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "encompass_description": "Borr Employer Verif is For Borrower",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0209": {
+      "key": "be02_employment_type",
+      "label": "Employment 2 \u2014 Type (Current / Prior)",
+      "encompass_description": "Borr Employer Current Indicator",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Current"
+        },
+        {
+          "value": "N",
+          "text": "Prior"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0210": {
+      "key": "be02_position_title",
+      "label": "Employment 2 \u2014 Position / Title / Type of Business",
+      "encompass_description": "Borr Employer Position",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0213": {
+      "key": "be02_years_in_job",
+      "label": "Employment 2 \u2014 Years in This Job",
+      "encompass_description": "Borr Employer Years on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0214": {
+      "key": "be02_date_terminated",
+      "label": "Employment 2 \u2014 Date Terminated",
+      "encompass_description": "Borr Employer Date Terminated",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0216": {
+      "key": "be02_years_in_line_of_work",
+      "label": "Employment 2 \u2014 Years in Line of Work",
+      "encompass_description": "Borr Years in Line of Work",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0217": {
+      "key": "be02_employer_phone",
+      "label": "Employment 2 \u2014 Employer Phone",
+      "encompass_description": "Borr Employer Phone",
+      "category": "employment",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0219": {
+      "key": "be02_monthly_base_pay",
+      "label": "Employment 2 \u2014 Monthly Base Pay",
+      "encompass_description": "Borr Employer Base Pay",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0233": {
+      "key": "be02_months_in_job",
+      "label": "Employment 2 \u2014 Months in This Job",
+      "encompass_description": "Borr Employer Months on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0236": {
+      "key": "be01_authorization_printed",
+      "label": "Employment 1 \u2014 Print Authorization on Signature Line",
+      "encompass_description": "Borr Employer Print - See Attached Authorization",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0251": {
+      "key": "be02_date_hired",
+      "label": "Employment 2 \u2014 Date Hired",
+      "encompass_description": "Borr Employer Date Hired",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0252": {
+      "key": "be02_months_in_line_of_work",
+      "label": "Employment 2 \u2014 Months in Line of Work",
+      "encompass_description": "Borr Months in Line of Work",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0258": {
+      "key": "be02_employer_unit_type",
+      "label": "Employment 2 \u2014 Unit Type",
+      "encompass_description": "Borr Employer Index Unit Type",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0259": {
+      "key": "be02_employer_unit_number",
+      "label": "Employment 2 \u2014 Unit Number",
+      "encompass_description": "Borr Employer Index Unit Number",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0260": {
+      "key": "be02_employer_street",
+      "label": "Employment 2 \u2014 Employer Street Address",
+      "encompass_description": "Mortgage Property URLA 2020 Street Address",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0280": {
+      "key": "be02_foreign_address",
+      "label": "Employment 2 \u2014 Foreign Address Checkbox",
+      "encompass_description": "Borr Employer Foreign Address Indicator",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0302": {
+      "key": "be03_employer_name",
+      "label": "Employment 3 \u2014 Employer Name",
+      "encompass_description": "Borr Employer Name",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0308": {
+      "key": "be03_voe_is_for",
+      "label": "Employment 3 \u2014 VOE Is For (Borrower / Co-Borrower)",
+      "encompass_description": "Borr Employer Verif is For Borrower",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": true,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0309": {
+      "key": "be03_employment_type",
+      "label": "Employment 3 \u2014 Type (Current / Prior)",
+      "encompass_description": "Borr Employer Current Indicator",
+      "category": "employment",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": true,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Current"
+        },
+        {
+          "value": "N",
+          "text": "Prior"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0310": {
+      "key": "be03_position_title",
+      "label": "Employment 3 \u2014 Position / Title / Type of Business",
+      "encompass_description": "Borr Employer Position",
+      "category": "employment",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0313": {
+      "key": "be03_years_in_job",
+      "label": "Employment 3 \u2014 Years in This Job",
+      "encompass_description": "Borr Employer Years on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0314": {
+      "key": "be03_date_terminated",
+      "label": "Employment 3 \u2014 Date Terminated",
+      "encompass_description": "Borr Employer Date Terminated",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0319": {
+      "key": "be03_monthly_base_pay",
+      "label": "Employment 3 \u2014 Monthly Base Pay",
+      "encompass_description": "Borr Employer Base Pay",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0333": {
+      "key": "be03_months_in_job",
+      "label": "Employment 3 \u2014 Months in This Job",
+      "encompass_description": "Borr Employer Months on Job",
+      "category": "employment",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "BE0351": {
+      "key": "be03_date_hired",
+      "label": "Employment 3 \u2014 Date Hired",
+      "encompass_description": "Borr Employer Date Hired",
+      "category": "employment",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "Borr.OccupancyIntent": {
+      "key": "borrower_occupancy_intent",
+      "label": "Borrower Occupancy Intent",
+      "encompass_description": "Borrower Vesting Borr POA Occupancy Intent",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Will Occupy",
+          "text": "Will Occupy"
+        },
+        {
+          "value": "Will Not Occupy",
+          "text": "Will Not Occupy"
+        },
+        {
+          "value": "Currently Occupy",
+          "text": "Currently Occupy"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "CUST42FV": {
+      "key": "non_del_inv_approval",
+      "label": "Non-Del Inv. Approval (Prior Approval)",
+      "encompass_description": "Prior Approval",
+      "category": "processor_workflow",
+      "format": "DROPDOWNLIST",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "YES",
+          "text": "YES"
+        },
+        {
+          "value": "NO",
+          "text": "NO"
+        }
+      ],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CUST50FV": {
+      "key": "signing_date",
+      "label": "Signing Date",
+      "encompass_description": "Signing Date",
+      "category": "closing",
+      "format": "DATE",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.AMI.ELIGIBILITY": {
+      "key": "ami_eligibility",
+      "label": "AMI / Affordable Loan Eligibility",
+      "category": "grant_program",
+      "found_in_schema": false
+    },
+    "CX.AMI.PERCENTAGE": {
+      "key": "ami_percentage",
+      "label": "AMI Percentage",
+      "category": "grant_program",
+      "found_in_schema": false
+    },
+    "CX.APPRAISAL.WAIVER": {
+      "key": "appraisal_waiver",
+      "label": "Appraisal Waiver",
+      "category": "collateral",
+      "found_in_schema": false
+    },
+    "CX.ATTACHMENT.TYPE": {
+      "key": "attachment_type",
+      "label": "Attachment Type (Attached/Detached)",
+      "category": "property",
+      "found_in_schema": false
+    },
+    "CX.CPLINFILE": {
+      "key": "cert_cpl_in_file",
+      "label": "CPL in file with correct names, loan number, addressed to AWM",
+      "encompass_description": "CPLINFILE",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.DOCUMENTATIONTYPE": {
+      "key": "doc_type_submission",
+      "label": "Documentation Type (NON-QM Submission)",
+      "encompass_description": "Documentation Type",
+      "category": "processor_workflow",
+      "format": "DROPDOWNLIST",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Full Doc",
+          "text": "Full Doc"
+        },
+        {
+          "value": "Bank Statement(s)",
+          "text": "Bank Statement(s)"
+        },
+        {
+          "value": "Verification of Employment",
+          "text": "Verification of Employment"
+        },
+        {
+          "value": "Asset Qualification",
+          "text": "Asset Qualification"
+        },
+        {
+          "value": "Debt Service Coverage Ratio",
+          "text": "Debt Service Coverage Ratio"
+        },
+        {
+          "value": "1099",
+          "text": "1099"
+        },
+        {
+          "value": "CPA P&L 12 mos",
+          "text": "CPA P&L 12 mos"
+        },
+        {
+          "value": "CPA P&L 24 mos",
+          "text": "CPA P&L 24 mos"
+        }
+      ],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.ESCROWEOINFILE": {
+      "key": "cert_escrow_eo_in_file",
+      "label": "Escrow E&O insurance in file",
+      "encompass_description": "ESCROWEOINFILE",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.FNMA.ADDITIONAL.DATA": {
+      "key": "fnma_additional_data",
+      "label": "Fannie Mae Additional Data - AMI",
+      "category": "grant_program",
+      "found_in_schema": false
+    },
+    "CX.HOIEFFECTIVE": {
+      "key": "cert_hoi_effective",
+      "label": "HOI is effective on or before Note Date (Wet) / Funding Date (Dry)",
+      "encompass_description": "HOIEFFECTIVE",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.KM.CL.ADDITIONAL.NOTES": {
+      "key": "cover_letter_additional_notes",
+      "label": "Cover Letter - Additional Notes (pre-populated)",
+      "category": "cover_letter",
+      "found_in_schema": false
+    },
+    "CX.KM.CL.APPRAISAL": {
+      "key": "cover_letter_appraisal",
+      "label": "Cover Letter - Appraisal (pre-populated)",
+      "category": "cover_letter",
+      "found_in_schema": false
+    },
+    "CX.KM.CL.TITLE.COMPANY": {
+      "key": "cover_letter_title_company",
+      "label": "Cover Letter - Title Company (pre-populated)",
+      "category": "cover_letter",
+      "found_in_schema": false
+    },
+    "CX.KM.SUBMISSION.NOTES": {
+      "key": "submission_notes",
+      "label": "Submission Notes (Cover Letter)",
+      "encompass_description": "Submission Notes",
+      "category": "cover_letter",
+      "format": "STRING",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 8000,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.NBSFLAG": {
+      "key": "nbs_flag",
+      "label": "Non-Borrowing Spouse Flag",
+      "encompass_description": "NBSFLAG",
+      "category": "borrower_info",
+      "format": "DROPDOWNLIST",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "YES",
+          "text": "YES"
+        },
+        {
+          "value": "NO",
+          "text": "NO"
+        }
+      ],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.NBSINFO": {
+      "key": "nbs_info",
+      "label": "Non-Borrowing Spouse Name",
+      "encompass_description": "NBSINFO",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 50,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.PRODUCTTYPE": {
+      "key": "product_type",
+      "label": "Product Type",
+      "encompass_description": "Product Type",
+      "category": "processor_workflow",
+      "format": "DROPDOWNLIST",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Conforming",
+          "text": "Conforming"
+        },
+        {
+          "value": "FHA",
+          "text": "FHA"
+        },
+        {
+          "value": "VA",
+          "text": "VA"
+        },
+        {
+          "value": "USDA",
+          "text": "USDA"
+        },
+        {
+          "value": "DPA/Bond",
+          "text": "DPA/Bond"
+        },
+        {
+          "value": "Jumbo",
+          "text": "Jumbo"
+        },
+        {
+          "value": "NonQM",
+          "text": "NonQM"
+        },
+        {
+          "value": "Reverse",
+          "text": "Reverse"
+        },
+        {
+          "value": "2nd/HELOC",
+          "text": "2nd/HELOC"
+        },
+        {
+          "value": "Private",
+          "text": "Private"
+        },
+        {
+          "value": "Construction",
+          "text": "Construction"
+        },
+        {
+          "value": "Bridge",
+          "text": "Bridge"
+        }
+      ],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.TAXES": {
+      "key": "taxes_dropdown",
+      "label": "Taxes",
+      "encompass_description": "TAXES",
+      "category": "closing",
+      "format": "DROPDOWNLIST",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Unimproved",
+          "text": "Unimproved"
+        },
+        {
+          "value": "Improved",
+          "text": "Improved"
+        }
+      ],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.VESTINGVERIFBOR": {
+      "key": "cert_vesting_verif_borrower",
+      "label": "Vesting Verified - Borrower",
+      "encompass_description": "VESTINGVERIFBOR",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.VESTINGVERIFTITLE": {
+      "key": "cert_vesting_verif_title",
+      "label": "Vesting Verified - Title",
+      "encompass_description": "VESTINGVERIFTITLE",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.WIREDATELO": {
+      "key": "wire_requested_date",
+      "label": "Wire Requested Date",
+      "encompass_description": "Wire Request Date",
+      "category": "closing",
+      "format": "DATE",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CX.WIREINSTINFILE": {
+      "key": "cert_wire_instructions_in_file",
+      "label": "Escrow wire instructions in file",
+      "encompass_description": "WIREINSTINFILE",
+      "category": "closing",
+      "format": "X",
+      "data_type": null,
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": true,
+      "found_in_schema": true
+    },
+    "CoBorr.OccupancyIntent": {
+      "key": "coborrower_occupancy_intent",
+      "label": "Co-Borrower Occupancy Intent",
+      "encompass_description": "Borrower Vesting Borr POA Occupancy Intent",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Will Occupy",
+          "text": "Will Occupy"
+        },
+        {
+          "value": "Will Not Occupy",
+          "text": "Will Not Occupy"
+        },
+        {
+          "value": "Currently Occupy",
+          "text": "Currently Occupy"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "Document.ExpirationDate.MORTGAGE INSURANCE": {
+      "key": "mi_doc_expiration",
+      "label": "Mortgage Insurance Document Expiration Date",
+      "category": "insurance",
+      "found_in_schema": false
+    },
+    "FE0112": {
+      "key": "borr_1c_total_gross_income",
+      "label": "Borrower 1c \u2014 Total Gross Income",
+      "encompass_description": "Borr Total Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0117": {
+      "key": "borr_part2_phone",
+      "label": "Borrower Phone (1003 URLA Part 2)",
+      "encompass_description": "Borr Business Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0119": {
+      "key": "borr_base_monthly_income",
+      "label": "Borrower \u2014 Base Monthly Income (Section 1b)",
+      "encompass_description": "Borr Base Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0156": {
+      "key": "borr_1c_monthly_income",
+      "label": "Borrower 1c \u2014 Monthly Income (or Loss)",
+      "encompass_description": "Borr Employment Monthly Income Amount",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0212": {
+      "key": "coborr_1c_total_gross_income",
+      "label": "Co-Borrower 1c \u2014 Total Gross Income",
+      "encompass_description": "Co Borr Total Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0217": {
+      "key": "coborr_part2_phone",
+      "label": "Co-Borrower Phone (1003 URLA Part 2)",
+      "encompass_description": "Co-Borr Business Phone",
+      "category": "borrower_info",
+      "format": "PHONE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 17,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0219": {
+      "key": "coborr_base_monthly_income",
+      "label": "Co-Borrower \u2014 Base Monthly Income (Section 1b)",
+      "encompass_description": "Co Borr Base Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0256": {
+      "key": "coborr_1c_monthly_income",
+      "label": "Co-Borrower 1c \u2014 Monthly Income (or Loss)",
+      "encompass_description": "Co Borr Employment Monthly Income Amount",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0302": {
+      "key": "borr_1c_employer_name",
+      "label": "Borrower 1c \u2014 Employer or Business Name",
+      "encompass_description": "Borr Additional Employer",
+      "category": "income",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0312": {
+      "key": "borr_1d_total_gross_income",
+      "label": "Borrower 1d \u2014 Total Gross Income",
+      "encompass_description": "Borr Additional Employment Total Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0316": {
+      "key": "borr_1c_years_in_line",
+      "label": "Borrower 1c \u2014 Years in Line of Work",
+      "encompass_description": "Borr Additional Employment Yrs Line of Work",
+      "category": "income",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0351": {
+      "key": "borr_1c_start_date",
+      "label": "Borrower 1c \u2014 Start Date",
+      "encompass_description": "Borr Additional Employment Start Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0352": {
+      "key": "borr_1c_months_in_line",
+      "label": "Borrower 1c \u2014 Months in Line of Work",
+      "encompass_description": "Borr Additional Employment Mos on Job",
+      "category": "income",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0356": {
+      "key": "borr_1d_monthly_income",
+      "label": "Borrower 1d \u2014 Monthly Income (or Loss)",
+      "encompass_description": "Borr Additional Employment Monthly Income Amount",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0402": {
+      "key": "coborr_1c_employer_name",
+      "label": "Co-Borrower 1c \u2014 Employer or Business Name",
+      "encompass_description": "CoBorr Additional Employer",
+      "category": "income",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0412": {
+      "key": "coborr_1d_total_gross_income",
+      "label": "Co-Borrower 1d \u2014 Total Gross Income",
+      "encompass_description": "CoBorr Additional Employment Total Income",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0416": {
+      "key": "coborr_1c_years_in_line",
+      "label": "Co-Borrower 1c \u2014 Years in Line of Work",
+      "encompass_description": "CoBorr Additional Employment Yrs Line of Work",
+      "category": "income",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0451": {
+      "key": "coborr_1c_start_date",
+      "label": "Co-Borrower 1c \u2014 Start Date",
+      "encompass_description": "CoBorr Additional Employment Start Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0452": {
+      "key": "coborr_1c_months_in_line",
+      "label": "Co-Borrower 1c \u2014 Months in Line of Work",
+      "encompass_description": "CoBorr Additional Employment Mos on Job",
+      "category": "income",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0456": {
+      "key": "coborr_1d_monthly_income",
+      "label": "Co-Borrower 1d \u2014 Monthly Income (or Loss)",
+      "encompass_description": "CoBorr Additional Employment Monthly Income Amount",
+      "category": "income",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0502": {
+      "key": "borr_1d_employer_name",
+      "label": "Borrower 1d \u2014 Employer or Business Name",
+      "encompass_description": "Borr Previous Employer",
+      "category": "income",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0514": {
+      "key": "borr_1d_end_date",
+      "label": "Borrower 1d \u2014 End Date",
+      "encompass_description": "Borr Previous Employment End Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0551": {
+      "key": "borr_1d_start_date",
+      "label": "Borrower 1d \u2014 Start Date",
+      "encompass_description": "Borr Previous Employment Start Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0602": {
+      "key": "coborr_1d_employer_name",
+      "label": "Co-Borrower 1d \u2014 Employer or Business Name",
+      "encompass_description": "CoBorr Previous Employer",
+      "category": "income",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0614": {
+      "key": "coborr_1d_end_date",
+      "label": "Co-Borrower 1d \u2014 End Date",
+      "encompass_description": "CoBorr Previous Employment End Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FE0651": {
+      "key": "coborr_1d_start_date",
+      "label": "Co-Borrower 1d \u2014 Start Date",
+      "encompass_description": "CoBorr Previous Employment Start Date",
+      "category": "income",
+      "format": "DATE",
+      "data_type": "DateTime",
+      "read_only": false,
+      "max_length": 10,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0106": {
+      "key": "borr_present_city",
+      "label": "Borrower Present City",
+      "encompass_description": "Borr Present City",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0107": {
+      "key": "borr_present_state",
+      "label": "Borrower Present State",
+      "encompass_description": "Borr Present State",
+      "category": "borrower_info",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0108": {
+      "key": "borr_present_zip",
+      "label": "Borrower Present ZIP",
+      "encompass_description": "Borr Present Zip",
+      "category": "borrower_info",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0112": {
+      "key": "borr_present_yrs",
+      "label": "Borrower Years at Current Address",
+      "encompass_description": "Borr Own # Yrs",
+      "category": "borrower_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0115": {
+      "key": "borr_housing_type",
+      "label": "Borrower Current Housing Type",
+      "encompass_description": "Borr Own/Rent Present Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "NoPrimaryHousingExpense",
+          "text": "No Primary Housing Expense"
+        },
+        {
+          "value": "Rent",
+          "text": "Rent"
+        },
+        {
+          "value": "Own",
+          "text": "Own"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0116": {
+      "key": "borr_housing_amount",
+      "label": "Borrower Current Housing Expense Amount",
+      "encompass_description": "Borr Present Rent",
+      "category": "borrower_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0124": {
+      "key": "borr_present_mos",
+      "label": "Borrower Months at Current Address",
+      "encompass_description": "Borr Own # Mos",
+      "category": "borrower_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0125": {
+      "key": "borr_present_unit_type",
+      "label": "Borrower Present Address Unit Type",
+      "encompass_description": "Borr Current Address Unit Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0126": {
+      "key": "borr_present_addr",
+      "label": "Borrower Present Street Address",
+      "encompass_description": "Borr Present Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0127": {
+      "key": "borr_present_unit_number",
+      "label": "Borrower Present Address Unit",
+      "encompass_description": "Borr Current Address Unit ",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0212": {
+      "key": "coborr_present_yrs",
+      "label": "Co-Borrower Years at Current Address",
+      "encompass_description": "Co-Borr Own # Yrs",
+      "category": "borrower_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0224": {
+      "key": "coborr_present_mos",
+      "label": "Co-Borrower Months at Current Address",
+      "encompass_description": "Co-Borr Own # Mos",
+      "category": "borrower_info",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0225": {
+      "key": "coborr_present_unit_type",
+      "label": "Co-Borrower Present Address Unit Type",
+      "encompass_description": "Co-Borr Current Address Unit Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0227": {
+      "key": "coborr_present_unit_number",
+      "label": "Co-Borrower Present Address Unit",
+      "encompass_description": "Co-Borr Present Unit",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0306": {
+      "key": "borr_former_city",
+      "label": "Borrower Former City",
+      "encompass_description": "Borrower Previous City",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0307": {
+      "key": "borr_former_state",
+      "label": "Borrower Former State",
+      "encompass_description": "Borr Previous State",
+      "category": "borrower_info",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0308": {
+      "key": "borr_former_zip",
+      "label": "Borrower Former Zip",
+      "encompass_description": "Borr Previous Zip",
+      "category": "borrower_info",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0315": {
+      "key": "borr_former_housing_type",
+      "label": "Borrower Former Housing Type",
+      "encompass_description": "Borr NoPrimaryHousingExpense/Own/Rent Previous Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "NoPrimaryHousingExpense",
+          "text": "No Primary Housing Expense"
+        },
+        {
+          "value": "Rent",
+          "text": "Rent"
+        },
+        {
+          "value": "Own",
+          "text": "Own"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0316": {
+      "key": "borr_former_housing_amount",
+      "label": "Borrower Former Housing Expense Amount",
+      "encompass_description": "Borr Rent # Month",
+      "category": "borrower_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0325": {
+      "key": "borr_former_unit_type",
+      "label": "Borrower Former Address Unit Type",
+      "encompass_description": "Borr Former Address Unit Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0326": {
+      "key": "borr_former_addr",
+      "label": "Borrower Former Street Address",
+      "encompass_description": "Borr Prior Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0327": {
+      "key": "borr_former_unit_number",
+      "label": "Borrower Former Address Unit",
+      "encompass_description": "Borrower Former Addr Unit",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0406": {
+      "key": "coborr_former_city",
+      "label": "Co-Borrower Former City",
+      "encompass_description": "Co-Borrower Previous City",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0407": {
+      "key": "coborr_former_state",
+      "label": "Co-Borrower Former State",
+      "encompass_description": "Co-Borr Previous State",
+      "category": "borrower_info",
+      "format": "STATE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0408": {
+      "key": "coborr_former_zip",
+      "label": "Co-Borrower Former Zip",
+      "encompass_description": "Co-Borr Previous Zip",
+      "category": "borrower_info",
+      "format": "ZIPCODE",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0415": {
+      "key": "coborr_housing_type",
+      "label": "Co-Borrower Current Housing Type",
+      "encompass_description": "Co-Borr NoPrimaryHousingExpense/Own/Rent Previous Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "NoPrimaryHousingExpense",
+          "text": "No Primary Housing Expense"
+        },
+        {
+          "value": "Own",
+          "text": "Own"
+        },
+        {
+          "value": "Rent",
+          "text": "Rent"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0416": {
+      "key": "coborr_housing_amount",
+      "label": "Co-Borrower Current Housing Expense Amount",
+      "encompass_description": "Co-Borr Rent # Month",
+      "category": "borrower_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0425": {
+      "key": "coborr_former_unit_type",
+      "label": "Co-Borrower Former Address Unit Type",
+      "encompass_description": "Co-Borr Former Address Unit Type",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Apartment",
+          "text": "Apartment"
+        },
+        {
+          "value": "Basement",
+          "text": "Basement"
+        },
+        {
+          "value": "Building",
+          "text": "Building"
+        },
+        {
+          "value": "Condo",
+          "text": "Condo"
+        },
+        {
+          "value": "Department",
+          "text": "Department"
+        },
+        {
+          "value": "Floor",
+          "text": "Floor"
+        },
+        {
+          "value": "Front",
+          "text": "Front"
+        },
+        {
+          "value": "Hangar",
+          "text": "Hangar"
+        },
+        {
+          "value": "Key",
+          "text": "Key"
+        },
+        {
+          "value": "Lobby",
+          "text": "Lobby"
+        },
+        {
+          "value": "Lot",
+          "text": "Lot"
+        },
+        {
+          "value": "Lower",
+          "text": "Lower"
+        },
+        {
+          "value": "Office",
+          "text": "Office"
+        },
+        {
+          "value": "Penthouse",
+          "text": "Penthouse"
+        },
+        {
+          "value": "Pier",
+          "text": "Pier"
+        },
+        {
+          "value": "Rear",
+          "text": "Rear"
+        },
+        {
+          "value": "Room",
+          "text": "Room"
+        },
+        {
+          "value": "Side",
+          "text": "Side"
+        },
+        {
+          "value": "Space",
+          "text": "Space"
+        },
+        {
+          "value": "Stop",
+          "text": "Stop"
+        },
+        {
+          "value": "Suite",
+          "text": "Suite"
+        },
+        {
+          "value": "Trailer",
+          "text": "Trailer"
+        },
+        {
+          "value": "Unit",
+          "text": "Unit"
+        },
+        {
+          "value": "Upper",
+          "text": "Upper"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0426": {
+      "key": "coborr_former_addr",
+      "label": "Co-Borrower Former Street Address",
+      "encompass_description": "Co-Borr Prior Addr",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "FR0427": {
+      "key": "coborr_former_unit_number",
+      "label": "Co-Borrower Former Address Unit",
+      "encompass_description": "Co-Borrower Former Addr Unit",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "TSUM.PropertyFormType": {
+      "key": "property_form_type",
+      "label": "Property Form Type (Transmittal Summary)",
+      "encompass_description": "Property Valuation Form Type",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Appraisal Update And Or Completion Report",
+          "text": "Appraisal Update And Or Completion Report"
+        },
+        {
+          "value": "Desktop Underwriter Property Inspection Report",
+          "text": "Desktop Underwriter Property Inspection Report"
+        },
+        {
+          "value": "Exterior Only Inspection Individual Condominium Unit Appraisal Report",
+          "text": "Exterior Only Inspection Individual Condominium Unit Appraisal Report"
+        },
+        {
+          "value": "Exterior Only Inspection Individual Cooperative Interest Appraisal Report",
+          "text": "Exterior Only Inspection Individual Cooperative Interest Appraisal Report"
+        },
+        {
+          "value": "Exterior Only Inspection Residential Appraisal Report",
+          "text": "Exterior Only Inspection Residential Appraisal Report"
+        },
+        {
+          "value": "Individual Condominium Unit Appraisal Report",
+          "text": "Individual Condominium Unit Appraisal Report"
+        },
+        {
+          "value": "Individual Cooperative Interest Appraisal Report",
+          "text": "Individual Cooperative Interest Appraisal Report"
+        },
+        {
+          "value": "Loan Prospector Condition And Marketability",
+          "text": "Loan Prospector Condition And Marketability"
+        },
+        {
+          "value": "Manufactured Home Appraisal Report",
+          "text": "Manufactured Home Appraisal Report"
+        },
+        {
+          "value": "One Unit Residential Appraisal Field Review Report",
+          "text": "One Unit Residential Appraisal Field Review Report"
+        },
+        {
+          "value": "Property Data Report",
+          "text": "Property Data Report"
+        },
+        {
+          "value": "Small Residential Income Property Appraisal Report",
+          "text": "Small Residential Income Property Appraisal Report"
+        },
+        {
+          "value": "Two To Four Unit Residential Appraisal",
+          "text": "Two To Four Unit Residential Appraisal"
+        },
+        {
+          "value": "Uniform Residential Appraisal Report",
+          "text": "Uniform Residential Appraisal Report"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X1": {
+      "key": "borrower_citizenship",
+      "label": "Borrower Citizenship",
+      "encompass_description": "Borr Declarations",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "USCitizen",
+          "text": "US Citizen"
+        },
+        {
+          "value": "PermanentResidentAlien",
+          "text": "Permanent Resident Alien"
+        },
+        {
+          "value": "NonPermanentResidentAlien",
+          "text": "Non-Permanent Resident Alien"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X123": {
+      "key": "borr_military_active_duty",
+      "label": "Borrower Currently Serving on Active Duty",
+      "encompass_description": "Borr Currently serving on active duty",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Currently serving on active duty"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X124": {
+      "key": "borr_military_retired",
+      "label": "Borrower Retired/Discharged/Separated",
+      "encompass_description": "Borr Currently retired, discharged, or separated from service",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Currently retired, discharged, or separated from service"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X125": {
+      "key": "borr_military_reserve",
+      "label": "Borrower Non-Activated Reserve/National Guard",
+      "encompass_description": "Borr Only period of service was as a non-activated member of the Reserve or National Guard",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Only period of service was as a non-activated member of the Reserve or National Guard"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X126": {
+      "key": "coborr_military_active_duty",
+      "label": "Co-Borrower Currently Serving on Active Duty",
+      "encompass_description": "Co-Borr Currently serving on active duty",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Currently serving on active duty"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X127": {
+      "key": "coborr_military_retired",
+      "label": "Co-Borrower Retired/Discharged/Separated",
+      "encompass_description": "Co-Borr Currently retired, discharged, or separated from service",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Currently retired, discharged, or separated from service"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X128": {
+      "key": "coborr_military_reserve",
+      "label": "Co-Borrower Non-Activated Reserve/National Guard",
+      "encompass_description": "Co-Borr Only period of service was as a non-activated member of the Reserve or National Guard",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Only period of service was as a non-activated member of the Reserve or National Guard"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X13": {
+      "key": "borr_military_service",
+      "label": "Borrower Military Service Indicator",
+      "encompass_description": "Borr Military Service Indicator",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "N",
+          "text": "No"
+        },
+        {
+          "value": "Y",
+          "text": "Yes"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X136": {
+      "key": "title_names",
+      "label": "Title Names",
+      "encompass_description": "Title Will Be Full Name",
+      "category": "title",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X14": {
+      "key": "coborr_military_service",
+      "label": "Co-Borrower Military Service Indicator",
+      "encompass_description": "Co-BorrMilitary Service Indicator",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "N",
+          "text": "No"
+        },
+        {
+          "value": "Y",
+          "text": "Yes"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X188": {
+      "key": "branch_street_address",
+      "label": "Company/Branch Street Address",
+      "encompass_description": "Loan Originator Address Line Text",
+      "category": "loan_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X19": {
+      "key": "borr_military_surviving_spouse",
+      "label": "Borrower Surviving Spouse",
+      "encompass_description": "Borr Spousal VABenefits Eligibility Indicator",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Surviving Spouse"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X199": {
+      "key": "borr_1b_dna",
+      "label": "Borrower \u2014 Section 1b Does Not Apply",
+      "encompass_description": "Borr Current Employment Does Not Apply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X2": {
+      "key": "coborrower_citizenship",
+      "label": "Co-Borrower Citizenship",
+      "encompass_description": "Co-Borr Declarations",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "USCitizen",
+          "text": "US Citizen"
+        },
+        {
+          "value": "PermanentResidentAlien",
+          "text": "Permanent Resident Alien"
+        },
+        {
+          "value": "NonPermanentResidentAlien",
+          "text": "Non-Permanent Resident Alien"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X20": {
+      "key": "coborr_military_surviving_spouse",
+      "label": "Co-Borrower Surviving Spouse",
+      "encompass_description": "Co-Borr Spousal VABenefits Eligibility Indicator",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Surviving Spouse"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X200": {
+      "key": "coborr_1b_dna",
+      "label": "Co-Borrower \u2014 Section 1b Does Not Apply",
+      "encompass_description": "CoBorr  Current Employment Does Not Apply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X201": {
+      "key": "borr_1c_dna",
+      "label": "Borrower \u2014 Section 1c Does Not Apply",
+      "encompass_description": "Borr Additional Employment DoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X202": {
+      "key": "coborr_1c_dna",
+      "label": "Co-Borrower \u2014 Section 1c Does Not Apply",
+      "encompass_description": "CoBorr Additional Employment DoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X203": {
+      "key": "borr_1d_dna",
+      "label": "Borrower \u2014 Section 1d Does Not Apply",
+      "encompass_description": "Borr Previous Employment DoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X204": {
+      "key": "coborr_1d_dna",
+      "label": "Co-Borrower \u2014 Section 1d Does Not Apply",
+      "encompass_description": "CoBorr Previous Employment DoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X21": {
+      "key": "borr_language_preference",
+      "label": "Borrower Language Preference",
+      "encompass_description": "Borr Language Preference",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "EnglishIndicator",
+          "text": "English Indicator"
+        },
+        {
+          "value": "ChineseIndicator",
+          "text": "Chinese Indicator"
+        },
+        {
+          "value": "KoreanIndicator",
+          "text": "Korean Indicator"
+        },
+        {
+          "value": "SpanishIndicator",
+          "text": "Spanish Indicator"
+        },
+        {
+          "value": "TagalogIndicator",
+          "text": "Tagalog Indicator"
+        },
+        {
+          "value": "VietnameseIndicator",
+          "text": "Vietnamese Indicator"
+        },
+        {
+          "value": "OtherIndicator",
+          "text": "Other Indicator"
+        },
+        {
+          "value": "LanguageRefusalIndicator",
+          "text": "Language Refusal Indicator"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X22": {
+      "key": "coborr_language_preference",
+      "label": "Co-Borrower Language Preference",
+      "encompass_description": "Co-Borr Language Preference",
+      "category": "borrower_info",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "EnglishIndicator",
+          "text": "English Indicator"
+        },
+        {
+          "value": "ChineseIndicator",
+          "text": "Chinese Indicator"
+        },
+        {
+          "value": "KoreanIndicator",
+          "text": "Korean Indicator"
+        },
+        {
+          "value": "SpanishIndicator",
+          "text": "Spanish Indicator"
+        },
+        {
+          "value": "TagalogIndicator",
+          "text": "Tagalog Indicator"
+        },
+        {
+          "value": "VietnameseIndicator",
+          "text": "Vietnamese Indicator"
+        },
+        {
+          "value": "OtherIndicator",
+          "text": "Other Indicator"
+        },
+        {
+          "value": "LanguageRefusalIndicator",
+          "text": "Language Refusal Indicator"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X230": {
+      "key": "dpa_subordinate_amount",
+      "label": "DPA Subordinate Finance Amount",
+      "encompass_description": "Total Applied To Downpayment",
+      "category": "loan_info",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X265": {
+      "key": "borr_former_addr_does_not_apply",
+      "label": "Borrower Former Address Does Not Apply",
+      "encompass_description": "Borr Prior Residence Does Not Apply",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X266": {
+      "key": "coborr_former_addr_does_not_apply",
+      "label": "Co-Borrower Former Address Does Not Apply",
+      "encompass_description": "CoBorr Prior Residence Does Not Apply",
+      "category": "borrower_info",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Yes"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X40": {
+      "key": "borr_other_income_dna",
+      "label": "Borrower \u2014 Income from Other Sources Does Not Apply (1e)",
+      "encompass_description": "Borr OtherSrcIncomeDoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X41": {
+      "key": "coborr_other_income_dna",
+      "label": "Co-Borrower \u2014 Income from Other Sources Does Not Apply (1e)",
+      "encompass_description": "CoBorr OtherSrcIncomeDoesNotApply",
+      "category": "income",
+      "format": "YN",
+      "data_type": "Boolean",
+      "read_only": false,
+      "max_length": 1,
+      "multi_instance": false,
+      "options": [
+        {
+          "value": "Y",
+          "text": "Does Not Apply"
+        },
+        {
+          "value": "N",
+          "text": "No"
+        }
+      ],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLA.X73": {
+      "key": "property_address_urla",
+      "label": "Property Street Address (URLA Lender \u2014 editable)",
+      "encompass_description": "Property Address Line Text",
+      "category": "property",
+      "format": "STRING",
+      "data_type": "String",
+      "read_only": false,
+      "max_length": 0,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "URLAROA0103": {
+      "key": "emd_amount",
+      "label": "EMD Amount",
+      "encompass_description": "Other Assets Cash Or Market Value",
+      "category": "assets",
+      "format": "DECIMAL_2",
+      "data_type": "Decimal",
+      "read_only": false,
+      "max_length": 14,
+      "multi_instance": true,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    },
+    "VASUMM.X23": {
+      "key": "credit_score_decision",
+      "label": "Credit Score for Decision Making",
+      "encompass_description": "VA Loan Summ Credit Score",
+      "category": "credit",
+      "format": "INTEGER",
+      "data_type": "Int",
+      "read_only": false,
+      "max_length": 11,
+      "multi_instance": false,
+      "options": [],
+      "is_custom": false,
+      "found_in_schema": true
+    }
+  }
+}

@@ -162,6 +162,27 @@ def append_list(existing: list | None, new: list | None) -> list:
     return (existing or []) + (new or [])
 
 
+def merge_manual_fields(existing: list | None, new: list | None) -> list:
+    """Merge manual-entry field rows by (substep, field_id) — latest wins.
+
+    manual_fields rows mark Encompass fields the agent deliberately did NOT
+    write (judgment calls, unknown values, held writes). The dashboard's Field
+    Writes tab renders them as empty editable rows next to the agent-written
+    ledger entries.
+    """
+    all_rows = (existing or []) + (new or [])
+    order: list[tuple[str, str]] = []
+    by_key: dict[tuple[str, str], dict] = {}
+    for row in all_rows:
+        if not isinstance(row, dict):
+            continue
+        key = (row.get("substep", ""), row.get("field_id", ""))
+        if key not in by_key:
+            order.append(key)
+        by_key[key] = row
+    return [by_key[k] for k in order]
+
+
 # Runtime/progress fields on a comms action item that must survive a re-run
 # (i.e. NOT be clobbered by a freshly-derived item with the same id). Static
 # fields (component, action_type, title, description, trigger, severity, …)
@@ -274,6 +295,9 @@ class ProcessorAgentState(AgentState):
 
     # ── Field-writes ledger ──
     field_writes_ledger: Annotated[NotRequired[list[dict]], OmitFromInput, append_list]
+
+    # ── Manual-entry fields (agent deliberately did not write; user fills in UI) ──
+    manual_fields: Annotated[NotRequired[list[dict]], OmitFromInput, merge_manual_fields]
 
     # ── Substep timeout tracking ──
     substep_started_at: Annotated[NotRequired[str | None], OmitFromInput, last_value_reducer]

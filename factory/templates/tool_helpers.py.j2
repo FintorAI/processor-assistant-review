@@ -300,6 +300,41 @@ def _write_fields(
         })
 
 
+def _manual_field(
+    manual_fields: list,
+    substep: str,
+    field_id: str,
+    label: str,
+    current_value=None,
+    reason: str = "",
+    suggested_value=None,
+) -> None:
+    """Register a field the agent deliberately did NOT write.
+
+    Appends a row to the tool's local manual_fields list; the tool must return
+    it via ``Command(update={"manual_fields": rows})``. The dashboard's Field
+    Writes tab shows these as empty editable rows (with dropdown options from
+    field_writes_config.json) so the processor can fill them in.
+
+    Usage:
+        manual_rows: list = []
+        _manual_field(manual_rows, "14.2", "CX.TAXES", "Taxes",
+                      current_value=_los(state, "taxes_dropdown"),
+                      reason="Left blank per processor guidance — judgment call")
+    """
+    from datetime import datetime, timezone
+
+    manual_fields.append({
+        "substep": substep,
+        "field_id": field_id,
+        "label": label,
+        "current_value": current_value,
+        "reason": reason,
+        "suggested_value": suggested_value,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+
 # ── Property verification helpers (PUD + new construction via Zillow/HasData) ──
 # Used by review_property_listing (1.3) and consumed (via state['property_verification'])
 # by update_transmittal_summary (11.1), update_fha_management (12.1), and

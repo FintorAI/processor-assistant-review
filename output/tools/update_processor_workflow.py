@@ -6,10 +6,11 @@ Phase: FORM_UPDATES
 Fills the Processor Workflow screen in Encompass:
   - CX.PRODUCTTYPE        — derived from loan type (Conventional → Conforming, etc.)
   - CX.DOCUMENTATIONTYPE  — Full Doc (for conventional/conforming)
-  - CX.NONDEL.INV.APPROVAL — No (standard for conforming loans)
+  - CUST42FV              — "NO" (Non-Del Inv. Approval / "Prior Approval")
 
-NOTE: CX.NONDEL.INV.APPROVAL field ID is unconfirmed — verify against Encompass
-UI before going to production (check status bar when hovering over the field).
+CUST42FV verified in EC UI + live round-trip write 2026-07-23; its dropdown
+options are uppercase YES / NO. The previously-guessed CX.NONDEL.INV.APPROVAL
+does not exist in the prod instance (absent from the customFields schema).
 """
 # FACTORY-LOCK: true
 
@@ -46,9 +47,9 @@ LOAN_TYPE_TO_PRODUCT: dict[str, str] = {
 }
 
 FIELD_LABELS = {
-    "CX.PRODUCTTYPE":         "Product Type",
-    "CX.DOCUMENTATIONTYPE":   "Documentation Type",
-    "CX.NONDEL.INV.APPROVAL": "Non-Del Inv. Approval",
+    "CX.PRODUCTTYPE":       "Product Type",
+    "CX.DOCUMENTATIONTYPE": "Documentation Type",
+    "CUST42FV":             "Non-Del Inv. Approval (Prior Approval)",
 }
 
 
@@ -86,7 +87,7 @@ def update_processor_workflow(
     loan_type           = _los(state, "loan_type")           # field 1172
     current_product     = _los(state, "product_type")        # CX.PRODUCTTYPE
     current_doc_type    = _los(state, "doc_type_submission") # CX.DOCUMENTATIONTYPE
-    current_non_del     = _los(state, "non_del_inv_approval")# CX.NONDEL.INV.APPROVAL
+    current_non_del     = _los(state, "non_del_inv_approval")# CUST42FV
 
     # ── Derive product type from loan type ──
     derived_product = _map_product_type(loan_type)
@@ -113,9 +114,9 @@ def update_processor_workflow(
     # Non-QM loans may need a different value; for now always write Full Doc
     writes["CX.DOCUMENTATIONTYPE"] = "Full Doc"
 
-    # Non-Del Inv. Approval — standard is No for conforming
-    # TODO: confirm CX.NONDEL.INV.APPROVAL is the correct field ID
-    writes["CX.NONDEL.INV.APPROVAL"] = "No"
+    # Non-Del Inv. Approval — standard is NO for conforming (YES only when the
+    # underwriter already approved). Dropdown enum is uppercase YES/NO.
+    writes["CUST42FV"] = "NO"
 
     _write_fields(loan_id, writes, substep="14.1", flags=flags, state=state, labels=FIELD_LABELS)
 
@@ -137,11 +138,16 @@ def update_processor_workflow(
         "tool": "update_processor_workflow",
         "loan_type": loan_type,
         "derived_product_type": derived_product,
+        "previous_values": {
+            "CX.PRODUCTTYPE": current_product,
+            "CX.DOCUMENTATIONTYPE": current_doc_type,
+            "CUST42FV": current_non_del,
+        },
         "fields_written": list(writes.keys()),
         "flags_count": len(flags),
         "message": (
             f"Processor Workflow: set Product={derived_product or '(unknown)'}, "
-            f"DocType=Full Doc, Non-Del Inv=No"
+            f"DocType=Full Doc, Non-Del Inv=NO"
             + (f" with {len(flags)} flag(s)" if flags else "")
         ),
     }

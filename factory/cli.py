@@ -260,6 +260,22 @@ def cmd_renumber_steps(args: argparse.Namespace) -> None:
             print(f"  ERROR: {err}")
 
 
+def cmd_export_field_schema(args: argparse.Namespace) -> None:
+    """Export live Encompass field definitions (format + options) for the dashboard."""
+    from .schema_export import export_field_schema
+
+    print(f"Exporting field schema from Encompass ({args.env})...")
+    try:
+        results = export_field_schema(env=args.env, output_dir=OUTPUT_DIR)
+    except Exception as e:
+        print(f"Export failed: {e}")
+        return
+    print(f"Wrote: {os.path.relpath(results['path'], PROJECT_ROOT)}")
+    print(f"  Resolved: {results['found']} fields")
+    if results["missing"]:
+        print(f"  Missing from schema ({len(results['missing'])}): {', '.join(results['missing'])}")
+
+
 def cmd_dashboard(args: argparse.Namespace) -> None:
     """Launch the dashboard."""
     from .dashboard.app import run_dashboard
@@ -304,6 +320,13 @@ def main():
     # validate
     subparsers.add_parser("validate", help="Validate all definitions")
 
+    # export-field-schema (needs network + Encompass credentials in .env)
+    p_schema = subparsers.add_parser(
+        "export-field-schema",
+        help="Export live Encompass field formats/options to output/config/field_writes_config.json",
+    )
+    p_schema.add_argument("--env", default="Prod", help="Encompass env (Prod/Test), default Prod")
+
     # status
     subparsers.add_parser("status", help="Show overview of definitions")
 
@@ -323,6 +346,8 @@ def main():
         cmd_renumber_steps(args)
     elif args.command == "validate":
         cmd_validate(args)
+    elif args.command == "export-field-schema":
+        cmd_export_field_schema(args)
     elif args.command == "status":
         cmd_status(args)
     elif args.command == "dashboard":

@@ -1,7 +1,9 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "review": "./output/proc_agent.py:graph"
+    "review": "./output/proc_agent.py:graph",
+    "write_los_fields": "./output/write_graphs.py:field_write_graph",
+    "write_los_collections": "./output/write_graphs.py:collection_write_graph"
   },
   "env": ".env"
 }

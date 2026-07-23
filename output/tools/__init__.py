@@ -64,7 +64,9 @@ from .run_mavent_compliance import run_mavent_compliance
 from .update_processor_workflow import update_processor_workflow
 # STEP_14 / 14.2: Processor Closing Update
 from .update_processor_closing import update_processor_closing
-# STEP_14 / 14.3: Build Action Items
+# STEP_14 / 14.3: Processing/Submitted Milestone Update
+from .update_processing_submitted import update_processing_submitted
+# STEP_14 / 14.4: Build Action Items
 from .build_action_items import build_action_items
 
 def get_all_tools() -> list:
@@ -108,6 +110,7 @@ def get_all_tools() -> list:
     tools.append(run_mavent_compliance)
     tools.append(update_processor_workflow)
     tools.append(update_processor_closing)
+    tools.append(update_processing_submitted)
     tools.append(build_action_items)
     return tools
 
@@ -149,5 +152,6 @@ __all__ = [
     "run_mavent_compliance",
     "update_processor_workflow",
     "update_processor_closing",
+    "update_processing_submitted",
     "build_action_items",
 ]

@@ -424,6 +424,24 @@
       ]
     },
     {
+      "key": "community_lending_ahi",
+      "field_id": "1551",
+      "field_name": "Community Lending / Affordable Housing Initiative",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
+      "key": "homebuyer_education_cert",
+      "field_id": "1552",
+      "field_name": "Home Buyers Education Certification",
+      "category": "loan_info",
+      "used_by_steps": [
+        "STEP_11"
+      ]
+    },
+    {
       "key": "transmittal_project_type",
       "field_id": "1553",
       "field_name": "Project Type (Transmittal Summary)",
@@ -1800,6 +1818,15 @@
       ]
     },
     {
+      "key": "non_del_inv_approval",
+      "field_id": "CUST42FV",
+      "field_name": "Non-Del Inv. Approval (Prior Approval)",
+      "category": "processor_workflow",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "signing_date",
       "field_id": "CUST50FV",
       "field_name": "Signing Date",
@@ -1849,10 +1876,28 @@
       ]
     },
     {
+      "key": "cert_cpl_in_file",
+      "field_id": "CX.CPLINFILE",
+      "field_name": "CPL in file with correct names, loan number, addressed to AWM",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "doc_type_submission",
       "field_id": "CX.DOCUMENTATIONTYPE",
       "field_name": "Documentation Type (NON-QM Submission)",
       "category": "processor_workflow",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "cert_escrow_eo_in_file",
+      "field_id": "CX.ESCROWEOINFILE",
+      "field_name": "Escrow E&O insurance in file",
+      "category": "closing",
       "used_by_steps": [
         "STEP_14"
       ]
@@ -1864,6 +1909,15 @@
       "category": "grant_program",
       "used_by_steps": [
         "STEP_07"
+      ]
+    },
+    {
+      "key": "cert_hoi_effective",
+      "field_id": "CX.HOIEFFECTIVE",
+      "field_name": "HOI is effective on or before Note Date (Wet) / Funding Date (Dry)",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
       ]
     },
     {
@@ -1923,15 +1977,6 @@
       ]
     },
     {
-      "key": "non_del_inv_approval",
-      "field_id": "CX.NONDEL.INV.APPROVAL",
-      "field_name": "Non-Del Inv. Approval",
-      "category": "processor_workflow",
-      "used_by_steps": [
-        "STEP_14"
-      ]
-    },
-    {
       "key": "product_type",
       "field_id": "CX.PRODUCTTYPE",
       "field_name": "Product Type",
@@ -1941,9 +1986,45 @@
       ]
     },
     {
+      "key": "taxes_dropdown",
+      "field_id": "CX.TAXES",
+      "field_name": "Taxes",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "cert_vesting_verif_borrower",
+      "field_id": "CX.VESTINGVERIFBOR",
+      "field_name": "Vesting Verified - Borrower",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "cert_vesting_verif_title",
+      "field_id": "CX.VESTINGVERIFTITLE",
+      "field_name": "Vesting Verified - Title",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "wire_requested_date",
       "field_id": "CX.WIREDATELO",
       "field_name": "Wire Requested Date",
+      "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "cert_wire_instructions_in_file",
+      "field_id": "CX.WIREINSTINFILE",
+      "field_name": "Escrow wire instructions in file",
       "category": "closing",
       "used_by_steps": [
         "STEP_14"
@@ -3914,7 +3995,7 @@
     }
   ],
   "stats": {
-    "total_los_fields": 296,
+    "total_los_fields": 305,
     "total_doc_fields": 127,
     "total_document_types": 34,
     "total_steps": 14,
