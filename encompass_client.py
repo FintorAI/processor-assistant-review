@@ -11,6 +11,7 @@ The cache is stored in the state dict under "_encompass_clients" key, ensuring
 one client per workflow run per environment.
 """
 
+import json
 import os
 import logging
 from typing import Optional
@@ -392,6 +393,49 @@ def get_mavent_results(loan_id: str, state: dict = None) -> dict[str, any]:
         raise
 
 
+class EcsOrderError(Exception):
+    """ECS compliance report order rejected by the API.
+
+    Carries the parsed ECS error body so callers can branch on the failure
+    kind (e.g. ECS-1200 pre-audit check failure vs ECS-5020 not authorized)
+    instead of string-matching a truncated raw body.
+    """
+
+    def __init__(self, status_code, ecs_code: str, summary: str, details: str):
+        self.status_code = status_code
+        self.ecs_code = ecs_code or ""
+        self.summary = summary or ""
+        self.details = details or ""
+        # ECS often repeats summary in details — don't print it twice
+        text = self.summary if self.summary == self.details else " — ".join(
+            p for p in (self.summary, self.details) if p
+        )
+        super().__init__(
+            f"ECS compliance report order failed "
+            f"(status {status_code}{', ' + self.ecs_code if self.ecs_code else ''}): "
+            f"{text or 'no error body'}"
+        )
+
+    @property
+    def is_preaudit_failure(self) -> bool:
+        return self.ecs_code == "ECS-1200" or "pre-audit" in self.summary.lower()
+
+
+def _parse_ecs_error(body_text: str) -> dict:
+    """Best-effort parse of an ECS error body ({code, summary, details, ...})."""
+    try:
+        parsed = json.loads(body_text or "")
+        if isinstance(parsed, dict):
+            return {
+                "code": parsed.get("code") or "",
+                "summary": parsed.get("summary") or "",
+                "details": parsed.get("details") or "",
+            }
+    except (ValueError, TypeError):
+        pass
+    return {"code": "", "summary": "", "details": (body_text or "")[:200]}
+
+
 def run_mavent(loan_id: str, run_type: str = "FULL", state: dict = None) -> dict[str, any]:
     """Order an ECS (Mavent) compliance report for a loan.
 
@@ -405,6 +449,9 @@ def run_mavent(loan_id: str, run_type: str = "FULL", state: dict = None) -> dict
 
     Returns:
         Dictionary with compliance report results
+
+    Raises:
+        EcsOrderError: When the ECS API rejects the order (with parsed code/details)
     """
     import requests as _requests
 
@@ -449,10 +496,8 @@ def run_mavent(loan_id: str, run_type: str = "FULL", state: dict = None) -> dict
                 f"[ENCOMPASS] ECS POST failed (status {status}): "
                 f"{(response.text[:300] if response is not None else '')}"
             )
-            raise Exception(
-                f"ECS compliance report order failed (status {status}): "
-                f"{(response.text[:200] if response is not None else 'no response')}"
-            )
+            err = _parse_ecs_error(response.text if response is not None else "")
+            raise EcsOrderError(status, err["code"], err["summary"], err["details"])
         body = response.json() if response.text else {}
         if isinstance(body, list):
             return body[0] if body else {}
