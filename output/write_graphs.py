@@ -218,6 +218,33 @@ def _digits_last4(value) -> str:
     return digits[-4:]
 
 
+_VOL_FLOAT_KEYS = {"monthly_payment", "unpaid_balance", "credit_limit"}
+_VOL_INT_KEYS = {"remaining_months"}
+_VOL_BOOL_KEYS = {"exclude_monthly_pay", "payoff_included"}
+
+
+def _coerce_vol_value(key: str, value) -> tuple[object, str | None]:
+    """Coerce a normalised VOL value to the numeric/boolean type the v3 API
+    requires → (coerced, error). Cell edits arrive as strings when the user
+    typed something the dashboard couldn't parse back (e.g. "15,382")."""
+    if key in _VOL_FLOAT_KEYS or key in _VOL_INT_KEYS:
+        try:
+            num = float(str(value).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return None, f"invalid numeric value for {key}: {value!r}"
+        return (int(num) if key in _VOL_INT_KEYS else num), None
+    if key in _VOL_BOOL_KEYS:
+        if isinstance(value, bool):
+            return value, None
+        text = str(value).strip().lower()
+        if text in ("true", "1", "yes"):
+            return True, None
+        if text in ("false", "0", "no", ""):
+            return False, None
+        return None, f"invalid boolean value for {key}: {value!r}"
+    return value, None
+
+
 def _vol_override_to_v3(entry: dict) -> tuple[dict | None, str | None]:
     """Translate a normalised {"vol_id", "updates"} entry into a raw PATCH row."""
     updates = entry.get("updates") or {}
@@ -228,7 +255,10 @@ def _vol_override_to_v3(entry: dict) -> tuple[dict | None, str | None]:
             continue  # unknown / non-writable key — ignore silently
         if key == "account_number" and _is_masked(value):
             continue
-        body[api_field] = value
+        coerced, coerce_err = _coerce_vol_value(key, value)
+        if coerce_err:
+            return None, coerce_err
+        body[api_field] = coerced
     if not body:
         return None, "no writable fields in updates"
     return {"id": entry["vol_id"], **body}, None
@@ -257,6 +287,7 @@ def _apply_vod_overrides(
     updated: list[dict] = []
     skipped: list[dict] = []
     patch_by_vod: dict[str, dict] = {}
+    vods_with_changes: set[str] = set()
 
     for entry in entries:
         vod_id = entry.get("vod_id", "")
@@ -271,6 +302,10 @@ def _apply_vod_overrides(
         is_urla = bool(urla_items) or not legacy_items
         items = urla_items if is_urla else legacy_items
         patch = patch_by_vod.setdefault(vod_id, {"id": vod_id})
+        # Always resend the current account array (unchanged for header-only
+        # edits): the collection PATCH replaces arrays wholesale, so omitting
+        # it risks clearing the existing rows.
+        patch.setdefault("items" if is_urla else "accountInformation", items)
         changed_fields: list[str] = []
 
         if "institution_name" in updates:
@@ -296,7 +331,14 @@ def _apply_vod_overrides(
                     if _digits_last4(item.get(id_field)) == want_last4:
                         target = item
                         break
-            if target is None and len(items) == 1:
+            # Sole-item fallback ONLY when that item carries no identifier of
+            # its own — a requested-but-unmatched number must never fall back
+            # onto a different account.
+            if (
+                target is None
+                and len(items) == 1
+                and not _digits_last4(items[0].get(id_field))
+            ):
                 target = items[0]
             if target is None:
                 skipped.append({
@@ -316,11 +358,15 @@ def _apply_vod_overrides(
                     field = "depositoryAccountName" if is_urla else "accountInNameOf"
                     target[field] = str(item_updates["account_holder"]).strip()
                     changed_fields.append("account_holder")
-                if "account_number" in item_updates and not _is_masked(
-                    item_updates["account_number"]
-                ):
-                    target[id_field] = str(item_updates["account_number"]).strip()
-                    changed_fields.append("account_number")
+                if "account_number" in item_updates:
+                    if _is_masked(item_updates["account_number"]):
+                        skipped.append({
+                            "vod_id": vod_id,
+                            "reason": "account_number is masked — not written",
+                        })
+                    else:
+                        target[id_field] = str(item_updates["account_number"]).strip()
+                        changed_fields.append("account_number")
                 if "balance" in item_updates:
                     field = (
                         "urla2020CashOrMarketValueAmount"
@@ -329,13 +375,12 @@ def _apply_vod_overrides(
                     )
                     target[field] = item_updates["balance"]
                     changed_fields.append("balance")
-                # PATCH replaces arrays wholesale — resend every sibling item.
-                patch["items" if is_urla else "accountInformation"] = items
 
         if changed_fields:
             updated.append({"vod_id": vod_id, "fields": changed_fields})
+            vods_with_changes.add(vod_id)
 
-    patches = [p for p in patch_by_vod.values() if len(p) > 1]
+    patches = [p for vid, p in patch_by_vod.items() if vid in vods_with_changes]
     if not patches:
         reasons = "; ".join(s["reason"] for s in skipped) or "no writable fields"
         return {"success": False, "error": f"No VOD changes applied ({reasons})", "skipped": skipped}
@@ -357,7 +402,10 @@ def _patch_vods(client, loan_id: str, application_id: str, rows: list) -> dict:
         "Authorization": f"Bearer {client.access_token}",
         "content-type": "application/json",
     }
-    resp = requests.patch(url, json=rows, headers=headers, timeout=30)
+    try:
+        resp = requests.patch(url, json=rows, headers=headers, timeout=30)
+    except requests.exceptions.RequestException as exc:
+        return {"success": False, "error": f"vods PATCH network error: {exc}"}
     if resp.status_code in (200, 204):
         return {"success": True, "updated": [r.get("id") for r in rows]}
     return {"success": False, "error": f"vods PATCH {resp.status_code}: {resp.text[:300]}"}
@@ -375,10 +423,30 @@ def _patch_vol(client, loan_id: str, application_id: str, row: dict) -> dict:
         "Authorization": f"Bearer {client.access_token}",
         "content-type": "application/json",
     }
-    resp = requests.patch(url, json=body, headers=headers, timeout=30)
+    # Failures (network included) stay per-row so sibling rows still write.
+    try:
+        resp = requests.patch(url, json=body, headers=headers, timeout=30)
+    except requests.exceptions.RequestException as exc:
+        return {"success": False, "vol_id": vol_id, "error": f"vol PATCH network error: {exc}"}
     if resp.status_code in (200, 204):
         return {"success": True, "vol_id": vol_id, "fields": sorted(body.keys())}
     return {"success": False, "vol_id": vol_id, "error": f"vol PATCH {resp.status_code}: {resp.text[:300]}"}
+
+
+def _merge_vod_outcomes(outcomes: list[dict]) -> dict:
+    """Combine the normalized-override and raw-passthrough VOD batch results
+    (mixed payloads) into one dict following the same result conventions."""
+    merged: dict = {"success": all(o.get("success") for o in outcomes)}
+    errors = [str(o["error"]) for o in outcomes if o.get("error")]
+    if errors:
+        merged["error"] = "; ".join(errors)
+    updated = [u for o in outcomes for u in (o.get("updated") or [])]
+    if updated:
+        merged["updated"] = updated
+    skipped = [s for o in outcomes for s in (o.get("skipped") or [])]
+    if skipped:
+        merged["skipped"] = skipped
+    return merged
 
 
 def _write_collections_node(state: CollectionWriteState) -> dict:
@@ -419,14 +487,24 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
         if bad:
             results["vods"] = {
                 "success": False,
-                "error": f"{len(bad)} VOD row(s) missing 'vod_id'",
+                "error": f"{len(bad)} VOD row(s) missing both 'vod_id' and 'id'",
             }
-        elif normalized:
-            results["vods"] = _apply_vod_overrides(
-                client, io_state, loan_id, application_id, normalized
-            )
         else:
-            results["vods"] = _patch_vods(client, loan_id, application_id, raw_rows)
+            # Mixed payloads run both partitions and combine their outcomes.
+            outcomes: list[dict] = []
+            if normalized:
+                outcomes.append(
+                    _apply_vod_overrides(
+                        client, io_state, loan_id, application_id, normalized
+                    )
+                )
+            if raw_rows:
+                outcomes.append(
+                    _patch_vods(client, loan_id, application_id, raw_rows)
+                )
+            results["vods"] = (
+                outcomes[0] if len(outcomes) == 1 else _merge_vod_outcomes(outcomes)
+            )
     if vols:
         vol_results: list[dict] = []
         for row in vols:
