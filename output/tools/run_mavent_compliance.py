@@ -126,11 +126,81 @@ def _group_messages_by_category(
     return grouped
 
 
-def _fetch_report(loan_id: str, state: dict, force_refresh: bool) -> tuple[Optional[dict], bool, Optional[str]]:
-    """Return (report, api_ran, error_message)."""
-    from encompass_client import get_mavent_results, run_mavent
+# Core loan data Mavent's order pre-audit commonly requires. When the ECS API
+# rejects an order with ECS-1200 it never says which check failed, so we read
+# these ourselves and report the blanks as likely causes.
+_PREAUDIT_FIELDS = {
+    "745": "Application Date",
+    "19": "Loan Purpose",
+    "1109": "Loan Amount",
+    "3": "Note Rate",
+    "4": "Loan Term",
+    "14": "Property State",
+    "1172": "Loan Type",
+    "420": "Lien Position",
+    "799": "APR",
+}
+
+
+def _diagnose_preaudit(loan_id: str, state: dict) -> tuple[List[str], Dict[str, Any]]:
+    """Best-effort local diagnosis of an ECS-1200 pre-audit order failure.
+
+    Returns (likely_causes, evidence). Never raises — an empty causes list
+    just means we couldn't pinpoint anything from here.
+    """
+    from encompass_client import get_disclosure_tracking, read_loan_fields
+
+    causes: List[str] = []
+    evidence: Dict[str, Any] = {}
+
+    try:
+        values = read_loan_fields(loan_id, list(_PREAUDIT_FIELDS), state=state)
+        missing = [
+            f"{label} ({fid})"
+            for fid, label in _PREAUDIT_FIELDS.items()
+            if values.get(fid) is None
+        ]
+        evidence["preaudit_field_snapshot"] = {
+            f"{label} ({fid})": values.get(fid) for fid, label in _PREAUDIT_FIELDS.items()
+        }
+        if missing:
+            causes.append("Missing loan data: " + ", ".join(missing))
+    except Exception as exc:
+        logger.warning("[RUN_MAVENT_COMPLIANCE] Pre-audit field scan failed: %s", exc)
+
+    try:
+        tracking = get_disclosure_tracking(loan_id, state=state)
+        entries = tracking if isinstance(tracking, list) else []
+        if isinstance(tracking, dict) and tracking.get("found") is not False:
+            entries = tracking.get("items") or tracking.get("entries") or []
+        evidence["disclosure_tracking_entries"] = len(entries)
+        if not entries:
+            causes.append(
+                "No disclosure events in Disclosure Tracking — Mavent's ordered "
+                "(Review) report requires a sent disclosure/closing package; "
+                "a Preview report does not."
+            )
+    except Exception as exc:
+        logger.warning("[RUN_MAVENT_COMPLIANCE] Disclosure tracking check failed: %s", exc)
+
+    return causes, evidence
+
+
+def _fetch_report(
+    loan_id: str, state: dict, force_refresh: bool
+) -> tuple[Optional[dict], bool, Optional[str], Dict[str, Any]]:
+    """Return (report, api_ran, error_message, meta).
+
+    meta keys:
+      preview_fallback — True when the ordered (Review) report was blocked by
+        a pre-audit failure and a Preview report was generated instead
+      preaudit_causes / preaudit_evidence — local diagnosis of the ECS-1200
+      ecs_code — parsed ECS error code when the order failed
+    """
+    from encompass_client import EcsOrderError, get_mavent_results, run_mavent
 
     api_ran = False
+    meta: Dict[str, Any] = {}
     if not force_refresh:
         try:
             report = get_mavent_results(loan_id, state=state)
@@ -138,7 +208,7 @@ def _fetch_report(loan_id: str, state: dict, force_refresh: bool) -> tuple[Optio
                 report = None
             elif isinstance(report, dict) and report:
                 api_ran = True
-                return report, api_ran, None
+                return report, api_ran, None, meta
         except Exception as exc:
             logger.warning("[RUN_MAVENT_COMPLIANCE] ECS GET failed: %s", exc)
 
@@ -146,10 +216,51 @@ def _fetch_report(loan_id: str, state: dict, force_refresh: bool) -> tuple[Optio
         report = run_mavent(loan_id, run_type="FULL", state=state)
         api_ran = True
         if isinstance(report, dict) and report.get("found") is False:
-            return None, api_ran, None
-        return report or None, api_ran, None
+            return None, api_ran, None, meta
+        return report or None, api_ran, None, meta
+    except EcsOrderError as exc:
+        meta["ecs_code"] = exc.ecs_code
+        if not exc.is_preaudit_failure:
+            return None, api_ran, str(exc)[:300], meta
+
+        # ECS-1200: the order was rejected before the compliance engine ran.
+        # Figure out why locally, and fall back to a Preview report (preview
+        # skips the order-only pre-audit checks such as sent disclosures).
+        logger.info("[RUN_MAVENT_COMPLIANCE] Pre-audit failure — diagnosing and trying Preview")
+        causes, evidence = _diagnose_preaudit(loan_id, state)
+        meta["preaudit_causes"] = causes
+        meta["preaudit_evidence"] = evidence
+        try:
+            preview = run_mavent(loan_id, run_type="PREVIEW", state=state)
+            api_ran = True
+            if isinstance(preview, dict) and preview and preview.get("found") is not False:
+                meta["preview_fallback"] = True
+                return preview, api_ran, None, meta
+        except Exception as preview_exc:
+            logger.warning("[RUN_MAVENT_COMPLIANCE] Preview fallback failed: %s", preview_exc)
+            meta["preview_error"] = str(preview_exc)[:200]
+        return None, api_ran, str(exc)[:300], meta
     except Exception as exc:
-        return None, api_ran, str(exc)[:200]
+        return None, api_ran, str(exc)[:300], meta
+
+
+def _consume_targeted_action(state: dict) -> dict:
+    """State update swapping additional_info.action for action_completed.
+
+    Dashboard-targeted reruns set additional_info.action = "run_mavent_compliance"
+    (see TARGETED_ACTION_TOOLS in proc_agent.py). additional_info is a
+    last-value channel, so without clearing it the thread would stay locked in
+    targeted-rerun mode for every subsequent run. The action_completed marker
+    keeps the follow-up summary turn in one-shot mode (no workflow nudge/plan);
+    WorkflowGuardMiddleware.after_agent removes it when the run finalizes.
+    """
+    info = state.get("additional_info") or {}
+    action = info.get("action")
+    if not action:
+        return {}
+    cleaned = {k: v for k, v in info.items() if k != "action"}
+    cleaned["action_completed"] = action
+    return {"additional_info": cleaned}
 
 
 @tool
@@ -161,10 +272,13 @@ def run_mavent_compliance(
     """Run Mavent ECS compliance audit and surface per-category results (§15 #3–#4)."""
     loan_id = state.get("loan_id")
     if not loan_id:
-        return Command(update={"messages": [ToolMessage(
-            content=json.dumps({"error": "No loan_id in state. Run data_gathering first."}),
-            tool_call_id=tool_call_id,
-        )]})
+        return Command(update={
+            **_consume_targeted_action(state),
+            "messages": [ToolMessage(
+                content=json.dumps({"error": "No loan_id in state. Run data_gathering first."}),
+                tool_call_id=tool_call_id,
+            )],
+        })
 
     if state.get("force_refresh") is True:
         force_refresh = True
@@ -175,24 +289,50 @@ def run_mavent_compliance(
     )
 
     flags: List[dict] = []
-    report, api_ran, api_err = _fetch_report(loan_id, state, force_refresh)
+    report, api_ran, api_err, fetch_meta = _fetch_report(loan_id, state, force_refresh)
 
     if api_err:
-        fail_flag = {
-            "severity": "error",
-            "title": "Mavent Report Generation Failed",
-            "details": (
-                "Could not retrieve or generate a Mavent compliance report via the "
-                f"Encompass ECS API ({api_err})."
-            ),
-            "suggestion": (
-                "Open Encompass > Tools > Compliance Review > Preview to generate "
-                "the Mavent report, then rerun this step."
-            ),
-            "remedy": "Escalate",
-            "action": "escalation_required",
-            "check_id": "mavent_report_generation_failed",
-        }
+        preaudit_causes = fetch_meta.get("preaudit_causes")
+        if preaudit_causes is not None:
+            cause_text = (
+                "Likely cause(s):\n" + "\n".join(f"• {c}" for c in preaudit_causes)
+                if preaudit_causes
+                else "No missing core loan data detected from here — check the "
+                "Compliance Log in Encompass for the specific pre-audit item."
+            )
+            fail_flag = {
+                "severity": "error",
+                "title": "Mavent Pre-Audit Check Failed",
+                "details": (
+                    "Encompass rejected the Mavent report order before running "
+                    f"compliance checks ({api_err}).\n{cause_text}"
+                ),
+                "suggestion": (
+                    "Fix the item(s) above in Encompass, or open Tools > "
+                    "Compliance Review and order the report there to see the "
+                    "pre-audit detail, then rerun this step."
+                ),
+                "remedy": "Manual",
+                "action": "processor_attention_required",
+                "check_id": "mavent_preaudit_failed",
+                "evidence": fetch_meta.get("preaudit_evidence") or {},
+            }
+        else:
+            fail_flag = {
+                "severity": "error",
+                "title": "Mavent Report Generation Failed",
+                "details": (
+                    "Could not retrieve or generate a Mavent compliance report via the "
+                    f"Encompass ECS API ({api_err})."
+                ),
+                "suggestion": (
+                    "Open Encompass > Tools > Compliance Review > Preview to generate "
+                    "the Mavent report, then rerun this step."
+                ),
+                "remedy": "Escalate",
+                "action": "escalation_required",
+                "check_id": "mavent_report_generation_failed",
+            }
         flags = _stamp_flags([fail_flag])
         result = {
             "success": False,
@@ -200,11 +340,13 @@ def run_mavent_compliance(
             "tool": "run_mavent_compliance",
             "api_ran": api_ran,
             "error": api_err,
+            "preaudit_causes": preaudit_causes,
             "fail_count": 1,
             "warning_count": 0,
             "info_count": 0,
         }
         return Command(update={
+            **_consume_targeted_action(state),
             "flags": flags,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
@@ -233,6 +375,7 @@ def run_mavent_compliance(
             "info_count": 0,
         }
         return Command(update={
+            **_consume_targeted_action(state),
             "flags": flags,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
@@ -309,6 +452,33 @@ def run_mavent_compliance(
 
         flags.append(flag)
 
+    if fetch_meta.get("preview_fallback"):
+        causes = fetch_meta.get("preaudit_causes") or []
+        cause_text = (
+            "Likely cause(s):\n" + "\n".join(f"• {c}" for c in causes)
+            if causes
+            else "No missing core loan data detected from here — check the "
+            "Compliance Log in Encompass for the specific pre-audit item."
+        )
+        flags.append({
+            "severity": "warning",
+            "title": "Mavent Order Blocked — Preview Report Shown",
+            "details": (
+                "The ordered (Review) Mavent report failed Encompass's pre-audit "
+                "check, so the results below come from a Preview report instead. "
+                f"Preview runs the same compliance engine but is not filed to the "
+                f"eFolder/Compliance Log.\n{cause_text}"
+            ),
+            "suggestion": (
+                "Fix the item(s) above in Encompass, then rerun this step to file "
+                "an official ordered report."
+            ),
+            "remedy": "Manual",
+            "action": "processor_attention_required",
+            "check_id": "mavent_preview_fallback",
+            "evidence": fetch_meta.get("preaudit_evidence") or {},
+        })
+
     fail_cats = [
         n for n, d in category_results.items()
         if d["status"].upper() in _NON_PASS
@@ -377,9 +547,11 @@ def run_mavent_compliance(
         "categories": {n: d["status"] for n, d in category_results.items()},
         "compliance_messages_by_category": messages_by_category,
         "api_ran": api_ran,
+        "preview_fallback": bool(fetch_meta.get("preview_fallback")),
     }
 
     return Command(update={
+        **_consume_targeted_action(state),
         "mavent_verification": result,
         "mavent_results": mavent_results,
         "flags": _stamp_flags(flags),

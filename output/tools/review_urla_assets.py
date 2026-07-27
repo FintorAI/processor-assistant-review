@@ -585,16 +585,19 @@ def _apply_vod_completions(
     state: dict,
     flags: list,
     dry_run: bool = False,
-) -> None:
+) -> bool:
     """Fill blank subfields on existing 2a/VOD entries and emit audit flags.
 
     Only blank fields are written (detection already filtered populated values),
     and one ``info-overwrite`` flag is emitted per completed entry. A write
     failure or an unsupported (legacy-schema) entry produces a single readable
     flag so the processor can finish it manually. Honors ``dry_run``.
+
+    Returns True when at least one entry was actually updated in Encompass
+    (callers use this to refresh the vods channel emitted to the dashboard).
     """
     if not to_complete:
-        return
+        return False
 
     if dry_run:
         for c in to_complete:
@@ -610,7 +613,7 @@ def _apply_vod_completions(
                 "",
                 docs=refs,
             ))
-        return
+        return False
 
     from shared.encompass_io import update_vods
     res = update_vods(loan_id, to_complete, state=state)
@@ -656,6 +659,8 @@ def _apply_vod_completions(
                 "Complete the 2a/VOD entry manually in Encompass.",
                 docs=refs,
             ))
+
+    return bool(updated_by_id)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -743,6 +748,10 @@ def review_urla_assets(
     except Exception:
         _vod_dry_run = False
 
+    # True once any live write changed VOD rows (merge/completion) — the
+    # dashboard channel is then re-read so it reflects post-write Encompass.
+    _vod_rows_dirty = False
+
     # ── 3b. Duplicate same-institution VOD entries (video 7 feedback) ────────
     # Encompass expects one VOD "Belong To" entry per institution, with each
     # account as a row in that entry's Account Information grid — not one VOD
@@ -792,6 +801,8 @@ def review_urla_assets(
                 (m.get("institution", "").strip().lower(), m.get("owner") or "Borrower"): m
                 for m in _merge_result.get("merged", [])
             }
+            if _merged_by_key:
+                _vod_rows_dirty = True
             _skipped_by_inst = {}
             for s in _merge_result.get("skipped", []):
                 _skipped_by_inst.setdefault((s.get("institution") or "").strip().lower(), []).append(s)
@@ -1026,7 +1037,7 @@ def review_urla_assets(
                     ))
 
         # Complete BLANK subfields on existing 2a/VOD entries (08 #10).
-        _apply_vod_completions(
+        _vod_rows_dirty |= _apply_vod_completions(
             loan_id, _bs_to_complete, _bank_refs, "Bank Statement", state, flags,
             dry_run=_vod_dry_run,
         )
@@ -1049,7 +1060,7 @@ def review_urla_assets(
         flags += _asset_vod_flags
 
         # Complete BLANK subfields on existing 2a/VOD entries from asset docs (08 #10).
-        _apply_vod_completions(
+        _vod_rows_dirty |= _apply_vod_completions(
             loan_id, _asset_to_complete, _asset_refs, "Assets", state, flags,
             dry_run=_vod_dry_run,
         )
@@ -1308,5 +1319,19 @@ def review_urla_assets(
     }
     if flags:
         update["flags"] = flags
+
+    # Dashboard collections-editor channel — keep it fresh even when
+    # fetch_vod_data was not part of this run (direct-read fallback above).
+    # After live merge/completion writes, re-read so the channel reflects
+    # post-write Encompass instead of the pre-write fetch.
+    if _vod_rows_dirty:
+        try:
+            from shared.encompass_io import read_vods
+            vod_rows = read_vods(loan_id, state=state)
+            logger.info(f"[REVIEW_URLA_ASSETS] Re-read {len(vod_rows)} VOD row(s) after auto-writes")
+        except Exception as exc:
+            logger.warning(f"[REVIEW_URLA_ASSETS] Post-write VOD re-read failed: {exc}")
+    if vod_rows:
+        update["vods"] = vod_rows
 
     return Command(update=update)

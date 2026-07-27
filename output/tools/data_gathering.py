@@ -2157,6 +2157,8 @@ def fetch_vod_data(
 
     update: dict = {
         "vod_data": rows,
+        # Dashboard collections-editor channel (same rows, stable public name).
+        "vods": rows,
         "messages": [ToolMessage(
             content=json.dumps({"status": "ok", **summary}),
             tool_call_id=tool_call_id,

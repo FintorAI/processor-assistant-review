@@ -9,6 +9,7 @@ automatic token refresh.
 import json
 import logging
 import re
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -108,15 +109,36 @@ def get_loan_guid_from_state(
 # Module-level accumulator that write_fields() appends to on every
 # successful call (real or dry-run).  Tools drain it via
 # flush_field_writes_ledger() before returning their Command(update=...).
+#
+# Entries are tagged with the loan GUID they were written against so that
+# concurrent runs in the same server process don't drain each other's
+# receipts: FieldWritesLedgerMiddleware flushes scoped to its run's loan_id.
 _FIELD_WRITES_LEDGER: List[Dict[str, Any]] = []
+_LEDGER_LOCK = threading.Lock()
 
 
-def flush_field_writes_ledger() -> List[Dict[str, Any]]:
-    """Drain and return all accumulated field-write entries since the last flush."""
+def flush_field_writes_ledger(loan_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Drain and return accumulated field-write entries since the last flush.
+
+    With ``loan_id``, only entries recorded against that loan (plus untagged
+    entries, which cannot be attributed) are drained — entries belonging to
+    other loans' concurrent runs stay queued for their own flush. An empty
+    string drains only unattributable entries. With ``None``, everything is
+    drained (legacy behavior).
+    """
     global _FIELD_WRITES_LEDGER
-    entries = _FIELD_WRITES_LEDGER[:]
-    _FIELD_WRITES_LEDGER = []
-    return entries
+    with _LEDGER_LOCK:
+        if loan_id is None:
+            entries = _FIELD_WRITES_LEDGER[:]
+            _FIELD_WRITES_LEDGER = []
+            return entries
+        mine: List[Dict[str, Any]] = []
+        others: List[Dict[str, Any]] = []
+        for entry in _FIELD_WRITES_LEDGER:
+            owner = entry.get("loan_id")
+            (mine if not owner or owner == loan_id else others).append(entry)
+        _FIELD_WRITES_LEDGER = others
+        return mine
 
 
 def get_field_writes_count() -> int:
@@ -148,16 +170,61 @@ def _sync_state_cache(updates: Dict[str, Any], state: Optional[dict]) -> None:
 def _record_writes(updates: Dict[str, Any], state: Optional[dict], dry_run: bool) -> None:
     """Append each field in *updates* to the module-level ledger."""
     substep = (state or {}).get("current_substep", "?")
+    owner_loan = (state or {}).get("loan_id") or None
     ts = datetime.now(timezone.utc).isoformat()
-    for fid, val in updates.items():
-        _FIELD_WRITES_LEDGER.append({
-            "field_id": fid,
-            "value": val,
-            "substep": substep,
-            "dry_run": dry_run,
-            "timestamp": ts,
-        })
+    with _LEDGER_LOCK:
+        for fid, val in updates.items():
+            _FIELD_WRITES_LEDGER.append({
+                "field_id": fid,
+                "value": val,
+                "substep": substep,
+                "dry_run": dry_run,
+                "timestamp": ts,
+                "loan_id": owner_loan,
+            })
     _sync_state_cache(updates, state)
+
+
+def record_collection_write(
+    collection: str,
+    row_id: Any,
+    updates: Optional[Dict[str, Any]] = None,
+    state: Optional[dict] = None,
+    dry_run: bool = False,
+    action: str = "updated",
+) -> None:
+    """Append collection-write receipts (VOD/VOL/file-contact rows) to the
+    field-writes ledger so the dashboard's Field Writes tab shows them.
+
+    Collection writes have no scalar Encompass field id, so rows use a pseudo
+    id — ``vods[<row_id>].<key>`` for per-field updates, or
+    ``file_contacts[<row_id>]`` with the action ("created"/"updated") as the
+    value when only the row-level outcome is known.
+    """
+    substep = (state or {}).get("current_substep", "?")
+    owner_loan = (state or {}).get("loan_id") or None
+    ts = datetime.now(timezone.utc).isoformat()
+    with _LEDGER_LOCK:
+        if updates:
+            for key, val in updates.items():
+                _FIELD_WRITES_LEDGER.append({
+                    "field_id": f"{collection}[{row_id}].{key}",
+                    "value": val,
+                    "substep": substep,
+                    "dry_run": dry_run,
+                    "timestamp": ts,
+                    "loan_id": owner_loan,
+                })
+        else:
+            _FIELD_WRITES_LEDGER.append({
+                "field_id": f"{collection}[{row_id}]",
+                "value": action,
+                "substep": substep,
+                "dry_run": dry_run,
+                "timestamp": ts,
+                "loan_id": owner_loan,
+            })
+
 
 try:
     from encompass_client import get_encompass_client
@@ -921,6 +988,17 @@ def update_vods(
         f"[ENCOMPASS] update_vods: requested {len(completions)} → updated "
         f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
     )
+    if result.get("success"):
+        by_id = {str(c.get("vod_id")): (c.get("updates") or {}) for c in completions}
+        for u in result.get("updated", []):
+            vod_id = str(u.get("vod_id"))
+            requested = by_id.get(vod_id, {})
+            fields = u.get("fields") or list(requested.keys())
+            record_collection_write(
+                "vods", vod_id,
+                {k: requested.get(k) for k in fields},
+                state=state,
+            )
     return result
 
 
@@ -982,6 +1060,17 @@ def update_vols(
         f"[ENCOMPASS] update_vols: requested {len(completions)} → updated "
         f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
     )
+    if result.get("success"):
+        by_id = {str(c.get("vol_id")): (c.get("updates") or {}) for c in completions}
+        for u in result.get("updated", []):
+            vol_id = str(u.get("vol_id"))
+            requested = by_id.get(vol_id, {})
+            fields = u.get("fields") or list(requested.keys())
+            record_collection_write(
+                "vols", vol_id,
+                {k: requested.get(k) for k in fields},
+                state=state,
+            )
     return result
 
 
