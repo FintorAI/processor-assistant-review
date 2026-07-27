@@ -422,10 +422,14 @@ def _apply_vol_completions(
     state: dict,
     flags: list,
     dry_run: bool = False,
-) -> None:
-    """Fill blank sub-fields on existing VOL rows and emit audit flags (03 #8)."""
+) -> bool:
+    """Fill blank sub-fields on existing VOL rows and emit audit flags (03 #8).
+
+    Returns True when at least one row was actually updated in Encompass
+    (callers use this to refresh the vols channel emitted to the dashboard).
+    """
     if not completions:
-        return
+        return False
 
     _names = {
         "balance": "unpaid balance", "payment": "monthly payment",
@@ -447,7 +451,7 @@ def _apply_vol_completions(
                 "",
                 docs=refs,
             ))
-        return
+        return False
 
     from shared.encompass_io import update_vols
     res = update_vols(loan_id, completions, state=state)
@@ -475,6 +479,8 @@ def _apply_vol_completions(
                 "Complete the liability row manually in Encompass.",
                 docs=refs,
             ))
+
+    return bool(updated_by_id)
 
 
 @tool
@@ -622,6 +628,7 @@ def review_urla_liabilities(
     # "missing from VOL" against an empty list.
     recon_count = 0
     completion_count = 0
+    _vols_dirty = False
     raw_tradelines = _doc(state, "liabilities")
     tradelines = raw_tradelines if isinstance(raw_tradelines, list) else []
     if tradelines and vol_fetch_ok:
@@ -649,7 +656,7 @@ def review_urla_liabilities(
         except Exception:
             _vol_dry_run = False
 
-        _apply_vol_completions(
+        _vols_dirty = _apply_vol_completions(
             loan_id, completions, cr_refs, state, recon_flags, dry_run=_vol_dry_run,
         )
         completion_count = len(completions)
@@ -691,8 +698,16 @@ def review_urla_liabilities(
     if flags:
         update["flags"] = flags
 
-    # Dashboard collections-editor channel. Rows are the pre-completion fetch;
-    # good enough for display/editing since completions only fill gaps.
+    # Dashboard collections-editor channel. After live completion writes,
+    # re-read so the channel reflects post-write Encompass instead of the
+    # pre-completion fetch.
+    if _vols_dirty:
+        try:
+            from shared.encompass_io import read_vols
+            vols = read_vols(loan_id, state=state)
+            logger.info(f"[REVIEW_URLA_LIABILITIES] Re-read {len(vols)} VOL row(s) after auto-completions")
+        except Exception as exc:
+            logger.warning(f"[REVIEW_URLA_LIABILITIES] Post-write VOL re-read failed: {exc}")
     if vol_fetch_ok:
         update["vols"] = vols
 

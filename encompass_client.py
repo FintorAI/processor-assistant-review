@@ -418,7 +418,13 @@ class EcsOrderError(Exception):
 
     @property
     def is_preaudit_failure(self) -> bool:
-        return self.ecs_code == "ECS-1200" or "pre-audit" in self.summary.lower()
+        # Check summary AND details so a malformed body (code/summary missing,
+        # raw text landed in details) still enables the Preview fallback.
+        return (
+            self.ecs_code == "ECS-1200"
+            or "pre-audit" in self.summary.lower()
+            or "pre-audit" in self.details.lower()
+        )
 
 
 def _parse_ecs_error(body_text: str) -> dict:

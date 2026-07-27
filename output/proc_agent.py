@@ -408,6 +408,19 @@ def get_targeted_action(state: dict) -> str | None:
     return TARGETED_ACTION_TOOLS.get(action)
 
 
+def get_completed_targeted_action(state: dict) -> str | None:
+    """Tool name for a targeted rerun whose tool has already run this turn.
+
+    The targeted tool swaps additional_info.action for action_completed when
+    it returns (see _consume_targeted_action in the tool). The marker keeps
+    the follow-up summary turn in one-shot mode — no workflow plan/tools, no
+    WorkflowGuard nudge — and WorkflowGuardMiddleware.after_agent clears it
+    once the run finalizes.
+    """
+    action = ((state.get("additional_info") or {}).get("action_completed") or "").strip()
+    return TARGETED_ACTION_TOOLS.get(action)
+
+
 def resolve_tools_for_step(state: dict) -> list:
     global _ALL_TOOLS_REF
 
@@ -415,8 +428,11 @@ def resolve_tools_for_step(state: dict) -> list:
         logger.warning("[TOOL_RESOLVER] _ALL_TOOLS_REF not initialized")
         return []
 
-    targeted = get_targeted_action(state)
+    targeted = get_targeted_action(state) or get_completed_targeted_action(state)
     if targeted:
+        # Completed marker keeps the summary turn scoped too: returning [] would
+        # trip DynamicToolMiddleware's fallback to ALL tools, so keep exposing
+        # only the targeted tool (the plan forbids calling it again).
         targeted_tools = [t for t in _ALL_TOOLS_REF
                           if getattr(t, "name", getattr(t, "__name__", "")) == targeted]
         if targeted_tools:
@@ -459,6 +475,15 @@ def resolve_plan_for_step(state: dict) -> str | None:
             "2. After the tool returns, summarize the outcome in one short "
             "sentence and STOP. Do NOT continue the workflow or call any "
             "other tool."
+        )
+
+    completed = get_completed_targeted_action(state)
+    if completed:
+        return (
+            "## Targeted Rerun — Completed\n\n"
+            f"The dashboard-requested rerun of `{completed}` has finished.\n"
+            "Summarize the tool outcome in one short sentence and STOP. "
+            "Do NOT continue the workflow or call any other tool."
         )
 
     current_step = get_current_step_from_state(state)
@@ -516,9 +541,12 @@ class FieldWritesLedgerMiddleware(AgentMiddleware):
     """
 
     @staticmethod
-    def _merge_ledger(result):
+    def _merge_ledger(result, loan_id):
         from shared.encompass_io import flush_field_writes_ledger
-        ledger = flush_field_writes_ledger()
+        # Scoped flush: only this run's loan (plus unattributable entries) is
+        # drained, so concurrent runs in the same process don't steal each
+        # other's receipts.
+        ledger = flush_field_writes_ledger(loan_id)
         if not ledger:
             return result
         if isinstance(result, LgCommand):
@@ -530,11 +558,18 @@ class FieldWritesLedgerMiddleware(AgentMiddleware):
         # Plain ToolMessage — wrap it so the ledger rows still reach state.
         return LgCommand(update={"messages": [result], "field_writes_ledger": ledger})
 
+    @staticmethod
+    def _loan_id_from(request) -> str:
+        # Empty string (not None) when the run has no loan yet: the scoped
+        # flush then drains only unattributable entries instead of everything.
+        state = getattr(request, "state", None) or {}
+        return state.get("loan_id") or ""
+
     def wrap_tool_call(self, request, handler):
-        return self._merge_ledger(handler(request))
+        return self._merge_ledger(handler(request), self._loan_id_from(request))
 
     async def awrap_tool_call(self, request, handler):
-        return self._merge_ledger(await handler(request))
+        return self._merge_ledger(await handler(request), self._loan_id_from(request))
 
 
 class WorkflowGuardMiddleware(AgentMiddleware):
@@ -546,9 +581,28 @@ class WorkflowGuardMiddleware(AgentMiddleware):
     def _is_workflow_done(self, state: dict) -> bool:
         # Targeted rerun: a text-only summary after the tool call is the
         # desired terminal response — don't nudge the model to keep working.
-        if get_targeted_action(state):
+        # The tool swaps `action` for `action_completed` when it runs, so both
+        # markers must count; otherwise the summary turn (action already
+        # cleared) would be nudged back into the normal workflow.
+        if get_targeted_action(state) or get_completed_targeted_action(state):
             return True
         return get_current_step_from_state(state) == "COMPLETED"
+
+    def after_agent(self, state: dict, runtime) -> dict | None:
+        """Clear the one-shot targeted-rerun marker once the run finalizes.
+
+        additional_info is a last-value channel: without this, the completed
+        marker would persist in thread state and every subsequent run would
+        skip the workflow guard and the normal plan/tool resolution.
+        """
+        info = state.get("additional_info") or {}
+        if not info.get("action_completed"):
+            return None
+        return {
+            "additional_info": {
+                k: v for k, v in info.items() if k != "action_completed"
+            }
+        }
 
     def _check_substep_timeout(self, state: dict):
         started_at = state.get("substep_started_at")

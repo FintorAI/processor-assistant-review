@@ -245,17 +245,22 @@ def _fetch_report(
 
 
 def _consume_targeted_action(state: dict) -> dict:
-    """State update clearing additional_info.action once a targeted rerun ran.
+    """State update swapping additional_info.action for action_completed.
 
     Dashboard-targeted reruns set additional_info.action = "run_mavent_compliance"
     (see TARGETED_ACTION_TOOLS in proc_agent.py). additional_info is a
     last-value channel, so without clearing it the thread would stay locked in
-    targeted-rerun mode for every subsequent run.
+    targeted-rerun mode for every subsequent run. The action_completed marker
+    keeps the follow-up summary turn in one-shot mode (no workflow nudge/plan);
+    WorkflowGuardMiddleware.after_agent removes it when the run finalizes.
     """
     info = state.get("additional_info") or {}
-    if not info.get("action"):
+    action = info.get("action")
+    if not action:
         return {}
-    return {"additional_info": {k: v for k, v in info.items() if k != "action"}}
+    cleaned = {k: v for k, v in info.items() if k != "action"}
+    cleaned["action_completed"] = action
+    return {"additional_info": cleaned}
 
 
 @tool
