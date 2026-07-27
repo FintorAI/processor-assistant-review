@@ -154,11 +154,29 @@ field_write_graph.name = "write_los_fields"
 class CollectionWriteState(TypedDict):
     """State for the write_los_collections graph.
 
-    Input (all payload lists optional; raw Encompass v3 schema keys):
+    Input (all payload lists optional). Two shapes are accepted per list:
+
+    Normalised overrides (what the dashboard collections editor sends —
+    rows in the thread state come from read_vods/read_vols, so edits arrive
+    with those snake_case keys, NOT raw v3 keys):
+        vods:     [{"vod_id": "...",
+                    "account_number": "<original — locates the item>",
+                    "updates": {institution_name?, borrower_type?,
+                                account_type?, account_holder?,
+                                account_number?, balance?}}]
+        vols:     [{"vol_id": "...",
+                    "updates": {holder_name?, liability_type?, owner?,
+                                account_number?, monthly_payment?,
+                                unpaid_balance?, credit_limit?,
+                                exclude_monthly_pay?, payoff_included?,
+                                remaining_months?}}]
+
+    Raw v3 passthrough (scripts / power users):
         vods:     [{"id": vodId, ...raw VOD fields (e.g. holderName, items[])}]
-                  → PATCH /applications/{appId}/vods?action=update
         vols:     [{"id": volId, ...raw VOL fields (e.g. unpaidBalanceAmount)}]
-                  → PATCH /applications/{appId}/vols/{volId}   (one PATCH per row)
+
+    Contacts are always raw v3 rows (the file_contacts channel already holds
+    the GET shape):
         contacts: [{"contactType": "...", ...}]
                   → PATCH /loans/{id}/contacts  (upsert by contactType)
     Output:
@@ -172,6 +190,161 @@ class CollectionWriteState(TypedDict):
     source: NotRequired[str]
     loan_id: Annotated[NotRequired[str], _last_value]
     results: Annotated[NotRequired[dict], _last_value]
+
+
+# Normalised read_vols keys → v3 VOL PATCH fields. Values are written as-is
+# (the dashboard preserves the original primitive type when editing a cell).
+_VOL_KEY_TO_V3 = {
+    "holder_name": "holderName",
+    "liability_type": "liabilityType",
+    "owner": "owner",
+    "account_number": "accountIdentifier",
+    "monthly_payment": "monthlyPaymentAmount",
+    "unpaid_balance": "unpaidBalanceAmount",
+    "credit_limit": "creditLimit",
+    "exclude_monthly_pay": "excludedFromTotalMonthlyPaymentIndicator",
+    "payoff_included": "payoffIncludedIndicator",
+    "remaining_months": "remainingTermMonths",
+}
+
+
+def _is_masked(value) -> bool:
+    """Account numbers read back masked ("****2286") must never be written."""
+    return "*" in str(value or "")
+
+
+def _digits_last4(value) -> str:
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits[-4:]
+
+
+def _vol_override_to_v3(entry: dict) -> tuple[dict | None, str | None]:
+    """Translate a normalised {"vol_id", "updates"} entry into a raw PATCH row."""
+    updates = entry.get("updates") or {}
+    body: dict = {}
+    for key, value in updates.items():
+        api_field = _VOL_KEY_TO_V3.get(key)
+        if not api_field:
+            continue  # unknown / non-writable key — ignore silently
+        if key == "account_number" and _is_masked(value):
+            continue
+        body[api_field] = value
+    if not body:
+        return None, "no writable fields in updates"
+    return {"id": entry["vol_id"], **body}, None
+
+
+def _apply_vod_overrides(
+    client, io_state: dict, loan_id: str, application_id: str, entries: list
+) -> dict:
+    """Apply normalised per-account VOD overrides via one collection PATCH.
+
+    read_vods flattens each VOD object into one row per account item, so an
+    override carries ``vod_id`` (the object) + the ORIGINAL ``account_number``
+    (locates the item within it). The v3 collection PATCH replaces the items
+    array wholesale, so the current VOD is fetched first and the full array is
+    resent with only the targeted edits applied. Both the URLA-2020 (items[])
+    and legacy (accountInformation[]) schemas are handled.
+    """
+    from encompass_client import _VOD_ACCOUNT_TYPE_ENUM, get_vods
+
+    try:
+        raw_vods = get_vods(loan_id, application_id=application_id, state=io_state)
+    except Exception as exc:  # noqa: BLE001
+        return {"success": False, "error": f"could not fetch VODs: {exc}"}
+    by_id = {v.get("id", ""): v for v in raw_vods}
+
+    updated: list[dict] = []
+    skipped: list[dict] = []
+    patch_by_vod: dict[str, dict] = {}
+
+    for entry in entries:
+        vod_id = entry.get("vod_id", "")
+        updates = entry.get("updates") or {}
+        raw = by_id.get(vod_id)
+        if not raw:
+            skipped.append({"vod_id": vod_id, "reason": "VOD not found on loan"})
+            continue
+
+        urla_items = raw.get("items") or []
+        legacy_items = raw.get("accountInformation") or []
+        is_urla = bool(urla_items) or not legacy_items
+        items = urla_items if is_urla else legacy_items
+        patch = patch_by_vod.setdefault(vod_id, {"id": vod_id})
+        changed_fields: list[str] = []
+
+        if "institution_name" in updates:
+            field = "holderName" if is_urla else "depInstitution"
+            patch[field] = str(updates["institution_name"]).strip()
+            changed_fields.append("institution_name")
+        if "borrower_type" in updates:
+            field = "owner" if is_urla else "for"
+            patch[field] = updates["borrower_type"]
+            changed_fields.append("borrower_type")
+
+        item_updates = {
+            k: updates[k]
+            for k in ("account_type", "account_holder", "account_number", "balance")
+            if k in updates
+        }
+        if item_updates:
+            want_last4 = _digits_last4(entry.get("account_number"))
+            id_field = "accountIdentifier" if is_urla else "accountNumber"
+            target = None
+            if want_last4:
+                for item in items:
+                    if _digits_last4(item.get(id_field)) == want_last4:
+                        target = item
+                        break
+            if target is None and len(items) == 1:
+                target = items[0]
+            if target is None:
+                skipped.append({
+                    "vod_id": vod_id,
+                    "reason": "could not locate account item "
+                    f"(account_number …{want_last4 or '????'})",
+                })
+            else:
+                if "account_type" in item_updates:
+                    raw_type = str(item_updates["account_type"])
+                    enum_type = _VOD_ACCOUNT_TYPE_ENUM.get(
+                        raw_type.replace(" ", "").lower()
+                    )
+                    target["type" if is_urla else "accountType"] = enum_type or raw_type
+                    changed_fields.append("account_type")
+                if "account_holder" in item_updates:
+                    field = "depositoryAccountName" if is_urla else "accountInNameOf"
+                    target[field] = str(item_updates["account_holder"]).strip()
+                    changed_fields.append("account_holder")
+                if "account_number" in item_updates and not _is_masked(
+                    item_updates["account_number"]
+                ):
+                    target[id_field] = str(item_updates["account_number"]).strip()
+                    changed_fields.append("account_number")
+                if "balance" in item_updates:
+                    field = (
+                        "urla2020CashOrMarketValueAmount"
+                        if is_urla
+                        else "cashOrMarketValue"
+                    )
+                    target[field] = item_updates["balance"]
+                    changed_fields.append("balance")
+                # PATCH replaces arrays wholesale — resend every sibling item.
+                patch["items" if is_urla else "accountInformation"] = items
+
+        if changed_fields:
+            updated.append({"vod_id": vod_id, "fields": changed_fields})
+
+    patches = [p for p in patch_by_vod.values() if len(p) > 1]
+    if not patches:
+        reasons = "; ".join(s["reason"] for s in skipped) or "no writable fields"
+        return {"success": False, "error": f"No VOD changes applied ({reasons})", "skipped": skipped}
+
+    result = _patch_vods(client, loan_id, application_id, patches)
+    if result.get("success"):
+        result["updated"] = updated
+    result["skipped"] = skipped
+    return result
 
 
 def _patch_vods(client, loan_id: str, application_id: str, rows: list) -> dict:
@@ -238,17 +411,42 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
     client = get_encompass_client(state=io_state)
 
     if vods:
-        bad = [r for r in vods if not r.get("id")]
-        results["vods"] = (
-            {"success": False, "error": f"{len(bad)} VOD row(s) missing 'id'"}
-            if bad else _patch_vods(client, loan_id, application_id, vods)
-        )
+        # Normalised dashboard overrides carry vod_id + updates; raw v3 rows
+        # carry id. Reject rows with neither (nothing to address them by).
+        normalized = [r for r in vods if r.get("vod_id")]
+        raw_rows = [r for r in vods if not r.get("vod_id") and r.get("id")]
+        bad = [r for r in vods if not r.get("vod_id") and not r.get("id")]
+        if bad:
+            results["vods"] = {
+                "success": False,
+                "error": f"{len(bad)} VOD row(s) missing 'vod_id'",
+            }
+        elif normalized:
+            results["vods"] = _apply_vod_overrides(
+                client, io_state, loan_id, application_id, normalized
+            )
+        else:
+            results["vods"] = _patch_vods(client, loan_id, application_id, raw_rows)
     if vols:
-        results["vols"] = [
-            _patch_vol(client, loan_id, application_id, row) if row.get("id")
-            else {"success": False, "error": "VOL row missing 'id'"}
-            for row in vols
-        ]
+        vol_results: list[dict] = []
+        for row in vols:
+            if row.get("vol_id"):
+                v3_row, err = _vol_override_to_v3(row)
+                if err:
+                    vol_results.append(
+                        {"success": False, "vol_id": row["vol_id"], "error": err}
+                    )
+                else:
+                    vol_results.append(
+                        _patch_vol(client, loan_id, application_id, v3_row)
+                    )
+            elif row.get("id"):
+                vol_results.append(_patch_vol(client, loan_id, application_id, row))
+            else:
+                vol_results.append(
+                    {"success": False, "error": "VOL row missing 'vol_id'"}
+                )
+        results["vols"] = vol_results
     if contacts:
         results["contacts"] = write_loan_contacts(loan_id, contacts, state=io_state)
 
