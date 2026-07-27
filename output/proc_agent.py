@@ -5,6 +5,7 @@ from pre-checks through final UW submission and notifications.
 """
 # ruff: noqa: E402  — sys.path must be configured before registry/step_loader imports
 
+import dataclasses
 import json
 import logging
 import os
@@ -56,6 +57,7 @@ if PARENT_ROOT not in sys.path:
 from copilotagent import create_deep_agent
 from langchain.agents.middleware.types import AgentMiddleware, AgentState, OmitFromInput
 from langgraph.graph.message import add_messages
+from langgraph.types import Command as LgCommand
 
 logger = logging.getLogger(__name__)
 
@@ -271,6 +273,14 @@ class ProcessorAgentState(AgentState):
     property_verification: Annotated[NotRequired[dict], OmitFromInput, last_value_reducer]
     vod_data: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
 
+    # ── Collections read channels (dashboard Field Writes tab tables) ──
+    # Raw Encompass collection rows emitted by the review tools that fetch
+    # them, so the dashboard can render editable VOD/VOL/file-contact tables
+    # (writes go through the stateless write_los_collections graph).
+    vods: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
+    vols: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
+    file_contacts: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
+
     # ── Issues and tracking ──
     flags: Annotated[NotRequired[list[dict]], OmitFromInput, dedupe_flags]
     pending_field_updates: Annotated[NotRequired[list[dict]], OmitFromInput]
@@ -381,6 +391,22 @@ def get_current_step_from_state(state: dict) -> str:
 
 _ALL_TOOLS_REF = None
 
+# Dashboard-triggerable one-off reruns (additional_info.action → tool name).
+# Honored regardless of workflow position — even COMPLETED threads — so the
+# dashboard's "Rerun Mavent Compliance Check" action item works after the
+# review finishes. The targeted tool clears the action from additional_info
+# when it runs (see _consume_targeted_action in the tool) so subsequent runs
+# resume the normal workflow.
+TARGETED_ACTION_TOOLS: dict[str, str] = {
+    "run_mavent_compliance": "run_mavent_compliance",
+}
+
+
+def get_targeted_action(state: dict) -> str | None:
+    """Tool name for a pending dashboard-targeted rerun, if any."""
+    action = ((state.get("additional_info") or {}).get("action") or "").strip()
+    return TARGETED_ACTION_TOOLS.get(action)
+
 
 def resolve_tools_for_step(state: dict) -> list:
     global _ALL_TOOLS_REF
@@ -388,6 +414,15 @@ def resolve_tools_for_step(state: dict) -> list:
     if _ALL_TOOLS_REF is None:
         logger.warning("[TOOL_RESOLVER] _ALL_TOOLS_REF not initialized")
         return []
+
+    targeted = get_targeted_action(state)
+    if targeted:
+        targeted_tools = [t for t in _ALL_TOOLS_REF
+                          if getattr(t, "name", getattr(t, "__name__", "")) == targeted]
+        if targeted_tools:
+            logger.info(f"[TOOL_RESOLVER] Targeted rerun — exposing only '{targeted}'")
+            return targeted_tools
+        logger.warning(f"[TOOL_RESOLVER] Targeted action tool '{targeted}' not found")
 
     current_step = get_current_step_from_state(state)
 
@@ -411,6 +446,21 @@ def resolve_tools_for_step(state: dict) -> list:
 
 
 def resolve_plan_for_step(state: dict) -> str | None:
+    targeted = get_targeted_action(state)
+    if targeted:
+        force_hint = (
+            " with `force_refresh=True` so a fresh report is generated"
+            if targeted == "run_mavent_compliance" else ""
+        )
+        return (
+            "## Targeted Rerun (dashboard request)\n\n"
+            f"The dashboard requested a one-off rerun of `{targeted}`.\n"
+            f"1. Call `{targeted}` now{force_hint}.\n"
+            "2. After the tool returns, summarize the outcome in one short "
+            "sentence and STOP. Do NOT continue the workflow or call any "
+            "other tool."
+        )
+
     current_step = get_current_step_from_state(state)
 
     if current_step == "COMPLETED":
@@ -453,6 +503,40 @@ class SystemMessageNormalizerMiddleware(AgentMiddleware):
         return handler(request)
 
 
+class FieldWritesLedgerMiddleware(AgentMiddleware):
+    """Drains the Encompass field-writes ledger into thread state.
+
+    write_fields()/_write_fields() append receipts to a module-level list in
+    shared.encompass_io. Historically only the stateless write graphs drained
+    it (flush_field_writes_ledger), so writes made by review tools never
+    reached the thread's field_writes_ledger channel and the dashboard's
+    Field Writes tab looked incomplete. This middleware drains the ledger
+    after EVERY tool call and merges the rows into the tool's Command update
+    (the channel reducer is append_list, so rows accumulate run-wide).
+    """
+
+    @staticmethod
+    def _merge_ledger(result):
+        from shared.encompass_io import flush_field_writes_ledger
+        ledger = flush_field_writes_ledger()
+        if not ledger:
+            return result
+        if isinstance(result, LgCommand):
+            update = dict(result.update or {})
+            update["field_writes_ledger"] = (
+                list(update.get("field_writes_ledger") or []) + ledger
+            )
+            return dataclasses.replace(result, update=update)
+        # Plain ToolMessage — wrap it so the ledger rows still reach state.
+        return LgCommand(update={"messages": [result], "field_writes_ledger": ledger})
+
+    def wrap_tool_call(self, request, handler):
+        return self._merge_ledger(handler(request))
+
+    async def awrap_tool_call(self, request, handler):
+        return self._merge_ledger(await handler(request))
+
+
 class WorkflowGuardMiddleware(AgentMiddleware):
     """Prevents premature agent termination from text-only responses."""
 
@@ -460,6 +544,10 @@ class WorkflowGuardMiddleware(AgentMiddleware):
     SUBSTEP_TIMEOUT_SECONDS = 600
 
     def _is_workflow_done(self, state: dict) -> bool:
+        # Targeted rerun: a text-only summary after the tool call is the
+        # desired terminal response — don't nudge the model to keep working.
+        if get_targeted_action(state):
+            return True
         return get_current_step_from_state(state) == "COMPLETED"
 
     def _check_substep_timeout(self, state: dict):
@@ -568,6 +656,7 @@ def create_agent():
     if HAS_COPILOTKIT:
         middleware_stack.append(CopilotKitMiddleware())
     middleware_stack.append(SystemMessageNormalizerMiddleware())
+    middleware_stack.append(FieldWritesLedgerMiddleware())
     middleware_stack.append(WorkflowGuardMiddleware())
 
     agent = create_deep_agent(

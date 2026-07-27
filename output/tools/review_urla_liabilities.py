@@ -691,4 +691,9 @@ def review_urla_liabilities(
     if flags:
         update["flags"] = flags
 
+    # Dashboard collections-editor channel. Rows are the pre-completion fetch;
+    # good enough for display/editing since completions only fill gaps.
+    if vol_fetch_ok:
+        update["vols"] = vols
+
     return Command(update=update)

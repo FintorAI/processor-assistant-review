@@ -159,6 +159,44 @@ def _record_writes(updates: Dict[str, Any], state: Optional[dict], dry_run: bool
         })
     _sync_state_cache(updates, state)
 
+
+def record_collection_write(
+    collection: str,
+    row_id: Any,
+    updates: Optional[Dict[str, Any]] = None,
+    state: Optional[dict] = None,
+    dry_run: bool = False,
+    action: str = "updated",
+) -> None:
+    """Append collection-write receipts (VOD/VOL/file-contact rows) to the
+    field-writes ledger so the dashboard's Field Writes tab shows them.
+
+    Collection writes have no scalar Encompass field id, so rows use a pseudo
+    id — ``vods[<row_id>].<key>`` for per-field updates, or
+    ``file_contacts[<row_id>]`` with the action ("created"/"updated") as the
+    value when only the row-level outcome is known.
+    """
+    substep = (state or {}).get("current_substep", "?")
+    ts = datetime.now(timezone.utc).isoformat()
+    if updates:
+        for key, val in updates.items():
+            _FIELD_WRITES_LEDGER.append({
+                "field_id": f"{collection}[{row_id}].{key}",
+                "value": val,
+                "substep": substep,
+                "dry_run": dry_run,
+                "timestamp": ts,
+            })
+    else:
+        _FIELD_WRITES_LEDGER.append({
+            "field_id": f"{collection}[{row_id}]",
+            "value": action,
+            "substep": substep,
+            "dry_run": dry_run,
+            "timestamp": ts,
+        })
+
+
 try:
     from encompass_client import get_encompass_client
 except ImportError:
@@ -921,6 +959,17 @@ def update_vods(
         f"[ENCOMPASS] update_vods: requested {len(completions)} → updated "
         f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
     )
+    if result.get("success"):
+        by_id = {str(c.get("vod_id")): (c.get("updates") or {}) for c in completions}
+        for u in result.get("updated", []):
+            vod_id = str(u.get("vod_id"))
+            requested = by_id.get(vod_id, {})
+            fields = u.get("fields") or list(requested.keys())
+            record_collection_write(
+                "vods", vod_id,
+                {k: requested.get(k) for k in fields},
+                state=state,
+            )
     return result
 
 
@@ -982,6 +1031,17 @@ def update_vols(
         f"[ENCOMPASS] update_vols: requested {len(completions)} → updated "
         f"{len(result.get('updated', []))} for loan {loan_id[:8]}"
     )
+    if result.get("success"):
+        by_id = {str(c.get("vol_id")): (c.get("updates") or {}) for c in completions}
+        for u in result.get("updated", []):
+            vol_id = str(u.get("vol_id"))
+            requested = by_id.get(vol_id, {})
+            fields = u.get("fields") or list(requested.keys())
+            record_collection_write(
+                "vols", vol_id,
+                {k: requested.get(k) for k in fields},
+                state=state,
+            )
     return result
 
 

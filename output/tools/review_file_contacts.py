@@ -1360,6 +1360,14 @@ def review_file_contacts(
     # extracted for a given insurer.
     written.update(_sync_insurance_contacts(loan_id, state, contact_map, flags))
 
+    # Ledger receipts for the dashboard Field Writes tab — one row per
+    # created/updated contact (drained into thread state by the ledger
+    # middleware in proc_agent.py).
+    if written:
+        from shared.encompass_io import record_collection_write
+        for ct, mode in written.items():
+            record_collection_write("file_contacts", ct, state=state, action=mode)
+
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []
     missing: List[str] = []
@@ -1537,5 +1545,12 @@ def review_file_contacts(
     }
     if flags:
         update["flags"] = flags
+
+    # Dashboard collections-editor channel — refetch so the emitted rows
+    # include the syncs written above (falls back to the pre-sync fetch).
+    refreshed_contacts = _get_loan_contacts(loan_id, state)
+    update["file_contacts"] = (
+        refreshed_contacts if refreshed_contacts is not None else all_contacts
+    )
 
     return Command(update=update)

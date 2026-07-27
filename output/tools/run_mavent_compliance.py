@@ -152,6 +152,20 @@ def _fetch_report(loan_id: str, state: dict, force_refresh: bool) -> tuple[Optio
         return None, api_ran, str(exc)[:200]
 
 
+def _consume_targeted_action(state: dict) -> dict:
+    """State update clearing additional_info.action once a targeted rerun ran.
+
+    Dashboard-targeted reruns set additional_info.action = "run_mavent_compliance"
+    (see TARGETED_ACTION_TOOLS in proc_agent.py). additional_info is a
+    last-value channel, so without clearing it the thread would stay locked in
+    targeted-rerun mode for every subsequent run.
+    """
+    info = state.get("additional_info") or {}
+    if not info.get("action"):
+        return {}
+    return {"additional_info": {k: v for k, v in info.items() if k != "action"}}
+
+
 @tool
 def run_mavent_compliance(
     tool_call_id: Annotated[str, InjectedToolCallId],
@@ -161,10 +175,13 @@ def run_mavent_compliance(
     """Run Mavent ECS compliance audit and surface per-category results (§15 #3–#4)."""
     loan_id = state.get("loan_id")
     if not loan_id:
-        return Command(update={"messages": [ToolMessage(
-            content=json.dumps({"error": "No loan_id in state. Run data_gathering first."}),
-            tool_call_id=tool_call_id,
-        )]})
+        return Command(update={
+            **_consume_targeted_action(state),
+            "messages": [ToolMessage(
+                content=json.dumps({"error": "No loan_id in state. Run data_gathering first."}),
+                tool_call_id=tool_call_id,
+            )],
+        })
 
     if state.get("force_refresh") is True:
         force_refresh = True
@@ -205,6 +222,7 @@ def run_mavent_compliance(
             "info_count": 0,
         }
         return Command(update={
+            **_consume_targeted_action(state),
             "flags": flags,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
@@ -233,6 +251,7 @@ def run_mavent_compliance(
             "info_count": 0,
         }
         return Command(update={
+            **_consume_targeted_action(state),
             "flags": flags,
             "messages": [ToolMessage(content=json.dumps(result), tool_call_id=tool_call_id)],
         })
@@ -380,6 +399,7 @@ def run_mavent_compliance(
     }
 
     return Command(update={
+        **_consume_targeted_action(state),
         "mavent_verification": result,
         "mavent_results": mavent_results,
         "flags": _stamp_flags(flags),

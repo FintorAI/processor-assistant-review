@@ -1309,4 +1309,9 @@ def review_urla_assets(
     if flags:
         update["flags"] = flags
 
+    # Dashboard collections-editor channel — keep it fresh even when
+    # fetch_vod_data was not part of this run (direct-read fallback above).
+    if vod_rows:
+        update["vods"] = vod_rows
+
     return Command(update=update)
