@@ -192,6 +192,7 @@ def record_collection_write(
     state: Optional[dict] = None,
     dry_run: bool = False,
     action: str = "updated",
+    row_label: Optional[str] = None,
 ) -> None:
     """Append collection-write receipts (VOD/VOL/file-contact rows) to the
     field-writes ledger so the dashboard's Field Writes tab shows them.
@@ -200,6 +201,11 @@ def record_collection_write(
     id — ``vods[<row_id>].<key>`` for per-field updates, or
     ``file_contacts[<row_id>]`` with the action ("created"/"updated") as the
     value when only the row-level outcome is known.
+
+    ``row_label`` overrides the pseudo id with a human-readable prefix so the
+    dashboard shows e.g. ``Hazard Insurance Company Name`` instead of
+    ``file_contacts[HAZARD_INSURANCE].Company Name``. Per-field rows read
+    ``"<row_label> <key>"``; a row-level row reads just ``"<row_label>"``.
     """
     substep = (state or {}).get("current_substep", "?")
     owner_loan = (state or {}).get("loan_id") or None
@@ -207,8 +213,17 @@ def record_collection_write(
     with _LEDGER_LOCK:
         if updates:
             for key, val in updates.items():
+                if row_label:
+                    # Collapse a duplicated boundary word so a company contact
+                    # reads "Escrow Company Name" rather than
+                    # "Escrow Company Company Name".
+                    if key.split(" ", 1)[0].lower() == row_label.split(" ")[-1].lower():
+                        key = key.split(" ", 1)[1] if " " in key else key
+                    field_id = f"{row_label} {key}"
+                else:
+                    field_id = f"{collection}[{row_id}].{key}"
                 _FIELD_WRITES_LEDGER.append({
-                    "field_id": f"{collection}[{row_id}].{key}",
+                    "field_id": field_id,
                     "value": val,
                     "substep": substep,
                     "dry_run": dry_run,
@@ -217,7 +232,7 @@ def record_collection_write(
                 })
         else:
             _FIELD_WRITES_LEDGER.append({
-                "field_id": f"{collection}[{row_id}]",
+                "field_id": row_label if row_label else f"{collection}[{row_id}]",
                 "value": action,
                 "substep": substep,
                 "dry_run": dry_run,
