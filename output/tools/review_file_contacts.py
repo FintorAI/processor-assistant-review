@@ -427,6 +427,25 @@ def _field_bullets(obj: Dict[str, Any]) -> str:
     )
 
 
+def _receipt(mode: str, write_payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a ledger receipt for a written file contact.
+
+    Carries the row-level ``mode`` ("created"/"updated") plus the per-field
+    values actually PATCHed (excluding the ``contactType`` selector), so the
+    dashboard Field Writes ledger can surface *which* field got *which* value
+    (e.g. ``file_contacts[HAZARD_INSURANCE].email → jane@acme.com``) instead of
+    a bare "updated".
+    """
+    return {
+        "mode": mode,
+        "updates": {
+            _FIELD_LABEL.get(k, k): v
+            for k, v in (write_payload or {}).items()
+            if k != "contactType" and v not in (None, "")
+        },
+    }
+
+
 def _build_contact_obj(contact_type: str, parsed: Dict[str, str]) -> tuple:
     """Build an Encompass contact object from parsed (merged) source fields.
 
@@ -618,7 +637,7 @@ def _sync_contacts(
     contact_map: Dict[str, Dict[str, Any]],
     required: List[tuple],
     flags: List[Dict[str, Any]],
-) -> Dict[str, str]:
+) -> Dict[str, dict]:
     """Create/overwrite escrow & agent contacts from the settlement statement + image.
 
     For each populatable role the two sources are merged **per field** with the
@@ -630,7 +649,8 @@ def _sync_contacts(
     ``contact_map`` is updated in place to mirror the write so the caller's
     present/missing summary is accurate.
 
-    Returns {contactType: "created"|"updated"} for contacts that were written.
+    Returns {contactType: {"mode": "created"|"updated", "updates": {field: value}}}
+    for contacts that were written.
     """
     images = (
         state.get("almas_notes_images")
@@ -714,9 +734,9 @@ def _sync_contacts(
         ))
         return {}
 
-    written: Dict[str, str] = {}
+    written: Dict[str, dict] = {}
     for ct, label, obj, dropped, mode, diffs, source in plans:
-        written[ct] = mode
+        written[ct] = _receipt(mode, obj)
         # Mirror the server-side merge locally for an accurate present summary.
         merged = dict(contact_map.get(ct) or {})
         merged.update(obj)
@@ -840,9 +860,9 @@ def _sync_seller_addresses(
         v for v in (addr.get("address"), addr.get("city"),
                     addr.get("state"), addr.get("postalCode")) if v
     )
-    written: Dict[str, str] = {}
+    written: Dict[str, dict] = {}
     for ct, label, obj, diffs in plans:
-        written[ct] = "updated"
+        written[ct] = _receipt("updated", obj)
         merged = dict(contact_map.get(ct) or {})
         merged.update(obj)
         contact_map[ct] = merged
@@ -1047,7 +1067,7 @@ def _sync_title_company(
     })
     logger.info(f"[REVIEW_FILE_CONTACTS] [{_TITLE_CT}] {mode} from Title Report — "
                 f"{_contact_summary(merged)}")
-    return {_TITLE_CT: mode}
+    return {_TITLE_CT: _receipt(mode, write_obj)}
 
 
 # ── Insurance company File Contacts (Evidence of Insurance / Flood policy) ───
@@ -1232,7 +1252,7 @@ def _upsert_contact(
     })
     logger.info(f"[REVIEW_FILE_CONTACTS] [{ct}] {mode} from {ref_doc} — "
                 f"{_contact_summary(merged)}")
-    return {ct: mode}
+    return {ct: _receipt(mode, write_obj)}
 
 
 def _sync_insurance_contacts(
@@ -1365,8 +1385,12 @@ def review_file_contacts(
     # middleware in proc_agent.py).
     if written:
         from shared.encompass_io import record_collection_write
-        for ct, mode in written.items():
-            record_collection_write("file_contacts", ct, state=state, action=mode)
+        for ct, receipt in written.items():
+            record_collection_write(
+                "file_contacts", ct, state=state,
+                updates=receipt.get("updates") or None,
+                action=receipt.get("mode", "updated"),
+            )
 
     # ── Check each required contact against the (post-sync) contact map ──
     present: List[str] = []
@@ -1376,9 +1400,10 @@ def review_file_contacts(
         contact = contact_map.get(ct)
         if contact:
             tag = ""
-            if written.get(ct) == "created":
+            _mode = (written.get(ct) or {}).get("mode")
+            if _mode == "created":
                 tag = " (auto-populated)"
-            elif written.get(ct) == "updated":
+            elif _mode == "updated":
                 tag = " (auto-updated)"
             summary = _contact_summary(contact)
             present.append(f"  • {label}: {summary}{tag}")
