@@ -137,7 +137,18 @@ _CT_LABEL = {
     "BUYERS_AGENT": "Buyer's Agent",
     "SELLERS_AGENT": "Seller's Agent",
     "SELLER": "Seller 1",
+    "SELLER2": "Seller 2",
+    "TITLE_INSURANCE_COMPANY": "Title Insurance Company",
+    "HAZARD_INSURANCE": "Hazard Insurance",
+    "FLOOD_INSURANCE": "Flood Insurance",
 }
+
+
+def _humanize_ct(ct: str) -> str:
+    """Human-readable name for a file-contact type (e.g. HAZARD_INSURANCE →
+    'Hazard Insurance'), used to label ledger rows. Falls back to a title-cased
+    version of the raw contactType for any unmapped value."""
+    return _CT_LABEL.get(ct) or (ct or "").replace("_", " ").title()
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
@@ -1390,6 +1401,7 @@ def review_file_contacts(
                 "file_contacts", ct, state=state,
                 updates=receipt.get("updates") or None,
                 action=receipt.get("mode", "updated"),
+                row_label=_humanize_ct(ct),
             )
 
     # ── Check each required contact against the (post-sync) contact map ──
