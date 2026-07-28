@@ -188,7 +188,17 @@ class CollectionWriteState(TypedDict):
         contacts: [{"contactType": "...", ...}]
                   → PATCH /loans/{id}/contacts  (upsert by contactType)
     Output:
-        results: {vods: {...}, vols: [...], voes: [...], contacts: {...}, error?: str}
+        results: {
+            vods:     {success, updated?/skipped?/error?, rows?: [read_vods rows]},
+            vols:     {success, saved: [per-row], rows?: [read_vols rows]},
+            voes:     {success, saved: [per-row], rows?: [read_voes rows]},
+            contacts: {success, written?, rows?: [raw contact dicts]},
+            error?: str,
+        }
+        Each collection that saved successfully carries a fresh ``rows`` array
+        (re-read from Encompass) so the dashboard can refresh instead of showing
+        its stale pre-write snapshot. A read-back failure surfaces as
+        ``<collection>.rows_error`` and never masks the successful write.
     """
     loan_number: str
     env: str
@@ -574,6 +584,23 @@ def _merge_vod_outcomes(outcomes: list[dict]) -> dict:
     return merged
 
 
+def _attach_rows(result: dict, reader) -> None:
+    """Best-effort: attach fresh read-back rows to a successful write result.
+
+    The collection PATCHes return no (or partial) row data, so without this the
+    dashboard re-renders its stale pre-write snapshot (looks like the edit
+    reverted). On success we re-read from Encompass and expose the authoritative
+    rows under ``result["rows"]``; a read failure is surfaced as
+    ``result["rows_error"]`` and never masks the successful write.
+    """
+    if not isinstance(result, dict) or not result.get("success"):
+        return
+    try:
+        result["rows"] = reader()
+    except Exception as exc:  # noqa: BLE001 — read-back is best-effort
+        result["rows_error"] = str(exc)
+
+
 def _write_collections_node(state: CollectionWriteState) -> dict:
     from encompass_client import (
         get_encompass_client,
@@ -581,6 +608,7 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
         get_loan_contacts,
         write_loan_contacts,
     )
+    from shared.encompass_io import read_vods, read_vols, read_voes
 
     vods = state.get("vods") or []
     vols = state.get("vols") or []
@@ -632,6 +660,7 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
             results["vods"] = (
                 outcomes[0] if len(outcomes) == 1 else _merge_vod_outcomes(outcomes)
             )
+        _attach_rows(results["vods"], lambda: read_vods(loan_id, state=io_state))
     if vols:
         vol_results: list[dict] = []
         translated: list[dict] = []  # {id, ...fields} rows for the batch PATCH
@@ -666,7 +695,9 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
                         "vol_id": r.get("id"),
                         "error": batch.get("error"),
                     })
-        results["vols"] = vol_results
+        vol_success = bool(vol_results) and all(r.get("success") for r in vol_results)
+        results["vols"] = {"success": vol_success, "saved": vol_results}
+        _attach_rows(results["vols"], lambda: read_vols(loan_id, state=io_state))
     if voes:
         voe_results: list[dict] = []
         # VOEs are applicant-scoped, so group translated rows by applicant and
@@ -707,7 +738,9 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
                         "applicant_type": applicant,
                         "error": batch.get("error"),
                     })
-        results["voes"] = voe_results
+        voe_success = bool(voe_results) and all(r.get("success") for r in voe_results)
+        results["voes"] = {"success": voe_success, "saved": voe_results}
+        _attach_rows(results["voes"], lambda: read_voes(loan_id, state=io_state))
     if contacts:
         contacts_result = write_loan_contacts(loan_id, contacts, state=io_state)
         # Read the contacts back from Encompass so the dashboard renders the
