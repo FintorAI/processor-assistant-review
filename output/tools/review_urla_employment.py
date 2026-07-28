@@ -1155,4 +1155,14 @@ def review_urla_employment(
     if flags:
         update["flags"] = flags
 
+    # Dashboard collections-editor channel — VOE rows in the normalised
+    # collections shape (voe_id + applicant_type + writable fields), read after
+    # any auto-completion writes above so the channel reflects post-write
+    # Encompass. Best-effort: a read failure never fails the review substep.
+    try:
+        from shared.encompass_io import read_voes
+        update["voes"] = read_voes(loan_id, state=state)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[REVIEW_URLA_EMPLOYMENT] VOE collections read failed: {exc}")
+
     return Command(update=update)
