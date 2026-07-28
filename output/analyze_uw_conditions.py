@@ -75,9 +75,11 @@ _RULES: list[dict] = [
      "reason": "EMD sourcing can be waived when EMD < 1% of purchase price and < 50% of monthly income."},
 
     # ── fulfill from file (evidence lands in eFolder) ──────────────────
+    # Bucket names follow the canonical AWM catalog
+    # (LG-loaOrch/utilities/AWM_Bucket_Mapping.json).
     {"pattern": r"title prelim|prelim.*title",
      "lane": "fulfill_from_file",
-     "buckets": ["Preliminary Title Report", "Title Report"],
+     "buckets": ["Title Report"],
      "reason": "Title company delivers the prelim — attach from eFolder and mark Fulfilled when present."},
     {"pattern": r"appraisal",
      "lane": "fulfill_from_file",
@@ -89,6 +91,8 @@ _RULES: list[dict] = [
      "reason": "Ocrolus worksheet output — attach from the Income Calculation Worksheets bucket (automation lands with the Ocrolus integration)."},
     {"pattern": r"flood cert",
      "lane": "fulfill_from_file",
+     # Not in the AWM catalog JSON (which maps flood certs to
+     # Property(Miscellaneous)) but confirmed as the bucket loans carry.
      "buckets": ["Flood Certificate"],
      "reason": "Flood cert correction — re-pull/attach the corrected cert from eFolder."},
 
@@ -119,7 +123,7 @@ _RULES: list[dict] = [
      "reason": "Borrower LOE for recent credit inquiries."},
     {"pattern": r"insurance|\bhoi\b|\brcc\b|replacement cost",
      "lane": "request_borrower", "family": "homeowners_insurance",
-     "buckets": ["Hazard Insurance", "Homeowners Insurance"],
+     "buckets": ["Evidence of Hazard Insurance"],
      "reason": "Policy/declarations (with RCC where required) from the borrower's insurance agent."},
     {"pattern": r"\bead\b|residency|green card|visa",
      "lane": "request_borrower", "family": "id_document",
