@@ -170,22 +170,31 @@ class CollectionWriteState(TypedDict):
                                 unpaid_balance?, credit_limit?,
                                 exclude_monthly_pay?, payoff_included?,
                                 remaining_months?}}]
+        voes:     [{"voe_id": "...",
+                    "applicant_type": "borrower"|"coborrower",  # locates the
+                                # applicant-scoped employment endpoint
+                    "updates": {employer_name?, title?, current_employment?,
+                                self_employed?, start_date?, base_pay?, bonus?,
+                                overtime?, commissions?, phone?}}]
 
     Raw v3 passthrough (scripts / power users):
         vods:     [{"id": vodId, ...raw VOD fields (e.g. holderName, items[])}]
         vols:     [{"id": volId, ...raw VOL fields (e.g. unpaidBalanceAmount)}]
+        voes:     [{"id": voeId, "applicant_type": "borrower"|"coborrower",
+                    ...raw Employment fields (e.g. basePayAmount)}]
 
     Contacts are always raw v3 rows (the file_contacts channel already holds
     the GET shape):
         contacts: [{"contactType": "...", ...}]
                   → PATCH /loans/{id}/contacts  (upsert by contactType)
     Output:
-        results: {vods: {...}, vols: [...], contacts: {...}, error?: str}
+        results: {vods: {...}, vols: [...], voes: [...], contacts: {...}, error?: str}
     """
     loan_number: str
     env: str
     vods: NotRequired[list]
     vols: NotRequired[list]
+    voes: NotRequired[list]
     contacts: NotRequired[list]
     source: NotRequired[str]
     loan_id: Annotated[NotRequired[str], _last_value]
@@ -262,6 +271,65 @@ def _vol_override_to_v3(entry: dict) -> tuple[dict | None, str | None]:
     if not body:
         return None, "no writable fields in updates"
     return {"id": entry["vol_id"], **body}, None
+
+
+# Normalised read_voes keys → v3 Employment PATCH fields. Computed income
+# fields (monthly_income) are read-only and intentionally NOT writable.
+_VOE_KEY_TO_V3 = {
+    "employer_name":      "employerName",
+    "title":              "title",
+    "current_employment": "currentEmploymentIndicator",
+    "self_employed":      "selfEmployedIndicator",
+    "start_date":         "employmentStartDate",
+    "base_pay":           "basePayAmount",
+    "bonus":              "bonusAmount",
+    "overtime":           "overtimeAmount",
+    "commissions":        "commissionsAmount",
+    "phone":              "phoneNumber",
+}
+
+_VOE_FLOAT_KEYS = {"base_pay", "bonus", "overtime", "commissions"}
+_VOE_BOOL_KEYS = {"current_employment", "self_employed"}
+
+
+def _coerce_voe_value(key: str, value) -> tuple[object, str | None]:
+    """Coerce a normalised VOE value to the numeric/boolean type the v3 API
+    requires → (coerced, error)."""
+    if key in _VOE_FLOAT_KEYS:
+        try:
+            return float(str(value).replace(",", "").strip()), None
+        except (TypeError, ValueError):
+            return None, f"invalid numeric value for {key}: {value!r}"
+    if key in _VOE_BOOL_KEYS:
+        if isinstance(value, bool):
+            return value, None
+        text = str(value).strip().lower()
+        if text in ("true", "1", "yes"):
+            return True, None
+        if text in ("false", "0", "no", ""):
+            return False, None
+        return None, f"invalid boolean value for {key}: {value!r}"
+    return value, None
+
+
+def _voe_override_to_v3(entry: dict) -> tuple[str, dict | None, str | None]:
+    """Translate a normalised {"voe_id", "applicant_type", "updates"} entry into
+    ``(applicant_type, raw_patch_row, error)``. VOEs are applicant-scoped, so the
+    applicant_type is returned for routing (never sent in the body)."""
+    updates = entry.get("updates") or {}
+    applicant = (entry.get("applicant_type") or "borrower").lower()
+    body: dict = {}
+    for key, value in updates.items():
+        api_field = _VOE_KEY_TO_V3.get(key)
+        if not api_field:
+            continue  # unknown / non-writable / computed key — ignore silently
+        coerced, coerce_err = _coerce_voe_value(key, value)
+        if coerce_err:
+            return applicant, None, coerce_err
+        body[api_field] = coerced
+    if not body:
+        return applicant, None, "no writable fields in updates"
+    return applicant, {"id": entry["voe_id"], **body}, None
 
 
 def _apply_vod_overrides(
@@ -392,6 +460,32 @@ def _apply_vod_overrides(
     return result
 
 
+# ``depositoryAccountGuid`` is server-assigned and readonly — echoing it back
+# from a GET makes the collection PATCH 400 ("The DepositoryAccountGuid field is
+# readonly."). ``itemNumber`` is NOT stripped here: unlike merge_duplicate_vods
+# (which recombines items and re-numbers them), this path resends the existing
+# items in place, where itemNumber is required (1–4) and already valid.
+_VOD_ITEM_READONLY_ON_RESEND = {"depositoryAccountGuid"}
+
+
+def _strip_vod_readonly(rows: list) -> list:
+    """Drop server-assigned readonly fields from every account item so the
+    resent (wholesale-replaced) array is accepted by the collection PATCH."""
+    cleaned: list = []
+    for row in rows:
+        r = dict(row)
+        for arr_key in ("items", "accountInformation"):
+            arr = r.get(arr_key)
+            if isinstance(arr, list):
+                r[arr_key] = [
+                    {k: v for k, v in item.items() if k not in _VOD_ITEM_READONLY_ON_RESEND}
+                    if isinstance(item, dict) else item
+                    for item in arr
+                ]
+        cleaned.append(r)
+    return cleaned
+
+
 def _patch_vods(client, loan_id: str, application_id: str, rows: list) -> dict:
     url = (
         f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
@@ -402,6 +496,7 @@ def _patch_vods(client, loan_id: str, application_id: str, rows: list) -> dict:
         "Authorization": f"Bearer {client.access_token}",
         "content-type": "application/json",
     }
+    rows = _strip_vod_readonly(rows)
     try:
         resp = requests.patch(url, json=rows, headers=headers, timeout=30)
     except requests.exceptions.RequestException as exc:
@@ -411,26 +506,56 @@ def _patch_vods(client, loan_id: str, application_id: str, rows: list) -> dict:
     return {"success": False, "error": f"vods PATCH {resp.status_code}: {resp.text[:300]}"}
 
 
-def _patch_vol(client, loan_id: str, application_id: str, row: dict) -> dict:
-    vol_id = row.get("id")
-    body = {k: v for k, v in row.items() if k != "id"}
+def _patch_vols(client, loan_id: str, application_id: str, rows: list) -> dict:
+    """Update VOLs via the collection endpoint (V3 Manage VOLs).
+
+    Like VODs, VOLs are managed with ONE PATCH on the whole collection —
+    ``?action=update`` in the query, a bare array of ``{"id": volId, ...fields}``
+    in the body. There is no per-``{volId}`` PATCH route (hitting it 403s).
+    """
     url = (
         f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
-        f"/applications/{application_id}/vols/{vol_id}"
+        f"/applications/{application_id}/vols?action=update"
     )
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {client.access_token}",
         "content-type": "application/json",
     }
-    # Failures (network included) stay per-row so sibling rows still write.
     try:
-        resp = requests.patch(url, json=body, headers=headers, timeout=30)
+        resp = requests.patch(url, json=rows, headers=headers, timeout=30)
     except requests.exceptions.RequestException as exc:
-        return {"success": False, "vol_id": vol_id, "error": f"vol PATCH network error: {exc}"}
+        return {"success": False, "error": f"vols PATCH network error: {exc}"}
     if resp.status_code in (200, 204):
-        return {"success": True, "vol_id": vol_id, "fields": sorted(body.keys())}
-    return {"success": False, "vol_id": vol_id, "error": f"vol PATCH {resp.status_code}: {resp.text[:300]}"}
+        return {"success": True, "updated": [r.get("id") for r in rows]}
+    return {"success": False, "error": f"vols PATCH {resp.status_code}: {resp.text[:300]}"}
+
+
+def _patch_voes(client, loan_id: str, application_id: str, applicant_type: str, rows: list) -> dict:
+    """Update VOEs via the applicant-scoped Employment collection endpoint.
+
+    VOEs (V3 Manage Employment) are managed with ONE PATCH per applicant —
+    ``?action=update`` in the query, a bare array of ``{"id": voeId, ...fields}``
+    in the body. The applicant (borrower/coborrower) is part of the PATH, so
+    rows for different applicants must be sent in separate calls.
+    """
+    applicant = (applicant_type or "borrower").lower()
+    url = (
+        f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+        f"/applications/{application_id}/{applicant}/employment?action=update"
+    )
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    try:
+        resp = requests.patch(url, json=rows, headers=headers, timeout=30)
+    except requests.exceptions.RequestException as exc:
+        return {"success": False, "error": f"voes PATCH network error: {exc}"}
+    if resp.status_code in (200, 204):
+        return {"success": True, "updated": [r.get("id") for r in rows]}
+    return {"success": False, "error": f"voes PATCH {resp.status_code}: {resp.text[:300]}"}
 
 
 def _merge_vod_outcomes(outcomes: list[dict]) -> dict:
@@ -453,14 +578,16 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
     from encompass_client import (
         get_encompass_client,
         get_loan_applications,
+        get_loan_contacts,
         write_loan_contacts,
     )
 
     vods = state.get("vods") or []
     vols = state.get("vols") or []
+    voes = state.get("voes") or []
     contacts = state.get("contacts") or []
-    if not (vods or vols or contacts):
-        return {"results": {"error": "No collection payload provided (vods/vols/contacts)"}}
+    if not (vods or vols or voes or contacts):
+        return {"results": {"error": "No collection payload provided (vods/vols/voes/contacts)"}}
 
     loan_id, err = _resolve_loan(state.get("loan_number", ""), state.get("env", "Prod"))
     if err:
@@ -470,7 +597,7 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
     results: dict = {}
 
     application_id = None
-    if vods or vols:
+    if vods or vols or voes:
         apps = get_loan_applications(loan_id, state=io_state)
         application_id = apps[0].get("id") if apps else None
         if not application_id:
@@ -507,6 +634,7 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
             )
     if vols:
         vol_results: list[dict] = []
+        translated: list[dict] = []  # {id, ...fields} rows for the batch PATCH
         for row in vols:
             if row.get("vol_id"):
                 v3_row, err = _vol_override_to_v3(row)
@@ -515,22 +643,86 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
                         {"success": False, "vol_id": row["vol_id"], "error": err}
                     )
                 else:
-                    vol_results.append(
-                        _patch_vol(client, loan_id, application_id, v3_row)
-                    )
+                    translated.append(v3_row)
             elif row.get("id"):
-                vol_results.append(_patch_vol(client, loan_id, application_id, row))
+                translated.append(row)
             else:
                 vol_results.append(
                     {"success": False, "error": "VOL row missing 'vol_id'"}
                 )
+        # One collection PATCH for all writable rows (V3 Manage VOLs contract).
+        if translated:
+            batch = _patch_vols(client, loan_id, application_id, translated)
+            for r in translated:
+                if batch.get("success"):
+                    vol_results.append({
+                        "success": True,
+                        "vol_id": r.get("id"),
+                        "fields": sorted(k for k in r if k != "id"),
+                    })
+                else:
+                    vol_results.append({
+                        "success": False,
+                        "vol_id": r.get("id"),
+                        "error": batch.get("error"),
+                    })
         results["vols"] = vol_results
+    if voes:
+        voe_results: list[dict] = []
+        # VOEs are applicant-scoped, so group translated rows by applicant and
+        # send one collection PATCH per applicant (borrower / coborrower).
+        by_applicant: dict[str, list[dict]] = {}
+        for row in voes:
+            if row.get("voe_id"):
+                applicant, v3_row, err = _voe_override_to_v3(row)
+                if err:
+                    voe_results.append(
+                        {"success": False, "voe_id": row["voe_id"], "error": err}
+                    )
+                else:
+                    by_applicant.setdefault(applicant, []).append(v3_row)
+            elif row.get("id"):
+                applicant = (row.get("applicant_type") or "borrower").lower()
+                by_applicant.setdefault(applicant, []).append(
+                    {k: v for k, v in row.items() if k != "applicant_type"}
+                )
+            else:
+                voe_results.append(
+                    {"success": False, "error": "VOE row missing 'voe_id'"}
+                )
+        for applicant, rows_ in by_applicant.items():
+            batch = _patch_voes(client, loan_id, application_id, applicant, rows_)
+            for r in rows_:
+                if batch.get("success"):
+                    voe_results.append({
+                        "success": True,
+                        "voe_id": r.get("id"),
+                        "applicant_type": applicant,
+                        "fields": sorted(k for k in r if k != "id"),
+                    })
+                else:
+                    voe_results.append({
+                        "success": False,
+                        "voe_id": r.get("id"),
+                        "applicant_type": applicant,
+                        "error": batch.get("error"),
+                    })
+        results["voes"] = voe_results
     if contacts:
-        results["contacts"] = write_loan_contacts(loan_id, contacts, state=io_state)
+        contacts_result = write_loan_contacts(loan_id, contacts, state=io_state)
+        # Read the contacts back from Encompass so the dashboard renders the
+        # just-saved values instead of its pre-write snapshot (the PATCH is a
+        # 204 with no body, so without this the UI shows stale rows).
+        if contacts_result.get("success"):
+            try:
+                contacts_result["rows"] = get_loan_contacts(loan_id, state=io_state)
+            except Exception as exc:  # noqa: BLE001 — read-back is best-effort
+                contacts_result["rows_error"] = str(exc)
+        results["contacts"] = contacts_result
 
     logger.info(
         f"[WRITE_LOS_COLLECTIONS] loan {loan_id[:8]}: "
-        f"vods={len(vods)}, vols={len(vols)}, contacts={len(contacts)} "
+        f"vods={len(vods)}, vols={len(vols)}, voes={len(voes)}, contacts={len(contacts)} "
         f"(source={state.get('source') or 'dashboard-override'})"
     )
     return {"loan_id": loan_id, "results": results}

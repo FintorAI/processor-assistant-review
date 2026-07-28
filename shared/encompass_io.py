@@ -1143,6 +1143,73 @@ def read_vols(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     return rows
 
 
+def read_voes(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
+    """Fetch all VOE (Verification of Employment) rows for both applicants.
+
+    VOEs are the Employment collection, scoped per applicant (borrower /
+    coborrower) — NOT under the application like VODs/VOLs:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/{applicantType}/employment
+
+    Each returned row carries ``applicant_type`` so the write path knows which
+    applicant-scoped endpoint to PATCH.
+
+    Returned item shape::
+
+        {
+          "voe_id":             str,    # Encompass Employment record ID
+          "applicant_type":     str,    # "borrower" | "coborrower"
+          "employer_name":      str,    # employerName
+          "title":              str,    # job title
+          "current_employment": bool,   # currentEmploymentIndicator
+          "self_employed":      bool,   # selfEmployedIndicator
+          "start_date":         str,    # employmentStartDate (yyyy-MM-dd)
+          "base_pay":           float,  # basePayAmount
+          "bonus":              float,  # bonusAmount
+          "overtime":           float,  # overtimeAmount
+          "commissions":        float,  # commissionsAmount
+          "monthly_income":     float,  # monthlyIncomeAmount (computed, read-only)
+          "phone":              str,    # phoneNumber
+        }
+    """
+    try:
+        from encompass_client import get_voes
+    except ImportError:
+        logger.warning("encompass_client not available — read_voes will fail at runtime")
+        return []
+
+    def _f(v) -> float:
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    rows: List[Dict[str, Any]] = []
+    for applicant in ("borrower", "coborrower"):
+        try:
+            raw = get_voes(loan_id, applicant_type=applicant, state=state)
+        except LookupError:
+            continue  # collection not created for this applicant
+        for voe in raw:
+            rows.append({
+                "voe_id":             voe.get("id", ""),
+                "applicant_type":     applicant,
+                "employer_name":      (voe.get("employerName") or "").strip(),
+                "title":              (voe.get("title") or "").strip(),
+                "current_employment": bool(voe.get("currentEmploymentIndicator", False)),
+                "self_employed":      bool(voe.get("selfEmployedIndicator", False)),
+                "start_date":         (voe.get("employmentStartDate") or "").strip(),
+                "base_pay":           _f(voe.get("basePayAmount")),
+                "bonus":              _f(voe.get("bonusAmount")),
+                "overtime":           _f(voe.get("overtimeAmount")),
+                "commissions":        _f(voe.get("commissionsAmount")),
+                "monthly_income":     _f(voe.get("monthlyIncomeAmount")),
+                "phone":              (voe.get("phoneNumber") or "").strip(),
+            })
+
+    logger.info(f"[ENCOMPASS] read_voes: {len(rows)} employment row(s)")
+    return rows
+
+
 def read_reo_properties(loan_id: str, state: dict = None) -> List[Dict[str, Any]]:
     """Fetch REO (Real Estate Owned) properties from the Encompass v3 API (Section 3).
 

@@ -1337,6 +1337,41 @@ def write_borrower_vesting_description(
         return {"success": False, "error": str(e)}
 
 
+def get_loan_contacts(loan_id: str, state: dict = None) -> list[dict[str, any]]:
+    """Get all File Contacts for a loan via the v3 contacts collection.
+
+    Endpoint::
+
+        GET /encompass/v3/loans/{loanId}/contacts -> 200 [ {...}, ... ]
+
+    Each contact dict includes ``contactType`` plus fields like ``name``
+    (company), ``contactName`` (person), ``email``, ``phone``, ``fax``,
+    ``address``, ``city``, ``state``, ``postalCode``, ``loginId``.
+
+    Returns the raw contact list (empty list on 404 / no contacts).
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v3/loans/{loan_id}/contacts"
+    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code == 404:
+            return []
+        if resp.status_code != 200:
+            raise Exception(f"contacts GET error {resp.status_code}: {resp.text[:200]}")
+        body = resp.json()
+        return body if isinstance(body, list) else ([body] if body else [])
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error getting file contacts: {e}")
+        raise
+
+
 def write_loan_contacts(
     loan_id: str,
     contacts: list[dict[str, any]],
@@ -1687,6 +1722,68 @@ def get_vols(
         return records
     except requests.exceptions.RequestException as e:
         logger.error(f"[ENCOMPASS] Network error getting VOLs: {e}")
+        raise
+
+
+def get_voes(
+    loan_id: str,
+    applicant_type: str = "borrower",
+    application_id: str = None,
+    state: dict = None,
+) -> list[dict[str, any]]:
+    """Get Verification of Employment (VOE) records for one applicant.
+
+    VOEs are the Employment collection and — unlike VODs/VOLs (which sit under
+    the application) — are scoped under each applicant:
+        GET /encompass/v3/loans/{loanId}/applications/{applicationId}/{applicantType}/employment
+
+    ``applicant_type`` is "borrower" or "coborrower".
+
+    Key fields (from the V3 Manage Employment reference):
+        employerName, title, businessName, currentEmploymentIndicator,
+        selfEmployedIndicator, employmentStartDate, basePayAmount, bonusAmount,
+        overtimeAmount, commissionsAmount, monthlyIncomeAmount (computed),
+        phoneNumber, addressCity/State/PostalCode.
+
+    Raises LookupError if the collection does not exist yet.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    if not application_id:
+        try:
+            apps = get_loan_applications(loan_id, state=state)
+            application_id = apps[0].get("id", "1") if apps else "1"
+        except Exception:
+            application_id = "1"
+
+    applicant = (applicant_type or "borrower").lower()
+    url = (
+        f"{client.api_base_url}/encompass/v3/loans/{loan_id}"
+        f"/applications/{application_id}/{applicant}/employment"
+    )
+    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code == 404:
+            body_lc = (response.text or "").lower()
+            if any(kw in body_lc for kw in ("collection", "application", "does not exist", "not found")):
+                raise LookupError("VOE collection does not exist — no rows created yet")
+            return []
+        if response.status_code != 200:
+            raise Exception(f"VOE API error {response.status_code}: {response.text[:200]}")
+        records = response.json()
+        if not isinstance(records, list):
+            records = [records]
+        logger.info(f"[ENCOMPASS] get_voes({applicant}): {len(records)} record(s) for loan {loan_id[:8]}")
+        return records
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Network error getting VOEs: {e}")
         raise
 
 
