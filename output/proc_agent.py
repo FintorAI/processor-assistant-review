@@ -275,10 +275,11 @@ class ProcessorAgentState(AgentState):
 
     # ── Collections read channels (dashboard Field Writes tab tables) ──
     # Raw Encompass collection rows emitted by the review tools that fetch
-    # them, so the dashboard can render editable VOD/VOL/file-contact tables
+    # them, so the dashboard can render editable VOD/VOL/VOE/file-contact tables
     # (writes go through the stateless write_los_collections graph).
     vods: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
     vols: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
+    voes: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
     file_contacts: Annotated[NotRequired[list], OmitFromInput, last_value_reducer]
 
     # ── Issues and tracking ──
