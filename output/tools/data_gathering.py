@@ -576,6 +576,8 @@ FIELD_MAP = {
     # CUST42FV replaces CX.NONDEL.INV.APPROVAL (which does not exist in the prod
     # instance — confirmed via customFields schema + EC UI, 2026-07-23).
     "CUST42FV": {"key": "non_del_inv_approval", "field_name": "Non-Del Inv. Approval (Prior Approval)", "category": "processor_workflow"},
+    # AKA field on the Processor Workflow custom form — verified in Encompass UI (2026-08-10).
+    "CUST69FV": {"key": "processor_workflow_aka", "field_name": "Processor Workflow AKAs", "category": "processor_workflow"},
     "CX.DOCUMENTATIONTYPE": {"key": "doc_type_submission", "field_name": "Documentation Type (Submission)", "category": "processor_workflow"},
     # ── Step 11 — Transmittal Summary manual-entry fields ──
     "1551": {"key": "community_lending_ahi", "field_name": "Community Lending / Affordable Housing Initiative", "category": "loan_info"},

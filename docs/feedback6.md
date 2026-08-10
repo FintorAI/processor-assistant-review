@@ -2,21 +2,23 @@ Processor Feedback 6
 - Consider reordering steps?
 - First thing they do is Cover Letter so maybe consider reordering?
 - Move property check to Pre-Checks rather than where it is now
-- Go to property listing: do we do this? Check state
+- Go to property listing: do we do this? Check thread state
 - For Manner in Which Title… check URLA.X136 (Title Names) not just borrowers
-    - Tenancy by the Entirety because 
+    - Tenancy by the Entirety because Title Names include borrower's spouse, but spouse is not a coborrower, but we consider that they are Tenancy by the Entirety still
 - FHA Management > Check 1 Unit in Property Type
 - Borrower Information - Vesting
     - Vesting Type - Title Only
     - Occupancy Intent - Will Occupy
-    - Manner in which Title will be held is same
+    - Manner in which Title will be held is same as that of earlier
     - Need to sign something for title even though not borrower
     - Title / Vesting by state
+    - Also added spouse because his name is in Title Names
 - HUD-9200.. Transmittal: 
     - Construction: Existing, Proposed, New etc; 99% of loans are just Existing
+    - Field id is 1067 (see screenshots for full list of possible values)
 - Transmittal Summary
-    - No HOA, single family home. 1 unit, not a PUD
-    - Level of Property Review: 
+    - No HOA, single family home, not a PUD so write "1" in # of Units field 16
+    - Don't we verify the property via API? check state if we do this
 - Fannie Mae Additional Data
     - Fannie Mae’s Community Lending Product: 08 Home Ready
 - Processor Closing
@@ -32,8 +34,8 @@ Processor Feedback 6
     - Bible, most important
     - Checked income and assets
 - Processor Workflow steps missing in Dashboard? Is it also missing in agent state?
-- VOD should be info lumped under one Bank
-- Deleted buckets; maybe add as option for Mark as UW
+- VOD should be info lumped under one Bank, not multiple rows same bank
+- Deleted buckets; maybe add as option for Mark as UW (dashboard edit)
 - Cross check Credit Reference Number with number in Credit Reports
 - Ordered Radian
     - MI could be MI Rate Quote

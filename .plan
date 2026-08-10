@@ -1,0 +1,80 @@
+# .plan — processor-assistant-review
+# Updated: 2026-07-23 (branch feat/video7-gaps, commit 43b902c + merge 332188c)
+
+## Shipped on feat/video7-gaps (context for remaining items)
+
+- 14.1 Processor Workflow: CX.NONDEL.INV.APPROVAL replaced with verified CUST42FV
+  (dropdown enum uppercase YES/NO; agent writes "NO").
+- 14.2 Processor Closing: field 763 (Est Closing Date) is the source of truth —
+  only blank/mismatched Signing (CUST50FV) / Wire (CX.WIREDATELO) dates are
+  written from it; 763 never written; Michigan wire exception kept. Certifications:
+  CX.VESTINGVERIFTITLE/BOR always "X"; CX.WIREINSTINFILE / CX.ESCROWEOINFILE /
+  CX.CPLINFILE checked from live eFolder bucket listing (fuzzy title match);
+  CX.HOIEFFECTIVE + CX.TAXES never auto-written (manual-entry rows).
+- 14.3 update_processing_submitted (NEW): "In Processing/Submitted" milestone via
+  v1 API (GET/PATCH /encompass/v1/loans/{id}/milestones/{mid}). Assigns Loan
+  Processor (Ash Desai, user id "adesai"). "Finished" checkbox = milestone
+  doneIndicator via ?action=finish — NOT field 1057 (that is "Borr Declarations E").
+  FINISH_MODE="probe": attempts finish only to collect the server-side
+  missing-required-fields validation (the EC UI "Go To Fields" list), unfinishes
+  immediately if it passes. PATCH body must include startDate (client handles).
+- 14.4 = build_action_items (renumbered from 14.3).
+- 11.1: fields 1551 (community lending CHECKBOX — there is NO "08 Home Ready"
+  dropdown) and 1552 (Home Buyers Education Certification dropdown) surfaced as
+  manual-entry rows; never auto-written.
+- NEW state channel `manual_fields` (rows the agent deliberately did not write;
+  deduped by substep+field_id) + `_manual_field` helper + ManualField contract in
+  shared/contracts.py (AgentOutput.manual_fields).
+- NEW `python3.11 -m factory export-field-schema --env Prod` →
+  output/config/field_writes_config.json (format/readOnly/options for 295/305
+  registered fields; drives dashboard input controls).
+- NEW LangGraph endpoints in langgraph.json: `write_los_fields` (flat overrides,
+  audited via write_fields_resilient, ledger source="dashboard-override") and
+  `write_los_collections` (VOD collection PATCH, per-row VOL PATCH, contacts
+  upsert). Both in output/write_graphs.py, LLM-free single-node graphs.
+
+## TODO (blocked on Encompass admin)
+
+- [ ] Grant the API subject user's Encompass persona TWO permissions:
+      1) "associate loan team member"  2) "Finish Milestones".
+      Both milestone writes currently return 403 (verified on prod dummy loan
+      2607973377: "User does not have permission to associate loan team member",
+      "User not allowed to finish milestone.").
+- [ ] Re-run the 14.3 end-to-end test after permissions are granted:
+      venv/bin/python3 -c  (see git history / run tool with
+      state={"loan_id": "99ec396c-d3e8-47ed-b106-b1f9422fed40", "env": "Prod"})
+      Expect: processor assigned + 400 finish validation listing the missing
+      required fields from the screenshot (1532-1538, 1197, 1531, 175, 266, 478,
+      FR0206-8, FR0226, URLA.X107, URLA.X99 on that loan).
+- [ ] Verify/tune `_parse_missing_fields()` in
+      output/tools/update_processing_submitted.py against the real 400 payload
+      format (parser is tolerant; raw text lands in the flag if parse fails).
+
+## TODO (needs processor confirmation)
+
+- [ ] Ash to confirm the worksheet "Finished" checkbox == milestone doneIndicator
+      (mechanism verified via API on prod loan 2604964148: doneIndicator=true on
+      a finished loan). Then flip FINISH_MODE="probe" → "finish" in
+      output/tools/update_processing_submitted.py to unhold auto-finishing.
+- [ ] Applies-when rule for 1551 (community lending checkbox) — auto-write once
+      the rule is known; manual-entry row until then.
+
+## TODO (deferred/backlog)
+
+- [ ] 14.2 refinance date logic + wet/dry state nuances (current logic is
+      purchase-only; non-purchase just flags blank signing date).
+- [ ] documentAudits opening flow (disclosure data audit) — probed and working
+      with scope.entityType "urn:elli:encompass:loan:borrower", but requires a
+      plan code on the loan and audits disclosure readiness, not milestone
+      required fields. Revisit if a disclosure-readiness check is ever needed.
+- [ ] Re-run `python3.11 -m factory export-field-schema` whenever new fields are
+      added to YAML (it is NOT part of factory-reset; needs network + .env).
+
+## Notes / gotchas
+
+- v3 /loans/{id}/associates and v3 settings/milestones + businessRules → 403
+  for our API user; v1 milestones is the working path.
+- A loan open in the EC UI is locked: milestone PATCH → 409 EBS-4360. The 14.3
+  tool detects this and flags "Loan Locked — Milestone Writes Skipped".
+- field 218 + 9 custom fields (CX.AMI.*, CX.KM.CL.*, etc.) are not in the prod
+  schema APIs — marked found_in_schema:false in field_writes_config.json.
