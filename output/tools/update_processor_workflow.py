@@ -196,9 +196,10 @@ def update_processor_workflow(
         # _write_fields emits the info-overwrite audit flag (labelled via FIELD_LABELS).
         writes["CUST69FV"] = "; ".join(all_akas)
     elif all_akas:
+        # Do not log the field value itself — AKAs are borrower PII.
         logger.info(
             f"[UPDATE_PROCESSOR_WORKFLOW] CUST69FV already populated "
-            f"({current_pw_aka!r}) — write-if-blank, leaving as-is."
+            f"({len(str(current_pw_aka))} chars) — write-if-blank, leaving as-is."
         )
 
     _write_fields(loan_id, writes, substep="14.1", flags=flags, state=state, labels=FIELD_LABELS)

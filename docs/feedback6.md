@@ -17,7 +17,7 @@ Processor Feedback 6
     - Construction: Existing, Proposed, New etc; 99% of loans are just Existing
     - Field id is 1067 (see screenshots for full list of possible values)
 - Transmittal Summary
-    - No HOA, single family home, not a PUD so write "1" in # of Units field 16
+    - No HOA, single-family home, not a PUD so write "1" in # of Units field 16
     - Don't we verify the property via API? check state if we do this
 - Fannie Mae Additional Data
     - Fannie Mae’s Community Lending Product: 08 Home Ready

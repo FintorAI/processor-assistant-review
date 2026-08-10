@@ -574,7 +574,7 @@ def _bureau_name_to_fml(raw) -> str:
         return s
     parts = [p.strip() for p in s.split(",") if p.strip()]
     if len(parts) >= 2:
-        return " ".join(parts[1:] + [parts[0]])
+        return " ".join([*parts[1:], parts[0]])
     return parts[0] if parts else s
 
 
@@ -588,7 +588,7 @@ def _reorder_if_reversed(name: str, known_last) -> str:
     parts = name.split()
     last_upper = str(known_last).upper().strip()
     if len(parts) >= 2 and parts[0] == last_upper and parts[-1] != last_upper:
-        return " ".join(parts[1:] + [parts[0]])
+        return " ".join([*parts[1:], parts[0]])
     return name
 
 

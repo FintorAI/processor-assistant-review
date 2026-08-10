@@ -61,10 +61,8 @@ Fill out the Processor Workflow screen: set Product Type (derived from loan type
  |
 | Non-Del Inv. Approval (Prior Approval) | `CUST42FV` | `non_del_inv_approval` | Usually NO (set NO by default — YES only if the underwriter already approved). Field ID CUST42FV verified in EC UI + live round-trip write (2026-07-23); dropdown options are uppercase YES / NO. (CX.NONDEL.INV.APPROVAL does not exist in the prod instance.)
  |
-| Processor Workflow AKAs | `CUST69FV` | `processor_workflow_aka` | AKA field on the Processor Workflow screen — write-if-blank with cleaned, deduped Credit Report AKAs from all bureaus (borrower + co-borrower). Field ID verified in Encompass UI 2026-08-10.
- |
-| Borrower / Co-Borrower Names | `4000`/`4001`/`4002`, `4004`/`4005`/`4006` | `borrower_*_name`, `coborrower_*_name` | AKA cleaning — reversed-name reorder, name variations, cross-borrower filter on joint reports.
- |
+| Processor Workflow AKAs | `CUST69FV` | `processor_workflow_aka` | AKA field on the Processor Workflow screen — write-if-blank with cleaned, deduped Credit Report AKAs from all bureaus (borrower + co-borrower). Field ID verified in Encompass UI 2026-08-10. |
+| Borrower / Co-Borrower Names | `4000`/`4001`/`4002`, `4004`/`4005`/`4006` | `borrower_*_name`, `coborrower_*_name` | AKA cleaning — reversed-name reorder, name variations, cross-borrower filter on joint reports. |
 
 **Docs (read from state):**
 - Credit Report: `borrower_aka`, `coborrower_aka` (extractor's flat cross-bureau merge) and `credit_score_factors` (per-bureau entries, each with its own `AKA` list in original bureau format — comma format `LAST,FIRST,MIDDLE` preserved here).

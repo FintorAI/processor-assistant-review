@@ -1,7 +1,21 @@
 # .plan — processor-assistant-review
-# Updated: 2026-07-23 (branch feat/video7-gaps, commit 43b902c + merge 332188c)
+# Updated: 2026-08-10 (branch feat/feedback8)
 
-## Shipped on feat/video7-gaps (context for remaining items)
+## Shipped on feat/feedback8
+
+- 14.1 Processor Workflow: NEW AKA write — CUST69FV (verified in Encompass UI
+  2026-08-10) gets the cleaned, deduped union of Credit Report AKAs from ALL
+  bureaus: flat borrower_aka/coborrower_aka extraction + each bureau's own AKA
+  list from credit_score_factors[i].AKA (preserves comma-format names the flat
+  merge shreds; bureau file IDs ending in B2 → co-borrower). Write-if-blank
+  only — populated values are never overwritten. Success emits the standard
+  info-overwrite audit flag via _write_fields; no extracted AKAs emits the
+  warning "AKA Not Verified — No AKA Extracted from Credit Report". Cleaning
+  helpers (_parse_aka_values / _clean_doc_akas, ported from LG-docsOrch) live
+  in factory/templates/tool_helpers.py.j2 → output/tools/_helpers.py.
+  URLA 1869/1874 write-if-blank in 2.1 (§3.1) is unchanged.
+
+## Shipped on feat/video7-gaps (historical context, 2026-07-23)
 
 - 14.1 Processor Workflow: CX.NONDEL.INV.APPROVAL replaced with verified CUST42FV
   (dropdown enum uppercase YES/NO; agent writes "NO").
@@ -17,7 +31,9 @@
   doneIndicator via ?action=finish — NOT field 1057 (that is "Borr Declarations E").
   FINISH_MODE="probe": attempts finish only to collect the server-side
   missing-required-fields validation (the EC UI "Go To Fields" list), unfinishes
-  immediately if it passes. PATCH body must include startDate (client handles).
+  immediately if it passes — the unfinish result is checked, and a rollback
+  failure raises "Milestone Probe Rollback Failed" (warning) instead of
+  reporting the probe as clean. PATCH body must include startDate (client handles).
 - 14.4 = build_action_items (renumbered from 14.3).
 - 11.1: fields 1551 (community lending CHECKBOX — there is NO "08 Home Ready"
   dropdown) and 1552 (Home Buyers Education Certification dropdown) surfaced as
@@ -41,8 +57,25 @@
       2607973377: "User does not have permission to associate loan team member",
       "User not allowed to finish milestone.").
 - [ ] Re-run the 14.3 end-to-end test after permissions are granted:
-      venv/bin/python3 -c  (see git history / run tool with
-      state={"loan_id": "99ec396c-d3e8-47ed-b106-b1f9422fed40", "env": "Prod"})
+      venv/bin/python3 - <<'EOF'
+      import sys; sys.path.insert(0, "output"); sys.path.insert(0, ".")
+      from dotenv import load_dotenv; load_dotenv()
+      from tools.update_processing_submitted import update_processing_submitted
+      cmd = update_processing_submitted.func(
+          tool_call_id="manual-e2e-test",
+          state={"loan_id": "99ec396c-d3e8-47ed-b106-b1f9422fed40", "env": "Prod"},
+      )
+      import json
+      msg = json.loads(cmd.update["messages"][0].content)
+      print(json.dumps(msg, indent=2))
+      assert msg.get("processor_assigned") or msg.get("processor_already_assigned"), \
+          "expected Loan Processor (adesai) assigned"
+      missing = {r["field_id"] for r in msg.get("missing_required_fields", [])}
+      expected = {"1532", "1533", "1534", "1535", "1536", "1537", "1538", "1197",
+                  "1531", "175", "266", "478", "FR0206", "FR0207", "FR0208",
+                  "FR0226", "URLA.X107", "URLA.X99"}
+      assert expected <= missing, f"missing from 400 finish validation: {expected - missing}"
+      EOF
       Expect: processor assigned + 400 finish validation listing the missing
       required fields from the screenshot (1532-1538, 1197, 1531, 175, 266, 478,
       FR0206-8, FR0226, URLA.X107, URLA.X99 on that loan).
