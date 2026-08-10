@@ -908,7 +908,8 @@
         "STEP_02",
         "STEP_03",
         "STEP_04",
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -919,7 +920,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_04",
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -932,7 +934,8 @@
         "STEP_03",
         "STEP_04",
         "STEP_08",
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -952,7 +955,8 @@
       "used_by_steps": [
         "STEP_02",
         "STEP_03",
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -961,7 +965,8 @@
       "field_name": "Co-Borrower Middle Name",
       "category": "borrower_info",
       "used_by_steps": [
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -973,7 +978,8 @@
         "STEP_02",
         "STEP_03",
         "STEP_08",
-        "STEP_10"
+        "STEP_10",
+        "STEP_14"
       ]
     },
     {
@@ -1831,6 +1837,15 @@
       "field_id": "CUST50FV",
       "field_name": "Signing Date",
       "category": "closing",
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
+      "key": "processor_workflow_aka",
+      "field_id": "CUST69FV",
+      "field_name": "Processor Workflow AKAs",
+      "category": "processor_workflow",
       "used_by_steps": [
         "STEP_14"
       ]
@@ -3029,6 +3044,15 @@
       ]
     },
     {
+      "key": "borrower_aka",
+      "source_documents": [
+        "Credit Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "borrower_authorization_number",
       "source_documents": [
         "CAIVRS"
@@ -3096,6 +3120,15 @@
       ]
     },
     {
+      "key": "coborrower_aka",
+      "source_documents": [
+        "Credit Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
+      ]
+    },
+    {
       "key": "coborrower_authorization_number",
       "source_documents": [
         "CAIVRS"
@@ -3147,6 +3180,15 @@
       ],
       "used_by_steps": [
         "STEP_01"
+      ]
+    },
+    {
+      "key": "credit_score_factors",
+      "source_documents": [
+        "Credit Report"
+      ],
+      "used_by_steps": [
+        "STEP_14"
       ]
     },
     {
@@ -3995,8 +4037,8 @@
     }
   ],
   "stats": {
-    "total_los_fields": 305,
-    "total_doc_fields": 127,
+    "total_los_fields": 306,
+    "total_doc_fields": 130,
     "total_document_types": 34,
     "total_steps": 14,
     "categories": [

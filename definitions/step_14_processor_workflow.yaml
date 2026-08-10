@@ -14,14 +14,54 @@ substeps:
   tool: update_processor_workflow
   description: >
     Fill out the Processor Workflow screen: set Product Type (derived from loan type),
-    Non-Del Inv. Approval (usually NO), and Documentation Type (Full Doc for
-    conventional loans).
+    Non-Del Inv. Approval (usually NO), Documentation Type (Full Doc for
+    conventional loans), and the AKA field (write-if-blank from Credit Report
+    AKAs aggregated across all bureaus).
   los_fields_read:
   - key: loan_type
     field_id: '1172'
     field_name: Mortgage Type
     category: loan_info
     purpose: Drives product type mapping (Conventional → Conforming, FHA → FHA, etc.)
+  - key: processor_workflow_aka
+    field_id: CUST69FV
+    field_name: Processor Workflow AKAs
+    category: processor_workflow
+    purpose: >
+      AKA field on the Processor Workflow screen. Write-if-blank with the
+      cleaned, deduped union of Credit Report AKAs from all bureaus
+      (borrower + co-borrower). Field ID CUST69FV verified in Encompass UI
+      (2026-08-10).
+  - key: borrower_first_name
+    field_id: '4000'
+    field_name: Borrower First Name
+    category: borrower_info
+    purpose: AKA cleaning — name variations and cross-borrower filter
+  - key: borrower_middle_name
+    field_id: '4001'
+    field_name: Borrower Middle Name
+    category: borrower_info
+    purpose: AKA cleaning — name variations and cross-borrower filter
+  - key: borrower_last_name
+    field_id: '4002'
+    field_name: Borrower Last Name
+    category: borrower_info
+    purpose: AKA cleaning — reversed-name reorder and cross-borrower filter
+  - key: coborrower_first_name
+    field_id: '4004'
+    field_name: Co-Borrower First Name
+    category: borrower_info
+    purpose: AKA cleaning — cross-borrower filter on joint credit reports
+  - key: coborrower_middle_name
+    field_id: '4005'
+    field_name: Co-Borrower Middle Name
+    category: borrower_info
+    purpose: AKA cleaning — cross-borrower filter on joint credit reports
+  - key: coborrower_last_name
+    field_id: '4006'
+    field_name: Co-Borrower Last Name
+    category: borrower_info
+    purpose: AKA cleaning — cross-borrower filter on joint credit reports
   - key: product_type
     field_id: CX.PRODUCTTYPE
     field_name: Product Type
@@ -47,8 +87,26 @@ substeps:
       approved). Field ID CUST42FV verified in EC UI + live round-trip write
       (2026-07-23); dropdown options are uppercase YES / NO.
       (CX.NONDEL.INV.APPROVAL does not exist in the prod instance.)
-  doc_types: []
+  doc_types:
+  - document_type: Credit Report
+    all_copies: false
+    fields:
+    - key: borrower_aka
+      purpose: Borrower AKAs (extractor's flat merge across all bureau files)
+    - key: coborrower_aka
+      purpose: Co-borrower AKAs (extractor's flat merge across all bureau files)
+    - key: credit_score_factors
+      purpose: Per-bureau entries — each bureau's AKA list in original format
   rules:
+  - name: AKAs from All Bureaus (Write-if-Blank)
+    type: computed
+    logic: >
+      Union the flat borrower_aka/coborrower_aka lists with each bureau's AKA
+      list from credit_score_factors[i].AKA, clean (bureau LAST,FIRST,MIDDLE →
+      First Middle Last, reversed-name reorder, drop single-token shreds,
+      cross-borrower filter on joint reports), dedupe, and write the
+      "; "-joined result to CUST69FV only when it is blank. Never overwrite a
+      populated value. If no AKA was extracted, flag as warning instead.
   - name: Product Type Derived from Loan Type
     type: custom
     logic: >
@@ -78,6 +136,14 @@ substeps:
     severity: warning
     condition: Loan type does not match any known product type mapping
     suggestion: Manually set Product Type on the Processor Workflow screen
+  - title: 'Auto-corrected: Processor Workflow AKAs'
+    severity: info
+    condition: CUST69FV was blank and credit-report AKAs were written to it (runtime severity is info-overwrite via _write_fields)
+    suggestion: Review the AKA names written to the Processor Workflow screen
+  - title: AKA Not Verified — No AKA Extracted from Credit Report
+    severity: warning
+    condition: No AKA names were extracted from the Credit Report (doc missing or empty AKA sections)
+    suggestion: Review the credit report bureau sections manually and fill the Processor Workflow AKA field
   field_updates:
   - field_id: CX.PRODUCTTYPE
     value: '{derived_product_type}'
@@ -88,6 +154,9 @@ substeps:
   - field_id: CUST42FV
     value: 'NO'
     condition: always
+  - field_id: CUST69FV
+    value: '{computed_aka_list}'
+    condition: CUST69FV blank and credit-report AKAs extracted
 
 - id: '14.2'
   name: Processor Closing Update

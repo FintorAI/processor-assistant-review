@@ -47,7 +47,7 @@ build_action_items(loan_guid=loan_id)
 ### Substep 14.1 - Processor Workflow Update
 **Tool**: `update_processor_workflow`
 
-Fill out the Processor Workflow screen: set Product Type (derived from loan type), Non-Del Inv. Approval (usually NO), and Documentation Type (Full Doc for conventional loans).
+Fill out the Processor Workflow screen: set Product Type (derived from loan type), Non-Del Inv. Approval (usually NO), Documentation Type (Full Doc for conventional loans), and the AKA field (write-if-blank from Credit Report AKAs aggregated across all bureaus).
 
 
 **LOS Fields (read from state):**
@@ -61,8 +61,15 @@ Fill out the Processor Workflow screen: set Product Type (derived from loan type
  |
 | Non-Del Inv. Approval (Prior Approval) | `CUST42FV` | `non_del_inv_approval` | Usually NO (set NO by default — YES only if the underwriter already approved). Field ID CUST42FV verified in EC UI + live round-trip write (2026-07-23); dropdown options are uppercase YES / NO. (CX.NONDEL.INV.APPROVAL does not exist in the prod instance.)
  |
+| Processor Workflow AKAs | `CUST69FV` | `processor_workflow_aka` | AKA field on the Processor Workflow screen — write-if-blank with cleaned, deduped Credit Report AKAs from all bureaus (borrower + co-borrower). Field ID verified in Encompass UI 2026-08-10. |
+| Borrower / Co-Borrower Names | `4000`/`4001`/`4002`, `4004`/`4005`/`4006` | `borrower_*_name`, `coborrower_*_name` | AKA cleaning — reversed-name reorder, name variations, cross-borrower filter on joint reports. |
+
+**Docs (read from state):**
+- Credit Report: `borrower_aka`, `coborrower_aka` (extractor's flat cross-bureau merge) and `credit_score_factors` (per-bureau entries, each with its own `AKA` list in original bureau format — comma format `LAST,FIRST,MIDDLE` preserved here).
 
 **Business Rules:**
+- **AKAs from All Bureaus (Write-if-Blank)** (computed): Union the flat borrower_aka/coborrower_aka lists with each bureau's AKA list from credit_score_factors[i].AKA, clean (bureau LAST,FIRST,MIDDLE → First Middle Last, reversed-name reorder, drop single-token shreds, cross-borrower filter), dedupe, and write the "; "-joined result to CUST69FV only when it is blank. Never overwrite a populated value. If no AKA was extracted, flag as warning instead. Bureau file IDs ending in B2 (e.g. EQX-B2) are attributed to the co-borrower.
+
 - **Product Type Derived from Loan Type** (custom): Map loan type → product type: Conventional → Conforming, FHA → FHA, VA → VA, USDA → USDA. Write CX.PRODUCTTYPE if blank or incorrect.
 
 - **Documentation Type Set to Full Doc** (custom): For conventional (Full Doc) loans, set CX.DOCUMENTATIONTYPE = "Full Doc". Non-QM Submission doc type for conventional is Full Doc.
@@ -80,11 +87,18 @@ Fill out the Processor Workflow screen: set Product Type (derived from loan type
 - WARNING: "Unknown Loan Type — Product Type Not Mapped"
   - Condition: Loan type does not match any known product type mapping
   - Remedy: Manually set Product Type on the Processor Workflow screen
+- INFO-OVERWRITE: "Auto-corrected: Processor Workflow AKAs"
+  - Condition: CUST69FV was blank and credit-report AKAs were written to it (emitted by `_write_fields`)
+  - Remedy: Review the AKA names written to the Processor Workflow screen
+- WARNING: "AKA Not Verified — No AKA Extracted from Credit Report"
+  - Condition: No AKA names could be aggregated from the Credit Report (doc missing from eFolder, or extraction returned no usable AKA entries)
+  - Remedy: Review the credit report's per-bureau AKA sections manually and fill the Processor Workflow AKA field
 
 **⚠️ Field Updates (writes to Encompass):**
 - Field `CX.PRODUCTTYPE` = `{derived_product_type}` (when: always)
 - Field `CX.DOCUMENTATIONTYPE` = `Full Doc` (when: always)
 - Field `CUST42FV` = `NO` (when: always)
+- Field `CUST69FV` = `{computed_aka_list}` (when: CUST69FV blank and credit-report AKAs extracted)
 
 After completing this substep, call:
 ```

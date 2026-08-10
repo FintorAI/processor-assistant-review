@@ -277,20 +277,43 @@ def update_processing_submitted(
         )
         if finish_result.get("success"):
             # Nothing missing — but auto-finish is held, so re-open immediately.
-            update_loan_milestone(loan_id, milestone_id, {}, state=state, action="unfinish")
-            flags.append({
-                "substep": "14.3",
-                "title": "Milestone Required Fields All Satisfied",
-                "severity": "info",
-                "details": (
-                    f"A finish-attempt probe on {MILESTONE_NAME} passed validation — no "
-                    "missing required fields. The milestone was immediately re-opened "
-                    "(auto-finish is held pending processor confirmation)."
-                ),
-                "suggestion": "Check the Finished box on the worksheet when ready.",
-                "resolved": True,
-                "timestamp": now(),
-            })
+            # The rollback MUST succeed before reporting the probe as clean;
+            # otherwise the milestone is left finished without confirmation.
+            unfinish_result = update_loan_milestone(
+                loan_id, milestone_id, {}, state=state, action="unfinish",
+            )
+            if unfinish_result.get("success"):
+                flags.append({
+                    "substep": "14.3",
+                    "title": "Milestone Required Fields All Satisfied",
+                    "severity": "info",
+                    "details": (
+                        f"A finish-attempt probe on {MILESTONE_NAME} passed validation — no "
+                        "missing required fields. The milestone was immediately re-opened "
+                        "(auto-finish is held pending processor confirmation)."
+                    ),
+                    "suggestion": "Check the Finished box on the worksheet when ready.",
+                    "resolved": True,
+                    "timestamp": now(),
+                })
+            else:
+                flags.append({
+                    "substep": "14.3",
+                    "title": "Milestone Probe Rollback Failed — Milestone Left Finished",
+                    "severity": "warning",
+                    "details": (
+                        f"The finish-attempt probe on {MILESTONE_NAME} passed validation, but "
+                        f"the immediate action=unfinish rollback failed: "
+                        f"{unfinish_result.get('error') or unfinish_result}. The milestone may "
+                        "still be marked Finished even though auto-finish is held."
+                    ),
+                    "suggestion": (
+                        "Open the In Processing/Submitted worksheet in Encompass and uncheck "
+                        "the Finished box manually, then verify the milestone state."
+                    ),
+                    "resolved": False,
+                    "timestamp": now(),
+                })
         elif finish_result.get("locked"):
             loan_locked = True
             flags.append({

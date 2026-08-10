@@ -545,3 +545,179 @@ def _get_or_detect_property_verification(state: dict) -> dict:
         "pud": _detect_pud_signals(state, zillow_facts=zf),
         "new_construction": _detect_new_construction(state, zillow_facts=zf),
     }
+
+
+# ── AKA name cleaning (credit / fraud report AKAs) ──────────────────────────
+# Ported from LG-docsOrch verify_aka_names. Credit bureaus report AKAs in
+# mixed formats across the tri-merge: 'FIRST MIDDLE LAST', reversed
+# 'LAST FIRST MIDDLE', and comma-delimited 'LAST,FIRST,MIDDLE' (TransUnion).
+# The extraction service's flat borrower_aka list sometimes shreds the
+# comma-format entries into single tokens, so per-bureau lists from
+# credit_score_factors[i]['AKA'] should be unioned in as well.
+
+
+def _normalize_aka_name(name) -> str:
+    """Uppercase, collapse whitespace — canonical form for AKA comparison."""
+    import re as _re
+    if not name:
+        return ""
+    return _re.sub(r"\s+", " ", str(name).upper().strip())
+
+
+def _bureau_name_to_fml(raw) -> str:
+    """Convert bureau comma format 'LAST,FIRST,MIDDLE' to 'FIRST MIDDLE LAST'.
+
+    Names without commas pass through unchanged.
+    """
+    s = _normalize_aka_name(raw)
+    if not s or "," not in s:
+        return s
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    if len(parts) >= 2:
+        return " ".join([*parts[1:], parts[0]])
+    return parts[0] if parts else s
+
+
+def _reorder_if_reversed(name: str, known_last) -> str:
+    """If a name leads with the known last name, flip to First Middle Last.
+
+    E.g. 'JACKSON LISA LEVIER' with known_last='JACKSON' → 'LISA LEVIER JACKSON'.
+    """
+    if not name or not known_last:
+        return name
+    parts = name.split()
+    last_upper = str(known_last).upper().strip()
+    if len(parts) >= 2 and parts[0] == last_upper and parts[-1] != last_upper:
+        return " ".join([*parts[1:], parts[0]])
+    return name
+
+
+def _parse_aka_values(val) -> set:
+    """Parse raw AKA data (list or delimited string) into a set of raw name strings.
+
+    Splits strings on semicolons, newlines, or comma+whitespace. A bare comma
+    with no following space is treated as bureau LAST,FIRST,MIDDLE formatting
+    and kept inside the name (converted later by _bureau_name_to_fml).
+    """
+    import re as _re
+    if not val:
+        return set()
+    if isinstance(val, list):
+        items = val
+    else:
+        items = _re.split(r";|\n|,\s+", str(val))
+    names = set()
+    for item in items:
+        cleaned = _normalize_aka_name(item)
+        if cleaned:
+            names.add(cleaned)
+    return names
+
+
+def _clean_doc_akas(raw_akas, known_last, known_first=None, known_middle=None,
+                    other_first=None, other_middle=None, other_last=None) -> set:
+    """Clean a set of raw document AKAs into writable alternate names.
+
+    - Converts bureau comma format and reversed name order to First Middle Last.
+    - Drops entries with fewer than 2 name parts (extraction shreds) and entries
+      that are just the primary first(+middle) name with no surname.
+    - Drops entries that belong to the *other* borrower on a joint report
+      (fuzzy first/last matching catches maiden names and typo variants).
+    """
+    from collections import Counter
+
+    cleaned = set()
+    first_mid_only = set()
+    if known_first and known_middle:
+        first_mid_only.add(_normalize_aka_name(f"{known_first} {known_middle}"))
+    if known_first:
+        first_mid_only.add(_normalize_aka_name(known_first))
+
+    last_upper = _normalize_aka_name(known_last) if known_last else ""
+    known_first_upper = _normalize_aka_name(known_first) if known_first else ""
+    other_last_upper = _normalize_aka_name(other_last) if other_last else ""
+
+    other_first_tokens = set()
+    if other_first:
+        other_first_tokens.add(_normalize_aka_name(other_first))
+    if other_middle:
+        other_first_tokens.add(_normalize_aka_name(other_middle))
+
+    def _fuzzy_match(token: str, targets: set) -> bool:
+        """Exact, shared-prefix, or 75% character-overlap match (typo variants)."""
+        if token in targets:
+            return True
+        for t in targets:
+            if len(t) >= 4 and len(token) >= 4:
+                prefix_len = min(len(t), len(token)) - 1
+                if token[:prefix_len] == t[:prefix_len]:
+                    return True
+                ct, cc = Counter(token), Counter(t)
+                common = sum((ct & cc).values())
+                if common / max(len(token), len(t)) >= 0.75:
+                    return True
+        return False
+
+    for raw in raw_akas:
+        name = _reorder_if_reversed(_bureau_name_to_fml(raw), known_last)
+        if not name:
+            continue
+        parts = name.split()
+        if len(parts) < 2:
+            continue
+        if name in first_mid_only:
+            continue
+        last_part = parts[-1]
+        first_part = parts[0]
+
+        # Other borrower's full name on this borrower's list (different surname).
+        if other_last_upper and other_first_tokens:
+            if _fuzzy_match(last_part, {other_last_upper}) and _fuzzy_match(first_part, other_first_tokens):
+                continue
+
+        # Trailing token is only the other borrower's last name (wrong surname).
+        if other_last_upper and last_upper:
+            if _fuzzy_match(last_part, {other_last_upper}) and not _fuzzy_match(last_part, {last_upper}):
+                continue
+
+        # Other's first name + this borrower's surname, but lead token isn't self.
+        if other_first_tokens and known_first_upper and last_upper:
+            if (
+                _fuzzy_match(first_part, other_first_tokens)
+                and not _fuzzy_match(first_part, {known_first_upper})
+                and _fuzzy_match(last_part, {last_upper})
+            ):
+                continue
+
+        # Joint report: lead token matches the other borrower's first name and
+        # not this borrower's → treat as the co-borrower's AKA, drop here.
+        if (
+            other_first_tokens
+            and known_first_upper
+            and _fuzzy_match(first_part, other_first_tokens)
+            and not _fuzzy_match(first_part, {known_first_upper})
+        ):
+            continue
+
+        has_last_exact = any(p == last_upper for p in parts) if last_upper else True
+        has_last_fuzzy = has_last_exact or (
+            last_upper and any(_fuzzy_match(p, {last_upper}) for p in parts)
+        )
+        if not has_last_fuzzy and len(parts) == 2:
+            continue
+
+        # Same-surname household: does this AKA's first-name token belong to
+        # the OTHER borrower rather than THIS one?
+        if other_first_tokens and last_upper and has_last_fuzzy and known_first_upper:
+            non_last = [p for p in parts if p != last_upper and not _fuzzy_match(p, {last_upper})]
+            if non_last:
+                lead_token = non_last[0]
+                belongs_to_other = _fuzzy_match(lead_token, other_first_tokens)
+                belongs_to_self = (lead_token == known_first_upper
+                                   or (known_middle and lead_token == _normalize_aka_name(known_middle))
+                                   or lead_token[0] == known_first_upper[0])
+                if belongs_to_other and not belongs_to_self:
+                    continue
+
+        cleaned.add(name)
+    return cleaned
