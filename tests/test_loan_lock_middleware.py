@@ -347,3 +347,55 @@ def test_awrap_tool_call_releases_lock_on_exception_and_reraises(monkeypatch, mi
         asyncio.run(middleware.awrap_tool_call(request, handler))
 
     assert calls == [(LOCK_ID, LOAN_ID)]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# resolve_plan_for_step — the loan-lock halt-before-first-turn regression.
+#
+# LoanLockMiddleware.before_agent can force current_step="COMPLETED" on a
+# brand-new thread's very first turn (loan already locked). Before this
+# fix, resolve_plan_for_step returned None for any COMPLETED state,
+# assuming (correctly for a *naturally* finished run, wrongly here) that
+# messages already has prior turns. DynamicPlanMiddleware only prepends
+# when plan_resolver returns non-None, so None + already-empty messages
+# meant the model got called with messages=[] -> Anthropic 400
+# "messages: at least one message is required".
+# ═══════════════════════════════════════════════════════════════════════
+
+def test_resolve_plan_for_step_returns_none_when_naturally_completed_with_history():
+    """A run that legitimately finished after real turns must not get a
+    synthetic halt message injected — None is correct there."""
+    state = {
+        "current_step": "COMPLETED",
+        "messages": [{"type": "human", "content": "start review"}],
+    }
+    assert proc_agent.resolve_plan_for_step(state) is None
+
+
+def test_resolve_plan_for_step_injects_message_when_halted_before_first_turn():
+    """The bug this regression guards: COMPLETED forced by a lock-halt on a
+    fresh thread with zero prior messages must still get *something* so
+    the model call never sees an empty messages list."""
+    state = {
+        "current_step": "COMPLETED",
+        "messages": [],
+        "flags": [{
+            "substep": "0",
+            "title": "Loan Locked in Encompass",
+            "severity": "error",
+            "details": "Loan 12345678 is already locked by Test Admin.",
+            "resolved": False,
+        }],
+    }
+    plan = proc_agent.resolve_plan_for_step(state)
+
+    assert plan is not None
+    assert "Test Admin" in plan
+    assert "STOP" in plan
+
+
+def test_resolve_plan_for_step_injects_generic_message_when_no_flags():
+    """Belt-and-suspenders: even without a flags entry, a fresh/empty
+    COMPLETED state must not fall back to None."""
+    state = {"current_step": "COMPLETED", "messages": []}
+    assert proc_agent.resolve_plan_for_step(state) is not None
