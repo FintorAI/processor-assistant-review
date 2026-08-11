@@ -391,6 +391,7 @@ def test_resolve_plan_for_step_injects_message_when_halted_before_first_turn():
 
     assert plan is not None
     assert "Test Admin" in plan
+    assert "Do not call any tool" in plan
     assert "STOP" in plan
 
 
