@@ -264,6 +264,14 @@ class ProcessorAgentState(AgentState):
 
     # ── Core data (set in Step 0) ──
     loan_id: Annotated[NotRequired[str], OmitFromInput, last_value_reducer]
+
+    # ── Encompass resource lock (held for the whole run by LoanLockMiddleware) ──
+    # NOTE: cleared to "" (not None) on release — last_value_reducer treats a
+    # None update as "keep existing" (see last_value_reducer above), so None
+    # can never clear a channel once set. "" is falsy for every truthy check
+    # in this file (`if state.get("_loan_lock_id")`) while still round-tripping
+    # through the same reducer as every other Annotated field here.
+    _loan_lock_id: Annotated[NotRequired[str | None], OmitFromInput, last_value_reducer]
     los_fields: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
     doc_fields: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
     efolder_documents: Annotated[NotRequired[dict], OmitFromInput, merge_dicts]
@@ -573,6 +581,184 @@ class FieldWritesLedgerMiddleware(AgentMiddleware):
         return self._merge_ledger(await handler(request), self._loan_id_from(request))
 
 
+class LoanLockMiddleware(AgentMiddleware):
+    """Holds one Encompass Exclusive resource lock for the whole agent run.
+
+    Acquired in before_agent — before any tool call is possible, including
+    Step 0's own loan resolution — and released in after_agent. Placement in
+    the middleware list matters: before_agent hooks run in list order and
+    after_agent hooks run in REVERSE list order (LangChain's factory chains
+    the entry node from the first middleware with a before_agent hook, and
+    the exit node from the last one backwards), so this middleware must be
+    FIRST in the list *we* pass to create_deep_agent (see create_agent()
+    below) to (a) gate before any of our own middleware's before_agent and
+    (b) release the lock LAST among ours, after every other middleware's
+    after_agent (e.g. WorkflowGuardMiddleware's) has already run.
+    (`copilotagent.create_deep_agent` itself prepends its own built-in
+    middleware — filesystem/tool-patching/etc. — ahead of whatever we pass;
+    none of those touch Encompass, so that's fine.)
+
+    Fail-fast, never steals a foreign lock (a human in Encompass desktop, or
+    another of our own runs holding it): a 409 halts the run gracefully via
+    a `flags` entry + `current_step="COMPLETED"` (the same mechanism the
+    dashboard already uses to know a run finished, see
+    get_current_step_from_state / resolve_tools_for_step above) rather than
+    raising and erroring the whole LangGraph run. See
+    processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md.
+    """
+
+    def before_agent(self, state: dict, runtime) -> dict | None:
+        from encompass_client import LoanLockedError, lock_resource
+
+        update: dict = {}
+        loan_id = state.get("loan_id")
+
+        if not loan_id:
+            loan_number = state.get("loan_number")
+            if not loan_number:
+                # No loan_number yet either — nothing to lock against. Let
+                # the normal workflow run (it will fail its own way at
+                # Step 0); we're not in a position to gate anything here.
+                return None
+            # Resolve via the SAME tool Step 0 uses, so this never drifts
+            # from the real resolution logic (GUID passthrough, borrower-name
+            # fallback, hallucination guards, etc. — see find_loan).
+            from tools.data_gathering import find_loan
+            resolution = find_loan.func(
+                tool_call_id="_loan_lock_middleware",
+                state=state,
+                loan_number=loan_number,
+            )
+            resolved = (
+                (resolution.update or {}).get("loan_id")
+                if isinstance(resolution, LgCommand) else None
+            )
+            if not resolved:
+                # Resolution failed (not found, Encompass error, etc.) — let
+                # Step 0's own find_loan call surface that the normal way
+                # instead of duplicating its error handling here.
+                return None
+            loan_id = resolved
+            update["loan_id"] = loan_id
+
+        if state.get("_loan_lock_id"):
+            # Already held — a checkpoint replay/resume of before_agent
+            # within a run that already acquired the lock earlier. Do NOT
+            # re-acquire (we'd just 409 on our own lock).
+            return update or None
+
+        try:
+            lock_id = lock_resource(loan_id, state=state)
+        except LoanLockedError as e:
+            logger.warning(f"[LOAN_LOCK] Loan {loan_id[:8]} locked — halting run: {e}")
+            update["flags"] = [{
+                "substep": "0",
+                "title": "Loan Locked in Encompass",
+                "severity": "error",
+                "details": str(e),
+                "suggestion": (
+                    "Close the loan in Encompass desktop (or wait for the "
+                    "other run to finish) and retry."
+                ),
+                "resolved": False,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }]
+            # Mirrors how STEP completion marks the run done (see
+            # update_processor_workflow / general.py's step-completion
+            # handler) so the dashboard doesn't show "in progress" forever
+            # and resolve_tools_for_step/WorkflowGuardMiddleware stop
+            # exposing write tools for the rest of this run.
+            update["current_step"] = "COMPLETED"
+            # A targeted rerun (e.g. Mavent) takes priority over current_step
+            # in resolve_tools_for_step (see get_targeted_action there) — so
+            # current_step="COMPLETED" alone would NOT stop the model from
+            # still being handed the targeted write tool. Clear the pending
+            # action too (same "drop a completed/dead key" pattern as
+            # WorkflowGuardMiddleware.after_agent above) so this halt is
+            # airtight for both the normal workflow AND a targeted rerun.
+            info = state.get("additional_info") or {}
+            if info.get("action"):
+                update["additional_info"] = {k: v for k, v in info.items() if k != "action"}
+            return update
+
+        update["_loan_lock_id"] = lock_id
+        logger.info(f"[LOAN_LOCK] Acquired lock {lock_id[:8]} for loan {loan_id[:8]}")
+        return update
+
+    def after_agent(self, state: dict, runtime) -> dict | None:
+        from encompass_client import unlock_resource
+
+        lock_id = state.get("_loan_lock_id")
+        loan_id = state.get("loan_id")
+        if not lock_id or not loan_id:
+            return None
+        unlock_resource(lock_id, loan_id, state=state)
+        logger.info(f"[LOAN_LOCK] Released lock {lock_id[:8]} for loan {loan_id[:8]}")
+        # "" not None — see the field comment on ProcessorAgentState;
+        # last_value_reducer never lets a None update clear a channel.
+        return {"_loan_lock_id": ""}
+
+    @staticmethod
+    def _release_on_escape(state: dict) -> None:
+        """Best-effort release for paths that skip after_agent entirely: an
+        uncaught exception from a model/tool call, or the graceful substep
+        timeout in WorkflowGuardMiddleware._check_substep_timeout (which
+        halts via `langgraph.types.interrupt`, a GraphInterrupt — a normal
+        Exception subclass, so it's caught by the `except Exception` below
+        same as any other escape). Relies on this middleware being first
+        among ours (see the class docstring), so its wrap_model_call /
+        wrap_tool_call are the outermost layer and their `handler(request)`
+        call encloses WorkflowGuardMiddleware's timeout check.
+
+        This only guarantees the *real* Encompass lock is dropped — it
+        can't also clear the checkpointed `_loan_lock_id` (that requires a
+        normal state-update return, unavailable here since we're mid-
+        exception and must re-raise). A resumed run on this thread will
+        still see `_loan_lock_id` set and skip re-acquiring in before_agent;
+        that's the same "crashed span leaks, recovered via dashboard
+        force-unlock" trade-off already accepted for `loan_lock` elsewhere
+        (see encompass_client.py's docstring there).
+        """
+        lock_id = state.get("_loan_lock_id")
+        loan_id = state.get("loan_id")
+        if not lock_id or not loan_id:
+            return
+        from encompass_client import unlock_resource
+        unlock_resource(lock_id, loan_id, state=state)
+        logger.info(
+            f"[LOAN_LOCK] Released lock {lock_id[:8]} for loan {loan_id[:8]} "
+            "(exception/interrupt escape, before_agent/after_agent bypassed)"
+        )
+
+    def wrap_model_call(self, request, handler):
+        try:
+            return handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    async def awrap_model_call(self, request, handler):
+        try:
+            return await handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    def wrap_tool_call(self, request, handler):
+        try:
+            return handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    async def awrap_tool_call(self, request, handler):
+        try:
+            return await handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+
 class WorkflowGuardMiddleware(AgentMiddleware):
     """Prevents premature agent termination from text-only responses."""
 
@@ -707,7 +893,11 @@ def create_agent():
     overview = generate_workflow_overview()
     system_prompt = system_prompt.replace("{{WORKFLOW_OVERVIEW}}", overview)
 
-    middleware_stack = [ProcessorAgentMiddleware()]
+    # LoanLockMiddleware must be FIRST — see its class docstring for why
+    # ordering matters (before_agent runs first / after_agent runs last).
+    # ProcessorAgentMiddleware only registers state_schema (no before_agent/
+    # after_agent hooks), so swapping it after LoanLockMiddleware is safe.
+    middleware_stack = [LoanLockMiddleware(), ProcessorAgentMiddleware()]
     if HAS_COPILOTKIT:
         middleware_stack.append(CopilotKitMiddleware())
     middleware_stack.append(SystemMessageNormalizerMiddleware())
