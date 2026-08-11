@@ -498,6 +498,26 @@ def resolve_plan_for_step(state: dict) -> str | None:
     current_step = get_current_step_from_state(state)
 
     if current_step == "COMPLETED":
+        if not state.get("messages"):
+            # A legitimately-finished run always has prior turns by the time
+            # it reaches COMPLETED, so returning None here is normally fine
+            # (DynamicPlanMiddleware only prepends to an already-nonempty
+            # messages list). But LoanLockMiddleware.before_agent can also
+            # force current_step="COMPLETED" on a brand-new thread's very
+            # first turn (loan locked at start — see
+            # processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md).
+            # In that case messages is genuinely empty, None here would leave
+            # it empty, and the model call 400s ("messages: at least one
+            # message is required"). Return a minimal instruction instead so
+            # there's always at least one message.
+            flags = state.get("flags") or []
+            detail = flags[-1].get("details") if flags else None
+            return (
+                "## Run halted before starting\n\n"
+                f"{detail or 'The run could not start.'}\n\n"
+                "Do not call any tool. Summarize this in one short sentence "
+                "and STOP."
+            )
         return None
     if is_step_skipped(current_step):
         return None
