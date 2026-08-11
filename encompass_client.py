@@ -14,6 +14,7 @@ one client per workflow run per environment.
 import json
 import os
 import logging
+from contextlib import contextmanager
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -208,6 +209,134 @@ def get_encompass_client(env: str = None, state: dict = None, use_cache: bool = 
         logger.debug(f"[ENCOMPASS] Cached client in state with key: {cache_key}")
     
     return client
+
+
+class LoanLockedError(Exception):
+    """Raised when the loan is already locked by another Encompass session
+    (a human in Encompass desktop, or another of our own runs) — V3
+    resourceLocks POST returned 409. Fail-fast: callers must NOT try to
+    steal the lock (never DELETE a foreign lock). See
+    processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md.
+    """
+
+    def __init__(self, message: str, holder_user_id: str = None, holder_full_name: str = None, lock_id: str = None):
+        super().__init__(message)
+        self.holder_user_id = holder_user_id
+        self.holder_full_name = holder_full_name
+        self.lock_id = lock_id
+
+
+def list_resource_locks(loan_id: str, state: dict = None) -> list[dict]:
+    """GET /encompass/v3/resourceLocks?resourceType=loan&resourceId=<loan_id>.
+
+    EncompassConnect doesn't expose this endpoint — this borrows the client's
+    api_base_url/access_token/refresh_token() directly, same pattern as
+    get_loan_milestones() above, rather than duplicating the whole SDK.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v3/resourceLocks"
+    params = {"resourceType": "loan", "resourceId": loan_id}
+    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+        resp.raise_for_status()
+        return resp.json() or []
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ENCOMPASS] Failed to list resource locks for loan {loan_id[:8]}: {e}")
+        raise
+
+
+def lock_resource(loan_id: str, state: dict = None, lock_type: str = "Exclusive") -> str:
+    """POST /encompass/v3/resourceLocks — acquire an Exclusive lock.
+
+    Fail-fast on 409: raises LoanLockedError enriched with the holder's
+    identity (best-effort follow-up GET). Never steals a foreign lock.
+    """
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v3/resourceLocks"
+    body = {"resource": {"entityId": loan_id, "entityType": "Loan"}, "lockType": lock_type}
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {client.access_token}",
+        "content-type": "application/json",
+    }
+    resp = requests.post(url, json=body, headers=headers, timeout=30)
+    if resp.status_code == 401:
+        client.refresh_token()
+        headers["Authorization"] = f"Bearer {client.access_token}"
+        resp = requests.post(url, json=body, headers=headers, timeout=30)
+
+    if resp.status_code == 409:
+        holder_user_id = holder_full_name = existing_lock_id = None
+        try:
+            existing = list_resource_locks(loan_id, state=state)
+            if existing:
+                holder_user_id = existing[0].get("userId")
+                holder_full_name = existing[0].get("fullName")
+                existing_lock_id = existing[0].get("id")
+        except Exception:
+            pass
+        who = holder_full_name or holder_user_id
+        raise LoanLockedError(
+            f"Loan {loan_id[:8]} is already locked" + (f" by {who}" if who else "") + ".",
+            holder_user_id=holder_user_id,
+            holder_full_name=holder_full_name,
+            lock_id=existing_lock_id,
+        )
+
+    resp.raise_for_status()
+    lock_id = None
+    try:
+        lock_id = (resp.json() or {}).get("id")
+    except ValueError:
+        pass
+    if not lock_id:
+        location = resp.headers.get("Location") or ""
+        lock_id = location.rstrip("/").rsplit("/", 1)[-1] or None
+    if not lock_id:
+        raise RuntimeError(f"lock_resource({loan_id}): no lockId in response")
+    return lock_id
+
+
+def unlock_resource(lock_id: str, loan_id: str, state: dict = None) -> None:
+    """DELETE /encompass/v3/resourceLocks/{lockId} — best-effort, never raises."""
+    import requests
+
+    client = get_encompass_client(state=state)
+    url = f"{client.api_base_url}/encompass/v3/resourceLocks/{lock_id}"
+    params = {"resourceType": "loan", "resourceId": loan_id}
+    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+    try:
+        resp = requests.delete(url, params=params, headers=headers, timeout=30)
+        if resp.status_code == 401:
+            client.refresh_token()
+            headers["Authorization"] = f"Bearer {client.access_token}"
+            resp = requests.delete(url, params=params, headers=headers, timeout=30)
+        if resp.status_code not in (204, 404):
+            logger.warning(f"[ENCOMPASS] unlock_resource({lock_id}, {loan_id[:8]}) -> HTTP {resp.status_code}: {resp.text[:300]}")
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"[ENCOMPASS] Failed to release lock {lock_id} for loan {loan_id[:8]}: {e}")
+
+
+@contextmanager
+def loan_lock(loan_id: str, state: dict = None):
+    """Hold an Exclusive Encompass resource lock for a write span. Fail-fast
+    (LoanLockedError) — never steals a foreign lock. Always releases in
+    `finally`. See docs/encompass_resource_locking_plan.md in
+    processor-assistant-orchestrator for the full design."""
+    lock_id = lock_resource(loan_id, state=state)
+    try:
+        yield lock_id
+    finally:
+        unlock_resource(lock_id, loan_id, state=state)
 
 
 # Field ID constants for common loan data

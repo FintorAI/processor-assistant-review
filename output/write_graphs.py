@@ -107,9 +107,17 @@ def _write_fields_node(state: FieldWriteState) -> dict:
     if err:
         return {"results": {"written": {}, "failed": {}, "error": err}}
 
+    from encompass_client import LoanLockedError, loan_lock
+
     io_state = {"env": state.get("env", "Prod")}
     try:
-        written, bad_fields = write_fields_resilient(loan_id, updates, state=io_state)
+        with loan_lock(loan_id, state=io_state):
+            written, bad_fields = write_fields_resilient(loan_id, updates, state=io_state)
+    except LoanLockedError as exc:
+        return {
+            "loan_id": loan_id,
+            "results": {"written": {}, "failed": {}, "error": str(exc)},
+        }
     except Exception as exc:  # noqa: BLE001 — surface, don't crash the endpoint
         from shared.encompass_io import humanize_write_error
         return {
@@ -603,12 +611,11 @@ def _attach_rows(result: dict, reader) -> None:
 
 def _write_collections_node(state: CollectionWriteState) -> dict:
     from encompass_client import (
+        LoanLockedError,
         get_encompass_client,
         get_loan_applications,
-        get_loan_contacts,
-        write_loan_contacts,
+        loan_lock,
     )
-    from shared.encompass_io import read_vods, read_vols, read_voes
 
     vods = state.get("vods") or []
     vols = state.get("vols") or []
@@ -622,7 +629,6 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
         return {"results": {"error": err}}
 
     io_state = {"env": state.get("env", "Prod")}
-    results: dict = {}
 
     application_id = None
     if vods or vols or voes:
@@ -632,6 +638,39 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
             return {"loan_id": loan_id, "results": {"error": "Could not resolve application id"}}
 
     client = get_encompass_client(state=io_state)
+
+    # One lock for the whole action (VODs + VOLs + VOEs + contacts), same
+    # "hold for the whole action, not per write-substep" rule as the review
+    # agent — see LoanLockMiddleware in proc_agent.py and
+    # processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md.
+    try:
+        with loan_lock(loan_id, state=io_state):
+            results = _apply_collection_writes(
+                client, io_state, loan_id, application_id, vods, vols, voes, contacts,
+            )
+    except LoanLockedError as exc:
+        return {"loan_id": loan_id, "results": {"error": str(exc)}}
+
+    logger.info(
+        f"[WRITE_LOS_COLLECTIONS] loan {loan_id[:8]}: "
+        f"vods={len(vods)}, vols={len(vols)}, voes={len(voes)}, contacts={len(contacts)} "
+        f"(source={state.get('source') or 'dashboard-override'})"
+    )
+    return {"loan_id": loan_id, "results": results}
+
+
+def _apply_collection_writes(
+    client, io_state: dict, loan_id: str, application_id: str | None,
+    vods: list, vols: list, voes: list, contacts: list,
+) -> dict:
+    """Write span for write_los_collections — runs inside the loan_lock held
+    by the caller. Extracted so the whole span (all four collection types,
+    one dashboard "Save" action) is wrapped by a single lock/finally, not one
+    per collection type."""
+    from encompass_client import get_loan_contacts, write_loan_contacts
+    from shared.encompass_io import read_vods, read_vols, read_voes
+
+    results: dict = {}
 
     if vods:
         # Normalised dashboard overrides carry vod_id + updates; raw v3 rows
@@ -753,12 +792,7 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
                 contacts_result["rows_error"] = str(exc)
         results["contacts"] = contacts_result
 
-    logger.info(
-        f"[WRITE_LOS_COLLECTIONS] loan {loan_id[:8]}: "
-        f"vods={len(vods)}, vols={len(vols)}, voes={len(voes)}, contacts={len(contacts)} "
-        f"(source={state.get('source') or 'dashboard-override'})"
-    )
-    return {"loan_id": loan_id, "results": results}
+    return results
 
 
 _collections_builder = StateGraph(CollectionWriteState)
