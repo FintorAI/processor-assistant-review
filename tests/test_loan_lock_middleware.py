@@ -7,19 +7,12 @@ Importing proc_agent builds the real `create_agent()` graph (module-level
 `graph = create_agent()`), so this exercises the actual middleware wiring,
 not a reimplementation of it.
 """
-import os
-import sys
-
 import pytest
 
-_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
-if _OUTPUT_DIR not in sys.path:
-    sys.path.insert(0, _OUTPUT_DIR)
-
-import proc_agent  # noqa: E402
-import encompass_client  # noqa: E402
-import tools.data_gathering as data_gathering  # noqa: E402
-from langgraph.types import Command  # noqa: E402
+import proc_agent
+import encompass_client
+import tools.data_gathering as data_gathering
+from langgraph.types import Command
 
 LOAN_ID = "12345678-aaaa-bbbb-cccc-1234567890ab"
 LOCK_ID = "lock-guid-0001"
@@ -28,6 +21,32 @@ LOCK_ID = "lock-guid-0001"
 @pytest.fixture
 def middleware():
     return proc_agent.LoanLockMiddleware()
+
+
+def test_loan_lock_middleware_is_first_in_created_agent_stack(monkeypatch):
+    """Regression guard for the ordering invariant documented on
+    LoanLockMiddleware: before_agent hooks run in list order and after_agent
+    hooks run in reverse, so it must be first (among the middleware this
+    repo controls) to gate before any of our own before_agent hooks and
+    release last, after every other middleware's after_agent has run.
+
+    Intercepts the `middleware=` kwarg create_agent() passes to
+    create_deep_agent — introspecting the compiled graph directly is
+    unreliable since copilotagent.create_deep_agent prepends its own
+    built-in middleware ahead of whatever we pass (see the class
+    docstring), so "first" only holds for the list we construct here.
+    """
+    captured = {}
+
+    def fake_create_deep_agent(*args, middleware=(), **kwargs):
+        captured["middleware"] = middleware
+        return object()
+
+    monkeypatch.setattr(proc_agent, "create_deep_agent", fake_create_deep_agent)
+    proc_agent.create_agent()
+
+    stack = captured["middleware"]
+    assert isinstance(stack[0], proc_agent.LoanLockMiddleware)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -194,3 +213,137 @@ def test_cleared_lock_channel_never_blocks_the_next_run(monkeypatch, middleware)
 
     assert lock_calls == [LOAN_ID]
     assert update == {"_loan_lock_id": LOCK_ID}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# wrap_model_call / wrap_tool_call — escape-hatch release when after_agent
+# is bypassed (uncaught exception, or the graceful substep-timeout
+# interrupt in WorkflowGuardMiddleware)
+# ═══════════════════════════════════════════════════════════════════════
+
+class _FakeRequest:
+    def __init__(self, state):
+        self.state = state
+
+
+def test_wrap_model_call_releases_lock_on_exception_and_reraises(monkeypatch, middleware):
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    def handler(req):
+        raise RuntimeError("model call blew up")
+
+    with pytest.raises(RuntimeError):
+        middleware.wrap_model_call(request, handler)
+
+    assert calls == [(LOCK_ID, LOAN_ID)]
+
+
+def test_wrap_model_call_releases_lock_on_graph_interrupt(monkeypatch, middleware):
+    """The substep-timeout halt in WorkflowGuardMiddleware raises
+    GraphInterrupt (via langgraph.types.interrupt) from inside the handler
+    chain this middleware wraps — must release the same as any other
+    escaping exception."""
+    from langgraph.errors import GraphInterrupt
+
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    def handler(req):
+        raise GraphInterrupt("TIMEOUT: substep halted")
+
+    with pytest.raises(GraphInterrupt):
+        middleware.wrap_model_call(request, handler)
+
+    assert calls == [(LOCK_ID, LOAN_ID)]
+
+
+def test_wrap_model_call_noop_on_success(monkeypatch, middleware):
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    result = middleware.wrap_model_call(request, lambda req: "ok")
+
+    assert result == "ok"
+    assert calls == []  # after_agent (not this hook) releases on the happy path
+
+
+def test_wrap_model_call_noop_when_no_lock_held(middleware):
+    """No lock in state (e.g. before_agent never ran, or already released)
+    — must not attempt to unlock, just propagate the exception."""
+    request = _FakeRequest({"loan_id": LOAN_ID})
+
+    def handler(req):
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        middleware.wrap_model_call(request, handler)
+
+
+def test_wrap_tool_call_releases_lock_on_exception_and_reraises(monkeypatch, middleware):
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    def handler(req):
+        raise RuntimeError("tool call blew up")
+
+    with pytest.raises(RuntimeError):
+        middleware.wrap_tool_call(request, handler)
+
+    assert calls == [(LOCK_ID, LOAN_ID)]
+
+
+def test_awrap_model_call_releases_lock_on_exception_and_reraises(monkeypatch, middleware):
+    # No pytest-asyncio in this repo's test tooling — drive the coroutine
+    # directly with asyncio.run() rather than adding a new dependency.
+    import asyncio
+
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    async def handler(req):
+        raise RuntimeError("async model call blew up")
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(middleware.awrap_model_call(request, handler))
+
+    assert calls == [(LOCK_ID, LOAN_ID)]
+
+
+def test_awrap_tool_call_releases_lock_on_exception_and_reraises(monkeypatch, middleware):
+    import asyncio
+
+    calls = []
+    monkeypatch.setattr(
+        encompass_client, "unlock_resource",
+        lambda lock_id, loan_id, state=None: calls.append((lock_id, loan_id)),
+    )
+    request = _FakeRequest({"loan_id": LOAN_ID, "_loan_lock_id": LOCK_ID})
+
+    async def handler(req):
+        raise RuntimeError("async tool call blew up")
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(middleware.awrap_tool_call(request, handler))
+
+    assert calls == [(LOCK_ID, LOAN_ID)]

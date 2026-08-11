@@ -650,6 +650,9 @@ def _write_collections_node(state: CollectionWriteState) -> dict:
             )
     except LoanLockedError as exc:
         return {"loan_id": loan_id, "results": {"error": str(exc)}}
+    except Exception as exc:  # noqa: BLE001 — surface, don't crash the endpoint
+        from shared.encompass_io import humanize_write_error
+        return {"loan_id": loan_id, "results": {"error": humanize_write_error(str(exc))}}
 
     logger.info(
         f"[WRITE_LOS_COLLECTIONS] loan {loan_id[:8]}: "

@@ -4,18 +4,12 @@ lock across their whole write span and surface LoanLockedError as a normal
 `results.error` instead of crashing the graph node. See
 processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md.
 """
-import os
-import sys
 from contextlib import contextmanager
 
 import pytest
 
-_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
-if _OUTPUT_DIR not in sys.path:
-    sys.path.insert(0, _OUTPUT_DIR)
-
-import write_graphs  # noqa: E402
-import encompass_client  # noqa: E402
+import write_graphs
+import encompass_client
 
 LOAN_GUID = "12345678-aaaa-bbbb-cccc-1234567890ab"
 
@@ -23,6 +17,23 @@ LOAN_GUID = "12345678-aaaa-bbbb-cccc-1234567890ab"
 @contextmanager
 def _fake_loan_lock_ok(loan_id, state=None):
     yield "lock-guid-0001"
+
+
+def _make_fake_loan_lock_ok(events: list):
+    """Variant of _fake_loan_lock_ok that records enter/exit into the
+    caller's shared `events` list (exit via `finally`, same as the real
+    loan_lock) so a test can assert the write actually ran inside the lock
+    span — not just that the lock was acquired at some point."""
+
+    @contextmanager
+    def _fake(loan_id, state=None):
+        events.append("enter")
+        try:
+            yield "lock-guid-0001"
+        finally:
+            events.append("exit")
+
+    return _fake
 
 
 @contextmanager
@@ -40,7 +51,8 @@ def _fake_loan_lock_locked(loan_id, state=None):
 
 def test_write_fields_node_wraps_write_in_loan_lock(monkeypatch):
     calls = []
-    monkeypatch.setattr(encompass_client, "loan_lock", _fake_loan_lock_ok)
+    events = []
+    monkeypatch.setattr(encompass_client, "loan_lock", _make_fake_loan_lock_ok(events))
 
     def fake_write_fields_resilient(loan_id, updates, state=None):
         calls.append("wrote")
@@ -55,6 +67,9 @@ def test_write_fields_node_wraps_write_in_loan_lock(monkeypatch):
     })
 
     assert calls == ["wrote"]
+    # Proves the write ran inside the lock span, not just that the lock was
+    # acquired at some point during the node's execution.
+    assert events == ["enter", "exit"]
     assert result["results"]["written"] == {"4002": "123"}
     assert result["loan_id"] == LOAN_GUID
 

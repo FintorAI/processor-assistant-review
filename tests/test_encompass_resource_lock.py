@@ -7,6 +7,7 @@ lock), always release in a `finally`.
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 
 import encompass_client
 from encompass_client import LoanLockedError, lock_resource, loan_lock, unlock_resource
@@ -31,10 +32,7 @@ class _FakeResponse:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise encompass_client_requests_module.HTTPError(f"HTTP {self.status_code}")
-
-
-import requests as encompass_client_requests_module  # noqa: E402  (used by _FakeResponse)
+            raise requests.HTTPError(f"HTTP {self.status_code}")
 
 
 @pytest.fixture
@@ -104,7 +102,7 @@ def test_lock_resource_409_without_holder_info_still_raises(monkeypatch, fake_cl
     monkeypatch.setattr("requests.post", lambda *a, **k: _FakeResponse(409, json_body={}))
 
     def fake_get(*a, **k):
-        raise encompass_client_requests_module.exceptions.RequestException("network blip")
+        raise requests.exceptions.RequestException("network blip")
 
     monkeypatch.setattr("requests.get", fake_get)
 
@@ -163,7 +161,7 @@ def test_unlock_resource_404_is_treated_as_ok(monkeypatch, fake_client):
 
 def test_unlock_resource_swallows_network_error(monkeypatch, fake_client):
     def fake_delete(*a, **k):
-        raise encompass_client_requests_module.exceptions.RequestException("boom")
+        raise requests.exceptions.RequestException("boom")
 
     monkeypatch.setattr("requests.delete", fake_delete)
     unlock_resource(LOCK_ID, LOAN_ID, state={})  # must not raise

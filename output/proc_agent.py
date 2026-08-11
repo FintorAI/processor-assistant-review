@@ -590,9 +590,13 @@ class LoanLockMiddleware(AgentMiddleware):
     after_agent hooks run in REVERSE list order (LangChain's factory chains
     the entry node from the first middleware with a before_agent hook, and
     the exit node from the last one backwards), so this middleware must be
-    FIRST in the list to (a) gate before anything else's before_agent and
-    (b) release the lock LAST, after every other middleware's after_agent
-    (e.g. WorkflowGuardMiddleware's) has already run.
+    FIRST in the list *we* pass to create_deep_agent (see create_agent()
+    below) to (a) gate before any of our own middleware's before_agent and
+    (b) release the lock LAST among ours, after every other middleware's
+    after_agent (e.g. WorkflowGuardMiddleware's) has already run.
+    (`copilotagent.create_deep_agent` itself prepends its own built-in
+    middleware — filesystem/tool-patching/etc. — ahead of whatever we pass;
+    none of those touch Encompass, so that's fine.)
 
     Fail-fast, never steals a foreign lock (a human in Encompass desktop, or
     another of our own runs holding it): a 409 halts the run gracefully via
@@ -693,6 +697,66 @@ class LoanLockMiddleware(AgentMiddleware):
         # "" not None — see the field comment on ProcessorAgentState;
         # last_value_reducer never lets a None update clear a channel.
         return {"_loan_lock_id": ""}
+
+    @staticmethod
+    def _release_on_escape(state: dict) -> None:
+        """Best-effort release for paths that skip after_agent entirely: an
+        uncaught exception from a model/tool call, or the graceful substep
+        timeout in WorkflowGuardMiddleware._check_substep_timeout (which
+        halts via `langgraph.types.interrupt`, a GraphInterrupt — a normal
+        Exception subclass, so it's caught by the `except Exception` below
+        same as any other escape). Relies on this middleware being first
+        among ours (see the class docstring), so its wrap_model_call /
+        wrap_tool_call are the outermost layer and their `handler(request)`
+        call encloses WorkflowGuardMiddleware's timeout check.
+
+        This only guarantees the *real* Encompass lock is dropped — it
+        can't also clear the checkpointed `_loan_lock_id` (that requires a
+        normal state-update return, unavailable here since we're mid-
+        exception and must re-raise). A resumed run on this thread will
+        still see `_loan_lock_id` set and skip re-acquiring in before_agent;
+        that's the same "crashed span leaks, recovered via dashboard
+        force-unlock" trade-off already accepted for `loan_lock` elsewhere
+        (see encompass_client.py's docstring there).
+        """
+        lock_id = state.get("_loan_lock_id")
+        loan_id = state.get("loan_id")
+        if not lock_id or not loan_id:
+            return
+        from encompass_client import unlock_resource
+        unlock_resource(lock_id, loan_id, state=state)
+        logger.info(
+            f"[LOAN_LOCK] Released lock {lock_id[:8]} for loan {loan_id[:8]} "
+            "(exception/interrupt escape, before_agent/after_agent bypassed)"
+        )
+
+    def wrap_model_call(self, request, handler):
+        try:
+            return handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    async def awrap_model_call(self, request, handler):
+        try:
+            return await handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    def wrap_tool_call(self, request, handler):
+        try:
+            return handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
+
+    async def awrap_tool_call(self, request, handler):
+        try:
+            return await handler(request)
+        except Exception:
+            self._release_on_escape(request.state)
+            raise
 
 
 class WorkflowGuardMiddleware(AgentMiddleware):
@@ -829,7 +893,11 @@ def create_agent():
     overview = generate_workflow_overview()
     system_prompt = system_prompt.replace("{{WORKFLOW_OVERVIEW}}", overview)
 
-    middleware_stack = [ProcessorAgentMiddleware(), LoanLockMiddleware()]
+    # LoanLockMiddleware must be FIRST — see its class docstring for why
+    # ordering matters (before_agent runs first / after_agent runs last).
+    # ProcessorAgentMiddleware only registers state_schema (no before_agent/
+    # after_agent hooks), so swapping it after LoanLockMiddleware is safe.
+    middleware_stack = [LoanLockMiddleware(), ProcessorAgentMiddleware()]
     if HAS_COPILOTKIT:
         middleware_stack.append(CopilotKitMiddleware())
     middleware_stack.append(SystemMessageNormalizerMiddleware())

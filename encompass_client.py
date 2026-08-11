@@ -219,14 +219,20 @@ class LoanLockedError(Exception):
     processor-assistant-orchestrator/docs/encompass_resource_locking_plan.md.
     """
 
-    def __init__(self, message: str, holder_user_id: str = None, holder_full_name: str = None, lock_id: str = None):
+    def __init__(
+        self,
+        message: str,
+        holder_user_id: Optional[str] = None,
+        holder_full_name: Optional[str] = None,
+        lock_id: Optional[str] = None,
+    ):
         super().__init__(message)
         self.holder_user_id = holder_user_id
         self.holder_full_name = holder_full_name
         self.lock_id = lock_id
 
 
-def list_resource_locks(loan_id: str, state: dict = None) -> list[dict]:
+def list_resource_locks(loan_id: str, state: Optional[dict] = None) -> list[dict]:
     """GET /encompass/v3/resourceLocks?resourceType=loan&resourceId=<loan_id>.
 
     EncompassConnect doesn't expose this endpoint — this borrows the client's
@@ -252,7 +258,7 @@ def list_resource_locks(loan_id: str, state: dict = None) -> list[dict]:
         raise
 
 
-def lock_resource(loan_id: str, state: dict = None, lock_type: str = "Exclusive") -> str:
+def lock_resource(loan_id: str, state: Optional[dict] = None, lock_type: str = "Exclusive") -> str:
     """POST /encompass/v3/resourceLocks — acquire an Exclusive lock.
 
     Fail-fast on 409: raises LoanLockedError enriched with the holder's
@@ -282,8 +288,10 @@ def lock_resource(loan_id: str, state: dict = None, lock_type: str = "Exclusive"
                 holder_user_id = existing[0].get("userId")
                 holder_full_name = existing[0].get("fullName")
                 existing_lock_id = existing[0].get("id")
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort enrichment only — the 409 fail-fast below still
+            # fires with a generic message either way.
+            logger.debug(f"[ENCOMPASS] Could not enrich lock holder info for loan {loan_id[:8]}: {e}")
         who = holder_full_name or holder_user_id
         raise LoanLockedError(
             f"Loan {loan_id[:8]} is already locked" + (f" by {who}" if who else "") + ".",
@@ -306,15 +314,22 @@ def lock_resource(loan_id: str, state: dict = None, lock_type: str = "Exclusive"
     return lock_id
 
 
-def unlock_resource(lock_id: str, loan_id: str, state: dict = None) -> None:
-    """DELETE /encompass/v3/resourceLocks/{lockId} — best-effort, never raises."""
-    import requests
+def unlock_resource(lock_id: str, loan_id: str, state: Optional[dict] = None) -> None:
+    """DELETE /encompass/v3/resourceLocks/{lockId} — best-effort, never raises.
 
-    client = get_encompass_client(state=state)
-    url = f"{client.api_base_url}/encompass/v3/resourceLocks/{lock_id}"
-    params = {"resourceType": "loan", "resourceId": loan_id}
-    headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
+    Covers the whole span (client lookup, token refresh, the DELETE itself)
+    with one broad handler: this is always called from `loan_lock`'s
+    `finally`, so a cleanup failure here (e.g. an expired/unrefreshable
+    token) must never replace or mask the original write error propagating
+    out of the `with` block.
+    """
     try:
+        import requests
+
+        client = get_encompass_client(state=state)
+        url = f"{client.api_base_url}/encompass/v3/resourceLocks/{lock_id}"
+        params = {"resourceType": "loan", "resourceId": loan_id}
+        headers = {"accept": "application/json", "Authorization": f"Bearer {client.access_token}"}
         resp = requests.delete(url, params=params, headers=headers, timeout=30)
         if resp.status_code == 401:
             client.refresh_token()
@@ -322,12 +337,12 @@ def unlock_resource(lock_id: str, loan_id: str, state: dict = None) -> None:
             resp = requests.delete(url, params=params, headers=headers, timeout=30)
         if resp.status_code not in (204, 404):
             logger.warning(f"[ENCOMPASS] unlock_resource({lock_id}, {loan_id[:8]}) -> HTTP {resp.status_code}: {resp.text[:300]}")
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         logger.warning(f"[ENCOMPASS] Failed to release lock {lock_id} for loan {loan_id[:8]}: {e}")
 
 
 @contextmanager
-def loan_lock(loan_id: str, state: dict = None):
+def loan_lock(loan_id: str, state: Optional[dict] = None):
     """Hold an Exclusive Encompass resource lock for a write span. Fail-fast
     (LoanLockedError) — never steals a foreign lock. Always releases in
     `finally`. See docs/encompass_resource_locking_plan.md in
