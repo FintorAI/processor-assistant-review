@@ -23,6 +23,14 @@ on:
 env:
   AWS_REGION: us-west-1
 
+# Serialize deploys per ref. Two runs building the byte-identical image would
+# otherwise race to push the same content-hash tag to the IMMUTABLE CDK assets
+# ECR repo; the loser fails with "tag already exists". Queue (don't cancel) so a
+# mid-flight CloudFormation deploy is never interrupted.
+concurrency:
+  group: aws-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
