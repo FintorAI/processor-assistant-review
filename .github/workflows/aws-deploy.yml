@@ -1,0 +1,163 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "output/**"
+      - "shared/**"
+      - "api/**"
+      - "infra/**"
+      - "requirements.txt"
+      - "encompass_client.py"
+      - ".github/workflows/aws-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Stage (dev or prod)"
+        required: true
+        default: "dev"
+        type: choice
+        options: [dev, prod]
+
+env:
+  AWS_REGION: us-west-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'aws-prod' || 'aws-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set stage
+        id: stage
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "stage=${{ inputs.stage }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "stage=prod" >> $GITHUB_OUTPUT
+          else
+            echo "stage=dev" >> $GITHUB_OUTPUT
+          fi
+          REPO_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+          if [[ -z "${{ secrets.API_KEY }}" ]]; then
+            echo "api_key=$(openssl rand -hex 32)" >> $GITHUB_OUTPUT
+          else
+            echo "api_key=${{ secrets.API_KEY }}" >> $GITHUB_OUTPUT
+          fi
+          if [[ -n "${{ vars.LANGSMITH_DEV_PROJECT }}" ]]; then
+            echo "langsmith_dev_project=${{ vars.LANGSMITH_DEV_PROJECT }}" >> $GITHUB_OUTPUT
+          else
+            echo "langsmith_dev_project=${REPO_NAME}-dev" >> $GITHUB_OUTPUT
+          fi
+          if [[ -n "${{ vars.LANGSMITH_PROD_PROJECT }}" ]]; then
+            echo "langsmith_prod_project=${{ vars.LANGSMITH_PROD_PROJECT }}" >> $GITHUB_OUTPUT
+          else
+            echo "langsmith_prod_project=${REPO_NAME}-prod" >> $GITHUB_OUTPUT
+          fi
+          if [[ -n "${{ vars.CORS_ALLOW_ORIGINS }}" ]]; then
+            echo "cors_origins=${{ vars.CORS_ALLOW_ORIGINS }}" >> $GITHUB_OUTPUT
+          else
+            echo "cors_origins=*" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CDK
+        run: |
+          npm install -g aws-cdk
+          pip install -r infra/requirements.txt
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: CDK Deploy
+        working-directory: infra
+        run: |
+          cdk bootstrap --app "python3 app.py" || true
+          cdk deploy "ProcessorReviewStack-${{ steps.stage.outputs.stage }}" \
+            --app "python3 app.py" \
+            --require-approval never \
+            --outputs-file ../output-${{ steps.stage.outputs.stage }}.json
+        env:
+          STAGE: ${{ steps.stage.outputs.stage }}
+          REVIEW_STAGE: ${{ steps.stage.outputs.stage }}
+          LANGSMITH_TRACING: "true"
+          LANGSMITH_DEV_PROJECT: ${{ steps.stage.outputs.langsmith_dev_project }}
+          LANGSMITH_PROD_PROJECT: ${{ steps.stage.outputs.langsmith_prod_project }}
+          CORS_ALLOW_ORIGINS: ${{ steps.stage.outputs.cors_origins }}
+
+      - name: Flatten outputs + push secrets
+        run: |
+          STAGE="${{ steps.stage.outputs.stage }}"
+          python3 - <<PY
+          import json
+          from pathlib import Path
+          raw = json.loads(Path(f"output-{STAGE}.json").read_text())
+          # cdk --outputs-file is nested; flatten for smoke script compatibility
+          if any("." not in k for k in raw):
+              flat = {}
+              for sn, outs in raw.items():
+                  if isinstance(outs, dict):
+                      for k, v in outs.items():
+                          flat[f"{sn}.{k}"] = v
+                  else:
+                      flat[sn] = outs
+              Path(f"output-{STAGE}.json").write_text(json.dumps(flat, indent=2) + "\n")
+              raw = flat
+          print("ApiUrl", raw.get(f"ProcessorReviewStack-{STAGE}.ApiUrl"))
+          PY
+          # Prefer deploy.sh secret push via env for full key set — minimal set here
+          SECRETS_ARN=$(jq -r ".\"ProcessorReviewStack-$STAGE.AgentSecretsArn\"" "output-$STAGE.json")
+          LANGSMITH_PROJECT="${{ steps.stage.outputs.langsmith_dev_project }}"
+          [[ "$STAGE" == "prod" ]] && LANGSMITH_PROJECT="${{ steps.stage.outputs.langsmith_prod_project }}"
+          aws secretsmanager put-secret-value --secret-id "$SECRETS_ARN" --secret-string "$(jq -n \
+            --arg API_KEY "${{ steps.stage.outputs.api_key }}" \
+            --arg ANTHROPIC_API_KEY "${{ secrets.ANTHROPIC_API_KEY }}" \
+            --arg LANGSMITH_API_KEY "${{ secrets.LANGSMITH_API_KEY }}" \
+            --arg LANGCHAIN_API_KEY "${{ secrets.LANGSMITH_API_KEY }}" \
+            --arg LANGSMITH_PROJECT "$LANGSMITH_PROJECT" \
+            --arg ENCOMPASS_API_BASE_URL "${{ secrets.ENCOMPASS_API_BASE_URL }}" \
+            --arg ENCOMPASS_CLIENT_ID "${{ secrets.ENCOMPASS_CLIENT_ID }}" \
+            --arg ENCOMPASS_CLIENT_SECRET "${{ secrets.ENCOMPASS_CLIENT_SECRET }}" \
+            --arg ENCOMPASS_INSTANCE_ID "${{ secrets.ENCOMPASS_INSTANCE_ID }}" \
+            --arg PROD_ENCOMPASS_API_BASE_URL "${{ secrets.PROD_ENCOMPASS_API_BASE_URL }}" \
+            --arg PROD_ENCOMPASS_CLIENT_ID "${{ secrets.PROD_ENCOMPASS_CLIENT_ID }}" \
+            --arg PROD_ENCOMPASS_CLIENT_SECRET "${{ secrets.PROD_ENCOMPASS_CLIENT_SECRET }}" \
+            --arg PROD_ENCOMPASS_INSTANCE_ID "${{ secrets.PROD_ENCOMPASS_INSTANCE_ID }}" \
+            --arg PROD_ENCOMPASS_USERNAME "${{ secrets.PROD_ENCOMPASS_USERNAME }}" \
+            --arg PROD_ENCOMPASS_PASSWORD "${{ secrets.PROD_ENCOMPASS_PASSWORD }}" \
+            --arg PROD_ENCOMPASS_SUBJECT_USER_ID "${{ secrets.PROD_ENCOMPASS_SUBJECT_USER_ID }}" \
+            --arg LANDINGAI_API_KEY "${{ secrets.LANDINGAI_API_KEY }}" \
+            --arg USPS_CLIENT_ID "${{ secrets.USPS_CLIENT_ID }}" \
+            --arg USPS_CLIENT_SECRET "${{ secrets.USPS_CLIENT_SECRET }}" \
+            --arg DOCREPO_AUTH_TOKEN "${{ secrets.DOCREPO_AUTH_TOKEN }}" \
+            --arg EFOLDER_API_TOKEN "${{ secrets.EFOLDER_API_TOKEN }}" \
+            '$ARGS.named')"
+
+      - name: Smoke test
+        run: |
+          chmod +x infra/smoke_test_aws.sh
+          echo "API_KEY=${{ steps.stage.outputs.api_key }}" >> .env
+          ./infra/smoke_test_aws.sh "${{ steps.stage.outputs.stage }}"
+
+      - name: Summary
+        run: |
+          STAGE="${{ steps.stage.outputs.stage }}"
+          API_URL=$(jq -r ".\"ProcessorReviewStack-$STAGE.ApiUrl\"" "output-$STAGE.json")
+          echo "### Review AWS deploy" >> $GITHUB_STEP_SUMMARY
+          echo "**Stage:** $STAGE" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "Set \`VITE_REVIEW_DEPLOYMENT_URL\` + API key to cut over Dashboard." >> $GITHUB_STEP_SUMMARY
