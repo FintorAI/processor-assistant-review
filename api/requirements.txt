@@ -1,0 +1,6 @@
+# AWS serverless API additions (installed on top of the repo requirements.txt
+# inside the Lambda container — see api/Dockerfile). Not needed by the
+# LangGraph Cloud deployment.
+fastapi>=0.115.0
+boto3>=1.35.0
+langgraph-checkpoint-aws>=0.1.0

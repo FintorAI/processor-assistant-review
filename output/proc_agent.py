@@ -899,7 +899,15 @@ class WorkflowGuardMiddleware(AgentMiddleware):
 # Agent Creation
 # ═══════════════════════════════════════════════════════════════════════
 
-def create_agent():
+def create_agent(checkpointer=None):
+    """Build the processor review deep agent.
+
+    Args:
+        checkpointer: Optional BaseCheckpointSaver for durable thread state.
+            The AWS serverless API (api/) passes a DynamoDB checkpointer here;
+            LangGraph Cloud / ``langgraph dev`` supply their own persistence and
+            use the module-level ``graph`` (built without one).
+    """
     global _ALL_TOOLS_REF
 
     from tools import get_all_tools
@@ -932,6 +940,7 @@ def create_agent():
         tool_resolver=resolve_tools_for_step,
         plan_resolver=resolve_plan_for_step,
         name="processor_agent",
+        checkpointer=checkpointer,
     )
 
     return agent
