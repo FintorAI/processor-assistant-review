@@ -110,9 +110,10 @@ jobs:
       - name: Flatten outputs + push secrets
         run: |
           STAGE="${{ steps.stage.outputs.stage }}"
-          python3 - <<PY
-          import json
+          STAGE="$STAGE" python3 - <<'PY'
+          import json, os
           from pathlib import Path
+          STAGE = os.environ["STAGE"]
           raw = json.loads(Path(f"output-{STAGE}.json").read_text())
           # cdk --outputs-file is nested; flatten for smoke script compatibility
           if any("." not in k for k in raw):
