@@ -1,0 +1,142 @@
+{
+  "_comment": "TaskTile rns_ai_only extraction-confidence buckets, per doc category. Hand-maintained, iterate over time. NOT factory-generated. See docs/tasktile-integration-plan.md ('Fallback strategy') and docs/tasktile-extracted-vs-awm-schema.md.",
+  "version": "2026-09-23",
+  "buckets": {
+    "1": "TRUST — rns_ai_only reliably returns this; use the manifest value (fall back only if empty or fails validation).",
+    "2": "KNOWN-MISSING — rns_ai_only structurally does not return this; skip the manifest wait and go straight to fallback (cross_doc_source first, else LandingAI/targeted extractor).",
+    "3": "CHECK-THEN-FALLBACK (default) — read the manifest; if the value is absent or fails validation, fall back to LandingAI. Safe default for any untested category."
+  },
+  "default_bucket": 3,
+  "notes": [
+    "field paths use the AWM content_schema names as the canonical field id; the camelCase->snake manifest mapping is handled separately (tasktile_field_map.json pattern).",
+    "'bucket' is the category default for fields not listed in field_overrides.",
+    "only categories with 'tested_job' have been empirically verified; everything else is the conservative default (bucket 3).",
+    "'cross_doc_source' = prefer a sibling doc's field in the SAME job before paying for LandingAI (category_id of the sibling).",
+    "idNumber on 323/845/844 is a CONFIRMED structural gap (bucket 2) even for the untested passport/PRC variants."
+  ],
+
+  "categories": {
+    "2168": {
+      "name": "ALTA Settlement Statement",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "field_overrides": {
+        "escrowCompany": 2,
+        "titleCompany": 2,
+        "settlementAgent": 2,
+        "titleCharges[].description": 2,
+        "titleCharges[].paidTo": 2,
+        "recordingCharges[].description": 2
+      },
+      "cross_doc_source": {
+        "escrowCompany": 167,
+        "titleCompany": 167,
+        "settlementAgent": 167,
+        "fileNumber": 167
+      },
+      "note": "Names/address/escrow#/charges amounts reliable. Escrow/title company + settlementAgent + file# land on the CPL (167), not the ALTA."
+    },
+
+    "323": {
+      "name": "Drivers License",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "field_overrides": {
+        "owner.idNumber": 2,
+        "owner.issueDate": 2,
+        "owner.suffix": 2,
+        "state": 2
+      },
+      "note": "Issue A: license/ID number never extracted. Name/DOB/address/expiration reliable."
+    },
+
+    "845": {
+      "name": "Passport",
+      "bucket": 3,
+      "field_overrides": { "owner.idNumber": 2 },
+      "note": "Untested overall (rare doc); idNumber is a confirmed structural gap shared with 323."
+    },
+
+    "844": {
+      "name": "Permanent Resident Card",
+      "bucket": 3,
+      "field_overrides": { "resident.idNumber": 2 },
+      "note": "Untested overall (rare doc); idNumber is a confirmed structural gap shared with 323."
+    },
+
+    "117": {
+      "name": "Credit Report",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "field_overrides": {
+        "creditTradeLines": 2,
+        "collectionAccounts": 2,
+        "derogatoryAccounts": 2,
+        "publicRecords": 2,
+        "inquiries": 2,
+        "tradeSummary": 2,
+        "alerts": 2,
+        "creditReferenceNumber": 2
+      },
+      "note": "Scores + full SSN + names reliable. Tradelines/collections/derogatory/public records/inquiries not extracted."
+    },
+
+    "167": {
+      "name": "Closing Protection Letter",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "note": "Rich extraction: settlementAgent.name (title company), fileNumber, property, loan.number. Source of truth for ALTA's missing escrow/title company + file#."
+    },
+
+    "200": {
+      "name": "Purchase Contract",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "field_overrides": {
+        "sellers": 2,
+        "sellersAgent": 2,
+        "sellerCreditAmount": 2
+      },
+      "note": "Buyers/price/deposit/property/buyer-agent reliable. Sellers + sellers agent + seller credit not extracted; agents not split by buyer/seller."
+    },
+
+    "141": {
+      "name": "Mortgage Insurance",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "field_overrides": {
+        "certificateNumber": 2,
+        "miFileNumber": 2,
+        "totalPremium": 2,
+        "upfrontPremiumAmount": 2,
+        "monthlyPremiumAmount": 2,
+        "renewal": 2,
+        "company.name": 2
+      },
+      "note": "Tested doc was an MI RATE QUOTE (LTV/coverage/DTI reliable). Premium/certificate fields belong on an issued MI cert (816/1838) — re-test those."
+    },
+
+    "538": {
+      "name": "Flood Certification",
+      "bucket": 1,
+      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "note": "Rich: flood zone, determination#, NFIP community/map. borrowers[] parsed as single clientName (middleName can absorb co-borrower)."
+    },
+
+    "2044": {
+      "name": "Property or Address Search",
+      "bucket": 1,
+      "tested_job": "d60a09ed-22eb-483d-9ecf-faac38495c84",
+      "note": "name/address/verificationDetails reliable."
+    },
+
+    "349":  { "name": "Initial 1003 / URLA",          "bucket": 3, "note": "UNTESTED — bootstrap needed." },
+    "819":  { "name": "Closing Disclosure",           "bucket": 3, "note": "UNTESTED — bootstrap needed (closing/disbursement dates)." },
+    "984":  { "name": "Loan Estimate",                "bucket": 3, "note": "UNTESTED — bootstrap needed (fee lines)." },
+    "816":  { "name": "PMI Certificate",              "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — need issued MI cert to verify certificateNumber." },
+    "1838": { "name": "FHA MI Certificate",           "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — need issued MI cert to verify certificateNumber." },
+    "843":  { "name": "SSN Card",                     "bucket": 3, "note": "UNTESTED — bootstrap needed." },
+    "1481": { "name": "Property Tax",                 "bucket": 3, "note": "UNTESTED — bootstrap needed." },
+    "1":    { "name": "Business Tax Return",          "bucket": 3, "note": "UNTESTED — bootstrap needed (corporation.name)." }
+  }
+}
