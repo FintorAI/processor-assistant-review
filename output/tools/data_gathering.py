@@ -119,8 +119,19 @@ def get_required_documents_for_loan(
         cond = entry.get("condition", {})
         if cond.get("fallback"):
             doc_list = entry.get("document_list", [])
-            logger.info(f"[DOC_SELECT] Using fallback -> {len(doc_list)} docs")
-            return doc_list, {}
+            # Honour the fallback entry's extraction_mode map (e.g. Driver's
+            # License / VOE / Bank Statement = 'all'). Returning {} here silently
+            # degraded every doc to selectionMode=Best / is_multi_copy=False, which
+            # dropped the co-borrower's ID (and any 2nd copy of VOE/paystubs/etc.)
+            # because only one copy reached doc_fields. See
+            # docs/tasktile-doc-writes-investigation.md (Issue A).
+            ext_modes = dict(entry.get("extraction_mode", {}) or {})
+            ext_modes.pop("_comment", None)
+            logger.info(
+                f"[DOC_SELECT] Using fallback -> {len(doc_list)} docs, "
+                f"{len([m for m in ext_modes.values() if str(m).lower() == 'all'])} multi-copy types"
+            )
+            return doc_list, ext_modes
 
     logger.warning("[DOC_SELECT] No matching condition and no fallback!")
     return [], {}
@@ -1634,6 +1645,35 @@ def fetch_doc_fields(
         found_keys = set(doc_fields.keys())
         missing_keys = ALL_DOC_FIELD_KEYS - found_keys
 
+        # --- TaskTile rns_ai_only fallback (shadow-mode analytics) ---------------
+        # Gated behind TASKTILE_AI_ONLY_ENABLED (default OFF => zero prod impact).
+        # Classifies each real gap against the bucket config so we can see, per
+        # missing field, whether it's an unexpected bucket-1 regression, a known
+        # bucket-2 miss, or an untested bucket-3 default. Never mutates doc_fields;
+        # any error is swallowed so it can't affect the tool result.
+        tasktile_gap_shadow = None
+        try:
+            from shared.tasktile_fallback import ai_only_enabled, shadow_mode
+            if ai_only_enabled():
+                from shared import tasktile_docfields as _dfx
+                plan = _dfx.plan_doc_gaps(
+                    missing_keys, DOC_FIELD_MAP, required_doc_types=required_doc_types,
+                )
+                summary = _dfx.summarize_plan(plan)
+                tasktile_gap_shadow = {"summary": summary, "gaps": plan}
+                mode = "SHADOW" if shadow_mode() else "LIVE"
+                logger.info(
+                    f"[TASKTILE_FALLBACK:{mode}] {len(plan)} gap(s) classified: {summary}"
+                )
+                for g in plan:
+                    logger.info(
+                        f"[TASKTILE_FALLBACK:{mode}] gap field={g['field_key']} "
+                        f"doc={g['doc_type']} cat={g['category_id']} "
+                        f"bucket={g['bucket']} action={g['action']}"
+                    )
+        except Exception as _e:  # never let shadow analytics break fetch_doc_fields
+            logger.warning(f"[TASKTILE_FALLBACK] shadow analysis skipped: {_e}")
+
         result = {
             "success": True,
             "loan_type": loan_type,
@@ -1665,6 +1705,9 @@ def fetch_doc_fields(
                 f" EXTRACTION STILL IN PROGRESS for: {', '.join(pending_types)}. "
                 "Call wait_for_pending_docs([...]) before any step that needs these documents."
             )
+
+        if tasktile_gap_shadow is not None:
+            result["tasktile_gap_shadow"] = tasktile_gap_shadow
 
         logger.info(f"[FETCH_DOCS] {result['message']}")
 
