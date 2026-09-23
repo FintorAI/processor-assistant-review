@@ -25,7 +25,8 @@ def test_tested_categories_are_bucket_one():
 
 
 def test_untested_category_defaults_to_bucket_three():
-    for cid in (349, 819, 984, 843, 1481, 1):
+    # still-untested categories (349/819/984 were bootstrapped -> bucket 1)
+    for cid in (843, 1481, 1):
         assert tb.field_bucket(cid, "anything.at.all") == 3
         assert tb.is_tested(cid) is False
 

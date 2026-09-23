@@ -280,10 +280,25 @@ are pinned to bucket 2; **everything else stays bucket 3** until verified. Shado
 every real run to promote/demote fields over time (a single one-off test isn't authoritative — ai_only
 is free-form and the ALTA already returned two different shapes across two loans).
 
-**Current config snapshot (2026-09-23):** 18 categories — 8 bucket-1 (tested: 2168, 323, 117, 167,
-200, 141, 538, 2044), 10 bucket-3 (untested: 349, 819, 984, 816, 1838, 843, 845, 844, 1481, 1).
-Bootstrap the common untested ones (349, 819, 984, 843, 1481, issued MI cert) via the harness
-(`scripts/test_rns_ai_only.py`); leave the rare ID variants (845/844) to shadow mode.
+**Current config snapshot (2026-09-23, round 2):** 18 categories — **11 bucket-1**, 7 bucket-3.
+
+**Bootstrap round 2 — job `5469bfdf-d86d-4d73-a3bd-1dd5a98349d4`** (loan 2608976334, CD + LE + URLA
+in one `rns_ai_only` job). All three extracted richly and are **promoted to bucket 1**:
+
+| Cat | Doc | Leaf fields | Highlights |
+|---|---|---|---|
+| **349** | 1003 / URLA | 87 | multi-borrower `borrowers[]` with names/DOB/citizenship/maritalStatus **and `socialSecurityNumber`**, employment, `assets[]`, `liabilities[]`, REO property, declarations |
+| **819** | Closing Disclosure | 63 | closing/disbursement dates, `settlementAgent.name` + `fileNumber`, loan terms, `costsAtClosing`, line-item `closingCostDetails`, lender, realEstateBroker |
+| **984** | Loan Estimate | 41 | loan terms, `applicants[]`, `loanCosts` breakdown, `otherCosts`, `comparisons`, lender + loanOfficer contact |
+
+Notes: (a) `rns_ai_only` returned **no `category_id`** on any doc (free-form — consistent with the
+headline finding); (b) CD (819) is a viable **cross-doc source** for the ALTA escrow/title/file# gap
+alongside CPL 167; (c) URLA + Credit Report both yield SSN, so a dedicated **SSN Card (843)** may be
+unnecessary. **Not bootstrapped** (absent on 2608976334/2509948158/2605966814): issued MI cert
+(816/1838 — only PMI *disclosures* + an MI *quote* exist), SSN Card (843), Property Tax bill (1481).
+
+Bucket-1 (11): 2168, 323, 117, 167, 200, 141, 538, 2044, **349, 819, 984**.
+Bucket-3 (7): 816, 1838, 843, 845, 844, 1481, 1.
 
 ---
 

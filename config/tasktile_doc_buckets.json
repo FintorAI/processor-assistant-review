@@ -130,13 +130,28 @@
       "note": "name/address/verificationDetails reliable."
     },
 
-    "349":  { "name": "Initial 1003 / URLA",          "bucket": 3, "note": "UNTESTED — bootstrap needed." },
-    "819":  { "name": "Closing Disclosure",           "bucket": 3, "note": "UNTESTED — bootstrap needed (closing/disbursement dates)." },
-    "984":  { "name": "Loan Estimate",                "bucket": 3, "note": "UNTESTED — bootstrap needed (fee lines)." },
-    "816":  { "name": "PMI Certificate",              "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — need issued MI cert to verify certificateNumber." },
-    "1838": { "name": "FHA MI Certificate",           "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — need issued MI cert to verify certificateNumber." },
-    "843":  { "name": "SSN Card",                     "bucket": 3, "note": "UNTESTED — bootstrap needed." },
-    "1481": { "name": "Property Tax",                 "bucket": 3, "note": "UNTESTED — bootstrap needed." },
+    "349": {
+      "name": "Initial 1003 / URLA",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf, loan 2608976334). 87 leaf fields. Multi-borrower array borrowers[] with names/DOB/citizenship/maritalStatus AND socialSecurityNumber, employment, assets[], liabilities[], REO property, declarations. rns_ai_only returned NO category_id (free-form)."
+    },
+    "819": {
+      "name": "Closing Disclosure",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf). 63 leaf fields: closing/disbursement dates, settlementAgent.name + fileNumber, loan terms, costsAtClosing, closingCostDetails line items, lender, realEstateBroker. Also a viable cross-doc source for ALTA escrow/title/file# alongside CPL 167."
+    },
+    "984": {
+      "name": "Loan Estimate",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf). 41 leaf fields: loan terms, applicants[], loanCosts breakdown, otherCosts, comparisons, lender + loanOfficer contact."
+    },
+    "816":  { "name": "PMI Certificate",              "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — no ISSUED MI cert on 2608976334/2509948158/2605966814 (only PMI disclosures + MI quote). Need an issued cert to verify certificateNumber/premium." },
+    "1838": { "name": "FHA MI Certificate",           "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — no issued FHA MI cert on tested loans." },
+    "843":  { "name": "SSN Card",                     "bucket": 3, "note": "UNTESTED — no true SSN card on tested loans (only 'Social Security Administration Authorization' / 'SSN Verification'). NOTE: SSN is reliably extracted off the URLA (349) and Credit Report (117), so a dedicated SSN card may be unnecessary." },
+    "1481": { "name": "Property Tax",                 "bucket": 3, "note": "UNTESTED — no property tax bill in eFolder on tested loans." },
     "1":    { "name": "Business Tax Return",          "bucket": 3, "note": "UNTESTED — bootstrap needed (corporation.name)." }
   }
 }
