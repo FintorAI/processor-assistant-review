@@ -15,57 +15,63 @@ from shared import tasktile_buckets as tb
 from shared import tasktile_fallback as tf
 from shared import tasktile_validation as tv
 
-
-# ── bucket resolution ──────────────────────────────────────────────────────
-def test_tested_categories_are_bucket_one():
-    # 8 empirically-tested categories default to TRUST
-    for cid in (2168, 323, 117, 167, 200, 141, 538, 2044):
-        assert tb.category_config(cid).get("bucket") == 1
-        assert tb.is_tested(cid) is True
+# Stable fixture for engine-behavior tests (decoupled from the live config,
+# whose bucket assignments shift as TaskTile's ai_only extraction changes).
+FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                   "fixtures", "tasktile_buckets_engine.json")
 
 
-def test_untested_category_defaults_to_bucket_three():
-    # still-untested categories (349/819/984 were bootstrapped -> bucket 1)
+# ── bucket resolution (engine, against the stable fixture) ──────────────────
+def test_fixture_category_default_bucket_one():
+    assert tb.category_config(2168, FIX).get("bucket") == 1
+
+
+def test_unknown_category_uses_global_default():
+    assert tb.field_bucket(999999, "whatever", FIX) == tb.default_bucket(FIX)
+
+
+def test_field_override_pins_bucket_two():
+    assert tb.field_bucket(323, "owner.idNumber", FIX) == 2
+    assert tb.field_bucket(2168, "escrowCompany", FIX) == 2
+    assert tb.field_bucket(2168, "titleCompany", FIX) == 2
+
+
+def test_prefix_override_covers_children():
+    # override on `settlementAgent` (parent) applies to nested child
+    assert tb.field_bucket(2168, "settlementAgent", FIX) == 2
+    assert tb.field_bucket(2168, "settlementAgent.name", FIX) == 2
+
+
+def test_non_overridden_field_takes_category_default():
+    assert tb.field_bucket(2168, "buyers[].firstName", FIX) == 1
+
+
+def test_cross_doc_source_points_to_cpl():
+    assert tb.cross_doc_source(2168, "fileNumber", FIX) == 167
+    assert tb.cross_doc_source(2168, "escrowCompany", FIX) == 167
+    assert tb.cross_doc_source(2168, "settlementAgent.name", FIX) == 167  # prefix
+    assert tb.cross_doc_source(323, "owner.idNumber", FIX) is None
+
+
+# ── live-config sanity (reflects the CURRENT state, post ai_only fix) ───────
+def test_live_untested_category_defaults_to_bucket_three():
     for cid in (843, 1481, 1):
         assert tb.field_bucket(cid, "anything.at.all") == 3
         assert tb.is_tested(cid) is False
 
 
-def test_unknown_category_uses_global_default():
-    assert tb.field_bucket(999999, "whatever") == tb.default_bucket()
+def test_live_id_number_fixed_is_bucket_one():
+    # Issue A resolved by TaskTile (job a2643fae): DL idNumber now trusted.
+    assert tb.field_bucket(323, "owner.idNumber") == 1
+    # ALTA escrow/title now extract directly -> bucket 1, cross_doc retired.
+    assert tb.field_bucket(2168, "escrowCompany") == 1
+    assert tb.cross_doc_source(2168, "escrowCompany") is None
 
 
-def test_structural_gaps_are_bucket_two():
-    assert tb.field_bucket(323, "owner.idNumber") == 2
-    assert tb.field_bucket(2168, "escrowCompany") == 2
-    assert tb.field_bucket(2168, "titleCompany") == 2
-    # passport/PRC untested overall but idNumber pinned structural
-    assert tb.field_bucket(845, "owner.idNumber") == 2
-    assert tb.field_bucket(844, "resident.idNumber") == 2
-
-
-def test_prefix_override_covers_children():
-    # override on `settlementAgent` (parent) applies to nested child
-    assert tb.field_bucket(2168, "settlementAgent") == 2
-    assert tb.field_bucket(2168, "settlementAgent.name") == 2
-
-
-def test_non_overridden_field_takes_category_default():
-    # 2168 default bucket is 1; a field with no override trusts the manifest
-    assert tb.field_bucket(2168, "buyers[].firstName") == 1
-
-
-def test_cross_doc_source_points_to_cpl():
-    assert tb.cross_doc_source(2168, "fileNumber") == 167
-    assert tb.cross_doc_source(2168, "escrowCompany") == 167
-    assert tb.cross_doc_source(2168, "settlementAgent.name") == 167  # prefix
-    assert tb.cross_doc_source(323, "owner.idNumber") is None
-
-
-# ── decision flow ──────────────────────────────────────────────────────────
+# ── decision flow (engine, against the stable fixture) ──────────────────────
 def test_bucket1_trusts_valid_manifest_value():
     res = tf.resolve_field(2168, "buyers[].firstName", manifest_value="Jerardo",
-                           landingai_lookup=lambda c, f: "NOPE")
+                           landingai_lookup=lambda c, f: "NOPE", config_path=FIX)
     assert res.source == "manifest" and res.value == "Jerardo" and res.valid
 
 
@@ -74,13 +80,13 @@ def test_bucket1_falls_back_when_manifest_invalid():
         2168, "buyers[].firstName",
         manifest_value="",  # empty -> invalid
         landingai_lookup=lambda c, f: "FromLandingAI",
+        config_path=FIX,
     )
     assert res.source == "landingai" and res.value == "FromLandingAI"
     assert res.tried == ["manifest", "landingai"]
 
 
 def test_bucket2_skips_manifest_and_uses_cross_doc():
-    # escrowCompany on ALTA is bucket 2 with cross_doc_source -> CPL(167)
     calls = {}
 
     def cross(sibling, fpath):
@@ -92,6 +98,7 @@ def test_bucket2_skips_manifest_and_uses_cross_doc():
         manifest_value="SHOULD_BE_IGNORED",
         cross_doc_lookup=cross,
         landingai_lookup=lambda c, f: "landingai_should_not_run",
+        config_path=FIX,
     )
     assert res.source == "cross_doc"
     assert res.value == "Fidelity National Title Company"
@@ -105,16 +112,17 @@ def test_bucket2_falls_to_landingai_when_no_cross_doc_value():
         manifest_value=None,
         landingai_lookup=lambda c, f: "D1234567",
         validator="id_number",
+        config_path=FIX,
     )
     assert res.source == "landingai" and res.value == "D1234567" and res.valid
 
 
 def test_bucket3_checks_manifest_then_falls_back():
-    hit = tf.resolve_field(349, "anyField", manifest_value="present-value")
+    hit = tf.resolve_field(349, "anyField", manifest_value="present-value", config_path=FIX)
     assert hit.source == "manifest" and hit.valid
 
     miss = tf.resolve_field(349, "anyField", manifest_value=None,
-                            landingai_lookup=lambda c, f: "fallback")
+                            landingai_lookup=lambda c, f: "fallback", config_path=FIX)
     assert miss.source == "landingai"
 
 
@@ -124,6 +132,7 @@ def test_invalid_zip_triggers_fallback_in_bucket3():
         manifest_value="90005",           # wrong-but-present
         validator="zip",
         landingai_lookup=lambda c, f: "90605",
+        config_path=FIX,
     )
     # 90005 IS a valid 5-digit zip format, so validator passes -> trusts manifest.
     # This documents that format-validation only catches malformed values, not
@@ -135,6 +144,7 @@ def test_invalid_zip_triggers_fallback_in_bucket3():
         manifest_value="9O6O5",           # letters -> malformed
         validator="zip",
         landingai_lookup=lambda c, f: "90605",
+        config_path=FIX,
     )
     assert res2.source == "landingai" and res2.value == "90605"
 
@@ -142,7 +152,7 @@ def test_invalid_zip_triggers_fallback_in_bucket3():
 def test_shadow_logger_receives_resolution():
     logged = []
     tf.resolve_field(2168, "buyers[].firstName", manifest_value="X",
-                     shadow_logger=logged.append)
+                     shadow_logger=logged.append, config_path=FIX)
     assert logged and logged[0]["field"] == "buyers[].firstName"
     assert logged[0]["source"] == "manifest" and logged[0]["bucket"] == 1
 
@@ -168,6 +178,18 @@ def test_flags_default(monkeypatch):
     monkeypatch.setenv("TASKTILE_SHADOW_MODE", "0")
     assert tf.ai_only_enabled() is True
     assert tf.shadow_mode() is False
+
+
+def test_fetch_enabled_requires_both_flags(monkeypatch):
+    monkeypatch.delenv("TASKTILE_AI_ONLY_ENABLED", raising=False)
+    monkeypatch.delenv("TASKTILE_AI_ONLY_FETCH", raising=False)
+    assert tf.fetch_enabled() is False                      # both off
+
+    monkeypatch.setenv("TASKTILE_AI_ONLY_FETCH", "true")
+    assert tf.fetch_enabled() is False                      # ai_only still off -> gated
+
+    monkeypatch.setenv("TASKTILE_AI_ONLY_ENABLED", "true")
+    assert tf.fetch_enabled() is True                       # both on
 
 
 # ── real manifest sanity (skipped if the local file is absent, e.g. in CI) ──

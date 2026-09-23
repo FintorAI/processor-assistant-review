@@ -1,0 +1,27 @@
+{
+  "_comment": "STABLE fixture for engine-behavior tests. Independent of the live config/tasktile_doc_buckets.json (whose bucket assignments shift as TaskTile ai_only changes). Do not sync to production reality — it exists purely to exercise bucket 1/2/3 code paths, field_overrides, prefix matching, and cross_doc_source.",
+  "version": "fixture",
+  "default_bucket": 3,
+  "categories": {
+    "2168": {
+      "name": "ALTA (fixture)",
+      "bucket": 1,
+      "field_overrides": {
+        "escrowCompany": 2,
+        "titleCompany": 2,
+        "settlementAgent": 2
+      },
+      "cross_doc_source": {
+        "escrowCompany": 167,
+        "fileNumber": 167,
+        "settlementAgent": 167
+      }
+    },
+    "323": {
+      "name": "Drivers License (fixture)",
+      "bucket": 1,
+      "field_overrides": { "owner.idNumber": 2 }
+    },
+    "349": { "name": "URLA (fixture)", "bucket": 3 }
+  }
+}

@@ -300,6 +300,26 @@ unnecessary. **Not bootstrapped** (absent on 2608976334/2509948158/2605966814): 
 Bucket-1 (11): 2168, 323, 117, 167, 200, 141, 538, 2044, **349, 819, 984**.
 Bucket-3 (7): 816, 1838, 843, 845, 844, 1481, 1.
 
+### Runtime wiring & rollout stages (processor-side)
+
+The processor calls `rns_ai_only` **itself** (`shared/tasktile_ai_only.py`) — no dashboard
+pipeline change — and `fetch_doc_fields` drives the bucket engine. Three env flags stage it:
+
+| Flag (default) | Effect |
+|---|---|
+| `TASKTILE_AI_ONLY_ENABLED` (off) | master gate. On → classify each gap into a bucket + log (cheap, no TaskTile call). |
+| `TASKTILE_AI_ONLY_FETCH` (off) | also call TaskTile for the gap docs, fetch the manifest, record coverage (adds latency). |
+| `TASKTILE_SHADOW_MODE` (on) | when **on**, fills are computed + logged but **not written**; set to `0` to actually write resolved values into `doc_fields`. |
+
+**Rollout order:** (1) `ENABLED=1` → watch gap classifications; (2) `+FETCH=1` → watch
+`tasktile_gap_shadow.fills` proposals; (3) `SHADOW_MODE=0` → authoritative fill goes live.
+
+**Authoritative fill** uses `config/tasktile_field_map.json` (manifest leaf → processor
+`field_key`, per category) + validators. Only **bucket-1** fields fill from the manifest;
+bucket-2/3 resolve to cross-doc/LandingAI. Existing `doc_fields` values are never clobbered.
+Mapped today (the doc types that feed `doc_fields`): 323 Driver's License (incl. `dl_gov_id`),
+117 Credit (`credit_reference_number`), 984 Loan Estimate (10 fields).
+
 ---
 
 ## Open questions & decisions
