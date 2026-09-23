@@ -80,6 +80,34 @@ def test_plan_doc_gaps_inverts_and_filters_required():
     assert keys == {"purchase_price", "cd_total"}
 
 
+def test_gap_doc_types_distinct_order_preserved():
+    plan = [
+        {"doc_type": "Driver's License", "field_key": "a"},
+        {"doc_type": "ALTA Settlement Statement", "field_key": "b"},
+        {"doc_type": "Driver's License", "field_key": "c"},
+        {"doc_type": None, "field_key": "d"},
+    ]
+    assert dfx.gap_doc_types(plan) == ["Driver's License", "ALTA Settlement Statement"]
+
+
+def test_manifest_coverage_summarizes_leaves():
+    manifest = {
+        "_processor": {"job_id": "job-7"},
+        "documents": [
+            {"root_attachment_id": "att-1", "category_id": 323,
+             "metadata": {"owner": {"idNumber": "D1", "firstName": "A"}, "source": "x"}},
+            {"root_attachment_id": "att-2", "metadata": {}},
+        ],
+    }
+    cov = dfx.manifest_coverage(manifest)
+    assert cov["job_id"] == "job-7"
+    assert len(cov["docs"]) == 2
+    d0 = cov["docs"][0]
+    assert d0["root_attachment_id"] == "att-1" and d0["category_id"] == 323
+    assert set(d0["leaf_keys"]) == {"owner.idNumber", "owner.firstName"}  # 'source' skipped
+    assert cov["docs"][1]["leaf_count"] == 0
+
+
 def test_summarize_plan_counts_actions():
     plan = [
         {"action": "fallback_landingai"},
