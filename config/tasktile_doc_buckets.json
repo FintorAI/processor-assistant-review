@@ -1,6 +1,6 @@
 {
   "_comment": "TaskTile rns_ai_only extraction-confidence buckets, per doc category. Hand-maintained, iterate over time. NOT factory-generated. See docs/tasktile-integration-plan.md ('Fallback strategy') and docs/tasktile-extracted-vs-awm-schema.md.",
-  "version": "2026-09-23b",
+  "version": "2026-09-23c",
   "buckets": {
     "1": "TRUST — rns_ai_only reliably returns this; use the manifest value (fall back only if empty or fails validation).",
     "2": "KNOWN-MISSING — rns_ai_only structurally does not return this; skip the manifest wait and go straight to fallback (cross_doc_source first, else LandingAI/targeted extractor).",
@@ -12,7 +12,8 @@
     "'bucket' is the category default for fields not listed in field_overrides.",
     "only categories with 'tested_job' have been empirically verified; everything else is the conservative default (bucket 3).",
     "'cross_doc_source' = prefer a sibling doc's field in the SAME job before paying for LandingAI (category_id of the sibling).",
-    "2026-09-23b: TaskTile shipped an ai_only extraction fix (retest job a2643fae). It RESOLVED the big structural gaps — DL owner.idNumber, ALTA escrowCompany/titleCompany/settlementAgent/fileNumber, Purchase sellers[]/sellersAgent, MI premium fields — all now extract. It also REGRESSED Flood (538) and CPL (167), which went sparse. ai_only output shape is unstable run-to-run, so treat single results as directional and let shadow mode confirm over time."
+    "2026-09-23b: TaskTile shipped an ai_only extraction fix (retest job a2643fae). It RESOLVED the big structural gaps — DL owner.idNumber, ALTA escrowCompany/titleCompany/settlementAgent/fileNumber, Purchase sellers[]/sellersAgent, MI premium fields — all now extract. It also REGRESSED Flood (538) and CPL (167), which went sparse. ai_only output shape is unstable run-to-run, so treat single results as directional and let shadow mode confirm over time.",
+    "2026-09-23c: bootstrapped 4 more categories off loan 2605966814 (job f23bd6d9) — 351 (1008 transmittal, full monetary set incl. agencyCaseNumber), 324 (DU findings, incl. ltv), 1481 (property tax bill), and NEW 1482 (SDAT property profile). Notably this run DID return category_id per document (earlier ai_only runs returned none)."
   ],
 
   "categories": {
@@ -122,10 +123,33 @@
       "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
       "note": "Bootstrapped 2026-09-23 (job 5469bfdf). 41 leaf fields: loan terms, applicants[], loanCosts breakdown, otherCosts, comparisons, lender + loanOfficer contact."
     },
+    "351": {
+      "name": "Transmittal Summary 1008",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814). Extracts the full monetary set that was previously a GAP: borrowers[], propertyAddress, salesPrice, appraisedValue, loanAmount, interestRate, firstMortgagePi, hoaFee, taxesSpecialAssessments, totalMortgagePayment, proposed{...}, agencyCaseNumber. Feeds update_transmittal_summary. ai_only returned category_id this run."
+    },
+    "324": {
+      "name": "DU Underwriting Findings",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814, off the .FINDINGS file). Extracts loanType, noteRate, loanPurpose, DTIPercentage, recommendation, amortizationType, borrowers[], loanAmount, ltv, appraisedValue. Feeds run_pre_checks / review tools. Sibling 2104 (LP Findings) untested — assume same shape but confirm."
+    },
+    "1481": {
+      "name": "Property Tax",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814, off a Baltimore Real Property tax bill). Extracts year, county, propertyAddress, firstInstallment..fourthInstallment, taxInstallments."
+    },
+    "1482": {
+      "name": "Property Profile",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "NEW category discovered 2026-09-23c (job f23bd6d9): ai_only classified a Maryland SDAT Real Property Data Search here (not 1481). Extracts issuer.name, propertyAddress, estimatedMarketValue, installments. Not previously in our category list."
+    },
     "816":  { "name": "PMI Certificate",              "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — no ISSUED MI cert on 2608976334/2509948158/2605966814 (only PMI disclosures + MI quote). Need an issued cert to verify certificateNumber/premium." },
     "1838": { "name": "FHA MI Certificate",           "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED — no issued FHA MI cert on tested loans." },
     "843":  { "name": "SSN Card",                     "bucket": 3, "note": "UNTESTED — no true SSN card on tested loans (only 'Social Security Administration Authorization' / 'SSN Verification'). NOTE: SSN is reliably extracted off the URLA (349) and Credit Report (117), so a dedicated SSN card may be unnecessary." },
-    "1481": { "name": "Property Tax",                 "bucket": 3, "note": "UNTESTED — no property tax bill in eFolder on tested loans." },
-    "1":    { "name": "Business Tax Return",          "bucket": 3, "note": "UNTESTED — bootstrap needed (corporation.name)." }
+    "1":    { "name": "Business Tax Return",          "bucket": 3, "note": "UNTESTED — no business return in eFolder on traced loans (only personal 4506C/transcripts). bootstrap needed (corporation.name)." }
   }
 }
