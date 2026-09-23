@@ -181,3 +181,37 @@ def summarize_plan(plan: list[dict]) -> dict:
     for g in plan:
         out[g["action"]] = out.get(g["action"], 0) + 1
     return out
+
+
+def gap_doc_types(plan: list[dict]) -> list[str]:
+    """Distinct doc-type names that have at least one gap (for targeted fetch)."""
+    seen = []
+    for g in plan:
+        dt = g.get("doc_type")
+        if dt and dt not in seen:
+            seen.append(dt)
+    return seen
+
+
+def manifest_coverage(manifest: dict) -> dict:
+    """Summarize what an rns_ai_only manifest actually returned per document.
+
+    Shadow-mode only — reports the extracted leaf fields per doc so we can see, for
+    each gap doc type, whether TaskTile would have supplied the value. Field-precise
+    fill (leaf -> processor field_key) is a follow-up; this proves the loop end-to-end.
+
+    Returns ``{job_id, docs: [{root_attachment_id, category_id, leaf_count, leaf_keys}]}``.
+    """
+    from shared.tasktile_fallback import flatten  # reuse the same flattener
+
+    out = {"job_id": (manifest.get("_processor") or {}).get("job_id"), "docs": []}
+    for d in manifest.get("documents") or []:
+        md = d.get("metadata") or d.get("content") or {}
+        leaves = list(flatten(md))
+        out["docs"].append({
+            "root_attachment_id": d.get("root_attachment_id"),
+            "category_id": d.get("category_id"),
+            "leaf_count": len(leaves),
+            "leaf_keys": leaves,
+        })
+    return out

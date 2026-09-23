@@ -40,6 +40,16 @@ def shadow_mode() -> bool:
     return _flag("TASKTILE_SHADOW_MODE", True)
 
 
+def fetch_enabled() -> bool:
+    """Whether to actually call TaskTile rns_ai_only for gap docs (default off).
+
+    Separate from ``ai_only_enabled`` so cheap gap *classification* shadow analytics
+    can run without incurring the multi-minute live manifest fetch. Requires
+    ``ai_only_enabled`` to also be on.
+    """
+    return ai_only_enabled() and _flag("TASKTILE_AI_ONLY_FETCH", False)
+
+
 # ── result ─────────────────────────────────────────────────────────────────
 @dataclass
 class FieldResolution:

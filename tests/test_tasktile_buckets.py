@@ -180,6 +180,18 @@ def test_flags_default(monkeypatch):
     assert tf.shadow_mode() is False
 
 
+def test_fetch_enabled_requires_both_flags(monkeypatch):
+    monkeypatch.delenv("TASKTILE_AI_ONLY_ENABLED", raising=False)
+    monkeypatch.delenv("TASKTILE_AI_ONLY_FETCH", raising=False)
+    assert tf.fetch_enabled() is False                      # both off
+
+    monkeypatch.setenv("TASKTILE_AI_ONLY_FETCH", "true")
+    assert tf.fetch_enabled() is False                      # ai_only still off -> gated
+
+    monkeypatch.setenv("TASKTILE_AI_ONLY_ENABLED", "true")
+    assert tf.fetch_enabled() is True                       # both on
+
+
 # ── real manifest sanity (skipped if the local file is absent, e.g. in CI) ──
 _MANIFEST = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

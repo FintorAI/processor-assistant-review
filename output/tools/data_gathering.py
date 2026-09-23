@@ -1671,6 +1671,38 @@ def fetch_doc_fields(
                         f"doc={g['doc_type']} cat={g['category_id']} "
                         f"bucket={g['bucket']} action={g['action']}"
                     )
+
+                # Optional live manifest fetch (gated separately by TASKTILE_AI_ONLY_FETCH
+                # so cheap classification can run without the multi-minute TaskTile call).
+                # Still non-mutating: records coverage into tasktile_gap_shadow['manifest'].
+                from shared.tasktile_fallback import fetch_enabled
+                if fetch_enabled() and plan:
+                    loan_id = state.get("loan_id")
+                    specs = []
+                    for dt in _dfx.gap_doc_types(plan):
+                        info = efolder_documents.get(dt) or {}
+                        aid = info.get("attachment_id")
+                        if aid:
+                            specs.append({"attachment_id": aid, "filename": dt})
+                    if loan_id and specs:
+                        from shared.tasktile_ai_only import run_ai_only
+                        logger.info(
+                            f"[TASKTILE_FALLBACK:{mode}] fetching rns_ai_only manifest "
+                            f"for {len(specs)} gap doc(s)..."
+                        )
+                        man = run_ai_only(loan_id, specs, state=state, loan_number=loan_number)
+                        if man:
+                            cov = _dfx.manifest_coverage(man)
+                            tasktile_gap_shadow["manifest"] = cov
+                            logger.info(
+                                f"[TASKTILE_FALLBACK:{mode}] manifest job={cov['job_id']} "
+                                f"covered {len(cov['docs'])} doc(s)"
+                            )
+                    else:
+                        logger.info(
+                            "[TASKTILE_FALLBACK] fetch skipped: "
+                            f"loan_id={'set' if loan_id else 'missing'}, specs={len(specs)}"
+                        )
         except Exception as _e:  # never let shadow analytics break fetch_doc_fields
             logger.warning(f"[TASKTILE_FALLBACK] shadow analysis skipped: {_e}")
 
