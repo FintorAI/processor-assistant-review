@@ -25,8 +25,8 @@ def test_classify_gap_bucket1_is_investigate():
 
 
 def test_classify_gap_bucket3_default_fallback():
-    g = dfx.classify_gap("some_field", ["Property Tax"])  # 1481 untested -> bucket 3
-    assert g["category_id"] == 1481
+    g = dfx.classify_gap("some_field", ["SSN Card"])  # 843 untested -> bucket 3
+    assert g["category_id"] == 843
     assert g["bucket"] == 3
     assert g["action"] == "fallback_landingai"
 

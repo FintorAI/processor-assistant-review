@@ -55,7 +55,7 @@ def test_cross_doc_source_points_to_cpl():
 
 # ── live-config sanity (reflects the CURRENT state, post ai_only fix) ───────
 def test_live_untested_category_defaults_to_bucket_three():
-    for cid in (843, 1481, 1):
+    for cid in (843, 816, 1):
         assert tb.field_bucket(cid, "anything.at.all") == 3
         assert tb.is_tested(cid) is False
 
