@@ -18,9 +18,15 @@ config's field_overrides where the concept is unambiguous.
 """
 from __future__ import annotations
 
+import json
+import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Iterable, Optional
 
 from shared import tasktile_buckets as buckets
+
+_DEFAULT_FIELD_MAP = Path(__file__).resolve().parent.parent / "config" / "tasktile_field_map.json"
 
 # Processor doc-type NAME -> SBIQ category id. Includes spelling/label aliases.
 DOC_TYPE_TO_CATEGORY: dict[str, int] = {
@@ -191,6 +197,96 @@ def gap_doc_types(plan: list[dict]) -> list[str]:
         if dt and dt not in seen:
             seen.append(dt)
     return seen
+
+
+@lru_cache(maxsize=4)
+def load_field_map(path: Optional[str] = None) -> dict:
+    """Load the manifest-leaf -> processor-field_key map (per category id)."""
+    p = Path(path) if path else Path(os.getenv("TASKTILE_FIELD_MAP_CONFIG", _DEFAULT_FIELD_MAP))
+    with open(p) as f:
+        return json.load(f)
+
+
+def _has_value(entry) -> bool:
+    """True if a doc_fields entry already holds a usable value."""
+    if entry is None:
+        return False
+    v = entry.get("value") if isinstance(entry, dict) else entry
+    return v not in (None, "", [], {}, "null")
+
+
+def resolve_and_fill(
+    doc_fields: dict,
+    manifest: dict,
+    att_to_doctype: dict,
+    *,
+    field_map_path: Optional[str] = None,
+    config_path: Optional[str] = None,
+    apply: bool = False,
+    shadow_logger=None,
+) -> list[dict]:
+    """Translate manifest leaves -> processor field_keys and (optionally) fill gaps.
+
+    For each manifest doc, resolve its doc_type via ``att_to_doctype`` (rns_ai_only
+    does NOT tag category), map to a SBIQ category, then for every mapped field_key
+    run the bucket engine (``resolve_field``) with the manifest leaf value + validator.
+    A field is proposed only when it is currently missing/empty in ``doc_fields`` and
+    the resolved value is present + valid. Bucket-2/3 fields resolve to fallback (no
+    manifest trust) and are skipped here.
+
+    Args:
+        doc_fields: the processor's normalized doc_fields (mutated iff ``apply``).
+        manifest: an rns_ai_only manifest.
+        att_to_doctype: {root_attachment_id: doc_type_name}.
+        apply: when True, write proposed fills into ``doc_fields``. When False
+            (shadow), only return the proposals.
+
+    Returns a list of proposal dicts: {field_key, value, source, category_id, leaf, applied}.
+    """
+    from shared.tasktile_fallback import flatten, resolve_field
+
+    fmap = load_field_map(field_map_path)
+    cats = fmap.get("categories", {})
+    proposals: list[dict] = []
+
+    for d in manifest.get("documents") or []:
+        dt = att_to_doctype.get(d.get("root_attachment_id"))
+        if not dt:
+            continue
+        cat = category_for_doc_type(dt)
+        if cat is None:
+            continue
+        entries = (cats.get(str(cat)) or {}).get("fields") or {}
+        if not entries:
+            continue
+        flat = flatten(d.get("metadata") or d.get("content") or {})
+        for field_key, spec in entries.items():
+            if _has_value(doc_fields.get(field_key)):
+                continue  # never clobber an existing extraction
+            leaf = spec.get("leaf")
+            res = resolve_field(
+                cat, leaf,
+                manifest_value=flat.get(leaf),
+                validator=spec.get("validator"),
+                config_path=config_path,
+                shadow_logger=shadow_logger,
+            )
+            if not (res.valid and res.value not in (None, "", [], {})):
+                continue
+            proposal = {
+                "field_key": field_key, "value": res.value,
+                "source": f"tasktile_ai_only:{res.source}",
+                "category_id": cat, "leaf": leaf, "applied": bool(apply),
+            }
+            if apply:
+                doc_fields[field_key] = {
+                    "value": res.value,
+                    "source_document": "tasktile_ai_only",
+                    "confidence": 1.0,
+                    "raw_key": leaf,
+                }
+            proposals.append(proposal)
+    return proposals
 
 
 def manifest_coverage(manifest: dict) -> dict:

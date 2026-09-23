@@ -1698,6 +1698,27 @@ def fetch_doc_fields(
                                 f"[TASKTILE_FALLBACK:{mode}] manifest job={cov['job_id']} "
                                 f"covered {len(cov['docs'])} doc(s)"
                             )
+                            # Authoritative fill: translate manifest leaves -> processor
+                            # field_keys and fill gaps. apply=True only when NOT shadow.
+                            att_to_doctype = {s["attachment_id"]: s["filename"] for s in specs}
+                            proposals = _dfx.resolve_and_fill(
+                                doc_fields, man, att_to_doctype,
+                                apply=(not shadow_mode()),
+                            )
+                            tasktile_gap_shadow["fills"] = proposals
+                            applied = [p for p in proposals if p["applied"]]
+                            logger.info(
+                                f"[TASKTILE_FALLBACK:{mode}] {len(proposals)} fill(s) proposed, "
+                                f"{len(applied)} applied to doc_fields"
+                            )
+                            for p in proposals:
+                                logger.info(
+                                    f"[TASKTILE_FALLBACK:{mode}] fill {p['field_key']} "
+                                    f"<- {p['leaf']} ({p['source']}) applied={p['applied']}"
+                                )
+                            if applied:  # doc_fields mutated -> refresh missing set
+                                found_keys = set(doc_fields.keys())
+                                missing_keys = ALL_DOC_FIELD_KEYS - found_keys
                     else:
                         logger.info(
                             "[TASKTILE_FALLBACK] fetch skipped: "

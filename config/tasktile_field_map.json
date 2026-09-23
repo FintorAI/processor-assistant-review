@@ -1,0 +1,37 @@
+{
+  "_comment": "Maps TaskTile rns_ai_only manifest leaf paths -> processor doc_fields field_keys, per SBIQ category id. Used by the authoritative-fill step (shared/tasktile_docfields.resolve_and_fill). Only categories whose fields actually feed state['doc_fields'] (see DOC_FIELD_MAP in data_gathering.py) belong here — ALTA/Purchase/MI/CD/URLA go through File Contacts, not doc_fields. Leaf paths come from real manifests (jobs a2643fae, 5469bfdf); dotted, arrays as '[]'. 'validator' is a key into shared/tasktile_validation.VALIDATORS ('present' if omitted). Only fields the bucket engine trusts (bucket 1) will actually fill; bucket 2/3 fields resolve to fallback and are skipped here.",
+  "version": "2026-09-23",
+  "categories": {
+    "323": {
+      "_doc_type": "Driver's License",
+      "fields": {
+        "dl_gov_id":          { "leaf": "owner.idNumber",   "validator": "id_number" },
+        "borrower_first_name": { "leaf": "owner.firstName" },
+        "borrower_last_name":  { "leaf": "owner.lastName" },
+        "borrower_dob":        { "leaf": "owner.DOB",        "validator": "date" },
+        "dl_expiry":           { "leaf": "expirationDate",   "validator": "date" }
+      }
+    },
+    "117": {
+      "_doc_type": "Credit Report",
+      "fields": {
+        "credit_reference_number": { "leaf": "creditReferenceNumber" }
+      }
+    },
+    "984": {
+      "_doc_type": "Loan Estimate",
+      "fields": {
+        "le_loan_amount":    { "leaf": "loanEstimate.loanAmount" },
+        "le_interest_rate":  { "leaf": "loanEstimate.interestRate" },
+        "le_purchase_price": { "leaf": "loanEstimate.salePrice" },
+        "le_monthly_pi":     { "leaf": "loanEstimate.monthlyPrincipalAndInterest" },
+        "le_loan_term":      { "leaf": "loanEstimate.loanTerm" },
+        "le_date_issued":    { "leaf": "loanEstimate.dateIssued", "validator": "date" },
+        "le_loan_purpose":   { "leaf": "loanEstimate.purpose" },
+        "le_loan_type":      { "leaf": "loanEstimate.loanType" },
+        "le_loan_product":   { "leaf": "loanEstimate.product" },
+        "le_disclosed_apr":  { "leaf": "loanEstimate.comparisons.annualPercentageRate" }
+      }
+    }
+  }
+}

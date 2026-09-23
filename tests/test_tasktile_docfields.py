@@ -105,6 +105,59 @@ def test_manifest_coverage_summarizes_leaves():
     assert cov["docs"][1]["leaf_count"] == 0
 
 
+def _dl_manifest(id_number="D4913348"):
+    return {
+        "_processor": {"job_id": "job-1"},
+        "documents": [{
+            "root_attachment_id": "att-dl",
+            "metadata": {"owner": {"idNumber": id_number, "firstName": "GERARDO",
+                                   "lastName": "TORRES"}, "expirationDate": "07/15/2028"},
+        }],
+    }
+
+
+ATT2DT = {"att-dl": "Driver's License"}
+
+
+def test_resolve_and_fill_shadow_does_not_mutate():
+    doc_fields = {}
+    proposals = dfx.resolve_and_fill(doc_fields, _dl_manifest(), ATT2DT, apply=False)
+    keys = {p["field_key"] for p in proposals}
+    assert "dl_gov_id" in keys
+    assert all(p["applied"] is False for p in proposals)
+    assert doc_fields == {}  # shadow: nothing written
+
+
+def test_resolve_and_fill_apply_writes_doc_fields():
+    doc_fields = {}
+    proposals = dfx.resolve_and_fill(doc_fields, _dl_manifest(), ATT2DT, apply=True)
+    assert doc_fields["dl_gov_id"]["value"] == "D4913348"
+    assert doc_fields["dl_gov_id"]["source_document"] == "tasktile_ai_only"
+    assert doc_fields["dl_gov_id"]["raw_key"] == "owner.idNumber"
+    assert any(p["field_key"] == "dl_gov_id" and p["applied"] for p in proposals)
+
+
+def test_resolve_and_fill_never_clobbers_existing():
+    doc_fields = {"dl_gov_id": {"value": "EXISTING"}}
+    dfx.resolve_and_fill(doc_fields, _dl_manifest(), ATT2DT, apply=True)
+    assert doc_fields["dl_gov_id"]["value"] == "EXISTING"  # untouched
+
+
+def test_resolve_and_fill_skips_invalid_id():
+    # '!!' fails the id_number validator -> no fill for dl_gov_id
+    doc_fields = {}
+    proposals = dfx.resolve_and_fill(doc_fields, _dl_manifest(id_number="!!"), ATT2DT, apply=True)
+    assert "dl_gov_id" not in doc_fields
+    assert "dl_gov_id" not in {p["field_key"] for p in proposals}
+
+
+def test_resolve_and_fill_unmapped_doctype_skipped():
+    man = {"documents": [{"root_attachment_id": "x", "metadata": {"foo": "bar"}}]}
+    doc_fields = {}
+    assert dfx.resolve_and_fill(doc_fields, man, {"x": "Totally Unknown"}, apply=True) == []
+    assert doc_fields == {}
+
+
 def test_summarize_plan_counts_actions():
     plan = [
         {"action": "fallback_landingai"},
