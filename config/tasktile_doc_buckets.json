@@ -1,6 +1,6 @@
 {
   "_comment": "TaskTile rns_ai_only extraction-confidence buckets, per doc category. Hand-maintained, iterate over time. NOT factory-generated. See docs/tasktile-integration-plan.md ('Fallback strategy') and docs/tasktile-extracted-vs-awm-schema.md.",
-  "version": "2026-09-23",
+  "version": "2026-09-23b",
   "buckets": {
     "1": "TRUST — rns_ai_only reliably returns this; use the manifest value (fall back only if empty or fails validation).",
     "2": "KNOWN-MISSING — rns_ai_only structurally does not return this; skip the manifest wait and go straight to fallback (cross_doc_source first, else LandingAI/targeted extractor).",
@@ -12,115 +12,89 @@
     "'bucket' is the category default for fields not listed in field_overrides.",
     "only categories with 'tested_job' have been empirically verified; everything else is the conservative default (bucket 3).",
     "'cross_doc_source' = prefer a sibling doc's field in the SAME job before paying for LandingAI (category_id of the sibling).",
-    "idNumber on 323/845/844 is a CONFIRMED structural gap (bucket 2) even for the untested passport/PRC variants."
+    "2026-09-23b: TaskTile shipped an ai_only extraction fix (retest job a2643fae). It RESOLVED the big structural gaps — DL owner.idNumber, ALTA escrowCompany/titleCompany/settlementAgent/fileNumber, Purchase sellers[]/sellersAgent, MI premium fields — all now extract. It also REGRESSED Flood (538) and CPL (167), which went sparse. ai_only output shape is unstable run-to-run, so treat single results as directional and let shadow mode confirm over time."
   ],
 
   "categories": {
     "2168": {
       "name": "ALTA Settlement Statement",
       "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
       "field_overrides": {
-        "escrowCompany": 2,
-        "titleCompany": 2,
-        "settlementAgent": 2,
-        "titleCharges[].description": 2,
         "titleCharges[].paidTo": 2,
-        "recordingCharges[].description": 2
+        "settlementAgent.stLicenseId": 2,
+        "settlementAgent.email": 2
       },
-      "cross_doc_source": {
-        "escrowCompany": 167,
-        "titleCompany": 167,
-        "settlementAgent": 167,
-        "fileNumber": 167
-      },
-      "note": "Names/address/escrow#/charges amounts reliable. Escrow/title company + settlementAgent + file# land on the CPL (167), not the ALTA."
+      "note": "FIXED 2026-09-23 (TaskTile ai_only patch, job a2643fae): escrowCompany, titleCompany, settlementAgent.name/phone/address, fileNumber, titleCharges[]/recordingCharges[] (description+buyerDebit), sellers[] now ALL extract directly off the ALTA. Cross-doc-from-CPL workaround retired. Still empty: titleCharges paidTo, settlementAgent stLicenseId/email/contact."
     },
 
     "323": {
       "name": "Drivers License",
       "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
-      "field_overrides": {
-        "owner.idNumber": 2,
-        "owner.issueDate": 2,
-        "owner.suffix": 2,
-        "state": 2
-      },
-      "note": "Issue A: license/ID number never extracted. Name/DOB/address/expiration reliable."
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "Issue A FIXED 2026-09-23 (job a2643fae): owner.idNumber now extracts on BOTH borrower DLs (D9123301, D4913348), plus issueDate/suffix/state/sex/DOB/address/expiration. Previously idNumber was never returned."
     },
 
     "845": {
       "name": "Passport",
       "bucket": 3,
-      "field_overrides": { "owner.idNumber": 2 },
-      "note": "Untested overall (rare doc); idNumber is a confirmed structural gap shared with 323."
+      "note": "Untested (rare doc). idNumber was a shared structural gap with 323 — since 323's idNumber is now FIXED (job a2643fae), re-test before assuming a gap here."
     },
 
     "844": {
       "name": "Permanent Resident Card",
       "bucket": 3,
-      "field_overrides": { "resident.idNumber": 2 },
-      "note": "Untested overall (rare doc); idNumber is a confirmed structural gap shared with 323."
+      "note": "Untested (rare doc). resident.idNumber was a shared structural gap with 323 — since 323's idNumber is now FIXED (job a2643fae), re-test before assuming a gap here."
     },
 
     "117": {
       "name": "Credit Report",
       "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
       "field_overrides": {
         "creditTradeLines": 2,
         "collectionAccounts": 2,
         "derogatoryAccounts": 2,
         "publicRecords": 2,
         "inquiries": 2,
-        "tradeSummary": 2,
-        "alerts": 2,
-        "creditReferenceNumber": 2
+        "tradeSummary": 2
       },
-      "note": "Scores + full SSN + names reliable. Tradelines/collections/derogatory/public records/inquiries not extracted."
+      "note": "Scores + names + DOB + applicant1/2.last4SSN reliable. NOTE: as of job a2643fae only last-4 SSN is returned (full SSN no longer present). Tradelines/collections/derogatory/public records/inquiries still not extracted."
     },
 
     "167": {
       "name": "Closing Protection Letter",
-      "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
-      "note": "Rich extraction: settlementAgent.name (title company), fileNumber, property, loan.number. Source of truth for ALTA's missing escrow/title company + file#."
+      "bucket": 3,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "REGRESSED 2026-09-23 (job a2643fae): now returns only CPLDate + issuingAgent (previously rich: settlementAgent.name, fileNumber, property). No longer needed as ALTA's escrow/title/file# source since the ALTA (2168) now carries those directly. Monitor — ai_only shape is unstable."
     },
 
     "200": {
       "name": "Purchase Contract",
       "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
       "field_overrides": {
-        "sellers": 2,
-        "sellersAgent": 2,
         "sellerCreditAmount": 2
       },
-      "note": "Buyers/price/deposit/property/buyer-agent reliable. Sellers + sellers agent + seller credit not extracted; agents not split by buyer/seller."
+      "note": "FIXED 2026-09-23 (job a2643fae): sellers[] and sellersAgent.* (name/company/phone/email/address/licenseId) now extract, split from buyersAgent. Buyers/price/earnest/property/closingDate reliable. sellerCreditAmount not present on tested contract — leave bucket 2 until seen."
     },
 
     "141": {
       "name": "Mortgage Insurance",
       "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
       "field_overrides": {
         "certificateNumber": 2,
-        "miFileNumber": 2,
-        "totalPremium": 2,
-        "upfrontPremiumAmount": 2,
-        "monthlyPremiumAmount": 2,
-        "renewal": 2,
-        "company.name": 2
+        "miFileNumber": 2
       },
-      "note": "Tested doc was an MI RATE QUOTE (LTV/coverage/DTI reliable). Premium/certificate fields belong on an issued MI cert (816/1838) — re-test those."
+      "note": "FIXED 2026-09-23 (job a2643fae): totalPremium, upfront/monthlyPremiumAmount, renewal.*, company.name now extract off the MI RATE QUOTE. certificateNumber/miFileNumber still empty — expected on a quote (they belong on an issued cert 816/1838), not a gap."
     },
 
     "538": {
       "name": "Flood Certification",
-      "bucket": 1,
-      "tested_job": "6e2a2c0d-ce82-493b-b03c-82745bb017b3",
-      "note": "Rich: flood zone, determination#, NFIP community/map. borrowers[] parsed as single clientName (middleName can absorb co-borrower)."
+      "bucket": 3,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "REGRESSED 2026-09-23 (job a2643fae): now returns only date, lender, borrower names — LOST flood zone / determination# / NFIP community+map (which were the point). Was rich in job 6e2a2c0d. Monitor + fall back for flood-zone fields; ai_only shape is unstable across runs."
     },
 
     "2044": {

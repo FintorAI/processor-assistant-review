@@ -37,23 +37,20 @@ def test_classify_gap_unknown_doc_type():
     assert g["action"] == "fallback_landingai"
 
 
-def test_classify_gap_cross_doc_when_available():
-    # 2168 ALTA has cross_doc_source (-> 167 CPL); with field_overrides it is bucket 2 material
-    g = dfx.classify_gap("escrow_company", ["ALTA Settlement Statement"])
+def test_classify_gap_field_override_pins_bucket():
+    # 2168 ALTA: titleCharges[].paidTo is still a pinned bucket-2 gap post-fix.
+    g = dfx.classify_gap("title_charges_paid_to", ["ALTA Settlement Statement"])
     assert g["category_id"] == 2168
-    assert g["cross_doc_source"] == 167
-    assert g["bucket"] == 2          # escrowCompany override pins it
-    assert g["action"] == "cross_doc"
+    assert g["bucket"] == 2
 
 
-def test_classify_gap_structural_id_gap_not_flagged_as_regression():
-    # DL category is bucket 1, but owner.idNumber is pinned to bucket 2. A missing
-    # id number must NOT be flagged as a bucket-1 regression.
+def test_classify_gap_id_number_fixed_now_bucket1():
+    # Issue A fixed (job a2643fae): DL owner.idNumber now extracts -> bucket 1.
+    # A missing id number is therefore an investigate-worthy bucket-1 gap.
     g = dfx.classify_gap("dl_id_number", ["Driver's License"])
     assert g["category_id"] == 323
-    assert g["bucket"] == 2
-    assert g["action"] == "known_missing_fallback"  # 323 has no cross_doc source
-    assert g["cross_doc_source"] is None
+    assert g["bucket"] == 1
+    assert g["action"] == "investigate_bucket1_gap"
 
 
 def test_classify_gap_non_override_field_keeps_category_bucket():

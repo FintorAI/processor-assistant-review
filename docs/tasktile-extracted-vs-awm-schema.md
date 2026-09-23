@@ -1,5 +1,26 @@
 # TaskTile `rns_ai_only` — actual extracted data vs. AWM schema
 
+> ## ✅ UPDATE 2026-09-23b — TaskTile shipped an `ai_only` extraction fix (retest job `a2643fae-88e9-4289-96eb-fde7f652e2af`)
+> Re-ran the **identical 8-doc set** (loan 2608976334) after TaskTile's fix. The two live bugs below
+> are now **RESOLVED**, plus two more gaps closed — but two categories **regressed**:
+>
+> | Category | Field(s) | Before (6e2a2c0d) | After fix (a2643fae) |
+> |---|---|---|---|
+> | 323 Drivers License | `owner.idNumber` | ❌ missing both DLs | ✅ **`D9123301`, `D4913348`** (+ issueDate/suffix/state/sex/DOB) |
+> | 2168 ALTA | `escrowCompany`, `titleCompany`, `settlementAgent.*`, `fileNumber`, `titleCharges[]`, `recordingCharges[]`, `sellers[]` | ❌ missing | ✅ **all extract directly off the ALTA** (CPL cross-doc workaround retired) |
+> | 200 Purchase | `sellers[]`, `sellersAgent.*` | ❌ missing | ✅ **name/company/phone/email/licenseId**, split from buyersAgent |
+> | 141 MI | `totalPremium`, `upfront/monthlyPremiumAmount`, `renewal.*` | ❌ missing | ✅ present (cert#/miFileNumber still empty — correct, it's a *quote*) |
+> | 117 Credit | SSN | ✅ full SSN | ⚠️ **now `last4SSN` only**; tradelines/collections still ❌ |
+> | 538 Flood | flood zone / determination# / NFIP | ✅ rich | ❌ **REGRESSED** — only date+lender+names |
+> | 167 CPL | settlementAgent.name / fileNumber | ✅ rich | ❌ **REGRESSED** — only CPLDate+issuingAgent |
+>
+> **Takeaway:** `rns_ai_only` output shape is **unstable run-to-run** — treat any single result as
+> directional and let shadow mode confirm over time. Bucket assignments updated in
+> [`config/tasktile_doc_buckets.json`](../config/tasktile_doc_buckets.json) (version `2026-09-23b`).
+> Everything below documents the **pre-fix** baseline (job 6e2a2c0d).
+
+---
+
 **Source job:** `6e2a2c0d-ce82-493b-b03c-82745bb017b3` (pipeline `rns_ai_only`, status `success`)
 **Client:** `78059b2d-479d-4fe6-90bc-a7a4f5006cb6` (PROD) · TaskTile **staging** · run 2026-09-23
 **Docs:** 8 real eFolder PDFs from loan 2608976334 (Mora / Velasco purchase, 4 borrowers)
