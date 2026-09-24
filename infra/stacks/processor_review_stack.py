@@ -106,6 +106,11 @@ SECRET_KEYS = [
     "DOCREPO_CREATE_API_BASE",
     "EFOLDER_API_TOKEN",
     "EFOLDER_API_BASE_URL",
+    # TaskTile rns_ai_only — prod + dev tenants (selected at runtime by state["env"])
+    "TASKTILE_PROD_CLIENT_KEY",
+    "TASKTILE_PROD_CLIENT_SECRET",
+    "TASKTILE_DEV_CLIENT_KEY",
+    "TASKTILE_DEV_CLIENT_SECRET",
     # AWS (Textract) — optional; Lambda role may cover this instead
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
@@ -122,6 +127,10 @@ OPTIONAL_PLAIN_ENV = [
     "DOCREPO_PUT_API_BASE",
     "DOCREPO_GET_API_BASE",
     "DOCREPO_CREATE_API_BASE",
+    # TaskTile rns_ai_only feature flags (default off/shadow in code)
+    "TASKTILE_AI_ONLY_ENABLED",
+    "TASKTILE_AI_ONLY_FETCH",
+    "TASKTILE_SHADOW_MODE",
 ]
 
 

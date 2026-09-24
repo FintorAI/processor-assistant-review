@@ -106,6 +106,10 @@ jobs:
           LANGSMITH_DEV_PROJECT: ${{ steps.stage.outputs.langsmith_dev_project }}
           LANGSMITH_PROD_PROJECT: ${{ steps.stage.outputs.langsmith_prod_project }}
           CORS_ALLOW_ORIGINS: ${{ steps.stage.outputs.cors_origins }}
+          # TaskTile rns_ai_only feature flags (OPTIONAL_PLAIN_ENV, read at synth)
+          TASKTILE_AI_ONLY_ENABLED: ${{ vars.TASKTILE_AI_ONLY_ENABLED }}
+          TASKTILE_AI_ONLY_FETCH: ${{ vars.TASKTILE_AI_ONLY_FETCH }}
+          TASKTILE_SHADOW_MODE: ${{ vars.TASKTILE_SHADOW_MODE }}
 
       - name: Flatten outputs + push secrets
         run: |
@@ -135,18 +139,13 @@ jobs:
           aws secretsmanager put-secret-value --secret-id "$SECRETS_ARN" --secret-string "$(jq -n \
             --arg API_KEY "${{ steps.stage.outputs.api_key }}" \
             --arg ANTHROPIC_API_KEY "${{ secrets.ANTHROPIC_API_KEY }}" \
-            --arg OPENAI_API_KEY "${{ secrets.OPENAI_API_KEY }}" \
             --arg LANGSMITH_API_KEY "${{ secrets.LANGSMITH_API_KEY }}" \
             --arg LANGCHAIN_API_KEY "${{ secrets.LANGSMITH_API_KEY }}" \
-            --arg LANGGRAPH_API_KEY "${{ secrets.LANGGRAPH_API_KEY }}" \
             --arg LANGSMITH_PROJECT "$LANGSMITH_PROJECT" \
             --arg ENCOMPASS_API_BASE_URL "${{ secrets.ENCOMPASS_API_BASE_URL }}" \
             --arg ENCOMPASS_CLIENT_ID "${{ secrets.ENCOMPASS_CLIENT_ID }}" \
             --arg ENCOMPASS_CLIENT_SECRET "${{ secrets.ENCOMPASS_CLIENT_SECRET }}" \
             --arg ENCOMPASS_INSTANCE_ID "${{ secrets.ENCOMPASS_INSTANCE_ID }}" \
-            --arg ENCOMPASS_USERNAME "${{ secrets.ENCOMPASS_USERNAME }}" \
-            --arg ENCOMPASS_PASSWORD "${{ secrets.ENCOMPASS_PASSWORD }}" \
-            --arg ENCOMPASS_SUBJECT_USER_ID "${{ secrets.ENCOMPASS_SUBJECT_USER_ID }}" \
             --arg PROD_ENCOMPASS_API_BASE_URL "${{ secrets.PROD_ENCOMPASS_API_BASE_URL }}" \
             --arg PROD_ENCOMPASS_CLIENT_ID "${{ secrets.PROD_ENCOMPASS_CLIENT_ID }}" \
             --arg PROD_ENCOMPASS_CLIENT_SECRET "${{ secrets.PROD_ENCOMPASS_CLIENT_SECRET }}" \
@@ -154,16 +153,15 @@ jobs:
             --arg PROD_ENCOMPASS_USERNAME "${{ secrets.PROD_ENCOMPASS_USERNAME }}" \
             --arg PROD_ENCOMPASS_PASSWORD "${{ secrets.PROD_ENCOMPASS_PASSWORD }}" \
             --arg PROD_ENCOMPASS_SUBJECT_USER_ID "${{ secrets.PROD_ENCOMPASS_SUBJECT_USER_ID }}" \
-            --arg PROD_ENCOMPASS_ACCESS_TOKEN "${{ secrets.PROD_ENCOMPASS_ACCESS_TOKEN }}" \
             --arg LANDINGAI_API_KEY "${{ secrets.LANDINGAI_API_KEY }}" \
             --arg USPS_CLIENT_ID "${{ secrets.USPS_CLIENT_ID }}" \
             --arg USPS_CLIENT_SECRET "${{ secrets.USPS_CLIENT_SECRET }}" \
             --arg DOCREPO_AUTH_TOKEN "${{ secrets.DOCREPO_AUTH_TOKEN }}" \
-            --arg DOCREPO_PUT_API_BASE "${{ secrets.DOCREPO_PUT_API_BASE }}" \
-            --arg DOCREPO_GET_API_BASE "${{ secrets.DOCREPO_GET_API_BASE }}" \
-            --arg DOCREPO_CREATE_API_BASE "${{ secrets.DOCREPO_CREATE_API_BASE }}" \
             --arg EFOLDER_API_TOKEN "${{ secrets.EFOLDER_API_TOKEN }}" \
-            --arg EFOLDER_API_BASE_URL "${{ secrets.EFOLDER_API_BASE_URL }}" \
+            --arg TASKTILE_PROD_CLIENT_KEY "${{ secrets.TASKTILE_PROD_CLIENT_KEY }}" \
+            --arg TASKTILE_PROD_CLIENT_SECRET "${{ secrets.TASKTILE_PROD_CLIENT_SECRET }}" \
+            --arg TASKTILE_DEV_CLIENT_KEY "${{ secrets.TASKTILE_DEV_CLIENT_KEY }}" \
+            --arg TASKTILE_DEV_CLIENT_SECRET "${{ secrets.TASKTILE_DEV_CLIENT_SECRET }}" \
             '$ARGS.named')"
 
       - name: Smoke test
