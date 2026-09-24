@@ -227,3 +227,9 @@ __marimo__/
 # Local — never committed (all local-only files live in local/)
 local/
 scripts/
+
+# AWS deploy artifacts (CDK build output, infra venv, per-env deploy outputs)
+infra/cdk.out/
+infra/.venv/
+output-dev.json
+output-prod.json

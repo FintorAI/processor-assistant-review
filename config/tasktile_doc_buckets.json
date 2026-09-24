@@ -1,0 +1,190 @@
+{
+  "_comment": "TaskTile rns_ai_only extraction-confidence buckets, per doc category. Hand-maintained, iterate over time. NOT factory-generated. See docs/tasktile-integration-plan.md ('Fallback strategy') and docs/tasktile-extracted-vs-awm-schema.md.",
+  "version": "2026-09-23d",
+  "buckets": {
+    "1": "TRUST — rns_ai_only reliably returns this; use the manifest value (fall back only if empty or fails validation).",
+    "2": "KNOWN-MISSING — rns_ai_only structurally does not return this; skip the manifest wait and go straight to fallback (cross_doc_source first, else LandingAI/targeted extractor).",
+    "3": "CHECK-THEN-FALLBACK (default) — read the manifest; if the value is absent or fails validation, fall back to LandingAI. Safe default for any untested category."
+  },
+  "default_bucket": 3,
+  "notes": [
+    "field paths use the AWM content_schema names as the canonical field id; the camelCase->snake manifest mapping is handled separately (tasktile_field_map.json pattern).",
+    "'bucket' is the category default for fields not listed in field_overrides.",
+    "only categories with 'tested_job' have been empirically verified; everything else is the conservative default (bucket 3).",
+    "'cross_doc_source' = prefer a sibling doc's field in the SAME job before paying for LandingAI (category_id of the sibling).",
+    "2026-09-23b: TaskTile shipped an ai_only extraction fix (retest job a2643fae). It RESOLVED the big structural gaps — DL owner.idNumber, ALTA escrowCompany/titleCompany/settlementAgent/fileNumber, Purchase sellers[]/sellersAgent, MI premium fields — all now extract. It also REGRESSED Flood (538) and CPL (167), which went sparse. ai_only output shape is unstable run-to-run, so treat single results as directional and let shadow mode confirm over time.",
+    "2026-09-23c: bootstrapped 4 more categories off loan 2605966814 (job f23bd6d9) — 351 (1008 transmittal, full monetary set incl. agencyCaseNumber), 324 (DU findings, incl. ltv), 1481 (property tax bill), and NEW 1482 (SDAT property profile). Notably this run DID return category_id per document (earlier ai_only runs returned none).",
+    "2026-09-23d: bootstrapped 5 more off loan 2609978332 (Sarah Poti, job badfc59f) — 522 Title Commitment (RICH; source was an FHA conditional commitment, verify values), NEW 194 Preliminary Report (actual title report; vesting), 1118 Fraud Report (RICH), NEW 14 Business License, NEW 352 Underwriting Decision (SPARSE — only borrowers[], kept bucket 3). Classifications differed from filename guesses; trust the returned category_id.",
+    "2026-09-23d Group B (4 jobs across loans 2602958672/2607974430/2606970248/2606970588): WON — 844 Permanent Resident Card resident.idNumber now extracts (co-borrower ID for green cards, job 06c903c1); 843 Social Security ID owner.SSN full (job 24c08139); NEW 1479 Property Insurance off a homeowners policy (job 13cd0dcc, partial). FAILED/misclassified — issued MI cert (816/1838) came back as 375 Identifying Documentations w/ only borrowers[] (job 8ad4f97b); LLC Business Tax Return (1) came back as 2191 Form 1099-K w/ only borrowers[] (job 06c903c1). 845 Passport still no source loan found."
+  ],
+
+  "categories": {
+    "2168": {
+      "name": "ALTA Settlement Statement",
+      "bucket": 1,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "field_overrides": {
+        "titleCharges[].paidTo": 2,
+        "settlementAgent.stLicenseId": 2,
+        "settlementAgent.email": 2
+      },
+      "note": "FIXED 2026-09-23 (TaskTile ai_only patch, job a2643fae): escrowCompany, titleCompany, settlementAgent.name/phone/address, fileNumber, titleCharges[]/recordingCharges[] (description+buyerDebit), sellers[] now ALL extract directly off the ALTA. Cross-doc-from-CPL workaround retired. Still empty: titleCharges paidTo, settlementAgent stLicenseId/email/contact."
+    },
+
+    "323": {
+      "name": "Drivers License",
+      "bucket": 1,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "Issue A FIXED 2026-09-23 (job a2643fae): owner.idNumber now extracts on BOTH borrower DLs (D9123301, D4913348), plus issueDate/suffix/state/sex/DOB/address/expiration. Previously idNumber was never returned."
+    },
+
+    "845": {
+      "name": "Passport",
+      "bucket": 3,
+      "note": "Untested (rare doc). idNumber was a shared structural gap with 323 — since 323's idNumber is now FIXED (job a2643fae), re-test before assuming a gap here."
+    },
+
+    "844": {
+      "name": "Permanent Resident Card",
+      "bucket": 1,
+      "tested_job": "06c903c1-670d-41d1-b88a-870fdf2bd708",
+      "note": "Bootstrapped 2026-09-23d (job 06c903c1, loan 2602958672, off a green card). resident.idNumber NOW EXTRACTS (+ resident firstName/lastName/middleName/DOB/issueDate + expirationDate) — the co-borrower Govt-ID (Issue A) works for green cards too."
+    },
+
+    "117": {
+      "name": "Credit Report",
+      "bucket": 1,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "field_overrides": {
+        "creditTradeLines": 2,
+        "collectionAccounts": 2,
+        "derogatoryAccounts": 2,
+        "publicRecords": 2,
+        "inquiries": 2,
+        "tradeSummary": 2
+      },
+      "note": "Scores + names + DOB + applicant1/2.last4SSN reliable. NOTE: as of job a2643fae only last-4 SSN is returned (full SSN no longer present). Tradelines/collections/derogatory/public records/inquiries still not extracted."
+    },
+
+    "167": {
+      "name": "Closing Protection Letter",
+      "bucket": 3,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "REGRESSED 2026-09-23 (job a2643fae): now returns only CPLDate + issuingAgent (previously rich: settlementAgent.name, fileNumber, property). No longer needed as ALTA's escrow/title/file# source since the ALTA (2168) now carries those directly. Monitor — ai_only shape is unstable."
+    },
+
+    "200": {
+      "name": "Purchase Contract",
+      "bucket": 1,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "field_overrides": {
+        "sellerCreditAmount": 2
+      },
+      "note": "FIXED 2026-09-23 (job a2643fae): sellers[] and sellersAgent.* (name/company/phone/email/address/licenseId) now extract, split from buyersAgent. Buyers/price/earnest/property/closingDate reliable. sellerCreditAmount not present on tested contract — leave bucket 2 until seen."
+    },
+
+    "141": {
+      "name": "Mortgage Insurance",
+      "bucket": 1,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "field_overrides": {
+        "certificateNumber": 2,
+        "miFileNumber": 2
+      },
+      "note": "FIXED 2026-09-23 (job a2643fae): totalPremium, upfront/monthlyPremiumAmount, renewal.*, company.name now extract off the MI RATE QUOTE. certificateNumber/miFileNumber still empty — expected on a quote (they belong on an issued cert 816/1838), not a gap."
+    },
+
+    "538": {
+      "name": "Flood Certification",
+      "bucket": 3,
+      "tested_job": "a2643fae-88e9-4289-96eb-fde7f652e2af",
+      "note": "REGRESSED 2026-09-23 (job a2643fae): now returns only date, lender, borrower names — LOST flood zone / determination# / NFIP community+map (which were the point). Was rich in job 6e2a2c0d. Monitor + fall back for flood-zone fields; ai_only shape is unstable across runs."
+    },
+
+    "2044": {
+      "name": "Property or Address Search",
+      "bucket": 1,
+      "tested_job": "d60a09ed-22eb-483d-9ecf-faac38495c84",
+      "note": "name/address/verificationDetails reliable."
+    },
+
+    "349": {
+      "name": "Initial 1003 / URLA",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf, loan 2608976334). 87 leaf fields. Multi-borrower array borrowers[] with names/DOB/citizenship/maritalStatus AND socialSecurityNumber, employment, assets[], liabilities[], REO property, declarations. rns_ai_only returned NO category_id (free-form)."
+    },
+    "819": {
+      "name": "Closing Disclosure",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf). 63 leaf fields: closing/disbursement dates, settlementAgent.name + fileNumber, loan terms, costsAtClosing, closingCostDetails line items, lender, realEstateBroker. Also a viable cross-doc source for ALTA escrow/title/file# alongside CPL 167."
+    },
+    "984": {
+      "name": "Loan Estimate",
+      "bucket": 1,
+      "tested_job": "5469bfdf-d86d-4d73-a3bd-1dd5a98349d4",
+      "note": "Bootstrapped 2026-09-23 (job 5469bfdf). 41 leaf fields: loan terms, applicants[], loanCosts breakdown, otherCosts, comparisons, lender + loanOfficer contact."
+    },
+    "351": {
+      "name": "Transmittal Summary 1008",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814). Extracts the full monetary set that was previously a GAP: borrowers[], propertyAddress, salesPrice, appraisedValue, loanAmount, interestRate, firstMortgagePi, hoaFee, taxesSpecialAssessments, totalMortgagePayment, proposed{...}, agencyCaseNumber. Feeds update_transmittal_summary. ai_only returned category_id this run."
+    },
+    "324": {
+      "name": "DU Underwriting Findings",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814, off the .FINDINGS file). Extracts loanType, noteRate, loanPurpose, DTIPercentage, recommendation, amortizationType, borrowers[], loanAmount, ltv, appraisedValue. Feeds run_pre_checks / review tools. Sibling 2104 (LP Findings) untested — assume same shape but confirm."
+    },
+    "1481": {
+      "name": "Property Tax",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "Bootstrapped 2026-09-23c (job f23bd6d9, loan 2605966814, off a Baltimore Real Property tax bill). Extracts year, county, propertyAddress, firstInstallment..fourthInstallment, taxInstallments."
+    },
+    "1482": {
+      "name": "Property Profile",
+      "bucket": 1,
+      "tested_job": "f23bd6d9-a8b4-46f1-a7a3-62e5bcaf02ab",
+      "note": "NEW category discovered 2026-09-23c (job f23bd6d9): ai_only classified a Maryland SDAT Real Property Data Search here (not 1481). Extracts issuer.name, propertyAddress, estimatedMarketValue, installments. Not previously in our category list."
+    },
+    "522": {
+      "name": "Title Commitment",
+      "bucket": 1,
+      "tested_job": "badfc59f-b1c3-4e2d-a7e9-23dca8667f5c",
+      "note": "Bootstrapped 2026-09-23d (job badfc59f, loan 2609978332). RICH: address, vestedIn, vestedPersons[], loanAmount, titleCompany, escrowCompany, commitmentNumber, effectiveDate, legalDescription, parcelNumber, settlementAgent. NOTE source doc was an FHA 'Conditional Commitment / Statement of Appraised Value' that ai_only classified as 522 — verify titleCompany/commitmentNumber values against the actual title doc before trusting downstream."
+    },
+    "194": {
+      "name": "Preliminary Report",
+      "bucket": 1,
+      "tested_job": "badfc59f-b1c3-4e2d-a7e9-23dca8667f5c",
+      "note": "NEW category discovered 2026-09-23d (job badfc59f, loan 2609978332): the actual preliminary title report classified here (not 522). Extracts titleIssueDate, vestedIn, entities[]. Good vesting source."
+    },
+    "1118": {
+      "name": "Fraud Report",
+      "bucket": 1,
+      "tested_job": "badfc59f-b1c3-4e2d-a7e9-23dca8667f5c",
+      "note": "Bootstrapped 2026-09-23d (job badfc59f, loan 2609978332). RICH: date, borrowers[], fraudAlertStatus, fraudScore, applicants[], addressHistory."
+    },
+    "14": {
+      "name": "Business License",
+      "bucket": 1,
+      "tested_job": "badfc59f-b1c3-4e2d-a7e9-23dca8667f5c",
+      "note": "NEW category discovered 2026-09-23d (job badfc59f, loan 2609978332, off a Secretary-of-State print-out). Extracts issue, expirationDate, business, businessAddress, owner1, owner2."
+    },
+    "352": {
+      "name": "Underwriting Decision",
+      "bucket": 3,
+      "tested_job": "badfc59f-b1c3-4e2d-a7e9-23dca8667f5c",
+      "note": "NEW category discovered 2026-09-23d (job badfc59f, loan 2609978332): ai_only classified an 'Approval Form - Open Conditions' here but returned only borrowers[] — conditions/status NOT extracted. Keep bucket 3 (fall back) until a richer run appears."
+    },
+    "816":  { "name": "PMI Certificate",              "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "tested_job": "8ad4f97b-be28-4852-a6a0-b014fb603a25", "note": "TESTED 2026-09-23d (job 8ad4f97b, loan 2606970248, issued 'Mortgage Insurance Certificate.pdf') — FAILED: ai_only MISCLASSIFIED it as 375 'Identifying Documentations' and returned only borrowers[]; certificateNumber/premium NOT extracted. Raise with TaskTile (classification + extraction gap)." },
+    "1838": { "name": "FHA MI Certificate",           "bucket": 3, "field_overrides": { "certificateNumber": 3 }, "note": "UNTESTED as FHA-specific; issued MI cert (816) misclassified as 375 in job 8ad4f97b — same extraction gap expected." },
+    "843":  { "name": "Social Security ID",           "bucket": 1, "tested_job": "24c08139-0f42-4104-927d-b48a9a8a8ba1", "note": "Bootstrapped 2026-09-23d (job 24c08139, loan 2607974430, off a real Social Security Card). Extracts owner.SSN (full) + owner name. (SSN also comes off URLA 349 + Credit 117.)" },
+    "1479": { "name": "Property Insurance",           "bucket": 1, "tested_job": "13cd0dcc-f4cd-47d7-92a2-fe83700f5c4d", "note": "NEW category discovered 2026-09-23d (job 13cd0dcc, loan 2606970588): ai_only classified a Homeowners Insurance Policy here (NOT 1561 Evidence of Insurance). Extracts company.name, policyType, expirationDate, owners[], propertyAddresses[]. MISSING: policyNumber, coverage amounts, effectiveDate, agent — bucket-2 those when a field map is added." },
+    "1561": { "name": "Evidence of Insurance",        "bucket": 3, "note": "The actual homeowners-insurance POLICY (loan 2606970588) classified as 1479 Property Insurance, not 1561 — see 1479. 1561 itself remains unconfirmed." },
+    "1":    { "name": "Business Tax Return",          "bucket": 3, "tested_job": "06c903c1-670d-41d1-b88a-870fdf2bd708", "note": "TESTED 2026-09-23d (job 06c903c1, loan 2602958672, 'LLC Business Tax Return - 2024') — FAILED: ai_only MISCLASSIFIED it as 2191 'Form 1099-K' and returned only borrowers[]; corporation.name/financials NOT extracted. Raise with TaskTile." }
+  }
+}
