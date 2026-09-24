@@ -42,12 +42,13 @@ jobs:
         id: stage
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "stage=${{ inputs.stage }}" >> $GITHUB_OUTPUT
+            STAGE="${{ inputs.stage }}"
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "stage=prod" >> $GITHUB_OUTPUT
+            STAGE="prod"
           else
-            echo "stage=dev" >> $GITHUB_OUTPUT
+            STAGE="dev"
           fi
+          echo "stage=${STAGE}" >> $GITHUB_OUTPUT
           REPO_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
           if [[ -z "${{ secrets.API_KEY }}" ]]; then
             echo "api_key=$(openssl rand -hex 32)" >> $GITHUB_OUTPUT
@@ -68,6 +69,15 @@ jobs:
             echo "cors_origins=${{ vars.CORS_ALLOW_ORIGINS }}" >> $GITHUB_OUTPUT
           else
             echo "cors_origins=*" >> $GITHUB_OUTPUT
+          fi
+          # us-west-1 is at the 5-VPC/Region limit, so prod cannot create its own
+          # WorkerVpc. Point prod at an existing VPC (default: the account default
+          # VPC) via WORKER_VPC_ID so the stack uses ec2.Vpc.from_lookup instead of
+          # creating one. Dev keeps creating/reusing its own VPC (empty here).
+          if [[ "$STAGE" == "prod" ]]; then
+            echo "worker_vpc_id=${{ vars.PROD_WORKER_VPC_ID || 'vpc-02049d432a47af454' }}" >> $GITHUB_OUTPUT
+          else
+            echo "worker_vpc_id=" >> $GITHUB_OUTPUT
           fi
 
       - uses: aws-actions/configure-aws-credentials@v4
@@ -106,6 +116,8 @@ jobs:
           LANGSMITH_DEV_PROJECT: ${{ steps.stage.outputs.langsmith_dev_project }}
           LANGSMITH_PROD_PROJECT: ${{ steps.stage.outputs.langsmith_prod_project }}
           CORS_ALLOW_ORIGINS: ${{ steps.stage.outputs.cors_origins }}
+          # Prod reuses an existing VPC (us-west-1 at VPC limit); empty for dev.
+          WORKER_VPC_ID: ${{ steps.stage.outputs.worker_vpc_id }}
           # TaskTile rns_ai_only feature flags (OPTIONAL_PLAIN_ENV, read at synth)
           TASKTILE_AI_ONLY_ENABLED: ${{ vars.TASKTILE_AI_ONLY_ENABLED }}
           TASKTILE_AI_ONLY_FETCH: ${{ vars.TASKTILE_AI_ONLY_FETCH }}
