@@ -49,41 +49,61 @@ _DEFAULT_PIPELINE = "rns_ai_only"
 
 
 # ── config / auth ───────────────────────────────────────────────────────────
-def _base() -> str:
-    return os.getenv("TASKTILE_API_BASE_URL", _DEFAULT_BASE).rstrip("/")
+def _norm_env(env: Optional[str]) -> str:
+    """Map the agent state env → TaskTile tenant selector. Encompass uses
+    'PROD'/'TEST'; anything that isn't PROD is treated as the non-prod (DEV) tenant."""
+    return "PROD" if str(env or "PROD").upper() == "PROD" else "DEV"
+
+
+def _base(env: Optional[str] = None) -> str:
+    """Per-env base URL override (TASKTILE_PROD_API_BASE_URL / TASKTILE_DEV_API_BASE_URL),
+    else the shared TASKTILE_API_BASE_URL, else the staging default."""
+    e = _norm_env(env)
+    per = os.getenv(f"TASKTILE_{e}_API_BASE_URL")
+    return (per or os.getenv("TASKTILE_API_BASE_URL", _DEFAULT_BASE)).rstrip("/")
 
 
 def _pipeline() -> str:
     return os.getenv("TASKTILE_PIPELINE", _DEFAULT_PIPELINE)
 
 
-def _creds() -> Optional[tuple[str, str]]:
-    """Prefer PROD keys, fall back to the generic client id/secret. None if unset."""
-    cid = os.getenv("TASKTILE_PROD_CLIENT_KEY") or os.getenv("TASKTILE_CLIENT_ID")
-    sec = os.getenv("TASKTILE_PROD_CLIENT_SECRET") or os.getenv("TASKTILE_CLIENT_SECRET")
+def _creds(env: Optional[str] = None) -> Optional[tuple[str, str]]:
+    """Pick the TaskTile client for the given env — PROD tenant for prod runs,
+    DEV tenant otherwise — so the client matches the Encompass instance the loan
+    was read from. Falls back to the generic TASKTILE_CLIENT_ID/SECRET. None if unset."""
+    if _norm_env(env) == "PROD":
+        cid = os.getenv("TASKTILE_PROD_CLIENT_KEY") or os.getenv("TASKTILE_CLIENT_ID")
+        sec = os.getenv("TASKTILE_PROD_CLIENT_SECRET") or os.getenv("TASKTILE_CLIENT_SECRET")
+    else:
+        cid = os.getenv("TASKTILE_DEV_CLIENT_KEY") or os.getenv("TASKTILE_CLIENT_ID")
+        sec = os.getenv("TASKTILE_DEV_CLIENT_SECRET") or os.getenv("TASKTILE_CLIENT_SECRET")
     if not cid or not sec:
         return None
     return cid, sec
 
 
-def _token() -> Optional[str]:
-    creds = _creds()
+def _token(env: Optional[str] = None) -> Optional[str]:
+    creds = _creds(env)
     if not creds:
-        logger.warning("[TT_AI_ONLY] No TaskTile creds (TASKTILE_PROD_CLIENT_KEY/SECRET) — skipping.")
+        logger.warning(
+            f"[TT_AI_ONLY] No TaskTile creds for env={_norm_env(env)} "
+            "(TASKTILE_PROD_CLIENT_KEY/SECRET or TASKTILE_DEV_CLIENT_KEY/SECRET) — skipping."
+        )
         return None
     cid, sec = creds
-    logger.info(f"[TT_AI_ONLY] Auth as client_id={cid}")
-    r = requests.post(f"{_base()}/auth/token",
+    logger.info(f"[TT_AI_ONLY] Auth as client_id={cid} (env={_norm_env(env)})")
+    r = requests.post(f"{_base(env)}/auth/token",
                       json={"client_id": cid, "client_secret": sec}, timeout=60)
     r.raise_for_status()
     return r.json()["access_token"]
 
 
 # ── upload / job / poll ─────────────────────────────────────────────────────
-def _upload(token: str, filename: str, pdf: bytes, attachment_id: str) -> str:
+def _upload(token: str, filename: str, pdf: bytes, attachment_id: str,
+            env: Optional[str] = None) -> str:
     """Initiate → PUT → complete (retries while the virus scan runs)."""
     h = {"Authorization": f"Bearer {token}"}
-    init = requests.post(f"{_base()}/uploads/initiate", headers=h, json={
+    init = requests.post(f"{_base(env)}/uploads/initiate", headers=h, json={
         "filename": filename, "content_type": "application/pdf",
         "size": len(pdf), "metadata": {"attachment_id": attachment_id},
     }, timeout=60)
@@ -94,7 +114,7 @@ def _upload(token: str, filename: str, pdf: bytes, attachment_id: str) -> str:
     put.raise_for_status()
     last = None
     for _ in range(20):  # ~3 min: wait out the virus scan
-        c = requests.post(f"{_base()}/uploads/complete", headers=h,
+        c = requests.post(f"{_base(env)}/uploads/complete", headers=h,
                           json={"upload_id": info["upload_id"]}, timeout=60)
         if c.status_code == 200:
             return info["upload_id"]
@@ -104,14 +124,14 @@ def _upload(token: str, filename: str, pdf: bytes, attachment_id: str) -> str:
 
 
 def _create_job(token: str, upload_ids: list, entity: dict,
-                scan_retries: int = 120) -> str:
+                scan_retries: int = 120, env: Optional[str] = None) -> str:
     h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {"pipeline_name": _pipeline(), "upload_ids": upload_ids, "entity": entity}
     cats = os.getenv("TASKTILE_CATEGORIES_URL")
     if cats:
         payload["categories_url"] = cats
     for attempt in range(scan_retries):  # ~20 min: wait out "still pending" scans
-        r = requests.post(f"{_base()}/jobs", headers=h, json=payload, timeout=120)
+        r = requests.post(f"{_base(env)}/jobs", headers=h, json=payload, timeout=120)
         if r.status_code in (200, 201):
             body = r.json()
             return body.get("job_id") or body.get("id")
@@ -124,12 +144,12 @@ def _create_job(token: str, upload_ids: list, entity: dict,
     raise RuntimeError("job create failed: uploads never cleared scanning")
 
 
-def _poll(token: str, job_id: str, minutes: int = 30) -> dict:
+def _poll(token: str, job_id: str, minutes: int = 30, env: Optional[str] = None) -> dict:
     h = {"Authorization": f"Bearer {token}"}
     deadline = time.time() + minutes * 60
     last = None
     while time.time() < deadline:
-        r = requests.get(f"{_base()}/jobs/{job_id}", headers=h, timeout=60)
+        r = requests.get(f"{_base(env)}/jobs/{job_id}", headers=h, timeout=60)
         r.raise_for_status()
         st = r.json()
         status = st.get("status") or st.get("state")
@@ -143,9 +163,9 @@ def _poll(token: str, job_id: str, minutes: int = 30) -> dict:
     return {}
 
 
-def _manifest(token: str, job_id: str) -> dict:
+def _manifest(token: str, job_id: str, env: Optional[str] = None) -> dict:
     h = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{_base()}/jobs/{job_id}/manifest", headers=h, timeout=60)
+    r = requests.get(f"{_base(env)}/jobs/{job_id}/manifest", headers=h, timeout=60)
     if r.status_code != 200:
         return {}
     body = r.json()
@@ -190,12 +210,18 @@ def run_ai_only(
         logger.info("[TT_AI_ONLY] no attachments to process — skipping.")
         return None
 
+    # Env comes from the agent state (dashboard sets PROD for the prod instance,
+    # TEST for the dev instance). Use the SAME env for the TaskTile client so the
+    # tenant matches the Encompass instance the attachments are read from — this
+    # covers the whole upload → job → manifest cycle (one token).
+    env = (state or {}).get("env")
+
     try:
         from shared.ess_contact_bypass import _download_attachment
         from encompass_client import get_encompass_client
 
         client = get_encompass_client(state=state)
-        token = _token()
+        token = _token(env)
         if not token:
             return None
 
@@ -208,22 +234,23 @@ def run_ai_only(
                 logger.warning(f"[TT_AI_ONLY] could not download attachment {aid} — skipping it.")
                 continue
             fname = f"{aid}_{name}".replace("/", "_")[:80] + ".pdf"
-            upload_ids.append(_upload(token, fname, pdf, aid))
+            upload_ids.append(_upload(token, fname, pdf, aid, env=env))
 
         if not upload_ids:
             logger.warning("[TT_AI_ONLY] no uploads succeeded — aborting.")
             return None
 
-        metadata = {"source": "processor_rns_ai_only"}
+        metadata = {"source": "processor_rns_ai_only", "env": _norm_env(env)}
         if loan_number:
             metadata["loan_number"] = loan_number
-        job_id = _create_job(token, upload_ids, {"metadata": metadata})
-        logger.info(f"[TT_AI_ONLY] job {job_id} created with {len(upload_ids)} upload(s)")
+        job_id = _create_job(token, upload_ids, {"metadata": metadata}, env=env)
+        logger.info(f"[TT_AI_ONLY] job {job_id} created with {len(upload_ids)} upload(s) (env={_norm_env(env)})")
 
-        _poll(token, job_id, minutes=wait_minutes)
-        man = _manifest(token, job_id)
+        _poll(token, job_id, minutes=wait_minutes, env=env)
+        man = _manifest(token, job_id, env=env)
         if man:
             man.setdefault("_processor", {})["job_id"] = job_id
+            man["_processor"]["env"] = _norm_env(env)
         return man or None
     except Exception as exc:  # best-effort — never break the caller
         logger.error(f"[TT_AI_ONLY] run failed: {exc}")

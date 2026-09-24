@@ -47,10 +47,11 @@ def test_no_creds_returns_none(monkeypatch, fake_encompass):
 
 
 def test_success_path(monkeypatch, fake_encompass):
-    monkeypatch.setattr(ai, "_token", lambda: "tok")
+    tok_calls = []
+    monkeypatch.setattr(ai, "_token", lambda env=None: tok_calls.append(env) or "tok")
     up_calls = []
     monkeypatch.setattr(ai, "_upload",
-                        lambda tok, fname, pdf, aid: up_calls.append(aid) or f"up-{aid}")
+                        lambda tok, fname, pdf, aid, env=None: up_calls.append(aid) or f"up-{aid}")
     job_calls = {}
 
     def fake_create_job(tok, ups, entity, **kw):
@@ -59,15 +60,33 @@ def test_success_path(monkeypatch, fake_encompass):
         return "job-9"
 
     monkeypatch.setattr(ai, "_create_job", fake_create_job)
-    monkeypatch.setattr(ai, "_poll", lambda tok, jid, minutes=30: {"status": "success"})
+    monkeypatch.setattr(ai, "_poll", lambda tok, jid, minutes=30, env=None: {"status": "success"})
     monkeypatch.setattr(ai, "_manifest",
-                        lambda tok, jid: {"documents": [{"root_attachment_id": "att-1"}]})
+                        lambda tok, jid, env=None: {"documents": [{"root_attachment_id": "att-1"}]})
 
     man = ai.run_ai_only("guid", ATTS, force=True, loan_number="123")
     assert man is not None
     assert man["_processor"]["job_id"] == "job-9"
     assert up_calls == ["att-1"]
     assert job_calls["ups"] == ["up-att-1"]
+
+
+def test_env_threaded_from_state(monkeypatch, fake_encompass):
+    """state['env'] must flow through to the TaskTile client (prod vs dev tenant)."""
+    seen = {}
+    monkeypatch.setattr(ai, "_token", lambda env=None: seen.setdefault("token", env) or "tok")
+    monkeypatch.setattr(ai, "_upload",
+                        lambda tok, fname, pdf, aid, env=None: seen.setdefault("upload", env) or f"up-{aid}")
+    monkeypatch.setattr(ai, "_create_job",
+                        lambda tok, ups, entity, **kw: seen.setdefault("job", kw.get("env")) or "job-1")
+    monkeypatch.setattr(ai, "_poll",
+                        lambda tok, jid, minutes=30, env=None: seen.setdefault("poll", env) or {})
+    monkeypatch.setattr(ai, "_manifest",
+                        lambda tok, jid, env=None: seen.setdefault("manifest", env) or {"documents": []})
+
+    ai.run_ai_only("guid", ATTS, force=True, state={"env": "TEST"})
+    assert seen == {"token": "TEST", "upload": "TEST", "job": "TEST",
+                    "poll": "TEST", "manifest": "TEST"}
 
 
 def test_download_failure_skips_attachment(monkeypatch, fake_encompass):
@@ -83,11 +102,42 @@ def test_creds_prefers_prod(monkeypatch):
     monkeypatch.setenv("TASKTILE_PROD_CLIENT_SECRET", "prod-sec")
     monkeypatch.setenv("TASKTILE_CLIENT_ID", "generic-id")
     monkeypatch.setenv("TASKTILE_CLIENT_SECRET", "generic-sec")
+    # no env / PROD env → prod tenant
     assert ai._creds() == ("prod-key", "prod-sec")
+    assert ai._creds("PROD") == ("prod-key", "prod-sec")
+    assert ai._creds("Prod") == ("prod-key", "prod-sec")
+
+
+def test_creds_dev_env_selects_dev_client(monkeypatch):
+    monkeypatch.setenv("TASKTILE_PROD_CLIENT_KEY", "prod-key")
+    monkeypatch.setenv("TASKTILE_PROD_CLIENT_SECRET", "prod-sec")
+    monkeypatch.setenv("TASKTILE_DEV_CLIENT_KEY", "dev-key")
+    monkeypatch.setenv("TASKTILE_DEV_CLIENT_SECRET", "dev-sec")
+    # anything that isn't PROD → dev tenant
+    assert ai._creds("TEST") == ("dev-key", "dev-sec")
+    assert ai._creds("DEV") == ("dev-key", "dev-sec")
+
+
+def test_creds_dev_falls_back_to_generic(monkeypatch):
+    for k in ("TASKTILE_DEV_CLIENT_KEY", "TASKTILE_DEV_CLIENT_SECRET"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("TASKTILE_CLIENT_ID", "generic-id")
+    monkeypatch.setenv("TASKTILE_CLIENT_SECRET", "generic-sec")
+    assert ai._creds("TEST") == ("generic-id", "generic-sec")
+
+
+def test_base_url_per_env(monkeypatch):
+    monkeypatch.delenv("TASKTILE_API_BASE_URL", raising=False)
+    monkeypatch.setenv("TASKTILE_PROD_API_BASE_URL", "https://prod.example/api/")
+    monkeypatch.setenv("TASKTILE_DEV_API_BASE_URL", "https://dev.example/api/")
+    assert ai._base("PROD") == "https://prod.example/api"
+    assert ai._base("TEST") == "https://dev.example/api"
 
 
 def test_creds_none_when_unset(monkeypatch):
     for k in ("TASKTILE_PROD_CLIENT_KEY", "TASKTILE_PROD_CLIENT_SECRET",
+              "TASKTILE_DEV_CLIENT_KEY", "TASKTILE_DEV_CLIENT_SECRET",
               "TASKTILE_CLIENT_ID", "TASKTILE_CLIENT_SECRET"):
         monkeypatch.delenv(k, raising=False)
     assert ai._creds() is None
+    assert ai._creds("TEST") is None
