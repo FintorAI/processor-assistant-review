@@ -65,16 +65,27 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "Verification of Employment": 436,
     "Bank Statement": 502,
     "Bank Statements": 502,
+    # Form 1040 (cat 10): routing alias kept for correct classification, but
+    # INTENTIONALLY UNMAPPED in tasktile_field_map.json — the ai-only path returns
+    # 0 data leaves for 1040s today. Add a fields block if TaskTile starts
+    # extracting 1040 line items (AGI, wages, etc.).
     "Form 1040": 10,
     # Title / settlement / insurance / underwriting docs (AWM ids verified via
     # GET /api/category-sets/awm AND confirmed against real rns_ai_only manifests).
     "Title Report": 522,
     "Title Report / Commitment": 522,
     "Preliminary Report": 522,
+    # Insurance: the EVIDENCE/binder (EOI) classifies as 1561, but the actual
+    # homeowners POLICY classifies as 1479 Property Insurance on the ai-only path
+    # (confirmed on loan 2606970588). The classification is unstable run-to-run,
+    # so both 1561 and 1479 carry the SAME field_map spec — routing to either fills.
     "Evidence of Insurance": 1561,
     "Evidence of Hazard Insurance": 1561,
     "Homeowners Insurance": 1561,
     "Hazard Insurance": 1561,
+    "Property Insurance": 1479,
+    "Homeowners Insurance Policy": 1479,
+    "Homeowner's Insurance Policy": 1479,
     "Transmittal Summary": 351,
     "Transmittal Summary (1008)": 351,
     "1008": 351,

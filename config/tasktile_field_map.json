@@ -163,10 +163,20 @@
     },
     "1561": {
       "_doc_type": "Evidence of Insurance",
-      "_note": "real rns_ai_only returns only company.name/expirationDate/policyType (AWM coverage/agent/policyNumber NOT extracted).",
+      "_note": "real rns_ai_only returns only company.name/expirationDate/policyType (AWM coverage/agent/policyNumber NOT extracted). insured_location added for parity with 1479 (candidate leaves; fills only if present).",
       "fields": {
         "hazard_insurance_company": { "leaf": "company.name" },
-        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" }
+        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" },
+        "insured_location":         { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
+      }
+    },
+    "1479": {
+      "_doc_type": "Property Insurance / Homeowners Policy",
+      "_note": "the actual homeowners POLICY classifies HERE (not 1561) on the ai-only path (confirmed loan 2606970588). Same fillable leaves as 1561 so routing to either category works. AWM policyNumber/coverage/effectiveDate/agent NOT extracted.",
+      "fields": {
+        "hazard_insurance_company": { "leaf": "company.name" },
+        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" },
+        "insured_location":         { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
       }
     },
     "167": {

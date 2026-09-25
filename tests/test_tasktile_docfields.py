@@ -185,6 +185,34 @@ def test_resolve_and_fill_id_copy_dedupes_same_person():
     assert len(df["dl_gov_id"]["copies"]) == 1
 
 
+def test_resolve_and_fill_homeowners_policy_1479_and_1561():
+    # A homeowners policy classifies as 1479 (not 1561) on the ai-only path, and
+    # the classification is unstable — both categories must fill identically.
+    doc = {"root_attachment_id": "ins", "category_id": None, "metadata": {
+        "group_name": "Homeowners Insurance Policy",
+        "company": {"name": "Farmers Insurance"},
+        "policyType": "Homeowners",
+        "expirationDate": "2026-09-12",
+        "propertyAddresses": [{"address1": "264 Occidental Dr", "city": "Oxnard"}]}}
+    for route, expect_cat in (("Property Insurance", 1479),
+                              ("Homeowners Insurance Policy", 1479),
+                              ("Evidence of Insurance", 1561),
+                              ("Homeowners Insurance", 1561)):
+        assert dfx.category_for_doc_type(route) == expect_cat
+        df = {}
+        dfx.resolve_and_fill(df, {"documents": [doc]}, {"ins": route}, apply=True)
+        f = {k: v["value"] for k, v in df.items()}
+        assert f["hazard_insurance_company"] == "Farmers Insurance"
+        assert f["coverage_end_date"] == "2026-09-12"
+        assert f["insured_location"] == "264 Occidental Dr"
+
+
+def test_form_1040_routes_but_is_unmapped():
+    # Cat 10 keeps its routing alias but has no field_map entry (0 leaves today).
+    assert dfx.category_for_doc_type("Form 1040") == 10
+    assert "10" not in dfx.load_field_map()["categories"]
+
+
 def test_resolve_and_fill_id_copy_yields_to_primary_extraction():
     # A primary (non-ai-only) extraction on dl_gov_id is never touched.
     df = {"dl_gov_id": {"value": "PRIMARY-ID", "source_document": "eFolder"}}
