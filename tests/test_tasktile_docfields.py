@@ -82,6 +82,61 @@ def test_resolve_and_fill_voe():
     assert f["verification_date"] == "2026-02-01"
 
 
+def test_resolve_and_fill_purchase_agreement():
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "p", "category_id": None, "metadata": {
+            "group_name": "Purchase Agreement",
+            "purchasePrice": "1160000", "closingDate": "2026-08-28",
+            "earnestMoney": "17400", "datePrepared": "2026-08-07",
+            "propertyAddress": {"fullAddress": "14940 Janine Drive, Whittier, CA"},
+            "buyersAgent": {"company": "KW", "name": "J Mora", "phone": "111", "email": "j@kw.com", "licenseId": "02324709"},
+            "sellersAgent": {"company": "TNG", "name": "L D", "email": "l@x.com"},
+        }},
+    ]}
+    proposals = dfx.resolve_and_fill({}, manifest, {"p": "Purchase Agreement"}, apply=True)
+    f = {p["field_key"]: p["value"] for p in proposals}
+    assert f["pa_purchase_price"] == "1160000"
+    assert f["pa_closing_date"] == "2026-08-28"
+    assert f["buyer_agent_name"] == "J Mora"
+    assert f["seller_agent_company"] == "TNG"
+
+
+def test_resolve_and_fill_du_findings_and_mi():
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "d", "category_id": None, "metadata": {
+            "group_name": "DU Findings",
+            "loanType": "Conventional", "noteRate": "7.250%", "loanPurpose": "Purchase",
+            "DTIPercentage": "44.12%", "recommendation": "Approve/Eligible", "ltv": "95",
+            "loanAmount": "266000", "appraisedValue": "280000",
+            "propertyAddress": {"address1": "132 N Linwood Ave"},
+        }},
+        {"root_attachment_id": "m", "category_id": None, "metadata": {
+            "group_name": "MI Certificate",
+            "certificateNumber": "C1", "miFileNumber": "F1", "premiumType": "Monthly",
+            "monthlyPremiumAmount": "166.73", "company": {"name": "Radian", "address": "PA"},
+            "renewal": {"firstPercent": "0.18", "firstMonths": "10"}, "cancelAtPercent": "0",
+        }},
+    ]}
+    proposals = dfx.resolve_and_fill({}, manifest, {"d": "DU Findings", "m": "MI Certificate"}, apply=True)
+    f = {p["field_key"]: p["value"] for p in proposals}
+    assert f["du_recommendation"] == "Approve/Eligible"
+    assert f["mortgage_type"] == "Conventional"
+    assert f["ltv"] == "95"
+    assert f["monthly_premium_amount"] == "166.73"
+    assert f["mi_company_name"] == "Radian"
+    assert f["first_renewal_percent"] == "0.18"
+
+
+def test_category_for_doc_type_tranche():
+    assert dfx.category_for_doc_type("Purchase Agreement") == 200
+    assert dfx.category_for_doc_type("Title Report") == 522
+    assert dfx.category_for_doc_type("Transmittal Summary") == 351
+    assert dfx.category_for_doc_type("MI Certificate") == 141
+    assert dfx.category_for_doc_type("Evidence of Insurance") == 1561
+    assert dfx.category_for_doc_type("Closing Protection Letter") == 167
+    assert dfx.category_for_doc_type("DU Findings / AUS Certificate") == 324
+
+
 def test_resolve_and_fill_bank_statement_array_first_element():
     # account-level leaves are arrays -> flatten() takes the first account (obj[0])
     manifest = {"_processor": {"job_id": "T"}, "documents": [

@@ -69,6 +69,105 @@
         "statement_period_end":   { "leaf": "statementPeriodTo",   "validator": "date" }
       }
     },
+    "200": {
+      "_doc_type": "Purchase Agreement",
+      "_note": "leaves verified against real rns_ai_only manifests (flat AWM shape).",
+      "fields": {
+        "pa_purchase_price":       { "leaf": "purchasePrice" },
+        "pa_closing_date":         { "leaf": "closingDate", "validator": "date" },
+        "pa_earnest_money":        { "leaf": "earnestMoney" },
+        "pa_contract_date":        { "leaf": "datePrepared", "validator": "date" },
+        "purchase_property_address": { "leaf": "propertyAddress.fullAddress" },
+        "buyer_agent_company":     { "leaf": "buyersAgent.company" },
+        "buyer_agent_name":        { "leaf": "buyersAgent.name" },
+        "buyer_agent_phone":       { "leaf": "buyersAgent.phone" },
+        "buyer_agent_email":       { "leaf": "buyersAgent.email" },
+        "buyer_agent_address":     { "leaf": "buyersAgent.address" },
+        "buyer_agent_license":     { "leaf": "buyersAgent.licenseId" },
+        "seller_agent_company":    { "leaf": "sellersAgent.company" },
+        "seller_agent_name":       { "leaf": "sellersAgent.name" },
+        "seller_agent_phone":      { "leaf": "sellersAgent.phone" },
+        "seller_agent_email":      { "leaf": "sellersAgent.email" },
+        "seller_agent_address":    { "leaf": "sellersAgent.address" },
+        "seller_agent_license":    { "leaf": "sellersAgent.licenseId" }
+      }
+    },
+    "522": {
+      "_doc_type": "Title Report",
+      "_note": "leaves verified against real rns_ai_only Title/Prelim manifests.",
+      "fields": {
+        "title_company":     { "leaf": "titleCompany" },
+        "escrow_company":    { "leaf": "escrowCompany" },
+        "commitment_number": { "leaf": "commitmentNumber" },
+        "effective_date":    { "leaf": "effectiveDate", "validator": "date" },
+        "legal_description": { "leaf": "legalDescription" },
+        "final_vesting":     { "leaf": "vestedIn" },
+        "tr_loan_amount":    { "leaf": "loanAmount" },
+        "settlement_agent":  { "leaf": "settlementAgent.name" },
+        "contact":           { "leaf": "settlementAgent.contact" },
+        "property_address":  { "leaf": "address.address1" }
+      }
+    },
+    "351": {
+      "_doc_type": "Transmittal Summary",
+      "_note": "leaves verified against real rns_ai_only 1008 manifests.",
+      "fields": {
+        "transmittal_sales_price":      { "leaf": "salesPrice" },
+        "transmittal_appraised_value":  { "leaf": "appraisedValue" },
+        "transmittal_loan_amount":      { "leaf": "loanAmount" },
+        "transmittal_property_address": { "leaf": "propertyAddress.address1" },
+        "transmittal_zip":              { "leaf": "propertyAddress.zipCode" }
+      }
+    },
+    "141": {
+      "_doc_type": "MI Certificate",
+      "_note": "leaves verified against real rns_ai_only MI/Radian manifests (no upfront amount extracted).",
+      "fields": {
+        "certificate_number":     { "leaf": "certificateNumber" },
+        "mi_file_number":         { "leaf": "miFileNumber" },
+        "premium_type":           { "leaf": "premiumType" },
+        "monthly_premium_amount": { "leaf": "monthlyPremiumAmount" },
+        "mi_company_name":        { "leaf": "company.name" },
+        "mi_company_address":     { "leaf": "company.address" },
+        "first_renewal_percent":  { "leaf": "renewal.firstPercent" },
+        "first_renewal_months":   { "leaf": "renewal.firstMonths" },
+        "second_renewal_percent": { "leaf": "renewal.secondPercent" },
+        "second_renewal_months":  { "leaf": "renewal.secondMonths" },
+        "cancel_at_percent":      { "leaf": "cancelAtPercent" }
+      }
+    },
+    "1561": {
+      "_doc_type": "Evidence of Insurance",
+      "_note": "real rns_ai_only returns only company.name/expirationDate/policyType (AWM coverage/agent/policyNumber NOT extracted).",
+      "fields": {
+        "hazard_insurance_company": { "leaf": "company.name" },
+        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" }
+      }
+    },
+    "167": {
+      "_doc_type": "Closing Protection Letter",
+      "_note": "settlementAgent.address is an object; only .street maps cleanly.",
+      "fields": {
+        "cpl_issue_date":          { "leaf": "CPLDate", "validator": "date" },
+        "settlement_agent_name":   { "leaf": "settlementAgent.name" },
+        "settlement_agent_address": { "leaf": "settlementAgent.address.street" }
+      }
+    },
+    "324": {
+      "_doc_type": "DU Findings / AUS Certificate",
+      "_note": "leaves verified against real rns_ai_only findings/conditional-commitment manifests.",
+      "fields": {
+        "mortgage_type":     { "leaf": "loanType" },
+        "interest_rate":     { "leaf": "noteRate" },
+        "loan_purpose":      { "leaf": "loanPurpose" },
+        "debt_ratio":        { "leaf": "DTIPercentage" },
+        "du_recommendation": { "leaf": "recommendation" },
+        "ltv":               { "leaf": "ltv" },
+        "du_loan_amount":    { "leaf": "loanAmount" },
+        "appraised_value":   { "leaf": "appraisedValue" },
+        "du_property_address": { "leaf": "propertyAddress.address1" }
+      }
+    },
     "984": {
       "_doc_type": "Loan Estimate",
       "fields": {

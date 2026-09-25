@@ -66,6 +66,24 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "Bank Statement": 502,
     "Bank Statements": 502,
     "Form 1040": 10,
+    # Title / settlement / insurance / underwriting docs (AWM ids verified via
+    # GET /api/category-sets/awm AND confirmed against real rns_ai_only manifests).
+    "Title Report": 522,
+    "Title Report / Commitment": 522,
+    "Preliminary Report": 522,
+    "Evidence of Insurance": 1561,
+    "Evidence of Hazard Insurance": 1561,
+    "Homeowners Insurance": 1561,
+    "Hazard Insurance": 1561,
+    "Transmittal Summary": 351,
+    "Transmittal Summary (1008)": 351,
+    "1008": 351,
+    "MI Certificate": 141,
+    "Mortgage Insurance Certificate": 141,
+    "DU Findings / AUS Certificate": 324,
+    "DU Findings": 324,
+    "AUS Certificate": 324,
+    "Conditional Commitment": 324,
 }
 
 
