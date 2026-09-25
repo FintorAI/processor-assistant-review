@@ -220,6 +220,7 @@
         "contact_settlement_agent_name":   { "leaf": ["settlementAgent.name", "escrow.escrowOfficer"] },
         "contact_settlement_agent_address": { "leaf": ["settlementAgent.address", "escrow.settlementLocation.street"] },
         "contact_settlement_agent_phone":  { "leaf": ["settlementAgent.phone"] },
+        "contact_settlement_agent_file_number": { "leaf": ["fileNumber", "escrow.escrowNumber"] },
         "ess_lender_credit":               { "leaf": ["loan.lenderCredit"] },
         "ess_cash_to_close":               { "leaf": ["escrow.approximateAmountDueEscrow"] }
       }

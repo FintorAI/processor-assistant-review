@@ -216,6 +216,25 @@ def test_resolve_and_fill_alta_candidate_leaves():
     assert f["ess_cash_to_close"] == "31041.19"
 
 
+def test_resolve_and_fill_alta_file_number_feeds_escrow_case():
+    # ALTA fileNumber -> contact_settlement_agent_file_number -> Encompass field 186
+    run_c = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "ALTA Settlement Statement", "fileNumber": "14576 - SM"}},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, run_c, {"a": "Estimated Settlement Statement"}, apply=True)}
+    assert f["contact_settlement_agent_file_number"] == "14576 - SM"
+    # nested-escrow shape falls back to escrow.escrowNumber
+    run_b = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "ALTA Settlement Statement", "escrow": {"escrowNumber": "14576 - SM"}}},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, run_b, {"a": "Estimated Settlement Statement"}, apply=True)}
+    assert f["contact_settlement_agent_file_number"] == "14576 - SM"
+
+
 def test_resolve_and_fill_appraisal():
     # ai-only returns rich AWM shape but only property_type + parcel_number have targets
     manifest = {"_processor": {"job_id": "T"}, "documents": [
