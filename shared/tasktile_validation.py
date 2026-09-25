@@ -13,8 +13,10 @@ from typing import Any, Optional
 
 _ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
 _SSN_RE = re.compile(r"^\d{3}-?\d{2}-?\d{4}$")
-# Driver's-license / state-ID numbers are alphanumeric, ~5-13 chars.
-_ID_NUMBER_RE = re.compile(r"^[A-Za-z0-9]{5,13}$")
+# Government ID numbers (DL / state ID / passport / green-card A#/USCIS) are
+# alphanumeric, ~5-17 chars, and may contain internal hyphens or spaces
+# (e.g. green-card "219-909-413"). Must start and end alphanumeric.
+_ID_NUMBER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 \-]{3,15}[A-Za-z0-9]$")
 
 
 def is_present(value: Any) -> bool:
