@@ -251,6 +251,127 @@ def _has_value(entry) -> bool:
     return v not in (None, "", [], {}, "null")
 
 
+# SBIQ categories whose documents carry a single person's government ID
+# (Driver's License, Passport, Permanent Resident Card). A borrower and a
+# co-borrower arrive as SEPARATE ID attachments, so the gov-id number must be
+# stacked as multi-copy doc_fields (copy 0 = borrower, copy 1 = co-borrower, …)
+# rather than filling one slot and dropping the rest. review_borrower_summary's
+# _write_government_id then matches each copy to a person (by name, else copy
+# order) and writes field 5053 (borrower) / 5054 (co-borrower).
+_ID_DOC_CATEGORIES = {323, 845, 844}
+
+
+def _first_present_leaf(flat: dict, leaf_spec):
+    """Resolve a spec ``leaf`` (str or candidate list) to (leaf, value).
+
+    Returns the first candidate that carries a present value; falls back to the
+    first candidate path when none carry a value.
+    """
+    candidates = leaf_spec if isinstance(leaf_spec, list) else [leaf_spec]
+    leaf = candidates[0]
+    value = flat.get(leaf)
+    for cand in candidates:
+        v = flat.get(cand)
+        if v not in (None, "", [], {}):
+            return cand, v
+    return leaf, value
+
+
+def _id_person_name(entries: dict, flat: dict) -> Optional[str]:
+    """Build a 'First Last' name for an ID doc from its mapped name leaves.
+
+    Used to align a ``dl_borrower_name`` copy with each ``dl_gov_id`` copy so the
+    review tool can match the co-borrower's ID to the co-borrower by name.
+    """
+    parts = []
+    for fk in ("borrower_first_name", "borrower_last_name"):
+        spec = entries.get(fk)
+        if not spec:
+            continue
+        _, v = _first_present_leaf(flat, spec.get("leaf"))
+        if v not in (None, "", [], {}):
+            parts.append(str(v))
+    return " ".join(parts) or None
+
+
+def _append_id_copy(doc_fields: dict, gov_id, name, leaf) -> bool:
+    """Append a government-ID copy (and aligned name copy) to ``doc_fields``.
+
+    Copy 0 is the borrower; each subsequent distinct ID doc becomes the next
+    copy (co-borrower, etc.). The top-level ``value`` is seeded from copy 0 so
+    ``_doc(state, "dl_gov_id")`` stays backward compatible. De-dupes by value so
+    the same person's ID (re-uploaded) is not counted twice. Returns True when a
+    new copy was added.
+    """
+    gid = doc_fields.get("dl_gov_id")
+    gid = gid if isinstance(gid, dict) else {}
+    copies = list(gid.get("copies") or [])
+    if any(str(c.get("value")) == str(gov_id) for c in copies):
+        return False  # same ID already captured
+    ci = len(copies)
+    copies.append({
+        "value": gov_id, "source_document": "tasktile_ai_only",
+        "confidence": 1.0, "copy_index": ci, "raw_key": leaf,
+    })
+    gid["copies"] = copies
+    if not _has_value(gid):  # seed top-level (borrower) for _doc() compat
+        gid.update({"value": gov_id, "source_document": "tasktile_ai_only",
+                    "confidence": 1.0, "raw_key": leaf})
+    doc_fields["dl_gov_id"] = gid
+
+    if name:  # aligned name copy for per-person matching in the review tool
+        nm = doc_fields.get("dl_borrower_name")
+        nm = nm if isinstance(nm, dict) else {}
+        ncopies = list(nm.get("copies") or [])
+        ncopies.append({"value": name, "source_document": "tasktile_ai_only",
+                        "confidence": 1.0, "copy_index": ci})
+        nm["copies"] = ncopies
+        if not _has_value(nm):
+            nm.update({"value": name, "source_document": "tasktile_ai_only",
+                       "confidence": 1.0})
+        doc_fields["dl_borrower_name"] = nm
+    return True
+
+
+def _stack_id_gov_id(doc_fields, entries, flat, *, cat, apply,
+                     config_path, shadow_logger) -> Optional[dict]:
+    """Resolve & stack an ID doc's government-ID number as a multi-copy fill.
+
+    Unlike the single-slot path this bypasses the no-clobber guard so a second
+    ID attachment (the co-borrower) is captured as an additional copy — but it
+    still yields to a *primary* extraction (any non-ai-only source already on
+    ``dl_gov_id``), preserving the no-clobber contract for trusted data.
+    """
+    from shared.tasktile_fallback import resolve_field
+
+    spec = entries.get("dl_gov_id")
+    if not spec:
+        return None
+    leaf, manifest_value = _first_present_leaf(flat, spec.get("leaf"))
+    res = resolve_field(cat, leaf, manifest_value=manifest_value,
+                        validator=spec.get("validator"),
+                        config_path=config_path, shadow_logger=shadow_logger)
+    if not (res.valid and res.value not in (None, "", [], {})):
+        return None
+
+    # Respect a primary extraction: only stack co-borrower copies on top of our
+    # own ai-only fills, never over trusted/primary data.
+    existing = doc_fields.get("dl_gov_id")
+    if (isinstance(existing, dict) and _has_value(existing)
+            and existing.get("source_document") != "tasktile_ai_only"):
+        return None
+
+    applied = False
+    if apply:
+        applied = _append_id_copy(doc_fields, res.value,
+                                  _id_person_name(entries, flat), leaf)
+    return {
+        "field_key": "dl_gov_id", "value": res.value,
+        "source": f"tasktile_ai_only:{res.source}", "category_id": cat,
+        "leaf": leaf, "applied": applied, "copy": True,
+    }
+
+
 def resolve_and_fill(
     doc_fields: dict,
     manifest: dict,
@@ -296,7 +417,12 @@ def resolve_and_fill(
         if not entries:
             continue
         flat = flatten(d.get("metadata") or d.get("content") or {})
+        is_id_cat = cat in _ID_DOC_CATEGORIES
         for field_key, spec in entries.items():
+            if is_id_cat and field_key == "dl_gov_id":
+                # Government-ID number is multi-copy (borrower + co-borrower are
+                # separate ID attachments) — handled by _stack_id_gov_id below.
+                continue
             if _has_value(doc_fields.get(field_key)):
                 continue  # never clobber an existing extraction
             # `leaf` may be a single path or a list of candidate paths (the
@@ -333,6 +459,16 @@ def resolve_and_fill(
                     "raw_key": leaf,
                 }
             proposals.append(proposal)
+
+        if is_id_cat:
+            # Stack this ID doc's gov-id number as a copy (borrower = copy 0,
+            # co-borrower = copy 1, …) so both people's IDs are captured.
+            id_prop = _stack_id_gov_id(
+                doc_fields, entries, flat, cat=cat, apply=apply,
+                config_path=config_path, shadow_logger=shadow_logger,
+            )
+            if id_prop:
+                proposals.append(id_prop)
     return proposals
 
 

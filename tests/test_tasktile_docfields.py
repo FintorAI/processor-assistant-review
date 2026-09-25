@@ -142,6 +142,61 @@ def test_resolve_and_fill_green_card_govt_id():
     assert f["borrower_dob"] == "1993-04-12"
 
 
+def test_resolve_and_fill_coborrower_gov_id_stacks_copies():
+    # Borrower DL + co-borrower Passport arrive as SEPARATE ID attachments.
+    # Both gov IDs must be captured as multi-copy doc_fields so the review tool
+    # can write field 5053 (borrower) AND 5054 (co-borrower).
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "Driver's License",
+            "owner": {"idNumber": "D1234567", "firstName": "JOHN",
+                      "lastName": "SMITH", "DOB": "1980-01-02"},
+            "expirationDate": "2030-05-01"}},
+        {"root_attachment_id": "b", "category_id": None, "metadata": {
+            "group_name": "Passport",
+            "owner": {"idNumber": "X9988776", "firstName": "JANE",
+                      "lastName": "SMITH", "DOB": "1982-03-04"},
+            "dateOfExpiration": "2029-06-01"}},
+    ]}
+    df = {}
+    dfx.resolve_and_fill(df, manifest,
+                         {"a": "Driver's License", "b": "Passport"}, apply=True)
+    # top-level value stays the borrower's (backward-compat for _doc())
+    assert df["dl_gov_id"]["value"] == "D1234567"
+    copies = {c["copy_index"]: c["value"] for c in df["dl_gov_id"]["copies"]}
+    assert copies == {0: "D1234567", 1: "X9988776"}
+    # aligned name copies let the review tool match each ID to the right person
+    names = {c["copy_index"]: c["value"] for c in df["dl_borrower_name"]["copies"]}
+    assert names == {0: "JOHN SMITH", 1: "JANE SMITH"}
+    # borrower single-slot identity fields are the first (borrower) doc's
+    assert df["borrower_first_name"]["value"] == "JOHN"
+
+
+def test_resolve_and_fill_id_copy_dedupes_same_person():
+    # The same borrower's ID re-uploaded (same number) must NOT create a phantom
+    # second copy (which would be misread as a co-borrower).
+    dl = {"root_attachment_id": "a", "category_id": None, "metadata": {
+        "group_name": "Driver's License",
+        "owner": {"idNumber": "D1234567", "firstName": "JOHN", "lastName": "SMITH"}}}
+    manifest = {"_processor": {"job_id": "T"}, "documents": [dl, dict(dl, root_attachment_id="a2")]}
+    df = {}
+    dfx.resolve_and_fill(df, manifest,
+                         {"a": "Driver's License", "a2": "Driver's License"}, apply=True)
+    assert len(df["dl_gov_id"]["copies"]) == 1
+
+
+def test_resolve_and_fill_id_copy_yields_to_primary_extraction():
+    # A primary (non-ai-only) extraction on dl_gov_id is never touched.
+    df = {"dl_gov_id": {"value": "PRIMARY-ID", "source_document": "eFolder"}}
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "Driver's License",
+            "owner": {"idNumber": "D1234567", "firstName": "JOHN", "lastName": "SMITH"}}}]}
+    dfx.resolve_and_fill(df, manifest, {"a": "Driver's License"}, apply=True)
+    assert df["dl_gov_id"]["value"] == "PRIMARY-ID"
+    assert "copies" not in df["dl_gov_id"]
+
+
 def test_resolve_and_fill_bucketb_leftovers():
     # LE cost fields
     le = {"_processor": {"job_id": "T"}, "documents": [
