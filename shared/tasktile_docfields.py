@@ -55,6 +55,17 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "PMI Certificate": 816,
     "FHA MI Certificate": 1838,
     "Business Tax Return": 1,
+    # Income / employment / asset docs (AWM category ids, verified via
+    # GET /api/category-sets/awm). These feed state['doc_fields'] directly.
+    "Paystubs": 16,
+    "Paystub": 16,
+    "Pay Stub": 16,
+    "W-2": 25,
+    "W2": 25,
+    "Verification of Employment": 436,
+    "Bank Statement": 502,
+    "Bank Statements": 502,
+    "Form 1040": 10,
 }
 
 
