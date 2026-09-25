@@ -141,9 +141,52 @@ def test_resolve_and_fill_fraud_report():
     assert f["fraud_score"] == 762
 
 
+def test_resolve_and_fill_alta_candidate_leaves():
+    # run C shape: top-level settlementAgent.* / escrowCompany / titleCompany
+    run_c = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "ALTA Settlement Statement",
+            "escrowCompany": "Escrow Inc", "titleCompany": "Fidelity",
+            "settlementAgent": {"name": "Shane Magness", "address": "3 Pointe Dr", "phone": "714-854-9344"},
+        }},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, run_c, {"a": "Estimated Settlement Statement"}, apply=True)}
+    assert f["escrow_company"] == "Escrow Inc"
+    assert f["title_company"] == "Fidelity"
+    assert f["contact_settlement_agent_name"] == "Shane Magness"
+
+    # run B shape: nested escrow.* -> candidate fallback must still resolve the agent name
+    run_b = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "a", "category_id": None, "metadata": {
+            "group_name": "ALTA Settlement Statement",
+            "escrow": {"escrowOfficer": "Shane Magness",
+                       "settlementLocation": {"street": "3 Pointe Dr"},
+                       "approximateAmountDueEscrow": "31041.19"},
+        }},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, run_b, {"a": "Estimated Settlement Statement"}, apply=True)}
+    assert f["contact_settlement_agent_name"] == "Shane Magness"   # from escrow.escrowOfficer
+    assert f["contact_settlement_agent_address"] == "3 Pointe Dr"  # from escrow.settlementLocation.street
+    assert f["ess_cash_to_close"] == "31041.19"
+
+
+def test_resolve_and_fill_single_leaf_still_works():
+    # backward-compat: a plain string leaf must behave exactly as before
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "p", "category_id": None, "metadata": {
+            "group_name": "Paystubs", "employer": {"name": "Acme"}}},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, manifest, {"p": "Paystubs"}, apply=True)}
+    assert f["employer_name"] == "Acme"
+
+
 def test_category_for_doc_type_tranche():
     assert dfx.category_for_doc_type("Purchase Agreement") == 200
     assert dfx.category_for_doc_type("Fraud Report") == 1118
+    assert dfx.category_for_doc_type("Estimated Settlement Statement") == 2168
     assert dfx.category_for_doc_type("Title Report") == 522
     assert dfx.category_for_doc_type("Transmittal Summary") == 351
     assert dfx.category_for_doc_type("MI Certificate") == 141

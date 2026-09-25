@@ -85,6 +85,9 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "AUS Certificate": 324,
     "Conditional Commitment": 324,
     "Fraud Report": 1118,
+    "Estimated Settlement Statement": 2168,
+    "ESS": 2168,
+    "Settlement Statement": 2168,
 }
 
 
@@ -293,10 +296,21 @@ def resolve_and_fill(
         for field_key, spec in entries.items():
             if _has_value(doc_fields.get(field_key)):
                 continue  # never clobber an existing extraction
-            leaf = spec.get("leaf")
+            # `leaf` may be a single path or a list of candidate paths (the
+            # ai-only output shape is unstable run-to-run, e.g. ALTA). Pick the
+            # first candidate that carries a value; fall back to the first path.
+            leaf_spec = spec.get("leaf")
+            candidates = leaf_spec if isinstance(leaf_spec, list) else [leaf_spec]
+            leaf = candidates[0]
+            manifest_value = flat.get(leaf)
+            for cand in candidates:
+                v = flat.get(cand)
+                if v not in (None, "", [], {}):
+                    leaf, manifest_value = cand, v
+                    break
             res = resolve_field(
                 cat, leaf,
-                manifest_value=flat.get(leaf),
+                manifest_value=manifest_value,
                 validator=spec.get("validator"),
                 config_path=config_path,
                 shadow_logger=shadow_logger,
