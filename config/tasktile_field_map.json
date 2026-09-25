@@ -168,6 +168,14 @@
         "du_property_address": { "leaf": "propertyAddress.address1" }
       }
     },
+    "1118": {
+      "_doc_type": "Fraud Report",
+      "_note": "now rich on the ai-only path (fraudAlertStatus/fraudScore/addressHistory[]); addressHistory is a composite array so not mapped.",
+      "fields": {
+        "fraud_alert_status": { "leaf": "fraudAlertStatus" },
+        "fraud_score":        { "leaf": "fraudScore" }
+      }
+    },
     "984": {
       "_doc_type": "Loan Estimate",
       "fields": {

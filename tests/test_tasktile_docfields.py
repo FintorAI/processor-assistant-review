@@ -127,8 +127,23 @@ def test_resolve_and_fill_du_findings_and_mi():
     assert f["first_renewal_percent"] == "0.18"
 
 
+def test_resolve_and_fill_fraud_report():
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "fr", "category_id": None, "metadata": {
+            "group_name": "Fraud Report", "date": "2026-01-01",
+            "fraudAlertStatus": "High", "fraudScore": 762,
+            "addressHistory": [{"address1": "1 Main", "city": "SF"}],
+        }},
+    ]}
+    proposals = dfx.resolve_and_fill({}, manifest, {"fr": "Fraud Report"}, apply=True)
+    f = {p["field_key"]: p["value"] for p in proposals}
+    assert f["fraud_alert_status"] == "High"
+    assert f["fraud_score"] == 762
+
+
 def test_category_for_doc_type_tranche():
     assert dfx.category_for_doc_type("Purchase Agreement") == 200
+    assert dfx.category_for_doc_type("Fraud Report") == 1118
     assert dfx.category_for_doc_type("Title Report") == 522
     assert dfx.category_for_doc_type("Transmittal Summary") == 351
     assert dfx.category_for_doc_type("MI Certificate") == 141

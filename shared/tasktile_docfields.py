@@ -84,6 +84,7 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "DU Findings": 324,
     "AUS Certificate": 324,
     "Conditional Commitment": 324,
+    "Fraud Report": 1118,
 }
 
 
