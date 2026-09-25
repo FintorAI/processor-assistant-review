@@ -18,6 +18,57 @@
         "credit_reference_number": { "leaf": "creditReferenceNumber" }
       }
     },
+    "16": {
+      "_doc_type": "Paystubs",
+      "fields": {
+        "employer_name":         { "leaf": "employer.name" },
+        "pay_period_start":      { "leaf": "payStubPeriodFrom", "validator": "date" },
+        "pay_period_end":        { "leaf": "payStubPeriodTo",   "validator": "date" },
+        "ytd_gross_pay":         { "leaf": "YTD" },
+        "gross_pay_this_period": { "leaf": "current" },
+        "hourly_rate":           { "leaf": "hourlyRate" },
+        "hours_worked":          { "leaf": "hoursWorked" }
+      }
+    },
+    "25": {
+      "_doc_type": "W-2",
+      "fields": {
+        "employer_name":                { "leaf": "employer.name" },
+        "employer_ein":                 { "leaf": "employer.EIN" },
+        "tax_year":                     { "leaf": "year" },
+        "wages_tips_other_compensation": { "leaf": "wagesTipsOtherCompensation" },
+        "medicare_wages":               { "leaf": "box5" }
+      }
+    },
+    "436": {
+      "_doc_type": "Verification of Employment",
+      "fields": {
+        "current_employer_name":            { "leaf": "employer.name" },
+        "current_rate_of_pay":              { "leaf": "rateOfPay" },
+        "current_pay_frequency":            { "leaf": "frequencyOfPay" },
+        "current_avg_hours_per_pay_period": { "leaf": "averageHoursPerPayPeriod" },
+        "verification_date":                { "leaf": "VOEDate", "validator": "date" },
+        "current_original_hire_date":       { "leaf": "dateOfEmployment", "validator": "date" },
+        "current_employer_street":          { "leaf": "employerAddress.address1" },
+        "current_employer_city":            { "leaf": "employerAddress.city" },
+        "current_employer_state":           { "leaf": "employerAddress.state" },
+        "current_employer_zip":             { "leaf": "employerAddress.zipCode" },
+        "current_employer_address":         { "leaf": "employerAddress.fullAddress" }
+      }
+    },
+    "502": {
+      "_doc_type": "Bank Statement",
+      "_note": "account-level leaves are arrays; flatten() takes the first account (obj[0]).",
+      "fields": {
+        "institution_name":       { "leaf": "bank.name" },
+        "account_type":           { "leaf": "accounts.[].accountType" },
+        "account_number":         { "leaf": "accounts.[].accountNumber" },
+        "ending_balance":         { "leaf": "accounts.[].endingBalance" },
+        "bank_large_deposits":    { "leaf": "accounts.[].hasLargeDepositWithdrawal" },
+        "statement_period_start": { "leaf": "statementPeriodFrom", "validator": "date" },
+        "statement_period_end":   { "leaf": "statementPeriodTo",   "validator": "date" }
+      }
+    },
     "984": {
       "_doc_type": "Loan Estimate",
       "fields": {
