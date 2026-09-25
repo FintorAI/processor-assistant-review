@@ -1,5 +1,20 @@
 # TaskTile `rns_ai_only` — actual extracted data vs. AWM schema
 
+> ## ⚠️ UPDATE 2026-09-25 — VOE mis-extraction (436) + homeowners policy routes to 1479
+> Two agent-side validations run against real docs:
+>
+> - **436 Verification of Employment — ❌ NOT extracted (TaskTile-side).** Ran `rns_ai_only` on
+>   TWO real Truework VOEs from loan 2604964148 (`VOE - Truework` job `c1b93443`, `PVOE - Truework`
+>   job `20ede7d0`). Both returned only `loanType` / `loanAmount` (`"Pre-approval"` / `15116.41`,
+>   and `""` / `0`) — **none** of the AWM VOE fields (`employer.name`, `rateOfPay`, `frequencyOfPay`,
+>   `averageHoursPerPayPeriod`, `VOEDate`, `dateOfEmployment`, `employerAddress.*`). The 436
+>   field_map is structurally correct but fills **nothing** today. **Raise with TaskTile** — the
+>   ai-only extractor misclassifies the VOE as a loan/pre-approval doc.
+> - **1479 Property Insurance — ✅ wired.** The actual homeowners POLICY classifies as **1479**
+>   (not 1561 Evidence of Insurance) on the ai-only path (loan 2606970588). Added a 1479 field_map
+>   entry mirroring 1561 (+`insured_location`) so it fills regardless of the unstable classification.
+> - **Form 1040 (10)** — routing alias kept, intentionally UNMAPPED (0 data leaves on ai-only).
+
 > ## ✅ UPDATE 2026-09-23d — bootstrapped 5 more categories (Poti loan) + found source loans for the rest
 > Ran `rns_ai_only` on loan 2609978332 (Sarah Poti, job `badfc59f-b1c3-4e2d-a7e9-23dca8667f5c`) over 5
 > Group-A docs, then pipeline-scanned 80 recent loans to locate source docs for the remaining gaps.
