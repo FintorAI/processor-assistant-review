@@ -185,8 +185,11 @@ def test_resolve_and_fill_appraisal():
          dfx.resolve_and_fill({}, manifest, {"ap": "Appraisal (URAR / 1004)"}, apply=True)}
     assert f["property_type"] == "Twin"
     assert f["parcel_number"] == "335-08.07-141.01"
-    # rich fields (value/appraiser/condition) have no processor target -> not filled
-    assert "appraised_value" not in f
+    # cross-wired global keys: appraisal is the authoritative source
+    assert f["appraised_value"] == 831000
+    assert f["flood_zone"] == "X"
+    # Bucket A registry gap: appraiser/condition/yearBuilt have no processor field
+    assert "appraiser_name" not in f and "year_built" not in f
 
 
 def test_resolve_and_fill_single_leaf_still_works():

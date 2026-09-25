@@ -178,10 +178,12 @@
     },
     "162": {
       "_doc_type": "Appraisal (URAR / 1004)",
-      "_note": "ai-only returns AWM shape (value/appraiser/condition/floodZone/yearBuilt) but the processor's appraisal doc-type has no target fields for those; only property_type + parcel_number overlap. Rich appraiser/value/condition data is a processor-side field-registry gap.",
+      "_note": "ai-only returns AWM shape (value/appraiser/condition/floodZone/yearBuilt). property_type/parcel_number map directly. appraised_value + flood_zone are GLOBAL field_keys (also owned by du_findings/transmittal/flood_certificate) - the appraisal is the authoritative source, so cross-wire them (fill-when-missing, never clobbers). No processor field yet exists for appraiser.*/yearBuilt/condition-rating (Bucket A registry gap).",
       "fields": {
-        "property_type": { "leaf": "propertyType" },
-        "parcel_number": { "leaf": "parcelNumber" }
+        "property_type":   { "leaf": "propertyType" },
+        "parcel_number":   { "leaf": "parcelNumber" },
+        "appraised_value": { "leaf": "value" },
+        "flood_zone":      { "leaf": "floodZone" }
       }
     },
     "2168": {
