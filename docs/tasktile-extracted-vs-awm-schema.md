@@ -1,5 +1,38 @@
 # TaskTile `rns_ai_only` — actual extracted data vs. AWM schema
 
+> ## ⚠️ UPDATE 2026-09-25 — agent-side wiring shipped + VOE (436) confirmed broken TaskTile-side
+> Session on branch `feat/tasktile-more-doc-maps` (PR #52). Field_map coverage now spans ~19
+> categories, each verified against a real `rns_ai_only` manifest (not the AWM schema, which the
+> ai-only path does not honor).
+>
+> **✅ Agent-side fixes shipped (no new Encompass fields — route into existing slots only):**
+> - **Co-borrower Govt IDs (323/845/844).** `resolve_and_fill` now stacks each ID doc as a
+>   `dl_gov_id` **copy** (borrower = copy 0, co-borrower = copy 1, …) + an aligned `dl_borrower_name`
+>   copy. `review_borrower_summary._write_government_id` matches copies to people by name (else copy
+>   order) and writes **5053 (borrower) / 5054 (co-borrower)**. Verified on real 2-DL job `a2643fae`:
+>   GERARDO TORRES `D4913348` → 5053, ILIANA VELASCO `D9123301` → 5054 (name-match corrected the
+>   reversed doc order). TaskTile does **not** need a co-borrower field — the DL schema is correctly
+>   single-person; each borrower's ID is a separate attachment, both are extracted.
+> - **ALTA escrow / file # (2168 → Encompass 186).** `contact_settlement_agent_file_number` wired
+>   (candidate leaves `fileNumber` | `escrow.escrowNumber`) → `ESCROW_COMPANY.referenceNumber` →
+>   field 186. Verified: `14576 - SM`.
+> - **1479 Property Insurance — wired.** The actual homeowners POLICY classifies as **1479**
+>   (not 1561 Evidence of Insurance) on the ai-only path (loan 2606970588), and the classification is
+>   unstable. Added a 1479 field_map entry mirroring 1561 (+`insured_location`, an existing doc key)
+>   so it fills regardless of which category it lands in. Verified: `Farmers Insurance` / `2026-09-12`
+>   / `264 Occidental Dr` across all 4 route names.
+> - **Form 1040 (10)** — routing alias kept, intentionally UNMAPPED (0 data leaves on ai-only).
+> - Candidate-leaf lists (str **or** list; first present wins) added throughout to absorb the
+>   run-to-run shape instability.
+>
+> **❌ Raise with TaskTile (newly confirmed): 436 Verification of Employment NOT extracted.**
+> Ran `rns_ai_only` on TWO real Truework VOEs from loan 2604964148 (`VOE - Truework` job `c1b93443`,
+> `PVOE - Truework` job `20ede7d0`). Both returned only `loanType` / `loanAmount`
+> (`"Pre-approval"` / `15116.41`, and `""` / `0`) — **none** of the AWM VOE fields (`employer.name`,
+> `rateOfPay`, `frequencyOfPay`, `averageHoursPerPayPeriod`, `VOEDate`, `dateOfEmployment`,
+> `employerAddress.*`). The 436 field_map is structurally correct but fills **nothing** — the ai-only
+> extractor misclassifies the VOE as a loan/pre-approval doc.
+
 > ## ✅ UPDATE 2026-09-23d — bootstrapped 5 more categories (Poti loan) + found source loans for the rest
 > Ran `rns_ai_only` on loan 2609978332 (Sarah Poti, job `badfc59f-b1c3-4e2d-a7e9-23dca8667f5c`) over 5
 > Group-A docs, then pipeline-scanned 80 recent loans to locate source docs for the remaining gaps.
@@ -110,6 +143,7 @@ Legend: ✅ data present · ⚠️ partial (some sub-fields or shape differs) ·
 | `expirationDate` | ✅ | |
 
 **Net:** every DL field the processor needs now extracts. Category promoted to bucket 1 (no overrides).
+✅ **Co-borrower (2026-09-25):** borrower + co-borrower IDs are separate attachments and **both extract**; `resolve_and_fill` stacks them as `dl_gov_id` copies so field 5053 (borrower) **and** 5054 (co-borrower) are written. Same multi-copy path applies to 845 Passport / 844 Green Card.
 
 ---
 
@@ -234,20 +268,34 @@ Scores + identity extract; tradelines still don't; SSN downgraded to last-4.
 4. ✅ **MI premium / renewal** now extract off the quote.
 5. ✅ **ALTA title/recording charges** now return `description` + `buyerDebit` (not amount-only).
 
-**Still open / to raise with TaskTile:**
-6. ❌ **Credit tradelines / collections / derogatory / public records / inquiries** — still only scores + identity.
-7. ⚠️ **Credit SSN downgraded** to last-4 only (was full SSN pre-fix) — confirm intended.
-8. ❌ **Flood (538) regressed** — lost flood zone / determination# / NFIP.
-9. ❌ **CPL (167) regressed** — down to CPLDate + issuingAgent.
-10. ⚠️ **Output shape is unstable run-to-run** — the regressions (#8/#9) landed in the same run that fixed everything else. `rns_ai_only` still ignores the AWM `content_schema` for field *names*; treat single results as directional and let shadow mode confirm.
-11. **MI `certificateNumber` / `miFileNumber`** — re-test with an *issued* MI cert (this doc is a rate quote), not a gap on a quote.
+**Still open / to raise with TaskTile (consolidated — as of 2026-09-25):**
+
+*Not extracted / broken (block real fields):*
+1. ❌ **VOE (436) not extracted** — two real Truework VOEs returned only `loanType`/`loanAmount`; no `employer.*`/`rateOfPay`/`frequencyOfPay`/hours/`VOEDate`/`dateOfEmployment`. Misclassified as a loan/pre-approval doc. *(job `c1b93443`, `20ede7d0`)*
+2. ❌ **Flood (538) regressed** — lost `floodZone` / `determinationNumber` / NFIP community+map (the whole point of the doc).
+3. ❌ **Issued MI cert (816/1838) misclassified as 375** — only `borrowers[]`; cert#/premium not extracted. *(job on loan 2606970248)*
+4. ❌ **Business Tax Return (1) misclassified as 2191** — only `borrowers[]`; `corporation.name`/financials not extracted. *(loan 2602958672)*
+5. ❌ **Credit (117) tradelines / collections / derogatory / public records / inquiries** — still only scores + identity.
+
+*Degraded / partial:*
+6. ⚠️ **Credit (117) SSN downgraded** to last-4 only (was full SSN pre-fix) — confirm intended.
+7. ❌ **CPL (167) regressed** — down to `CPLDate` + `issuingAgent`. *(low priority — ALTA now covers escrow/file# directly)*
+8. ⚠️ **UW Decision (352) sparse** — only `borrowers[]`; conditions/status not extracted.
+9. ⚠️ **ALTA (2168)** — `titleCharges[].paidTo` + empty `settlementAgent` sub-fields (`contact`/`email`/`stLicenseId`).
+10. ⚠️ **Purchase (200)** `sellerCreditAmount` — not present on tested contract; confirm.
+11. ⚠️ **Homeowners policy (1479)** — `policyNumber` / `coverage` / `effectiveDate` / `agent` not extracted (company/type/expiry/address only).
+
+*Untestable / systemic:*
+12. ❓ **Passport (845)** — no source doc found in an 80-loan scan; extractor behavior unknown.
+13. ⚠️ **Output shape unstable run-to-run** — regressions land in the same job as fixes; `rns_ai_only` ignores the AWM `content_schema` for field *names*. Mitigated agent-side via candidate-leaf lists; treat single results as directional.
+14. **MI (141) `certificateNumber` / `miFileNumber`** — re-test with an *issued* cert (the tested doc is a rate quote), not a gap on a quote.
 
 ---
 
 ## Still-untested / missing categories (2026-09-23d)
 
-**Categories exercised (25 have a `tested_job`):** 1, 14, 117, 141, 167, 194, 200, 323, 324, 349, 351, 352, 522, 538, 816, 819, 843, 844, 984, 1118, 1479, 1481, 1482, 2044, 2168.
-*(Of these, `816` and `1` "ran" but FAILED — see Section B; `352` sparse. The other 22 extract usefully.)*
+**Categories exercised (26 have a `tested_job`):** 1, 14, 117, 141, 167, 194, 200, 323, 324, 349, 351, 352, 436, 522, 538, 816, 819, 843, 844, 984, 1118, 1479, 1481, 1482, 2044, 2168.
+*(Of these, `816`, `1`, and `436` "ran" but FAILED — see Section B / the 2026-09-25 update; `352` sparse. `10` Form 1040 = routing-only, intentionally unmapped. The rest extract usefully.)*
 
 ### A. RAN 2026-09-23d on loan 2609978332 (Sarah Poti, job `badfc59f`) — ✅ DONE
 ai_only classified these differently from the filenames — trust the returned `category_id`:
@@ -265,7 +313,7 @@ ai_only classified these differently from the filenames — trust the returned `
 |---|---|---|
 | **844** Permanent Resident Card | 2602958672 / `Green card-FrontBack.pdf` | ✅ **`resident.idNumber`** + resident name/DOB/issueDate + expirationDate — **co-borrower Govt-ID (Issue A) now works for green cards** |
 | **843** Social Security ID | 2607974430 / `Social Security Card.pdf` | ✅ **`owner.SSN`** (full) + owner name |
-| **1479** Property Insurance *(new cat)* | 2606970588 / `… Homeowners Insurance Policy` | ⚠️ company.name, policyType, expirationDate, owners[], propertyAddresses[]; **missing** policyNumber, coverage, effectiveDate, agent |
+| **1479** Property Insurance *(new cat)* | 2606970588 / `… Homeowners Insurance Policy` | ⚠️ company.name, policyType, expirationDate, owners[], propertyAddresses[]; **missing** policyNumber, coverage, effectiveDate, agent. ✅ **WIRED 2026-09-25** — field_map 1479 (=1561) fills company/end-date/insured_location. |
 | **816 / 1838** issued MI cert | 2606970248 / `Mortgage Insurance Certificate.pdf` | ❌ **misclassified as 375 Identifying Documentations** — only borrowers[]; cert#/premium NOT extracted → raise with TaskTile |
 | **1** Business Tax Return | 2602958672 / `LLC Business Tax Return - 2024` | ❌ **misclassified as 2191 Form 1099-K** — only borrowers[]; corporation.name/financials NOT extracted → raise with TaskTile |
 | **845** Passport | ❌ no source loan found in 80-loan scan | still open |
