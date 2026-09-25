@@ -127,6 +127,50 @@ def test_resolve_and_fill_du_findings_and_mi():
     assert f["first_renewal_percent"] == "0.18"
 
 
+def test_resolve_and_fill_green_card_govt_id():
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "gc", "category_id": None, "metadata": {
+            "group_name": "Permanent Resident Card",
+            "resident": {"idNumber": "219-909-413", "firstName": "MARIA",
+                         "lastName": "ACUNA LOPEZ", "DOB": "1993-04-12"},
+            "expirationDate": "2024-03-23"}},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, manifest, {"gc": "Permanent Resident Card"}, apply=True)}
+    assert f["dl_gov_id"] == "219-909-413"          # hyphenated USCIS/A-number now accepted
+    assert f["borrower_first_name"] == "MARIA"
+    assert f["borrower_dob"] == "1993-04-12"
+
+
+def test_resolve_and_fill_bucketb_leftovers():
+    # LE cost fields
+    le = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "le", "category_id": None, "metadata": {
+            "group_name": "Loan Estimate", "loanEstimate": {
+                "estimatedClosingCosts": 27390,
+                "loanCosts": {"originationCharges": 2190}}}}]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, le, {"le": "Loan Estimate"}, apply=True)}
+    assert f["le_origination_charges"] == 2190
+    assert f["le_estimated_closing_costs"] == 27390
+    # MI upfront
+    mi = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "m", "category_id": None, "metadata": {
+            "group_name": "MI Certificate", "upfrontPremiumAmount": "8002.8"}}]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, mi, {"m": "MI Certificate"}, apply=True)}
+    assert f["upfront_premium_amount"] == "8002.8"
+    # Credit dob + score (score via array first element)
+    cr = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "c", "category_id": None, "metadata": {
+            "group_name": "Credit Report",
+            "borrower": {"dob": "04/19/1989", "creditScore": [{"score": "802"}]}}}]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, cr, {"c": "Credit Report"}, apply=True)}
+    assert f["borrower_dob"] == "04/19/1989"
+    assert f["credit_score"] == "802"
+
+
 def test_resolve_and_fill_fraud_report():
     manifest = {"_processor": {"job_id": "T"}, "documents": [
         {"root_attachment_id": "fr", "category_id": None, "metadata": {

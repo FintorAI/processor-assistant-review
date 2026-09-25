@@ -12,10 +12,34 @@
         "dl_expiry":           { "leaf": "expirationDate",   "validator": "date" }
       }
     },
+    "844": {
+      "_doc_type": "Permanent Resident Card",
+      "_note": "Govt ID from a green card fills the SAME global dl_gov_id/name/dob slots as a DL (per-attachment; TaskTile extracts resident.idNumber).",
+      "fields": {
+        "dl_gov_id":           { "leaf": "resident.idNumber", "validator": "id_number" },
+        "borrower_first_name": { "leaf": "resident.firstName" },
+        "borrower_last_name":  { "leaf": "resident.lastName" },
+        "borrower_dob":        { "leaf": "resident.DOB", "validator": "date" },
+        "dl_expiry":           { "leaf": "expirationDate", "validator": "date" }
+      }
+    },
+    "845": {
+      "_doc_type": "Passport",
+      "_note": "Govt ID from a passport fills the SAME global dl_gov_id/name/dob slots as a DL.",
+      "fields": {
+        "dl_gov_id":           { "leaf": "owner.idNumber", "validator": "id_number" },
+        "borrower_first_name": { "leaf": "owner.firstName" },
+        "borrower_last_name":  { "leaf": "owner.lastName" },
+        "borrower_dob":        { "leaf": "owner.DOB", "validator": "date" },
+        "dl_expiry":           { "leaf": ["dateOfExpiration", "expirationDate"], "validator": "date" }
+      }
+    },
     "117": {
       "_doc_type": "Credit Report",
       "fields": {
-        "credit_reference_number": { "leaf": "creditReferenceNumber" }
+        "credit_reference_number": { "leaf": "creditReferenceNumber" },
+        "borrower_dob":            { "leaf": "borrower.dob", "validator": "date" },
+        "credit_score":            { "leaf": "borrower.creditScore.[].score" }
       }
     },
     "16": {
@@ -133,7 +157,8 @@
         "first_renewal_months":   { "leaf": "renewal.firstMonths" },
         "second_renewal_percent": { "leaf": "renewal.secondPercent" },
         "second_renewal_months":  { "leaf": "renewal.secondMonths" },
-        "cancel_at_percent":      { "leaf": "cancelAtPercent" }
+        "cancel_at_percent":      { "leaf": "cancelAtPercent" },
+        "upfront_premium_amount": { "leaf": "upfrontPremiumAmount" }
       }
     },
     "1561": {
@@ -211,7 +236,9 @@
         "le_loan_purpose":   { "leaf": "loanEstimate.purpose" },
         "le_loan_type":      { "leaf": "loanEstimate.loanType" },
         "le_loan_product":   { "leaf": "loanEstimate.product" },
-        "le_disclosed_apr":  { "leaf": "loanEstimate.comparisons.annualPercentageRate" }
+        "le_disclosed_apr":  { "leaf": "loanEstimate.comparisons.annualPercentageRate" },
+        "le_origination_charges":     { "leaf": "loanEstimate.loanCosts.originationCharges" },
+        "le_estimated_closing_costs": { "leaf": "loanEstimate.estimatedClosingCosts" }
       }
     }
   }
