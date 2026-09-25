@@ -172,6 +172,23 @@ def test_resolve_and_fill_alta_candidate_leaves():
     assert f["ess_cash_to_close"] == "31041.19"
 
 
+def test_resolve_and_fill_appraisal():
+    # ai-only returns rich AWM shape but only property_type + parcel_number have targets
+    manifest = {"_processor": {"job_id": "T"}, "documents": [
+        {"root_attachment_id": "ap", "category_id": None, "metadata": {
+            "group_name": "Appraisal", "value": 831000, "appraisalDate": "2026-04-18",
+            "propertyType": "Twin", "yearBuilt": 1900, "parcelNumber": "335-08.07-141.01",
+            "floodZone": "X", "appraiser": {"name": "Harold Lankenau"}, "condition": "C3",
+        }},
+    ]}
+    f = {p["field_key"]: p["value"] for p in
+         dfx.resolve_and_fill({}, manifest, {"ap": "Appraisal (URAR / 1004)"}, apply=True)}
+    assert f["property_type"] == "Twin"
+    assert f["parcel_number"] == "335-08.07-141.01"
+    # rich fields (value/appraiser/condition) have no processor target -> not filled
+    assert "appraised_value" not in f
+
+
 def test_resolve_and_fill_single_leaf_still_works():
     # backward-compat: a plain string leaf must behave exactly as before
     manifest = {"_processor": {"job_id": "T"}, "documents": [

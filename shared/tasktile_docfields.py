@@ -88,6 +88,9 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "Estimated Settlement Statement": 2168,
     "ESS": 2168,
     "Settlement Statement": 2168,
+    "Appraisal (URAR / 1004)": 162,
+    "Appraisal Report": 162,
+    "Appraisal": 162,
 }
 
 

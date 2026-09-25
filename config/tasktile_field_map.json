@@ -176,6 +176,14 @@
         "fraud_score":        { "leaf": "fraudScore" }
       }
     },
+    "162": {
+      "_doc_type": "Appraisal (URAR / 1004)",
+      "_note": "ai-only returns AWM shape (value/appraiser/condition/floodZone/yearBuilt) but the processor's appraisal doc-type has no target fields for those; only property_type + parcel_number overlap. Rich appraiser/value/condition data is a processor-side field-registry gap.",
+      "fields": {
+        "property_type": { "leaf": "propertyType" },
+        "parcel_number": { "leaf": "parcelNumber" }
+      }
+    },
     "2168": {
       "_doc_type": "Estimated Settlement Statement / ALTA",
       "_note": "ai-only ALTA shape is unstable run-to-run; each field lists candidate leaves (first present wins). Fee arrays intentionally skipped.",
