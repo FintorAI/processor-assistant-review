@@ -188,11 +188,21 @@ def test_resolve_and_fill_id_copy_dedupes_same_person():
 def test_resolve_and_fill_homeowners_policy_1479_and_1561():
     # A homeowners policy classifies as 1479 (not 1561) on the ai-only path, and
     # the classification is unstable — both categories must fill identically.
+    # TaskTile fix validated 2026-09-30 (job 13cd0dcc): the full policy schema
+    # now populates — policyNumber, effectiveDate, totalPremium, coverage.*,
+    # agent.*, mortgageeClause — all into pre-existing evidence_of_insurance keys.
     doc = {"root_attachment_id": "ins", "category_id": None, "metadata": {
         "group_name": "Homeowners Insurance Policy",
         "company": {"name": "Farmers Insurance"},
         "policyType": "Homeowners",
+        "policyNumber": "95804-94-41",
+        "effectiveDate": "2025-09-12",
         "expirationDate": "2026-09-12",
+        "totalPremium": 1072,
+        "coverage": {"dwelling": 288000, "deductible": 500, "windHail": 0},
+        "agent": {"name": "Emmanuel Basurto", "phone": "(805) 485-2195",
+                  "email": "ebasurto1@farmersagent.com"},
+        "mortgageeClause": "Pennymac Loan Services LLC, ISAOA, PO Box 6618",
         "propertyAddresses": [{"address1": "264 Occidental Dr", "city": "Oxnard"}]}}
     for route, expect_cat in (("Property Insurance", 1479),
                               ("Homeowners Insurance Policy", 1479),
@@ -203,8 +213,59 @@ def test_resolve_and_fill_homeowners_policy_1479_and_1561():
         dfx.resolve_and_fill(df, {"documents": [doc]}, {"ins": route}, apply=True)
         f = {k: v["value"] for k, v in df.items()}
         assert f["hazard_insurance_company"] == "Farmers Insurance"
+        assert f["policy_number"] == "95804-94-41"
+        assert f["coverage_start_date"] == "2025-09-12"
         assert f["coverage_end_date"] == "2026-09-12"
+        assert f["hazard_insurance_premium"] == 1072
+        assert f["hazard_insurance_coverage"] == 288000
+        assert f["deductible"] == 500
+        assert f["hazard_insurance_contact"] == "Emmanuel Basurto"
+        assert f["agent_email"] == "ebasurto1@farmersagent.com"
+        assert f["mortgagee_name"].startswith("Pennymac")
         assert f["insured_location"] == "264 Occidental Dr"
+
+
+def test_resolve_and_fill_flood_zone_538_and_1800():
+    # TaskTile fix validated 2026-09-30 (job 99021b7f): floodZone + inSFHA
+    # restored. ai-only classifies flood as either 538 or 1800 — both fill.
+    doc = {"root_attachment_id": "fl", "category_id": None, "metadata": {
+        "group_name": "Flood Report", "date": "2026-08-17",
+        "lender": "All Western Mortgage Inc.", "floodZone": "X", "inSFHA": False,
+        "communityNumber": "060169", "determinationDate": "2026-08-17"}}
+    for route, expect_cat in (("Flood Certificate", 538),
+                              ("Standard Flood Hazard Determination", 538),
+                              ("Flood Hazard Determination", 1800)):
+        assert dfx.category_for_doc_type(route) == expect_cat
+        df = {}
+        dfx.resolve_and_fill(df, {"documents": [doc]}, {"fl": route}, apply=True)
+        assert df["flood_zone"]["value"] == "X"
+        assert df["in_sfha"]["value"] is False
+        # community/map/determination#/order# have NO processor slot (Bucket A)
+        assert "community_number" not in df
+
+
+def test_resolve_and_fill_cpl_address_flat_or_object():
+    # TaskTile's 2026-09-30 CPL fix returns settlementAgent.address as a FLAT
+    # STRING (was a nested object). Candidate leaf must handle both shapes.
+    flat = {"root_attachment_id": "cpl", "category_id": None, "metadata": {
+        "group_name": "Closing Protection Letter", "CPLDate": "2026-08-14",
+        "settlementAgent": {"name": "Fidelity National Title Company",
+                            "address": "3760 Kilroy Airport Way Ste 110, Long Beach, CA"}}}
+    df = {}
+    dfx.resolve_and_fill(df, {"documents": [flat]},
+                         {"cpl": "Closing Protection Letter"}, apply=True)
+    assert df["cpl_issue_date"]["value"] == "2026-08-14"
+    assert df["settlement_agent_name"]["value"] == "Fidelity National Title Company"
+    assert df["settlement_agent_address"]["value"].startswith("3760 Kilroy")
+
+    # legacy nested-object shape still works via the fallback candidate
+    obj = {"root_attachment_id": "cpl", "category_id": None, "metadata": {
+        "group_name": "Closing Protection Letter",
+        "settlementAgent": {"address": {"street": "1 Old Object Way"}}}}
+    df = {}
+    dfx.resolve_and_fill(df, {"documents": [obj]},
+                         {"cpl": "Closing Protection Letter"}, apply=True)
+    assert df["settlement_agent_address"]["value"] == "1 Old Object Way"
 
 
 def test_form_1040_routes_but_is_unmapped():

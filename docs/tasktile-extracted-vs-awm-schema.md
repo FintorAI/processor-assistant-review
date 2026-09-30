@@ -170,18 +170,23 @@ Legend: ✅ data present · ⚠️ partial (some sub-fields or shape differs) ·
 
 ---
 
-## 167 — Closing Protection Letter  ❌ REGRESSED
+## 167 — Closing Protection Letter  ✅ FIXED (2026-09-30 retest, job `1aeea1db`)
 
-Was rich in 6e2a2c0d (settlementAgent.name = title company, `fileNumber`, property) — the fix **collapsed it**:
+Regressed in a2643fae (collapsed to CPLDate + issuingAgent); TaskTile pushed a fix and the
+**2026-09-30 retest restored the fields** (loan 2608976334, att `a34ea2a6`, job `1aeea1db-4190-489d-8302-d602828ecd4c`):
 
 | AWM schema field | Extracted? | Notes |
 |---|---|---|
-| `CPLDate` | ✅ | as `CPLDate` |
-| `issuingAgent` | ✅ | as `issuingAgent` |
-| `settlementAgent.*` / `fileNumber` / `property` | ❌ | **REGRESSED** — no longer returned (were present pre-fix) |
+| `CPLDate` | ✅ | `2026-08-14` |
+| `issuingAgent` | ✅ | `Fidelity National Insurance Company Title` (serves as the title underwriter) |
+| `fileNumber` | ✅ | **RESTORED** — `1500-2505564` |
+| `lender` | ✅ | **NEW** — `All Western Mortgage, Inc. ISAOA/ATIMA` |
+| `settlementAgent.{name,address,phone}` | ✅ | **RESTORED** — `Fidelity National Title Company` / `3760 Kilroy Airport Way…` / `310-620-5522` |
 
-**Net:** CPL is no longer a useful Issue-B source, but the ALTA now covers that directly. Demoted to bucket 3; monitor — `ai_only` shape is unstable run-to-run.
-⚠️ **Still open (raise with TaskTile):** collapsed to CPLDate + issuingAgent — `settlementAgent.*` / `fileNumber` / `property` **regressed** (bucket 3, fall back).
+**Net:** CPL is a useful settlement-agent source again. ⚠️ **Shape change:** `settlementAgent.address` is now a
+**flat string** (was a nested object) — the 167 field_map `settlement_agent_address` leaf was updated to a
+candidate list (`settlementAgent.address` | `settlementAgent.address.street`) so both shapes fill.
+No distinct `titleUnderwriter` key (use `issuingAgent`).
 
 ---
 
@@ -224,19 +229,21 @@ Was rich in 6e2a2c0d (settlementAgent.name = title company, `fileNumber`, proper
 
 ---
 
-## 538 — Flood Certification  ❌ REGRESSED
+## 538 / 1800 — Flood Certification / Determination  ✅ FIXED (2026-09-30 retest, job `99021b7f`)
 
-Was rich in 6e2a2c0d (flood zone, determination#, NFIP) — the fix **collapsed it**:
+Regressed in a2643fae; TaskTile restored the flood-determination fields. **2026-09-30 retest**
+(loan 2608976334, att `83fef909`, job `99021b7f-3a80-4f8a-9bca-53bfe3363469`):
 
-| AWM schema field | Extracted? | Notes |
-|---|---|---|
-| `date` | ✅ | top-level `date` |
-| `lender` | ✅ | |
-| `borrowers[]` | ✅ | `borrowers[].firstName/lastName/middleName` |
-| `floodZone` / `determinationNumber` / NFIP community+map | ❌ | **REGRESSED** — no longer returned (were present pre-fix) |
+| AWM schema field | Extracted? | Processor slot | Notes |
+|---|---|---|---|
+| `floodZone` | ✅ | `flood_zone` (GLOBAL) | `X` — **RESTORED**; wired 538+1800, cross-fills w/ appraisal/du/transmittal |
+| `inSFHA` | ✅ | `in_sfha` | `false` — **RESTORED**; wired 538+1800 |
+| `date` / `lender` / `borrowers[]` | ✅ | — | metadata only |
+| `communityNumber` / `mapPanel` / `mapDate` / `determinationDate` / `floodDeterminationNumber` / `orderNumber` | ✅ | ❌ none | **Bucket A** — no processor field; not added (no-new-field policy) |
 
-**Net:** the flood-determination fields (the whole point) are now missing. Demoted to bucket 3; fall back for flood-zone fields. Monitor — `ai_only` shape is unstable.
-⚠️ **Still open (raise with TaskTile):** flood zone / determination# / NFIP community+map **regressed** (bucket 3, fall back).
+**Net:** the two flood fields we can consume (`flood_zone`, `in_sfha`) are back and **wired** into the field_map
+(cats 538 + 1800 — ai-only classifies flood as either). Bucket bumped 3→1. The 6 NFIP/map identifiers are
+extracted but have no processor slot, so they're intentionally dropped.
 
 ---
 
@@ -272,18 +279,18 @@ Scores + identity extract; tradelines still don't; SSN downgraded to last-4.
 
 *Not extracted / broken (block real fields):*
 1. ❌ **VOE (436) not extracted** — two real Truework VOEs returned only `loanType`/`loanAmount`; no `employer.*`/`rateOfPay`/`frequencyOfPay`/hours/`VOEDate`/`dateOfEmployment`. Misclassified as a loan/pre-approval doc. *(job `c1b93443`, `20ede7d0`)*
-2. ❌ **Flood (538) regressed** — lost `floodZone` / `determinationNumber` / NFIP community+map (the whole point of the doc).
+2. ✅ **Flood (538/1800) FIXED** — `floodZone` + `inSFHA` restored and **wired** (2026-09-30 retest, job `99021b7f`). NFIP community/map/determination# extracted but no processor slot (Bucket A).
 3. ❌ **Issued MI cert (816/1838) misclassified as 375** — only `borrowers[]`; cert#/premium not extracted. *(job on loan 2606970248)*
 4. ❌ **Business Tax Return (1) misclassified as 2191** — only `borrowers[]`; `corporation.name`/financials not extracted. *(loan 2602958672)*
 5. ❌ **Credit (117) tradelines / collections / derogatory / public records / inquiries** — still only scores + identity.
 
 *Degraded / partial:*
 6. ⚠️ **Credit (117) SSN downgraded** to last-4 only (was full SSN pre-fix) — confirm intended.
-7. ❌ **CPL (167) regressed** — down to `CPLDate` + `issuingAgent`. *(low priority — ALTA now covers escrow/file# directly)*
+7. ✅ **CPL (167) FIXED** — TaskTile restored `fileNumber` / `lender` / `settlementAgent.*` (2026-09-30 retest, job `1aeea1db`). Note `settlementAgent.address` is now a flat string; field_map updated. *(no distinct `titleUnderwriter` — use `issuingAgent`)*
 8. ⚠️ **UW Decision (352) sparse** — only `borrowers[]`; conditions/status not extracted.
 9. ⚠️ **ALTA (2168)** — `titleCharges[].paidTo` + empty `settlementAgent` sub-fields (`contact`/`email`/`stLicenseId`).
 10. ⚠️ **Purchase (200)** `sellerCreditAmount` — not present on tested contract; confirm.
-11. ⚠️ **Homeowners policy (1479)** — `policyNumber` / `coverage` / `effectiveDate` / `agent` not extracted (company/type/expiry/address only).
+11. ✅ **Homeowners policy (1479/1561) FIXED** — `policyNumber` / `effectiveDate` / `totalPremium` / `coverage.{dwelling,deductible,windHail}` / `agent.{name,phone,email}` / `mortgageeClause` now extracted and **wired** into existing `evidence_of_insurance` slots (2026-09-30 retest, job `13cd0dcc`). 13 fields fill.
 
 *Untestable / systemic:*
 12. ❓ **Passport (845)** — no source doc found in an 80-loan scan; extractor behavior unknown.
@@ -313,7 +320,7 @@ ai_only classified these differently from the filenames — trust the returned `
 |---|---|---|
 | **844** Permanent Resident Card | 2602958672 / `Green card-FrontBack.pdf` | ✅ **`resident.idNumber`** + resident name/DOB/issueDate + expirationDate — **co-borrower Govt-ID (Issue A) now works for green cards** |
 | **843** Social Security ID | 2607974430 / `Social Security Card.pdf` | ✅ **`owner.SSN`** (full) + owner name |
-| **1479** Property Insurance *(new cat)* | 2606970588 / `… Homeowners Insurance Policy` | ⚠️ company.name, policyType, expirationDate, owners[], propertyAddresses[]; **missing** policyNumber, coverage, effectiveDate, agent. ✅ **WIRED 2026-09-25** — field_map 1479 (=1561) fills company/end-date/insured_location. |
+| **1479** Property Insurance *(new cat)* | 2606970588 / `… Homeowners Insurance Policy` | ✅ **FULLY WIRED 2026-09-30** (retest job `13cd0dcc`) — company, policyType, expirationDate, effectiveDate, policyNumber, totalPremium, coverage.{dwelling,deductible,windHail}, agent.{name,phone,email}, mortgageeClause, owners[], propertyAddresses[]. field_map 1479 (=1561) fills 13 processor slots. |
 | **816 / 1838** issued MI cert | 2606970248 / `Mortgage Insurance Certificate.pdf` | ❌ **misclassified as 375 Identifying Documentations** — only borrowers[]; cert#/premium NOT extracted → raise with TaskTile |
 | **1** Business Tax Return | 2602958672 / `LLC Business Tax Return - 2024` | ❌ **misclassified as 2191 Form 1099-K** — only borrowers[]; corporation.name/financials NOT extracted → raise with TaskTile |
 | **845** Passport | ❌ no source loan found in 80-loan scan | still open |
@@ -324,3 +331,35 @@ ai_only classified these differently from the filenames — trust the returned `
 ### C. Field-level gaps WITHIN tested categories
 Now documented in-place under each category's **Net** line (see the ⚠️ **Still open** notes in
 §2168, §167, §200, §141, §538, §117 above).
+
+---
+
+## D. TaskTile fix batch 2026-09-30 — audit of the 12 flagged categories
+
+TaskTile flagged these doctypes as fixed / newly-extracting. Audited each against our
+**pre-existing** processor field_keys (policy: field_map only routes into existing slots — no new
+Encompass/processor fields are added just to catch manifest data).
+
+| Cat | Doctype | Verdict | Action |
+|---|---|---|---|
+| **167** | Closing Protection Letter | ✅ **WIRED** (job `1aeea1db`) | fileNumber/lender/settlementAgent restored; address now flat string → candidate leaf |
+| **1479 / 1561** | Property Insurance / Hazard | ✅ **WIRED** (job `13cd0dcc`) | +policyNumber, effectiveDate, totalPremium, coverage.*, agent.*, mortgageeClause → 13 slots |
+| **538 / 1800** | Flood Cert / Determination | ✅ **WIRED** (job `99021b7f`) | floodZone + inSFHA → `flood_zone`/`in_sfha`. NFIP/map ids = Bucket A (dropped) |
+| **162** | Appraisal Report | ⚠️ **PARTIAL** (job `053dc53a`) | value/propertyType/parcelNumber/floodZone already wired. NEW appraiser.{name,company,licenseId}/yearBuilt/condition/appraisalDate = **Bucket A** (no processor field) — not added |
+| **352** | Underwriting Decision | ⛔ **BLOCKED** (job `badfc59f`) | not routed to a doc_fields doctype; decisionDate/status/condition-arrays have no clean single-value slot (arrays flatten to first element). Needs a fresh post-fix retest + a routing decision before wiring |
+| **33** | Appraisal Invoice | ⛔ **Bucket A** | no processor doctype/slots — cannot map without new fields |
+| **294** | VA Loan Summary | ⛔ **Bucket A** | no processor doctype/slots |
+| **333** | Loan Approval | ⛔ **Bucket A** | no processor doctype/slots (closest = du_findings, different shape) |
+| **397** | Payoff Statement | ⛔ **Bucket A** | no processor doctype/slots |
+| **447** | VA Certificate of Eligibility | ⛔ **Bucket A** | no processor doctype/slots |
+| **578** | Pest Inspection Report | ⛔ **Bucket A** | no processor doctype/slots |
+| **2087** | Property Inspection | ⛔ **Bucket A** | no processor doctype/slots |
+
+**Wired this batch (3 categories, 4 cat-ids):** 1479+1561 insurance, 538+1800 flood — on top of 167 CPL.
+**Bucket A (blocked by no-new-field policy):** 33, 162's appraiser/condition fields, 294, 333, 397, 447, 578, 2087.
+**Needs decision:** 352 (routing + array shape).
+
+> **Why so many Bucket A:** these doctypes never had processor `doc_fields` registered (they aren't in
+> `output/config/required_docs.json` / `DOC_FIELD_MAP`). TaskTile extracting them doesn't create a
+> destination on our side — wiring them would require **adding new processor/Encompass fields**, which is
+> out of scope per the standing policy. If any of these are wanted, that's a separate registry-expansion task.

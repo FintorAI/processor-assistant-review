@@ -44,6 +44,12 @@ DOC_TYPE_TO_CATEGORY: dict[str, int] = {
     "MI Quote": 141,
     "Flood Certification": 538,
     "Flood Certificate": 538,
+    "Standard Flood Hazard Determination": 538,
+    "Flood Determination": 538,
+    # ai-only sometimes classifies the flood determination as 1800 (same leaves
+    # as 538); both carry the same field_map spec so routing to either fills.
+    "Flood Hazard Determination": 1800,
+    "Flood Hazard Determination Form": 1800,
     "SSN Card": 843,
     "Social Security Card": 843,
     "Property Tax": 1481,
