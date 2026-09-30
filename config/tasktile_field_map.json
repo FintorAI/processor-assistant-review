@@ -163,20 +163,56 @@
     },
     "1561": {
       "_doc_type": "Evidence of Insurance",
-      "_note": "real rns_ai_only returns only company.name/expirationDate/policyType (AWM coverage/agent/policyNumber NOT extracted). insured_location added for parity with 1479 (candidate leaves; fills only if present).",
+      "_note": "TaskTile fix validated 2026-09-30 (job 13cd0dcc, loan 2606970588 classified as 1479 but same schema): now returns policyNumber/effectiveDate/totalPremium/coverage.*/agent.*/mortgageeClause. Same spec as 1479 (ai-only classification is unstable between 1561 and 1479). mortgagee_name holds the full mortgageeClause string (no separate address slot).",
       "fields": {
-        "hazard_insurance_company": { "leaf": "company.name" },
-        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" },
-        "insured_location":         { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
+        "hazard_insurance_company":  { "leaf": "company.name" },
+        "policy_number":             { "leaf": "policyNumber" },
+        "coverage_start_date":       { "leaf": "effectiveDate",  "validator": "date" },
+        "coverage_end_date":         { "leaf": "expirationDate", "validator": "date" },
+        "hazard_insurance_premium":  { "leaf": "totalPremium" },
+        "hazard_insurance_coverage": { "leaf": "coverage.dwelling" },
+        "deductible":                { "leaf": "coverage.deductible" },
+        "wind_hail_deductible":      { "leaf": "coverage.windHail" },
+        "hazard_insurance_contact":  { "leaf": "agent.name" },
+        "hazard_insurance_phone":    { "leaf": "agent.phone" },
+        "agent_email":               { "leaf": "agent.email" },
+        "mortgagee_name":            { "leaf": "mortgageeClause" },
+        "insured_location":          { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
       }
     },
     "1479": {
       "_doc_type": "Property Insurance / Homeowners Policy",
-      "_note": "the actual homeowners POLICY classifies HERE (not 1561) on the ai-only path (confirmed loan 2606970588). Same fillable leaves as 1561 so routing to either category works. AWM policyNumber/coverage/effectiveDate/agent NOT extracted.",
+      "_note": "the actual homeowners POLICY classifies HERE (not 1561) on the ai-only path (confirmed loan 2606970588). TaskTile fix validated 2026-09-30 (job 13cd0dcc): policyNumber/effectiveDate/totalPremium/coverage.{dwelling,deductible,windHail}/agent.{name,phone,email}/mortgageeClause now extracted. Same spec as 1561. mortgagee_name holds the full mortgageeClause string.",
       "fields": {
-        "hazard_insurance_company": { "leaf": "company.name" },
-        "coverage_end_date":        { "leaf": "expirationDate", "validator": "date" },
-        "insured_location":         { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
+        "hazard_insurance_company":  { "leaf": "company.name" },
+        "policy_number":             { "leaf": "policyNumber" },
+        "coverage_start_date":       { "leaf": "effectiveDate",  "validator": "date" },
+        "coverage_end_date":         { "leaf": "expirationDate", "validator": "date" },
+        "hazard_insurance_premium":  { "leaf": "totalPremium" },
+        "hazard_insurance_coverage": { "leaf": "coverage.dwelling" },
+        "deductible":                { "leaf": "coverage.deductible" },
+        "wind_hail_deductible":      { "leaf": "coverage.windHail" },
+        "hazard_insurance_contact":  { "leaf": "agent.name" },
+        "hazard_insurance_phone":    { "leaf": "agent.phone" },
+        "agent_email":               { "leaf": "agent.email" },
+        "mortgagee_name":            { "leaf": "mortgageeClause" },
+        "insured_location":          { "leaf": ["propertyAddresses.[].address1", "propertyAddress.address1", "insuredLocation"] }
+      }
+    },
+    "538": {
+      "_doc_type": "Flood Certificate / Determination",
+      "_note": "TaskTile fix validated 2026-09-30 (job 99021b7f, loan 2608976334): floodZone + inSFHA restored after the a2643fae regression. Only these two map to existing processor slots (flood_zone is a GLOBAL key shared with appraisal/du/transmittal - cross-fills, no-clobber). communityNumber/mapPanel/mapDate/determinationDate/floodDeterminationNumber/orderNumber have NO processor field (Bucket A registry gap - not added per no-new-field policy).",
+      "fields": {
+        "flood_zone": { "leaf": "floodZone" },
+        "in_sfha":    { "leaf": "inSFHA" }
+      }
+    },
+    "1800": {
+      "_doc_type": "Flood Hazard Determination",
+      "_note": "ai-only classifies flood docs as either 538 or 1800; same leaves, so both carry the same spec (mirrors the 1561/1479 insurance duality). Only floodZone + inSFHA have processor slots.",
+      "fields": {
+        "flood_zone": { "leaf": "floodZone" },
+        "in_sfha":    { "leaf": "inSFHA" }
       }
     },
     "167": {
