@@ -207,6 +207,30 @@ def test_resolve_and_fill_homeowners_policy_1479_and_1561():
         assert f["insured_location"] == "264 Occidental Dr"
 
 
+def test_resolve_and_fill_cpl_address_flat_or_object():
+    # TaskTile's 2026-09-30 CPL fix returns settlementAgent.address as a FLAT
+    # STRING (was a nested object). Candidate leaf must handle both shapes.
+    flat = {"root_attachment_id": "cpl", "category_id": None, "metadata": {
+        "group_name": "Closing Protection Letter", "CPLDate": "2026-08-14",
+        "settlementAgent": {"name": "Fidelity National Title Company",
+                            "address": "3760 Kilroy Airport Way Ste 110, Long Beach, CA"}}}
+    df = {}
+    dfx.resolve_and_fill(df, {"documents": [flat]},
+                         {"cpl": "Closing Protection Letter"}, apply=True)
+    assert df["cpl_issue_date"]["value"] == "2026-08-14"
+    assert df["settlement_agent_name"]["value"] == "Fidelity National Title Company"
+    assert df["settlement_agent_address"]["value"].startswith("3760 Kilroy")
+
+    # legacy nested-object shape still works via the fallback candidate
+    obj = {"root_attachment_id": "cpl", "category_id": None, "metadata": {
+        "group_name": "Closing Protection Letter",
+        "settlementAgent": {"address": {"street": "1 Old Object Way"}}}}
+    df = {}
+    dfx.resolve_and_fill(df, {"documents": [obj]},
+                         {"cpl": "Closing Protection Letter"}, apply=True)
+    assert df["settlement_agent_address"]["value"] == "1 Old Object Way"
+
+
 def test_form_1040_routes_but_is_unmapped():
     # Cat 10 keeps its routing alias but has no field_map entry (0 leaves today).
     assert dfx.category_for_doc_type("Form 1040") == 10

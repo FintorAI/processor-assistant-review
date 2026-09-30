@@ -181,11 +181,11 @@
     },
     "167": {
       "_doc_type": "Closing Protection Letter",
-      "_note": "settlementAgent.address is an object; only .street maps cleanly.",
+      "_note": "TaskTile fix (2026-09-30, job 1aeea1db) restored fileNumber/lender/settlementAgent after the a2643fae regression. settlementAgent.address is now a FLAT STRING (was an object) - candidate leaf handles both shapes.",
       "fields": {
         "cpl_issue_date":          { "leaf": "CPLDate", "validator": "date" },
         "settlement_agent_name":   { "leaf": "settlementAgent.name" },
-        "settlement_agent_address": { "leaf": "settlementAgent.address.street" }
+        "settlement_agent_address": { "leaf": ["settlementAgent.address", "settlementAgent.address.street"] }
       }
     },
     "324": {

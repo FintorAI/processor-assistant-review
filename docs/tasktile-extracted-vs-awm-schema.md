@@ -170,18 +170,23 @@ Legend: ✅ data present · ⚠️ partial (some sub-fields or shape differs) ·
 
 ---
 
-## 167 — Closing Protection Letter  ❌ REGRESSED
+## 167 — Closing Protection Letter  ✅ FIXED (2026-09-30 retest, job `1aeea1db`)
 
-Was rich in 6e2a2c0d (settlementAgent.name = title company, `fileNumber`, property) — the fix **collapsed it**:
+Regressed in a2643fae (collapsed to CPLDate + issuingAgent); TaskTile pushed a fix and the
+**2026-09-30 retest restored the fields** (loan 2608976334, att `a34ea2a6`, job `1aeea1db-4190-489d-8302-d602828ecd4c`):
 
 | AWM schema field | Extracted? | Notes |
 |---|---|---|
-| `CPLDate` | ✅ | as `CPLDate` |
-| `issuingAgent` | ✅ | as `issuingAgent` |
-| `settlementAgent.*` / `fileNumber` / `property` | ❌ | **REGRESSED** — no longer returned (were present pre-fix) |
+| `CPLDate` | ✅ | `2026-08-14` |
+| `issuingAgent` | ✅ | `Fidelity National Insurance Company Title` (serves as the title underwriter) |
+| `fileNumber` | ✅ | **RESTORED** — `1500-2505564` |
+| `lender` | ✅ | **NEW** — `All Western Mortgage, Inc. ISAOA/ATIMA` |
+| `settlementAgent.{name,address,phone}` | ✅ | **RESTORED** — `Fidelity National Title Company` / `3760 Kilroy Airport Way…` / `310-620-5522` |
 
-**Net:** CPL is no longer a useful Issue-B source, but the ALTA now covers that directly. Demoted to bucket 3; monitor — `ai_only` shape is unstable run-to-run.
-⚠️ **Still open (raise with TaskTile):** collapsed to CPLDate + issuingAgent — `settlementAgent.*` / `fileNumber` / `property` **regressed** (bucket 3, fall back).
+**Net:** CPL is a useful settlement-agent source again. ⚠️ **Shape change:** `settlementAgent.address` is now a
+**flat string** (was a nested object) — the 167 field_map `settlement_agent_address` leaf was updated to a
+candidate list (`settlementAgent.address` | `settlementAgent.address.street`) so both shapes fill.
+No distinct `titleUnderwriter` key (use `issuingAgent`).
 
 ---
 
@@ -279,7 +284,7 @@ Scores + identity extract; tradelines still don't; SSN downgraded to last-4.
 
 *Degraded / partial:*
 6. ⚠️ **Credit (117) SSN downgraded** to last-4 only (was full SSN pre-fix) — confirm intended.
-7. ❌ **CPL (167) regressed** — down to `CPLDate` + `issuingAgent`. *(low priority — ALTA now covers escrow/file# directly)*
+7. ✅ **CPL (167) FIXED** — TaskTile restored `fileNumber` / `lender` / `settlementAgent.*` (2026-09-30 retest, job `1aeea1db`). Note `settlementAgent.address` is now a flat string; field_map updated. *(no distinct `titleUnderwriter` — use `issuingAgent`)*
 8. ⚠️ **UW Decision (352) sparse** — only `borrowers[]`; conditions/status not extracted.
 9. ⚠️ **ALTA (2168)** — `titleCharges[].paidTo` + empty `settlementAgent` sub-fields (`contact`/`email`/`stLicenseId`).
 10. ⚠️ **Purchase (200)** `sellerCreditAmount` — not present on tested contract; confirm.
