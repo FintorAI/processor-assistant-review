@@ -226,6 +226,25 @@ class ProcessorReviewStack(Stack):
         
 
         # One image for Lambda API + Fargate worker (command overridden per target).
+        # In CI (DOCKER_BUILD_CACHE truthy) reuse the buildx GitHub Actions layer
+        # cache so the expensive pip-install layer is skipped when requirements.txt
+        # is unchanged. Gated so local `cdk deploy` (no gha backend) isn't forced to
+        # export to a cache it can't reach.
+        _cache_on = os.environ.get("DOCKER_BUILD_CACHE", "").strip().lower() not in (
+            "",
+            "0",
+            "false",
+            "no",
+            "off",
+        )
+        _cache_kwargs: dict = {}
+        if _cache_on:
+            _cache_kwargs = {
+                "cache_from": [ecr_assets.DockerCacheOption(type="gha")],
+                "cache_to": ecr_assets.DockerCacheOption(
+                    type="gha", params={"mode": "max"}
+                ),
+            }
         agent_image = ecr_assets.DockerImageAsset(
             self,
             "AgentImage",
@@ -233,6 +252,7 @@ class ProcessorReviewStack(Stack):
             file="api/Dockerfile",
             exclude=IMAGE_EXCLUDE,
             platform=ecr_assets.Platform.LINUX_ARM64,
+            **_cache_kwargs,
         )
 
         # ── Fargate worker (long background runs) ────────────────────────────
