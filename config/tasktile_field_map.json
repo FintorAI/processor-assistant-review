@@ -98,7 +98,7 @@
       "_note": "leaves verified against real rns_ai_only manifests (flat AWM shape).",
       "fields": {
         "pa_purchase_price":       { "leaf": "purchasePrice" },
-        "pa_closing_date":         { "leaf": "closingDate", "validator": "date" },
+        "pa_closing_date":         { "leaf": ["closingDate", "settlementDate", "dateOfSettlement", "purchaseAgreement.closingDate", "settlement.date"], "validator": "date" },
         "pa_earnest_money":        { "leaf": "earnestMoney" },
         "pa_contract_date":        { "leaf": "datePrepared", "validator": "date" },
         "purchase_property_address": { "leaf": "propertyAddress.fullAddress" },

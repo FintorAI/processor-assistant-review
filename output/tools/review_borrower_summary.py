@@ -1044,6 +1044,12 @@ def review_borrower_summary(
                   f"Contract closing date ({purchase_closing_date_doc}).",
                   "Verify the estimated closing date matches the sales contract.",
                   docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
+        elif _pd and _ld and _pd == _ld:
+            _flag(flags, "2.1", "Closing Date Matches Purchase Contract", "info",
+                  f"Encompass estimated closing date ({_los_close}) matches the Purchase "
+                  f"Contract settlement/closing date ({purchase_closing_date_doc}).",
+                  "No action needed — closing date confirmed against the contract.",
+                  docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
         elif not _los_close:
             _flag(flags, "2.1", "Closing Date Missing in LOS", "warning",
                   f"Purchase Contract shows a closing date ({purchase_closing_date_doc}) but the "

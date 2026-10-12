@@ -268,6 +268,21 @@ def test_resolve_and_fill_cpl_address_flat_or_object():
     assert df["settlement_agent_address"]["value"] == "1 Old Object Way"
 
 
+def test_resolve_and_fill_purchase_settlement_date_variants():
+    # MD purchase contracts label the closing date "Date of Settlement". The
+    # ai-only shape is unstable, so pa_closing_date uses candidate leaves —
+    # closingDate (common) OR settlementDate / dateOfSettlement (MD variants).
+    base = {"root_attachment_id": "p", "category_id": None}
+    for md in ({"group_name": "Purchase", "closingDate": "2026-09-25"},
+               {"group_name": "Purchase", "settlementDate": "2026-09-25"},
+               {"group_name": "Purchase", "dateOfSettlement": "2026-09-25"},
+               {"group_name": "Purchase", "settlement": {"date": "2026-09-25"}}):
+        df = {}
+        dfx.resolve_and_fill(df, {"documents": [{**base, "metadata": md}]},
+                             {"p": "Purchase Agreement"}, apply=True)
+        assert df["pa_closing_date"]["value"] == "2026-09-25", md
+
+
 def test_form_1040_routes_but_is_unmapped():
     # Cat 10 keeps its routing alias but has no field_map entry (0 leaves today).
     assert dfx.category_for_doc_type("Form 1040") == 10

@@ -323,6 +323,7 @@ ai_only classified these differently from the filenames — trust the returned `
 | **1479** Property Insurance *(new cat)* | 2606970588 / `… Homeowners Insurance Policy` | ✅ **FULLY WIRED 2026-09-30** (retest job `13cd0dcc`) — company, policyType, expirationDate, effectiveDate, policyNumber, totalPremium, coverage.{dwelling,deductible,windHail}, agent.{name,phone,email}, mortgageeClause, owners[], propertyAddresses[]. field_map 1479 (=1561) fills 13 processor slots. |
 | **816 / 1838** issued MI cert | 2606970248 / `Mortgage Insurance Certificate.pdf` | ❌ **misclassified as 375 Identifying Documentations** — only borrowers[]; cert#/premium NOT extracted → raise with TaskTile |
 | **1** Business Tax Return | 2602958672 / `LLC Business Tax Return - 2024` | ❌ **misclassified as 2191 Form 1099-K** — only borrowers[]; corporation.name/financials NOT extracted → raise with TaskTile |
+| **200** Purchase Contract (MD "ratified AOS") | 2609979499 / `Ratified 139 Farm Rd.pdf` (job `48a782e3`) | ❌ **misclassified as 344 Pre Approval** — only `loanType`/`loanAmount`; no `closingDate`/`settlementDate`/price/address → raise with TaskTile. **Primary AWM/HIL extraction gets it right** (`pa_closing_date` fills), so the closing-date check works in prod; the rns_ai_only fallback cannot back it up for MD contracts until classification is fixed. |
 | **845** Passport | ❌ no source loan found in 80-loan scan | still open |
 
 > **Note:** the actual homeowners POLICY classified as **1479 Property Insurance**, not **1561 Evidence of Insurance**.
