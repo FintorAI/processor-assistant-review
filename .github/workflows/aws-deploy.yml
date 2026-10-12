@@ -99,6 +99,18 @@ jobs:
           npm install -g aws-cdk
           pip install -r infra/requirements.txt
 
+      # CDK invokes plain `docker build` (classic docker driver), which cannot
+      # export a gha cache. The containerd image store lets the default driver
+      # both export `--cache-to type=gha` AND keep the built image in the local
+      # store for CDK's subsequent ECR push. Without this the build fails with
+      # "Cache export is not supported for the docker driver."
+      - uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "features": { "containerd-snapshotter": true }
+            }
+
       # Native arm64 runner builds the ARM64 image directly — no QEMU needed.
       - uses: docker/setup-buildx-action@v3
 
