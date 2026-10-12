@@ -19,7 +19,12 @@ RUN apt-get update \
 
 COPY requirements.txt ./requirements.txt
 COPY api/requirements.txt ./api-requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt -r api-requirements.txt
+# Upgrade pip first: the base image ships pip 24.0, whose resolver dead-ends on
+# the langgraph-api/opentelemetry/protobuf graph (backtracks to langgraph-api
+# 0.11 + opentelemetry-proto<6.0 and fails). Modern pip finds the valid set
+# (langgraph-api 0.16 + opentelemetry 1.42 + protobuf 6.x).
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt -r api-requirements.txt
 
 # Agent code — layout mirrors langgraph.json entrypoints under output/
 COPY output/ ./output/
