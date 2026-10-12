@@ -1033,23 +1033,81 @@ def review_borrower_summary(
               f"{addr_val.get('normalized') or property_address}.",
               "No action needed — address matches Encompass / USPS.")
 
-    # §9.3 — Purchase closing date vs Encompass estimated closing date
-    if _is_purchase and purchase_closing_date_doc:
-        _los_close = est_closing_date_val or borrower_est_closing_date_val
-        _pd = _parse_date(purchase_closing_date_doc)
-        _ld = _parse_date(_los_close)
-        if _pd and _ld and _pd != _ld:
+    # §9.3 — Purchase closing date vs Encompass (763 Est Closing Date / 4114 Borrower
+    # Est Closing Date). Auto-fill policy — only ever WRITE a BLANK field, never
+    # overwrite a populated one:
+    #   • both blank            → seed BOTH from the purchase-contract date
+    #   • exactly one populated → copy the populated (Encompass-authoritative) value
+    #                             into the blank one (the contract value is used ONLY
+    #                             when no LOS closing date exists); confirm/warn vs contract
+    #   • both populated, equal → no write; confirm on match / warn on mismatch
+    #   • both populated, 763≠4114 → no write; warn to reconcile the two LOS fields
+    # Gated on a contract date being present; without one, the per-field empty
+    # warnings further below handle blanks unchanged.
+    _pd93 = _parse_date(purchase_closing_date_doc) if _is_purchase else None
+    if _pd93:
+        _d763 = _parse_date(est_closing_date_val)
+        _d4114 = _parse_date(borrower_est_closing_date_val)
+        _docs93 = _relevant_docs(state, "purchase_closing_date", "pa_closing_date")
+        _contract_str = str(purchase_closing_date_doc)
+        # Encompass is authoritative when it already holds a value; else seed from contract.
+        _auth_date = _d763 or _d4114 or _pd93
+        _auth_str = _auth_date.strftime("%m/%d/%Y")
+        _los_str = est_closing_date_val or borrower_est_closing_date_val or _auth_str
+
+        # Fill only blank field(s) — never overwrite a populated one.
+        _to_write = {}
+        if not _d763:
+            _to_write["763"] = _auth_str
+        if not _d4114:
+            _to_write["4114"] = _auth_str
+        _wrote = set()
+        if _to_write:
+            _n93 = len(flags)
+            _write_fields(loan_id, _to_write, "2.1", flags, state,
+                          labels={"763": "Est Closing Date",
+                                  "4114": "Borrower Est Closing Date"})
+            for _fid93 in _to_write:
+                if any(f.get("severity") == "info-overwrite"
+                       and f"Field {_fid93} set to" in f.get("details", "")
+                       for f in flags[_n93:]):
+                    _wrote.add(_fid93)
+            # Reflect successful writes into locals so downstream checks + the
+            # per-field empty warnings stay consistent within this run.
+            if "763" in _wrote:
+                est_closing_date_val = _to_write["763"]
+            if "4114" in _wrote:
+                borrower_est_closing_date_val = _to_write["4114"]
+
+        if not _d763 and not _d4114:
+            if _wrote:
+                _flag(flags, "2.1", "Closing Date Seeded from Purchase Contract", "info",
+                      f"Encompass 763/4114 were blank; seeded {sorted(_wrote)} from the Purchase "
+                      f"Contract settlement/closing date ({_contract_str}).",
+                      "Verify the seeded closing date is correct.", docs=_docs93)
+            else:
+                _flag(flags, "2.1", "Closing Date Missing in LOS", "warning",
+                      f"Purchase Contract shows a closing date ({_contract_str}) but the Encompass "
+                      f"estimated closing date (763/4114) is blank and could not be written.",
+                      "Enter the estimated closing date in Encompass.", docs=_docs93)
+        elif _d763 and _d4114 and _d763 != _d4114:
+            _flag(flags, "2.1", "Closing Dates Inconsistent (763 vs 4114)", "warning",
+                  f"Est Closing Date (763)={est_closing_date_val} and Borrower Est Closing Date "
+                  f"(4114)={borrower_est_closing_date_val} disagree with each other.",
+                  "Reconcile 763 and 4114 to the same closing date.", docs=_docs93)
+        elif _pd93 != _auth_date:
+            _fill_note = (f" Encompass is authoritative; filled the blank field {sorted(_wrote)} "
+                          f"with {_auth_str} (not the contract date)." if _wrote else "")
             _flag(flags, "2.1", "Closing Date vs Purchase Contract", "warning",
-                  f"Encompass estimated closing date ({_los_close}) differs from the Purchase "
-                  f"Contract closing date ({purchase_closing_date_doc}).",
-                  "Verify the estimated closing date matches the sales contract.",
-                  docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
-        elif not _los_close:
-            _flag(flags, "2.1", "Closing Date Missing in LOS", "warning",
-                  f"Purchase Contract shows a closing date ({purchase_closing_date_doc}) but the "
-                  f"Encompass estimated closing date (763/4114) is blank.",
-                  "Enter the estimated closing date in Encompass.",
-                  docs=_relevant_docs(state, "purchase_closing_date", "pa_closing_date"))
+                  f"Encompass estimated closing date ({_los_str}) differs from the Purchase "
+                  f"Contract closing date ({_contract_str}).{_fill_note}",
+                  "Verify the estimated closing date matches the sales contract.", docs=_docs93)
+        else:  # _pd93 == _auth_date
+            _fill_note = f" Filled blank field {sorted(_wrote)} to match." if _wrote else ""
+            _flag(flags, "2.1", "Closing Date Matches Purchase Contract", "info",
+                  f"Encompass estimated closing date ({_los_str}) matches the Purchase Contract "
+                  f"settlement/closing date ({_contract_str}).{_fill_note}",
+                  "No action needed — closing date confirmed against the contract.", docs=_docs93)
 
     # §9.3 — Purchase terms beyond price/closing date: seller credits, financing
     #   contingency, repairs, warranty, and fee allocation. There is no single LOS
