@@ -9,6 +9,11 @@ langgraph-cli[inmem]>=0.4.31
 langgraph-api>=0.11.0,<1.0.0
 langgraph-prebuilt>=1.1.0,<1.2.0
 langgraph-sdk>=0.4.4,<0.5.0
+# langgraph-api (>=0.11) requires protobuf 6.x, but its OpenTelemetry deps
+# otherwise resolve to opentelemetry-proto<1.42 which caps protobuf<6.0 →
+# ResolutionImpossible. Flooring protobuf to 6.x pins the OTel stack to
+# >=1.42 (which allows protobuf 6.x) and makes the deploy build resolvable.
+protobuf>=6.32.1,<7
 python-dotenv>=1.0.0
 requests>=2.31.0
 pydantic>=2.0.0

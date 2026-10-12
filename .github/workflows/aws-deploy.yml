@@ -33,7 +33,11 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Native arm64 host: the image/ECS/Lambda are all ARM64, so building here
+    # avoids the slow QEMU cross-emulation that dominated deploy time. If this
+    # runner label is ever unavailable, revert to `ubuntu-latest` and restore
+    # the `docker/setup-qemu-action` step below.
+    runs-on: ubuntu-24.04-arm
     environment: ${{ github.ref == 'refs/heads/main' && 'aws-prod' || 'aws-dev' }}
     steps:
       - uses: actions/checkout@v4
@@ -95,11 +99,25 @@ jobs:
           npm install -g aws-cdk
           pip install -r infra/requirements.txt
 
-      - uses: docker/setup-qemu-action@v3
+      # CDK invokes plain `docker build` (classic docker driver), which cannot
+      # export a gha cache. The containerd image store lets the default driver
+      # both export `--cache-to type=gha` AND keep the built image in the local
+      # store for CDK's subsequent ECR push. Without this the build fails with
+      # "Cache export is not supported for the docker driver."
+      - uses: docker/setup-docker-action@v4
         with:
-          platforms: arm64
+          daemon-config: |
+            {
+              "features": { "containerd-snapshotter": true }
+            }
 
+      # Native arm64 runner builds the ARM64 image directly — no QEMU needed.
       - uses: docker/setup-buildx-action@v3
+
+      # Exposes ACTIONS_RUNTIME_TOKEN / ACTIONS_CACHE_URL / ACTIONS_RESULTS_URL
+      # so buildx can read/write the GitHub Actions layer cache (type=gha) that
+      # the CDK DockerImageAsset uses when DOCKER_BUILD_CACHE is enabled.
+      - uses: crazy-max/ghaction-github-runtime@v3
 
       - name: CDK Deploy
         working-directory: infra
@@ -112,6 +130,10 @@ jobs:
         env:
           STAGE: ${{ steps.stage.outputs.stage }}
           REVIEW_STAGE: ${{ steps.stage.outputs.stage }}
+          # Docker layer cache for the CDK DockerImageAsset build (buildx gha
+          # backend). Kill-switch: set repo variable ENABLE_DOCKER_GHA_CACHE=0
+          # to disable without a code change.
+          DOCKER_BUILD_CACHE: ${{ vars.ENABLE_DOCKER_GHA_CACHE || '1' }}
           LANGSMITH_TRACING: "true"
           LANGSMITH_DEV_PROJECT: ${{ steps.stage.outputs.langsmith_dev_project }}
           LANGSMITH_PROD_PROJECT: ${{ steps.stage.outputs.langsmith_prod_project }}
