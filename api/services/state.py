@@ -98,12 +98,53 @@ def get_thread_state(thread_id: str, *, assistant_id: str | None = None) -> dict
     return _serialize_snapshot(snapshot)
 
 
+def _messages_from_wire(values: dict[str, Any]) -> dict[str, Any]:
+    """Rebuild ``messages`` from the Platform's JSON dicts.
+
+    The default dict coercion keeps only content/tool_calls and moves every other
+    field (``usage_metadata``, ``invalid_tool_calls``, ...) into ``additional_kwargs``.
+    """
+    from langchain_core.messages import messages_from_dict
+
+    raw = values.get("messages")
+    if not isinstance(raw, list) or not all(isinstance(m, dict) and "type" in m for m in raw):
+        return values
+    return {**values, "messages": messages_from_dict([{"type": m["type"], "data": m} for m in raw])}
+
+
+def _as_node_for_next(graph: Any, values: dict[str, Any], target_next: list[str]) -> str:
+    """The node to write ``values`` as so the thread's ``next`` equals ``target_next``.
+
+    ``update_state`` without ``as_node`` leaves the thread pending at the graph's first
+    node. Which node yields a given ``next`` depends on the graph's edges and the state
+    (e.g. tool calls on the last AI message), so each candidate is tried on an
+    in-memory copy of the graph; nothing is written to the real checkpointer here.
+    """
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    probe = graph.copy(update={"checkpointer": InMemorySaver()})
+    want = sorted(target_next)
+    for node in probe.get_graph().nodes:
+        if node.startswith("__"):
+            continue
+        cfg = {"configurable": {"thread_id": f"probe-{node}"}}
+        try:
+            probe.update_state(cfg, values, as_node=node)
+        except Exception:  # noqa: BLE001 - not a valid writer for this state
+            continue
+        if sorted(probe.get_state(cfg).next) == want:
+            return node
+    raise ValueError(f"no node reproduces next={target_next}")
+
+
 def import_thread_state(
     thread_id: str,
     values: dict[str, Any],
     *,
     assistant_id: str | None = None,
     as_node: str | None = None,
+    next_nodes: list[str] | None = None,
+    replace: bool = False,
 ) -> dict[str, Any]:
     """Write a migrated head state into the checkpointer.
 
@@ -112,15 +153,25 @@ def import_thread_state(
     ``GET /threads/{id}/state`` returns the prior run for display and the thread
     remains resumable. ``graph.update_state`` writes through the configured
     checkpointer, so payloads over the DynamoDB item limit auto-offload to S3
-    (see ``api.checkpointer``). ``as_node`` is normally inferred; pass it only if
-    the graph reports an ambiguous entry.
+    (see ``api.checkpointer``).
+
+    ``next_nodes`` is the source thread's ``next``; the write is made as the node that
+    reproduces it. ``replace`` deletes the thread's existing checkpoints first: writing
+    on top of them would run the reducers again and double append-only fields such as
+    ``field_writes_ledger``.
     """
     aid = _assistant_for_thread(thread_id, assistant_id)
-    if get_checkpointer() is None:
+    checkpointer = get_checkpointer()
+    if checkpointer is None:
         raise RuntimeError(
             "Thread import requires a configured checkpointer (CHECKPOINT_TABLE_NAME)"
         )
     graph = build_graph(aid, with_checkpointer=True)
+    values = _messages_from_wire(values)
+    if as_node is None and next_nodes is not None:
+        as_node = _as_node_for_next(graph, values, next_nodes)
+    if replace:
+        checkpointer.delete_thread(thread_id)
     config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
     graph.update_state(config, values, as_node=as_node)
     return _serialize_snapshot(graph.get_state(config))
