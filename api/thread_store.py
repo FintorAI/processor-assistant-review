@@ -66,6 +66,10 @@ class ThreadStore:
     def get(self, thread_id: str) -> dict[str, Any] | None:
         raise NotImplementedError
 
+    def delete(self, thread_id: str) -> None:
+        """Remove the thread record and all its run records (not checkpoints)."""
+        raise NotImplementedError
+
     def set_status(self, thread_id: str, status: str) -> None:
         raise NotImplementedError
 
@@ -164,6 +168,11 @@ class InMemoryThreadStore(ThreadStore):
     def get(self, thread_id: str) -> dict[str, Any] | None:
         record = self._threads.get(thread_id)
         return _public(record, _THREAD_FIELDS) if record else None
+
+    def delete(self, thread_id: str) -> None:
+        self._threads.pop(thread_id, None)
+        for key in [k for k in self._runs if k[0] == thread_id]:
+            del self._runs[key]
 
     def set_status(self, thread_id: str, status: str) -> None:
         record = self._threads.get(thread_id)
@@ -302,6 +311,22 @@ class DynamoDBThreadStore(ThreadStore):
         resp = self._table.get_item(Key=self._thread_key(thread_id))
         item = resp.get("Item")
         return _public(item, _THREAD_FIELDS) if item else None
+
+    def delete(self, thread_id: str) -> None:
+        from boto3.dynamodb.conditions import Key
+
+        pk = f"THREAD#{thread_id}"
+        query: dict[str, Any] = {"KeyConditionExpression": Key("PK").eq(pk), "ProjectionExpression": "PK, SK"}
+        with self._table.batch_writer() as batch:
+            while True:
+                resp = self._table.query(**query)
+                for item in resp.get("Items", []):
+                    sk = item["SK"]
+                    if sk == "METADATA" or sk.startswith("RUN#"):
+                        batch.delete_item(Key={"PK": pk, "SK": sk})
+                if "LastEvaluatedKey" not in resp:
+                    break
+                query["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
     def set_status(self, thread_id: str, status: str) -> None:
         self._table.update_item(
