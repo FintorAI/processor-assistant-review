@@ -136,5 +136,11 @@ Done on prod (Nov 5):
 - Split rerun (still 69 prod threads); the 69 imported into the prod Lambda (largest payload 1.19 MB); `compare_threads.py --ids thread-ids-main.txt` reports 69/69 exact, none missing.
 
 Remaining:
-1. Dashboard-Officer: `VITE_REVIEW_API_KEY` change (browser `processor-review.service.ts`, `invokeProcessorReviewAgent`, `cancelReviewRun`).
-2. Cutover per environment as above (split, `--only-missing`, compare right before each switch); delete the Cloud deployment after the rollback window.
+
+- [ ] **Dashboard-Officer PR: review-specific API key.** Read `VITE_REVIEW_API_KEY || VITE_LANGSMITH_API_KEY` wherever the review agent is called. Unset, it falls back to today's key, so merging it changes nothing and Cloud keeps working. Other agents keep reading `VITE_LANGSMITH_API_KEY`. Call sites:
+  - browser: `src/services/processor-review.service.ts` (key getter, line 55) and the "key not set" warning in `src/features/processor-assistant/review/process/index.tsx`
+  - Lambdas: `invokeProcessorReviewAgent` and `cancelReviewRun` (`resource.ts` each, plus `amplify/backend.ts` ~line 915, which sets `LANGSMITH_API_KEY` on `invokeProcessorReviewAgent`)
+  - check: `src/lib/langgraph/copilotkit-config.ts` (uses the review URL; confirm which key it sends) and `reviewRunWebhook` (likely Lambda → dashboard, not affected)
+  - keys: dev and prod Lambdas already have separate `API_KEY`s (GitHub environments `aws-dev` / `aws-prod`, each its own Secrets Manager secret), so each Amplify branch gets its own Lambda's key
+- [ ] **Cutover per environment**, dev first: split, `--only-missing`, compare right before the switch. Then set `VITE_REVIEW_DEPLOYMENT_URL` **and** `VITE_REVIEW_API_KEY` together in that Amplify branch (the Lambda key against the Cloud URL gets a 403), redeploy, and finish one new run. Rollback: clear both.
+- [ ] Delete the Cloud deployment after the rollback window.
