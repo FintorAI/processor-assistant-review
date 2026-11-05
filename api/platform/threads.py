@@ -80,6 +80,8 @@ async def import_thread(body: ThreadImport):
                 body.values,
                 assistant_id=assistant_id,
                 as_node=body.as_node,
+                next_nodes=body.next,
+                replace=bool(existing),
             )
             result["state_written"] = True
         except Exception as exc:  # noqa: BLE001 - reported per-thread, not fatal
