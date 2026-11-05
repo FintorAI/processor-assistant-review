@@ -10,6 +10,7 @@ from api.platform.models import (
     ThreadImport,
     ThreadSearch,
 )
+from api.checkpointer import get_checkpointer
 from api.registry import DEFAULT_ASSISTANT_ID, validate_assistant_id
 from api.services.state import get_thread_history, get_thread_state, import_thread_state
 from api.thread_store import get_thread_store
@@ -80,6 +81,8 @@ async def import_thread(body: ThreadImport):
                 body.values,
                 assistant_id=assistant_id,
                 as_node=body.as_node,
+                next_nodes=body.next,
+                replace=bool(existing),
             )
             result["state_written"] = True
         except Exception as exc:  # noqa: BLE001 - reported per-thread, not fatal
@@ -104,6 +107,25 @@ async def get_thread(thread_id: str):
     if not record:
         raise HTTPException(status_code=404, detail="Thread not found")
     return record
+
+
+@router.delete("/threads/{thread_id}", status_code=204)
+async def delete_thread(thread_id: str):
+    """Delete a thread: its checkpoints, run records and thread record.
+
+    Used to remove threads imported into the wrong environment. A busy thread
+    is refused so a running worker can't write checkpoints after the delete.
+    """
+    store = get_thread_store()
+    record = store.get(thread_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if record.get("status") == "busy":
+        raise HTTPException(status_code=409, detail="Thread has a run in progress")
+    checkpointer = get_checkpointer()
+    if checkpointer is not None:
+        checkpointer.delete_thread(thread_id)
+    store.delete(thread_id)
 
 
 @router.get("/threads/{thread_id}/state")

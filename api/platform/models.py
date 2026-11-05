@@ -40,7 +40,11 @@ class ThreadImport(BaseModel):
     values: dict[str, Any] | None = None
     # Re-import over an already-present thread (default: skip to stay idempotent).
     overwrite: bool = False
-    # Normally inferred; set only if update_state reports an ambiguous entry node.
+    # The source thread's ``next`` from ``GET /state``. When given, the import picks the
+    # ``as_node`` that reproduces it (``[]`` for a finished run), so the thread doesn't
+    # look pending from the graph's first node.
+    next: list[str] | None = None
+    # Explicit override; wins over ``next``.
     as_node: str | None = None
 
 
