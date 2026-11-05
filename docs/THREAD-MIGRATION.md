@@ -113,7 +113,7 @@ From `LANGSMITH-COST-PLAN.md` bucket 3. "Route" means `POST /threads/import` and
 
 | Deployment | AWS side today | Route | Notes |
 |---|---|---|---|
-| processor-assistant-review | Lambda dev + prod | Done (dev); prod via PR #64 | 138 Cloud threads: 45 dev (migrated, 45/45), 69 prod, 24 unreferenced. Prod still creating threads on Cloud (latest Nov 4) |
+| processor-assistant-review | Lambda dev + prod | Done | 138 Cloud threads: 45 dev (45/45), 69 prod (69/69), 24 unreferenced (skipped). Cutover pending. Prod still creating threads on Cloud (latest Nov 4) |
 | LG-BlendExtractionCUA | Confirm Lambda + checkpointer | None | CUA state may be large; check sizes in the dry run |
 | processor-assistant-document-management | Lambda exists | None | 602 October runs: check which graphs are stateless |
 | processor-assistant-communications | Lambda exists | None | |
@@ -131,6 +131,10 @@ Done on dev (Nov 5):
 - The 64 non-dev threads (44 prod, 20 unreferenced) that the first import put in the dev Lambda are deleted.
 - The 45 dev threads are re-imported; `compare_threads.py --ids thread-ids-dev.txt` reports 45/45 exact, none missing.
 
-1. Merge [PR #64](https://github.com/FintorAI/processor-assistant-review/pull/64) (`dev` → `main`) to deploy the routes to prod. Then rerun the split (prod still creates threads on Cloud), import `thread-ids-main.txt` into the prod Lambda with its key, and compare.
-2. Dashboard-Officer: `VITE_REVIEW_API_KEY` change (browser `processor-review.service.ts`, `invokeProcessorReviewAgent`, `cancelReviewRun`).
-3. Cutover per environment as above; delete the Cloud deployment after the rollback window.
+Done on prod (Nov 5):
+- [PR #64](https://github.com/FintorAI/processor-assistant-review/pull/64) (`dev` → `main`) merged and deployed.
+- Split rerun (still 69 prod threads); the 69 imported into the prod Lambda (largest payload 1.19 MB); `compare_threads.py --ids thread-ids-main.txt` reports 69/69 exact, none missing.
+
+Remaining:
+1. Dashboard-Officer: `VITE_REVIEW_API_KEY` change (browser `processor-review.service.ts`, `invokeProcessorReviewAgent`, `cancelReviewRun`).
+2. Cutover per environment as above (split, `--only-missing`, compare right before each switch); delete the Cloud deployment after the rollback window.
