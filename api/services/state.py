@@ -112,6 +112,26 @@ def _messages_from_wire(values: dict[str, Any]) -> dict[str, Any]:
     return {**values, "messages": messages_from_dict([{"type": m["type"], "data": m} for m in raw])}
 
 
+def _bypass_reducers(graph: Any, values: dict[str, Any]) -> dict[str, Any]:
+    """Wrap values of reducer channels in ``Overwrite`` so they are stored as given.
+
+    Reducers also normalise what they merge (``dedupe_flags`` adds ``substep_name``,
+    ``truncate_messages`` trims), so an imported value would otherwise differ from the
+    source. Only channels that start with a value (e.g. ``[]``) run their reducer on an
+    import, which always writes into an empty thread; a channel that starts empty stores
+    its first write raw, ``Overwrite`` wrapper included. Plain last-value channels store
+    as given anyway.
+    """
+    from langgraph.channels.binop import BinaryOperatorAggregate
+    from langgraph.types import Overwrite
+
+    reducers = {
+        k for k, ch in graph.channels.items()
+        if isinstance(ch, BinaryOperatorAggregate) and ch.is_available()
+    }
+    return {k: Overwrite(v) if k in reducers else v for k, v in values.items()}
+
+
 def _as_node_for_next(graph: Any, values: dict[str, Any], target_next: list[str]) -> str:
     """The node to write ``values`` as so the thread's ``next`` equals ``target_next``.
 
@@ -156,9 +176,9 @@ def import_thread_state(
     (see ``api.checkpointer``).
 
     ``next_nodes`` is the source thread's ``next``; the write is made as the node that
-    reproduces it. ``replace`` deletes the thread's existing checkpoints first: writing
-    on top of them would run the reducers again and double append-only fields such as
-    ``field_writes_ledger``.
+    reproduces it. Reducer channels are written with ``Overwrite`` so values are stored
+    exactly as the source had them. ``replace`` deletes the thread's existing checkpoints
+    first, so the imported state has no history from earlier imports.
     """
     aid = _assistant_for_thread(thread_id, assistant_id)
     checkpointer = get_checkpointer()
@@ -167,7 +187,7 @@ def import_thread_state(
             "Thread import requires a configured checkpointer (CHECKPOINT_TABLE_NAME)"
         )
     graph = build_graph(aid, with_checkpointer=True)
-    values = _messages_from_wire(values)
+    values = _bypass_reducers(graph, _messages_from_wire(values))
     if as_node is None and next_nodes is not None:
         as_node = _as_node_for_next(graph, values, next_nodes)
     if replace:

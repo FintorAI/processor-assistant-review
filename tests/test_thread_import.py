@@ -54,6 +54,12 @@ def test_reimport_with_replace_does_not_double_append_only_fields(import_state):
     assert len(snap["values"]["messages"]) == 2
 
 
+def test_reducers_do_not_rewrite_imported_values(import_state):
+    flag = {"substep": "1.1", "title": "Missing doc", "resolved": False, "timestamp": "2026-08-01T00:00:00+00:00"}
+    snap = import_state("t-flags", {**_cloud_values(), "flags": [dict(flag)]}, assistant_id="review", next_nodes=[])
+    assert snap["values"]["flags"] == [flag]
+
+
 def test_unreachable_next_is_an_error(import_state):
     with pytest.raises(ValueError, match="no node reproduces"):
         import_state("t-bad", _cloud_values(), assistant_id="review", next_nodes=["not-a-node"])
