@@ -122,15 +122,21 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=Path("/tmp/thread-compare-report.json"))
     ap.add_argument("--skip-graph", action="append", default=[],
                     help="graph_id whose threads aren't migrated (stateless on the Lambda); repeatable")
+    ap.add_argument("--ids", type=Path,
+                    help="file of thread ids, one per line: the Cloud threads this Lambda should hold")
     args = ap.parse_args()
 
     cloud = Api("cloud", "CLOUD_URL", "CLOUD_API_KEY")
     lam = Api("lambda", "LAMBDA_URL", "LAMBDA_API_KEY")
     cloud_ids, lambda_ids = cloud.all_thread_ids(), lam.all_thread_ids()
+    if args.ids:
+        wanted = {line.strip() for line in args.ids.read_text().splitlines() if line.strip()}
+        cloud_ids = [t for t in cloud_ids if t in wanted]
     only_lambda = sorted(set(lambda_ids) - set(cloud_ids))
     to_check = cloud_ids[: args.sample] if args.sample else cloud_ids
     print(f"cloud threads: {len(cloud_ids)}, lambda threads: {len(lambda_ids)}, "
-          f"lambda-only (started after import): {len(only_lambda)}; comparing {len(to_check)}")
+          f"lambda-only (started after import, or outside --ids): {len(only_lambda)}; "
+          f"comparing {len(to_check)}")
 
     with ThreadPoolExecutor(args.workers) as pool:
         results = list(pool.map(lambda t: compare(t, cloud, lam), to_check))
