@@ -27,6 +27,7 @@ import uuid
 from typing import Any, Iterator
 
 from api.platform.sse import (
+    _json_default,
     format_end_event,
     format_error_event,
     format_metadata_event,
@@ -337,14 +338,15 @@ def _fire_run_webhook(
         "values": values,
         "error": error,
     }
-    data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
-        webhook_url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
     try:
+        # Thread values hold LangChain message objects (pydantic models).
+        data = json.dumps(body, default=_json_default).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         with urllib.request.urlopen(req, timeout=30) as resp:
             logger.info(
                 "Webhook POST %s → HTTP %s (run %s status=%s)",
